@@ -13,19 +13,57 @@
 #endif
 
 #ifndef XX_NOINLINE
-#ifndef NDEBUG
-#define XX_NOINLINE
-#define XX_FORCE_INLINE
-#else
-#ifdef _MSC_VER
-#define XX_NOINLINE __declspec(noinline)
-#define XX_FORCE_INLINE __forceinline
-#else
-#define XX_NOINLINE __attribute__((noinline))
-#define XX_FORCE_INLINE __attribute__((always_inline))
+#   ifndef NDEBUG
+#       define XX_NOINLINE
+#       define XX_FORCE_INLINE
+#   else
+#       ifdef _MSC_VER
+#           define XX_NOINLINE __declspec(noinline)
+#           define XX_FORCE_INLINE __forceinline
+#       else
+#           define XX_NOINLINE __attribute__((noinline))
+#           define XX_FORCE_INLINE __attribute__((always_inline))
+#       endif
+#   endif
 #endif
+
+#ifndef _WIN32
+#include <arpa/inet.h>
 #endif
+#if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
+#   if __BYTE_ORDER == __LITTLE_ENDIAN
+#       define __LITTLE_ENDIAN__
+#   elif __BYTE_ORDER == __BIG_ENDIAN
+#       define __BIG_ENDIAN__
+#   elif _WIN32
+#       define __LITTLE_ENDIAN__
+#   endif
 #endif
+
+#define XX_DATA_BE_LE_COPY( a, b, T ) \
+if constexpr(sizeof(T) == 1) { \
+    a[0] = b[0]; \
+} \
+if constexpr(sizeof(T) == 2) { \
+    a[0] = b[1]; \
+    a[1] = b[0]; \
+} \
+if constexpr(sizeof(T) == 4) { \
+    a[0] = b[3]; \
+    a[1] = b[2]; \
+    a[2] = b[1]; \
+    a[3] = b[0]; \
+} \
+if constexpr(sizeof(T) == 8) { \
+    a[0] = b[7]; \
+    a[1] = b[6]; \
+    a[2] = b[5]; \
+    a[3] = b[4]; \
+    a[4] = b[3]; \
+    a[5] = b[2]; \
+    a[6] = b[1]; \
+    a[7] = b[0]; \
+}
 
 namespace xx {
 
@@ -149,6 +187,8 @@ namespace xx {
 
         /***************************************************************************************************************************/
 
+
+
         // 追加写入一段 buf
         template<bool needReserve = true>
         XX_FORCE_INLINE void WriteBuf(void const *const &ptr, size_t const &siz) {
@@ -161,21 +201,6 @@ namespace xx {
             len += siz;
         }
 
-        // 追加写入一段 pod 结构内存
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_pod_v<T>>>
-        [[maybe_unused]] XX_FORCE_INLINE void WriteFixed(T const &v) {
-            if constexpr (sizeof(T) == 1) {
-                if constexpr (needReserve) {
-                    if (len + 1 > cap) {
-                        Reserve<false>(len + 1);
-                    }
-                }
-                buf[len++] = *(uint8_t *) &v;
-            } else {
-                WriteBuf<needReserve>(&v, sizeof(T));
-            }
-        }
-
         // 在指定 idx 写入一段 buf
         [[maybe_unused]] XX_FORCE_INLINE void WriteBufAt(size_t const &idx, void const *const &ptr, size_t const &siz) {
             if (idx + siz > len) {
@@ -184,18 +209,88 @@ namespace xx {
             memcpy(buf + idx, ptr, siz);
         }
 
-        // 在指定 idx 写入定长数据
-        template<typename T, typename = std::enable_if_t<std::is_pod_v<T>>>
+
+
+        // 追加写入 float / double / integer ( 定长 Little Endian )
+        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixed(T const &v) {
+            if constexpr (needReserve) {
+                if (len + 1 > cap) {
+                    Reserve<false>(len + 1);
+                }
+            }
+
+#ifdef __BIG_ENDIAN__
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(buf + len, &v, sizeof(T));
+            }
+            else {
+                XX_DATA_BE_LE_COPY( (buf + len),  ((uint8_t *)&v), T )
+            }
+#else
+            memcpy(buf + len, &v, sizeof(T));
+#endif
+            len += sizeof(T);
+        }
+
+        // 在指定 idx 写入 float / double / integer ( 定长 Little Endian )
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteFixedAt(size_t const &idx, T const &v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
             }
-            if constexpr (sizeof(T) == 1) {
-                buf[len++] = *(uint8_t *) &v;
-            } else {
-                memcpy(buf + idx, &v, sizeof(T));
+#ifdef __BIG_ENDIAN__
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(buf + len, &v, sizeof(T));
             }
+            else {
+                XX_DATA_BE_LE_COPY( (buf + idx),  ((uint8_t *)&v), T )
+            }
+#else
+            memcpy(buf + len, &v, sizeof(T));
+#endif
         }
+
+        // 追加写入 float / double / integer ( 定长 Big Endian )
+        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixedBE(T const &v) {
+            if constexpr (needReserve) {
+                if (len + sizeof(T) > cap) {
+                    Reserve<false>(len + sizeof(T));
+                }
+            }
+#ifdef __BIG_ENDIAN__
+            memcpy(buf + len, &v, sizeof(T));
+#else
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(buf + len, &v, sizeof(T));
+            }
+            else {
+                XX_DATA_BE_LE_COPY( (buf + len),  ((uint8_t *)&v), T )
+            }
+#endif
+            len += sizeof(T);
+        }
+
+        // 在指定 idx 写入 float / double / integer ( 定长 Big Endian )
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixedBEAt(size_t const &idx, T const &v) {
+            if (idx + sizeof(T) > len) {
+                Resize(sizeof(T) + idx);
+            }
+#ifdef __BIG_ENDIAN__
+            memcpy(&v, buf + idx, sizeof(T));
+#else
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(buf + len, &v, sizeof(T));
+            }
+            else {
+                XX_DATA_BE_LE_COPY( (buf + idx),  ((uint8_t *)&v), T )
+            }
+#endif
+        }
+
+
 
         // 追加写入整数( 7bit 变长格式 )
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_integral_v<T>>>
@@ -217,6 +312,8 @@ namespace xx {
             buf[len++] = uint8_t(u);
         }
 
+
+
         // 跳过指定长度字节数不写。返回起始 len
         template<bool needReserve = true>
         [[maybe_unused]] XX_FORCE_INLINE size_t WriteJump(size_t const &siz) {
@@ -230,10 +327,9 @@ namespace xx {
             return bak;
         }
 
-
         /***************************************************************************************************************************/
 
-        // 读指定长度 buf 到 tar. 返回非 0 则读取失败
+        // 读 定长buf 到 tar. 返回非 0 则读取失败
         XX_FORCE_INLINE [[nodiscard]] int ReadBuf(void *const &tar, size_t const &siz) {
             if (offset + siz > len) return __LINE__;
             memcpy(tar, buf + offset, siz);
@@ -241,9 +337,18 @@ namespace xx {
             return 0;
         }
 
-        // 定长读. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_pod_v<T>>>
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadFixed(T &v) {
+        // 从指定下标 读 定长buf. 不改变 offset. 返回非 0 则读取失败
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
+            if (idx + siz >= len) return __LINE__;
+            memcpy(tar, buf + idx, siz);
+            return 0;
+        }
+
+
+
+        // 读 定长小尾数字. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixed(T &v) {
             if constexpr (sizeof(T) == 1) {
                 if (offset == len) return __LINE__;
                 v = *(T *) (buf + offset);
@@ -254,16 +359,9 @@ namespace xx {
             }
         }
 
-        // 从指定下标读指定长度. 不改变 offset. 返回非 0 则读取失败
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
-            if (idx + siz >= len) return __LINE__;
-            memcpy(tar, buf + idx, siz);
-            return 0;
-        }
-
-        // 从指定下标定长读. 不改变 offset. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_pod_v<T>>>
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadFixedAt(size_t const &idx, T &v) {
+        // 从指定下标 读 定长小尾数字. 不改变 offset. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) >= len) return __LINE__;
             if constexpr (sizeof(T) == 1) {
                 v = *(T *) (buf + idx);
@@ -273,9 +371,45 @@ namespace xx {
             return 0;
         }
 
-        // 变长读. 返回非 0 则读取失败
+
+        // 读 定长大尾数字. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedBE(T &v) {
+            if (offset + sizeof(T) >= len) return __LINE__;
+#ifdef __BIG_ENDIAN__
+            memcpy(&v, buf + offset, sizeof(T));
+#else
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(&v, buf + offset, sizeof(T));
+            }
+            else {
+                XX_DATA_BE_LE_COPY( ((uint8_t *)&v), (buf + offset),  T )
+            }
+#endif
+            return 0;
+        }
+
+        // 从指定下标 读 定长大尾数字. 不改变 offset. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedBEAt(size_t const &idx, T &v) {
+            if (idx + sizeof(T) >= len) return __LINE__;
+#ifdef __BIG_ENDIAN__
+            memcpy(&v, buf + offset, sizeof(T));
+#else
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(&v, buf + idx, sizeof(T));
+            }
+            else {
+                XX_DATA_BE_LE_COPY( ((uint8_t *)&v), (buf + idx),  T )
+            }
+#endif
+            return 0;
+        }
+
+
+        // 读 变长整数. 返回非 0 则读取失败
         template<typename T>
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadVarInteger(T &v) {
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadVarInteger(T &v) {
             using UT = std::make_unsigned_t<T>;
             UT u(0);
             for (size_t shift = 0; shift < sizeof(T) * 8; shift += 7) {

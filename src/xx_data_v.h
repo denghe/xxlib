@@ -70,7 +70,7 @@ namespace xx {
 
         /***************************************************************************************************************************/
 
-        // 读指定长度 buf 到 tar. 返回非 0 则读取失败
+        // 读 定长buf 到 tar. 返回非 0 则读取失败
         XX_FORCE_INLINE [[nodiscard]] int ReadBuf(void *const &tar, size_t const &siz) {
             if (offset + siz > len) return __LINE__;
             memcpy(tar, buf + offset, siz);
@@ -78,9 +78,18 @@ namespace xx {
             return 0;
         }
 
-        // 定长读. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_pod_v<T>>>
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadFixed(T &v) {
+        // 从指定下标 读 定长buf. 不改变 offset. 返回非 0 则读取失败
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
+            if (idx + siz >= len) return __LINE__;
+            memcpy(tar, buf + idx, siz);
+            return 0;
+        }
+
+
+
+        // 读 定长小尾数字. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixed(T &v) {
             if constexpr (sizeof(T) == 1) {
                 if (offset == len) return __LINE__;
                 v = *(T *) (buf + offset);
@@ -91,16 +100,9 @@ namespace xx {
             }
         }
 
-        // 从指定下标读指定长度. 不改变 offset. 返回非 0 则读取失败
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
-            if (idx + siz >= len) return __LINE__;
-            memcpy(tar, buf + idx, siz);
-            return 0;
-        }
-
-        // 从指定下标定长读. 不改变 offset. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_pod_v<T>>>
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadFixedAt(size_t const &idx, T &v) {
+        // 从指定下标 读 定长小尾数字. 不改变 offset. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) >= len) return __LINE__;
             if constexpr (sizeof(T) == 1) {
                 v = *(T *) (buf + idx);
@@ -110,9 +112,45 @@ namespace xx {
             return 0;
         }
 
-        // 变长读. 返回非 0 则读取失败
+
+        // 读 定长大尾数字. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedBE(T &v) {
+            if (offset + sizeof(T) >= len) return __LINE__;
+#ifdef __BIG_ENDIAN__
+            memcpy(&v, buf + offset, sizeof(T));
+#else
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(&v, buf + offset, sizeof(T));
+            }
+            else {
+                XX_DATA_BE_LE_COPY( ((uint8_t *)&v), (buf + offset),  T )
+            }
+#endif
+            return 0;
+        }
+
+        // 从指定下标 读 定长大尾数字. 不改变 offset. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedBEAt(size_t const &idx, T &v) {
+            if (idx + sizeof(T) >= len) return __LINE__;
+#ifdef __BIG_ENDIAN__
+            memcpy(&v, buf + offset, sizeof(T));
+#else
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(&v, buf + idx, sizeof(T));
+            }
+            else {
+                XX_DATA_BE_LE_COPY( ((uint8_t *)&v), (buf + idx),  T )
+            }
+#endif
+            return 0;
+        }
+
+
+        // 读 变长整数. 返回非 0 则读取失败
         template<typename T>
-        [[maybe_unused]] XX_FORCE_INLINE [[nodiscard]] int ReadVarInteger(T &v) {
+        [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadVarInteger(T &v) {
             using UT = std::make_unsigned_t<T>;
             UT u(0);
             for (size_t shift = 0; shift < sizeof(T) * 8; shift += 7) {
