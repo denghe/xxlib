@@ -1,5 +1,4 @@
 ﻿#include "xx_data.h"
-#include "xx_data_v.h"
 
 int main() {
     xx::Data d;
@@ -37,6 +36,7 @@ int main() {
         int r = dv.ReadFixed(v);
         assert(r == 0);
         assert(v == 0x04030201u);
+        assert(dv.offset == 4);
     }
 
     {
@@ -49,6 +49,7 @@ int main() {
         int r = dv.ReadFixedBE(v);
         assert(r == 0);
         assert(v == 0x01020304u);
+        assert(dv.offset == 4);
     }
 
     return 0;
