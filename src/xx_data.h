@@ -7,7 +7,7 @@
 
 #ifdef _WIN32
 
-#include <intrin.h>     // _BitScanReverse[64]
+#include <intrin.h>     // _BitScanReverse[64] _byteswap_ushort _byteswap_ulong _byteswap_uint64
 #include <objbase.h>
 
 #endif
@@ -38,33 +38,6 @@
 #   elif _WIN32
 #       define __LITTLE_ENDIAN__
 #   endif
-#endif
-
-#ifndef XX_DATA_BE_LE_COPY
-#define XX_DATA_BE_LE_COPY(a, b, T) \
-if constexpr(sizeof(T) == 1) { \
-    a[0] = b[0]; \
-} \
-if constexpr(sizeof(T) == 2) { \
-    a[0] = b[1]; \
-    a[1] = b[0]; \
-} \
-if constexpr(sizeof(T) == 4) { \
-    a[0] = b[3]; \
-    a[1] = b[2]; \
-    a[2] = b[1]; \
-    a[3] = b[0]; \
-} \
-if constexpr(sizeof(T) == 8) { \
-    a[0] = b[7]; \
-    a[1] = b[6]; \
-    a[2] = b[5]; \
-    a[3] = b[4]; \
-    a[4] = b[3]; \
-    a[5] = b[2]; \
-    a[6] = b[1]; \
-    a[7] = b[0]; \
-}
 #endif
 
 namespace xx {
@@ -111,6 +84,21 @@ namespace xx {
             return buf[idx];
         }
 
+        // 数字字节序交换( 浮点例外 )
+        template<typename T>
+        XX_FORCE_INLINE static T BSwap(T const &i) {
+            if constexpr(std::is_floating_point_v<T>) return i;
+            if constexpr(sizeof(T) == 2) return (*(uint16_t*)&i >> 8) | (*(uint16_t*)&i << 8);
+#ifdef _WIN32
+            if constexpr(sizeof(T) == 4) return (T) _byteswap_ulong(*(uint32_t *) &i);
+            if constexpr(sizeof(T) == 8) return (T) _byteswap_uint64(*(uint64_t *) &i);
+#else
+            if constexpr(sizeof(T) == 4) return (T) __builtin_bswap32 (*(uint32_t*)&i);
+            if constexpr(sizeof(T) == 8) return (T) __builtin_bswap64 (*(uint64_t*)&i);
+#endif
+            return i;
+        }
+
         /***************************************************************************************************************************/
 
         // 读 定长buf 到 tar. 返回非 0 则读取失败
@@ -132,14 +120,9 @@ namespace xx {
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixed(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
-#ifdef __BIG_ENDIAN__
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(&v, buf + offset, sizeof(T));
-            } else {
-                XX_DATA_BE_LE_COPY(((uint8_t *) &v), (buf + offset), T)
-            }
-#else
             memcpy(&v, buf + offset, sizeof(T));
+#ifdef __BIG_ENDIAN__
+            v = BSwap(v);
 #endif
             offset += sizeof(T);
             return 0;
@@ -149,14 +132,9 @@ namespace xx {
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixedAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) > len) return __LINE__;
-#ifdef __BIG_ENDIAN__
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(&v, buf + idx, sizeof(T));
-            } else {
-                XX_DATA_BE_LE_COPY(((uint8_t *) &v), (buf + idx), T)
-            }
-#else
             memcpy(&v, buf + idx, sizeof(T));
+#ifdef __BIG_ENDIAN__
+            v = BSwap(v);
 #endif
             return 0;
         }
@@ -165,14 +143,9 @@ namespace xx {
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixedBE(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
-#ifdef __BIG_ENDIAN__
             memcpy(&v, buf + offset, sizeof(T));
-#else
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(&v, buf + offset, sizeof(T));
-            } else {
-                XX_DATA_BE_LE_COPY(((uint8_t *) &v), (buf + offset), T)
-            }
+#ifdef __LITTLE_ENDIAN__
+            v = BSwap(v);
 #endif
             offset += sizeof(T);
             return 0;
@@ -182,14 +155,9 @@ namespace xx {
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixedBEAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) >= len) return __LINE__;
-#ifdef __BIG_ENDIAN__
             memcpy(&v, buf + idx, sizeof(T));
-#else
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(&v, buf + idx, sizeof(T));
-            } else {
-                XX_DATA_BE_LE_COPY(((uint8_t *) &v), (buf + idx), T)
-            }
+#ifdef __LITTLE_ENDIAN__
+            v = BSwap(v);
 #endif
             return 0;
         }
@@ -348,7 +316,7 @@ namespace xx {
         // 在指定 idx 写入一段 buf
         XX_FORCE_INLINE [[maybe_unused]] void WriteBufAt(size_t const &idx, void const *const &ptr, size_t const &siz) {
             if (idx + siz > len) {
-                Resize(siz + idx);
+                Resize(idx + siz);
             }
             memcpy(buf + idx, ptr, siz);
         }
@@ -356,78 +324,56 @@ namespace xx {
 
         // 追加写入 float / double / integer ( 定长 Little Endian )
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixed(T const &v) {
+        XX_FORCE_INLINE [[maybe_unused]] void WriteFixed(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
                     Reserve<false>(len + sizeof(T));
                 }
             }
 #ifdef __BIG_ENDIAN__
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(buf + len, &v, sizeof(T));
-            }
-            else {
-                XX_DATA_BE_LE_COPY( (buf + len),  ((uint8_t *)&v), T )
-            }
-#else
-            memcpy(buf + len, &v, sizeof(T));
+            v = BSwap(v);
 #endif
+            memcpy(buf + len, &v, sizeof(T));
             len += sizeof(T);
         }
 
         // 在指定 idx 写入 float / double / integer ( 定长 Little Endian )
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedAt(size_t const &idx, T const &v) {
+        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedAt(size_t const &idx, T v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
             }
 #ifdef __BIG_ENDIAN__
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(buf + idx, &v, sizeof(T));
-            }
-            else {
-                XX_DATA_BE_LE_COPY( (buf + idx),  ((uint8_t *)&v), T )
-            }
-#else
-            memcpy(buf + idx, &v, sizeof(T));
+            v = BSwap(v);
 #endif
+            memcpy(buf + idx, &v, sizeof(T));
         }
 
         // 追加写入 float / double / integer ( 定长 Big Endian )
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedBE(T const &v) {
+        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedBE(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
                     Reserve<false>(len + sizeof(T));
                 }
             }
-#ifdef __BIG_ENDIAN__
-            memcpy(buf + len, &v, sizeof(T));
-#else
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(buf + len, &v, sizeof(T));
-            } else {
-                XX_DATA_BE_LE_COPY((buf + len), ((uint8_t *) &v), T)
-            }
+#ifdef __LITTLE_ENDIAN__
+            v = BSwap(v);
 #endif
+            memcpy(buf + len, &v, sizeof(T));
             len += sizeof(T);
         }
 
         // 在指定 idx 写入 float / double / integer ( 定长 Big Endian )
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedBEAt(size_t const &idx, T const &v) {
+        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedBEAt(size_t const &idx, T v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
             }
-#ifdef __BIG_ENDIAN__
-            memcpy(&v, buf + idx, sizeof(T));
-#else
-            if constexpr(std::is_floating_point_v<T>) {
-                memcpy(buf + idx, &v, sizeof(T));
-            } else {
-                XX_DATA_BE_LE_COPY((buf + idx), ((uint8_t *) &v), T)
-            }
+#ifdef __LITTLE_ENDIAN__
+            v = BSwap(v);
 #endif
+            memcpy(buf + idx, &v, sizeof(T));
         }
 
         // 追加写入整数( 7bit 变长格式 )
