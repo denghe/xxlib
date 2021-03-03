@@ -439,8 +439,8 @@ namespace xx {
                 u = ZigZagEncode(v);
             }
             if constexpr (needReserve) {
-                if (len + sizeof(T) + 1 > cap) {
-                    Reserve<false>(len + sizeof(T) + 1);
+                if (len + sizeof(T) + 2 > cap) {
+                    Reserve<false>(len + sizeof(T) + 2);
                 }
             }
             while (u >= 1 << 7) {
