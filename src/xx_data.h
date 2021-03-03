@@ -121,18 +121,24 @@ namespace xx {
 
         // 从指定下标 读 定长buf. 不改变 offset. 返回非 0 则读取失败
         [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
-            if (idx + siz >= len) return __LINE__;
+            if (idx + siz > len) return __LINE__;
             memcpy(tar, buf + idx, siz);
             return 0;
         }
-
-        // todo: Little Endian
 
         // 读 定长小尾数字. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixed(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
+#ifdef __BIG_ENDIAN__
+            if constexpr(std::is_floating_point_v<T>) {
+                memcpy(&v, buf + offset, sizeof(T));
+            } else {
+                XX_DATA_BE_LE_COPY(((uint8_t *) &v), (buf + offset), T)
+            }
+#else
             memcpy(&v, buf + offset, sizeof(T));
+#endif
             offset += sizeof(T);
             return 0;
         }
@@ -140,12 +146,16 @@ namespace xx {
         // 从指定下标 读 定长小尾数字. 不改变 offset. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedAt(size_t const &idx, T &v) {
-            if (idx + sizeof(T) >= len) return __LINE__;
-            if constexpr (sizeof(T) == 1) {
-                v = *(T *) (buf + idx);
-            } else {
+            if (idx + sizeof(T) > len) return __LINE__;
+#ifdef __BIG_ENDIAN__
+            if constexpr(std::is_floating_point_v<T>) {
                 memcpy(&v, buf + idx, sizeof(T));
+            } else {
+                XX_DATA_BE_LE_COPY(((uint8_t *) &v), (buf + idx), T)
             }
+#else
+            memcpy(&v, buf + idx, sizeof(T));
+#endif
             return 0;
         }
 
@@ -153,7 +163,7 @@ namespace xx {
         // 读 定长大尾数字. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedBE(T &v) {
-            if (offset + sizeof(T) >= len) return __LINE__;
+            if (offset + sizeof(T) > len) return __LINE__;
 #ifdef __BIG_ENDIAN__
             memcpy(&v, buf + offset, sizeof(T));
 #else
@@ -163,7 +173,6 @@ namespace xx {
                 XX_DATA_BE_LE_COPY(((uint8_t *) &v), (buf + offset), T)
             }
 #endif
-
             return 0;
         }
 
@@ -172,7 +181,7 @@ namespace xx {
         [[maybe_unused]] XX_FORCE_INLINE[[nodiscard]] int ReadFixedBEAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) >= len) return __LINE__;
 #ifdef __BIG_ENDIAN__
-            memcpy(&v, buf + offset, sizeof(T));
+            memcpy(&v, buf + idx, sizeof(T));
 #else
             if constexpr(std::is_floating_point_v<T>) {
                 memcpy(&v, buf + idx, sizeof(T));
@@ -204,8 +213,11 @@ namespace xx {
             }
             return __LINE__;
         }
-
     };
+
+
+    /***************************************************************************************************************************/
+    /***************************************************************************************************************************/
 
 
     // 基础二进制数据容器. 可简单读写( 当前不支持大尾 )，可配置预留长度( 方便有些操作在 buf 最头上放东西 )
