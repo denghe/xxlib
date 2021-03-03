@@ -4,13 +4,12 @@
 
 int main() {
     xx::Data d;
-
     d.Reserve(1024 * 1024 * 1024);
     for (int j = 0; j < 10; ++j) {
         auto t = std::chrono::system_clock::now();
         d.Clear();
         for (uint64_t i = 0; i < 100000000; ++i) {
-            d.WriteFixed(i);
+            d.WriteFixedAt(i, i);
         }
         std::cout << std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::system_clock::now() - t)).count() << std::endl;
         std::cout << d.len << std::endl;

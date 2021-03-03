@@ -262,7 +262,7 @@ namespace xx {
 
         // 返回旧长度
         XX_FORCE_INLINE size_t Resize(size_t const &newLen) {
-            if (newLen > len) {
+            if (newLen > cap) {
                 Reserve<false>(newLen);
             }
             auto rtv = len;
