@@ -357,11 +357,10 @@ namespace xx {
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteFixed(T const &v) {
             if constexpr (needReserve) {
-                if (len + 1 > cap) {
-                    Reserve<false>(len + 1);
+                if (len + sizeof(T) > cap) {
+                    Reserve<false>(len + sizeof(T));
                 }
             }
-
 #ifdef __BIG_ENDIAN__
             if constexpr(std::is_floating_point_v<T>) {
                 memcpy(buf + len, &v, sizeof(T));
@@ -383,13 +382,13 @@ namespace xx {
             }
 #ifdef __BIG_ENDIAN__
             if constexpr(std::is_floating_point_v<T>) {
-                memcpy(buf + len, &v, sizeof(T));
+                memcpy(buf + idx, &v, sizeof(T));
             }
             else {
                 XX_DATA_BE_LE_COPY( (buf + idx),  ((uint8_t *)&v), T )
             }
 #else
-            memcpy(buf + len, &v, sizeof(T));
+            memcpy(buf + idx, &v, sizeof(T));
 #endif
         }
 
@@ -423,7 +422,7 @@ namespace xx {
             memcpy(&v, buf + idx, sizeof(T));
 #else
             if constexpr(std::is_floating_point_v<T>) {
-                memcpy(buf + len, &v, sizeof(T));
+                memcpy(buf + idx, &v, sizeof(T));
             } else {
                 XX_DATA_BE_LE_COPY((buf + idx), ((uint8_t *) &v), T)
             }
