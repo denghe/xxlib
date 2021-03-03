@@ -4,11 +4,14 @@
 #include <utility>
 #include <cassert>
 #include <cstdint>
+#include <cstring>      // memcmp
 
 #ifdef _WIN32
-
-#include <intrin.h>     // _BitScanReverse[64] _byteswap_ushort _byteswap_ulong _byteswap_uint64
+#include <intrin.h>     // _BitScanReverse[64] _byteswap_ulong _byteswap_uint64
 #include <objbase.h>
+#else
+
+#include <arpa/inet.h>  // __BYTE_ORDER __LITTLE_ENDIAN __BIG_ENDIAN
 
 #endif
 
@@ -27,9 +30,7 @@
 #   endif
 #endif
 
-#ifndef _WIN32
-#include <arpa/inet.h>
-#endif
+
 #if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
 #   if __BYTE_ORDER == __LITTLE_ENDIAN
 #       define __LITTLE_ENDIAN__
@@ -88,13 +89,13 @@ namespace xx {
         template<typename T>
         XX_FORCE_INLINE static T BSwap(T const &i) {
             if constexpr(std::is_floating_point_v<T>) return i;
-            if constexpr(sizeof(T) == 2) return (*(uint16_t*)&i >> 8) | (*(uint16_t*)&i << 8);
+            if constexpr(sizeof(T) == 2) return (*(uint16_t *) &i >> 8) | (*(uint16_t *) &i << 8);
 #ifdef _WIN32
             if constexpr(sizeof(T) == 4) return (T) _byteswap_ulong(*(uint32_t *) &i);
             if constexpr(sizeof(T) == 8) return (T) _byteswap_uint64(*(uint64_t *) &i);
 #else
-            if constexpr(sizeof(T) == 4) return (T) __builtin_bswap32 (*(uint32_t*)&i);
-            if constexpr(sizeof(T) == 8) return (T) __builtin_bswap64 (*(uint64_t*)&i);
+            if constexpr(sizeof(T) == 4) return (T) __builtin_bswap32(*(uint32_t *) &i);
+            if constexpr(sizeof(T) == 8) return (T) __builtin_bswap64(*(uint64_t *) &i);
 #endif
             return i;
         }
@@ -102,7 +103,7 @@ namespace xx {
         /***************************************************************************************************************************/
 
         // 读 定长buf 到 tar. 返回非 0 则读取失败
-        XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadBuf(void *const &tar, size_t const &siz) {
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadBuf(void *const &tar, size_t const &siz) {
             if (offset + siz > len) return __LINE__;
             memcpy(tar, buf + offset, siz);
             offset += siz;
@@ -110,7 +111,7 @@ namespace xx {
         }
 
         // 从指定下标 读 定长buf. 不改变 offset. 返回非 0 则读取失败
-        XX_FORCE_INLINE[[maybe_unused]]  [[nodiscard]] int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
+        [[maybe_unused]]  [[nodiscard]] XX_FORCE_INLINE int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
             if (idx + siz > len) return __LINE__;
             memcpy(tar, buf + idx, siz);
             return 0;
@@ -118,7 +119,7 @@ namespace xx {
 
         // 读 定长小尾数字. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixed(T &v) {
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixed(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + offset, sizeof(T));
 #ifdef __BIG_ENDIAN__
@@ -130,7 +131,7 @@ namespace xx {
 
         // 从指定下标 读 定长小尾数字. 不改变 offset. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixedAt(size_t const &idx, T &v) {
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + idx, sizeof(T));
 #ifdef __BIG_ENDIAN__
@@ -141,7 +142,7 @@ namespace xx {
 
         // 读 定长大尾数字. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixedBE(T &v) {
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedBE(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + offset, sizeof(T));
 #ifdef __LITTLE_ENDIAN__
@@ -153,7 +154,7 @@ namespace xx {
 
         // 从指定下标 读 定长大尾数字. 不改变 offset. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadFixedBEAt(size_t const &idx, T &v) {
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedBEAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) >= len) return __LINE__;
             memcpy(&v, buf + idx, sizeof(T));
 #ifdef __LITTLE_ENDIAN__
@@ -164,7 +165,7 @@ namespace xx {
 
         // 读 变长整数. 返回非 0 则读取失败
         template<typename T>
-        XX_FORCE_INLINE [[maybe_unused]] [[nodiscard]] int ReadVarInteger(T &v) {
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadVarInteger(T &v) {
             using UT = std::make_unsigned_t<T>;
             UT u(0);
             for (size_t shift = 0; shift < sizeof(T) * 8; shift += 7) {
@@ -199,7 +200,7 @@ namespace xx {
                 : cap(cap) {
             assert(cap);
             auto siz = Round2n(reserveLen + cap);
-            buf = ((uint8_t *) malloc(siz)) + reserveLen;
+            buf = (new uint8_t[siz]) + reserveLen;
             this->cap = siz - reserveLen;
         }
 
@@ -248,12 +249,12 @@ namespace xx {
             if (CheckCap && newCap <= cap) return;
 
             auto siz = Round2n(reserveLen + newCap);
-            auto newBuf = ((uint8_t *) malloc(siz)) + reserveLen;
+            auto newBuf = (new uint8_t[siz]) + reserveLen;
             memcpy(newBuf, buf, len);
 
             // 这里判断 cap 不判断 buf, 是因为 gcc 优化会导致 if 失效, 无论如何都会执行 free
             if (cap) {
-                free(buf - reserveLen);
+                delete[](buf - reserveLen);
             }
             buf = newBuf;
             cap = siz - reserveLen;
@@ -272,7 +273,7 @@ namespace xx {
 
         // 通过 初始化列表 填充内容. 填充前会先 Clear. 用法: d.Fill({ 1,2,3. ....})
         template<typename T = int32_t, typename = std::enable_if_t<std::is_convertible_v<T, uint8_t>>>
-        XX_FORCE_INLINE [[maybe_unused]] void Fill(std::initializer_list<T> const &bytes) {
+        [[maybe_unused]] XX_FORCE_INLINE void Fill(std::initializer_list<T> const &bytes) {
             Clear();
             Reserve(bytes.size());
             for (auto &&b : bytes) {
@@ -288,7 +289,7 @@ namespace xx {
         }
 
         // 从头部移除指定长度数据( 常见于拆包处理移除掉已经访问过的包数据, 将残留部分移动到头部 )
-        XX_FORCE_INLINE [[maybe_unused]] void RemoveFront(size_t const &siz) {
+        [[maybe_unused]] XX_FORCE_INLINE void RemoveFront(size_t const &siz) {
             assert(siz <= len);
             if (!siz) return;
             len -= siz;
@@ -314,7 +315,7 @@ namespace xx {
         }
 
         // 在指定 idx 写入一段 buf
-        XX_FORCE_INLINE [[maybe_unused]] void WriteBufAt(size_t const &idx, void const *const &ptr, size_t const &siz) {
+        [[maybe_unused]] XX_FORCE_INLINE void WriteBufAt(size_t const &idx, void const *const &ptr, size_t const &siz) {
             if (idx + siz > len) {
                 Resize(idx + siz);
             }
@@ -324,7 +325,7 @@ namespace xx {
 
         // 追加写入 float / double / integer ( 定长 Little Endian )
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixed(T v) {
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixed(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
                     Reserve<false>(len + sizeof(T));
@@ -339,7 +340,7 @@ namespace xx {
 
         // 在指定 idx 写入 float / double / integer ( 定长 Little Endian )
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedAt(size_t const &idx, T v) {
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixedAt(size_t const &idx, T v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
             }
@@ -351,7 +352,7 @@ namespace xx {
 
         // 追加写入 float / double / integer ( 定长 Big Endian )
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedBE(T v) {
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixedBE(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
                     Reserve<false>(len + sizeof(T));
@@ -366,7 +367,7 @@ namespace xx {
 
         // 在指定 idx 写入 float / double / integer ( 定长 Big Endian )
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteFixedBEAt(size_t const &idx, T v) {
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixedBEAt(size_t const &idx, T v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
             }
@@ -378,7 +379,7 @@ namespace xx {
 
         // 追加写入整数( 7bit 变长格式 )
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_integral_v<T>>>
-        XX_FORCE_INLINE [[maybe_unused]] void WriteVarInteger(T const &v) {
+        [[maybe_unused]] XX_FORCE_INLINE void WriteVarInteger(T const &v) {
             using UT = std::make_unsigned_t<T>;
             UT u(v);
             if constexpr (std::is_signed_v<T>) {
@@ -398,7 +399,7 @@ namespace xx {
 
         // 跳过指定长度字节数不写。返回起始 len
         template<bool needReserve = true>
-        XX_FORCE_INLINE [[maybe_unused]] size_t WriteJump(size_t const &siz) {
+        [[maybe_unused]] XX_FORCE_INLINE size_t WriteJump(size_t const &siz) {
             auto bak = len;
             if constexpr (needReserve) {
                 if (len + siz > cap) {
@@ -419,7 +420,7 @@ namespace xx {
         // len 清 0, 可彻底释放 buf
         XX_FORCE_INLINE void Clear(bool const &freeBuf = false) {
             if (freeBuf && cap) {
-                free(buf - reserveLen);
+                delete[](buf - reserveLen);
                 buf = nullptr;
                 cap = 0;
             }
