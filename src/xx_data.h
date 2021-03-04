@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+// 当前头文件可独立使用
+
 #include <initializer_list>
 #include <utility>
 #include <cassert>
@@ -29,7 +31,6 @@
 #       endif
 #   endif
 #endif
-
 
 #if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
 #   if __BYTE_ORDER == __LITTLE_ENDIAN
