@@ -3,3 +3,4 @@ project(all)
 
 add_subdirectory(xx_data_cpp_test1)
 add_subdirectory(xx_obj_test1)
+add_subdirectory(xx_lua_test1)

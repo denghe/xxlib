@@ -29,7 +29,7 @@ void Test1() {
 	assert(d[3] == d[11]);
 
 	{
-		xx::Data_v dv(d.buf, d.len, 0);
+		xx::Data_r dv(d.buf, d.len, 0);
 		assert(dv.buf == d.buf);
 		assert(dv.len == d.len);
 		assert(dv.offset == 0);
@@ -50,7 +50,7 @@ void Test1() {
 	}
 
 	{
-		xx::Data_v dv(d);
+		xx::Data_r dv(d);
 		assert(dv.buf == d.buf);
 		assert(dv.len == d.len);
 		assert(dv.offset == 0);

@@ -107,26 +107,26 @@ namespace xx {
     };
 
     // 基础二进制数据跨度/引用容器 附带基础 流式读 功能( offset )
-    struct Data_v : Span {
+    struct Data_r : Span {
         size_t offset;
 
-        Data_v()
+        Data_r()
                 : offset(0) {
         }
 
-        Data_v(Data_v const& o) = default;
+        Data_r(Data_r const& o) = default;
 
-        Data_v& operator=(Data_v const& o) = default;
+        Data_r& operator=(Data_r const& o) = default;
 
 
         // 引用一段数据
-        [[maybe_unused]] Data_v(void const *const &buf, size_t const &len, size_t const &offset = 0) {
+        [[maybe_unused]] Data_r(void const *const &buf, size_t const &len, size_t const &offset = 0) {
             Reset(buf, len, offset);
         }
 
         // 引用一个 含有 buf + len 成员的对象的数据
         template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
-        [[maybe_unused]] Data_v(T const& d, size_t const& offset = 0) {
+        [[maybe_unused]] Data_r(T const& d, size_t const& offset = 0) {
             Reset(d.buf, d.len, offset);
         }
 
@@ -144,17 +144,17 @@ namespace xx {
 
         // 引用一个 含有 buf + len 成员的对象的数据
         template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
-        Data_v& operator=(T const& o) {
+        Data_r& operator=(T const& o) {
             Reset(o.buf, o.len);
             return *this;
         }
 
         // 判断数据是否一致
-        XX_FORCE_INLINE bool operator==(Data_v const &o) {
+        XX_FORCE_INLINE bool operator==(Data_r const &o) {
             return this->Span::operator==(o);
         }
 
-        XX_FORCE_INLINE bool operator!=(Data_v const &o) {
+        XX_FORCE_INLINE bool operator!=(Data_r const &o) {
             return !this->operator==(o);
         }
 
@@ -178,7 +178,7 @@ namespace xx {
         }
 
         // 读 定长小尾数字. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixed(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + offset, sizeof(T));
@@ -190,7 +190,7 @@ namespace xx {
         }
 
         // 从指定下标 读 定长小尾数字. 不改变 offset. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + idx, sizeof(T));
@@ -201,7 +201,7 @@ namespace xx {
         }
 
         // 读 定长大尾数字. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedBE(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + offset, sizeof(T));
@@ -213,7 +213,7 @@ namespace xx {
         }
 
         // 从指定下标 读 定长大尾数字. 不改变 offset. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedBEAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) >= len) return __LINE__;
             memcpy(&v, buf + idx, sizeof(T));
@@ -224,7 +224,7 @@ namespace xx {
         }
 
         // 读 定长小尾数字 数组. 返回非 0 则读取失败
-        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedArray(T* const& tar, size_t const& siz) {
             assert(tar);
             if (offset + sizeof(T) * siz > len) return __LINE__;
@@ -302,7 +302,7 @@ namespace xx {
 
     // 基础二进制数据容器 附带基础 流式读写 功能，可配置预留长度方便有些操作在 buf 最头上放东西
     template<size_t reserveLen = 0>
-    struct Data_rw : Data_v {
+    struct Data_rw : Data_r {
         size_t cap;
 
         // buf = len = offset = cap = 0
@@ -312,7 +312,7 @@ namespace xx {
 
         // unsafe: 直接设置成员数值, 常用于有把握的"借壳" 读写( 不会造成 Reserve 操作的 ), 最后记得 Reset 还原
         [[maybe_unused]] XX_FORCE_INLINE void Reset(void const* const& buf_ = nullptr, size_t const& len_ = 0, size_t const& offset_ = 0, size_t const& cap_ = 0) {
-            this->Data_v::Reset(buf_, len_, offset_);
+            this->Data_r::Reset(buf_, len_, offset_);
             cap = cap_;
         }
 
@@ -436,7 +436,6 @@ namespace xx {
         // 追加写入一段 buf( 不记录数据长度 )
         template<bool needReserve = true>
         XX_FORCE_INLINE void WriteBuf(void const *const &ptr, size_t const &siz) {
-            assert(ptr);
             if constexpr (needReserve) {
                 if (len + siz > cap) {
                     Reserve<false>(len + siz);
@@ -456,7 +455,7 @@ namespace xx {
 
 
         // 追加写入 float / double / integer ( 定长 Little Endian )
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteFixed(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
@@ -471,7 +470,7 @@ namespace xx {
         }
 
         // 在指定 idx 写入 float / double / integer ( 定长 Little Endian )
-        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteFixedAt(size_t const &idx, T v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
@@ -483,7 +482,7 @@ namespace xx {
         }
 
         // 追加写入 float / double / integer ( 定长 Big Endian )
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteFixedBE(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
@@ -498,7 +497,7 @@ namespace xx {
         }
 
         // 在指定 idx 写入 float / double / integer ( 定长 Big Endian )
-        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteFixedBEAt(size_t const &idx, T v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
@@ -510,7 +509,7 @@ namespace xx {
         }
 
         // 追加写入 float / double / integer ( 定长 Little Endian ) 数组
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteFixedArray(T const* const& ptr, size_t const& siz) {
             assert(ptr);
             if constexpr (needReserve) {

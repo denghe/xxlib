@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "xx_shared.h"	// included xx_helpers.h
+#include "xx_ptr.h"	// included xx_helpers.h
 #include "xx_data.h"
 //#include <sstream>		// format Time
 

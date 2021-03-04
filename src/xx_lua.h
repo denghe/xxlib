@@ -932,7 +932,7 @@ namespace xx::Lua {
 #else
 			if (lua_isinteger(in, -1)) {
 				d.WriteFixed(LuaTypes::Integer);
-				d.WriteVarIntger((int64_t)lua_tointeger(in, -1));
+				d.WriteVarInteger((int64_t)lua_tointeger(in, -1));
 			}
 			else {
 				d.WriteFixed(LuaTypes::Double);
@@ -945,7 +945,7 @@ namespace xx::Lua {
 			size_t len;
 			auto ptr = lua_tolstring(in, -1, &len);
 			d.WriteFixed(LuaTypes::String);
-			d.WriteVarIntger(len);
+			d.WriteVarInteger(len);
 			d.WriteBuf(ptr, len);
 			return;
 		}
@@ -1016,7 +1016,7 @@ namespace xx::Lua {
 			if (int r = d.ReadVarInteger(len)) return r;
 			if (d.offset + len >= d.len) return __LINE__;
 			Lua::CheckStack(out, 1);
-			lua_pushlstring(out, d.buf + d.offset, len);
+			lua_pushlstring(out, (char*)d.buf + d.offset, len);
 			d.offset += len;
 			return 0;
 		}

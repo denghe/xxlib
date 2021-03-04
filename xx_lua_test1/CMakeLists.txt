@@ -36,6 +36,9 @@ if(UNIX)
 endif()
 
 
+add_definitions("-DMAKE_LIB")
+
+
 include_directories(
 	../src
     ../lua-5.4.x/src
