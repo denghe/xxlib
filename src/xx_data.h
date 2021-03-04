@@ -157,22 +157,6 @@ namespace xx {
             return !this->operator==(o);
         }
 
-
-        // 数字字节序交换( 浮点例外 )
-        template<typename T>
-        XX_FORCE_INLINE static T BSwap(T const &i) {
-            if constexpr(std::is_floating_point_v<T>) return i;
-            if constexpr(sizeof(T) == 2) return (*(uint16_t *) &i >> 8) | (*(uint16_t *) &i << 8);
-#ifdef _WIN32
-            if constexpr(sizeof(T) == 4) return (T) _byteswap_ulong(*(uint32_t *) &i);
-            if constexpr(sizeof(T) == 8) return (T) _byteswap_uint64(*(uint64_t *) &i);
-#else
-            if constexpr(sizeof(T) == 4) return (T) __builtin_bswap32(*(uint32_t *) &i);
-            if constexpr(sizeof(T) == 8) return (T) __builtin_bswap64(*(uint64_t *) &i);
-#endif
-            return i;
-        }
-
         /***************************************************************************************************************************/
 
         // 读 定长buf 到 tar. 返回非 0 则读取失败
@@ -256,6 +240,36 @@ namespace xx {
             }
             return __LINE__;
         }
+
+
+        /***************************************************************************************************************************/
+
+
+        // 数字字节序交换( 浮点例外 )
+        template<typename T>
+        XX_FORCE_INLINE static T BSwap(T const& i) {
+            if constexpr (sizeof(T) == 2) return (*(uint16_t*)&i >> 8) | (*(uint16_t*)&i << 8);
+#ifdef _WIN32
+            if constexpr (sizeof(T) == 4) return (T)_byteswap_ulong(*(uint32_t*)&i);
+            if constexpr (sizeof(T) == 8) return (T)_byteswap_uint64(*(uint64_t*)&i);
+#else
+            if constexpr (sizeof(T) == 4) return (T)__builtin_bswap32(*(uint32_t*)&i);
+            if constexpr (sizeof(T) == 8) return (T)__builtin_bswap64(*(uint64_t*)&i);
+#endif
+            return i;
+        }
+
+        // 带符号整数 解码 return (in 为单数) ? -(in + 1) / 2 : in / 2
+        XX_FORCE_INLINE static int16_t ZigZagDecode(uint16_t const& in) noexcept {
+            return (int16_t)((int16_t)(in >> 1) ^ (-(int16_t)(in & 1)));
+        }
+        XX_FORCE_INLINE static int32_t ZigZagDecode(uint32_t const& in) noexcept {
+            return (int32_t)(in >> 1) ^ (-(int32_t)(in & 1));
+        }
+        XX_FORCE_INLINE static int64_t ZigZagDecode(uint64_t const& in) noexcept {
+            return (int64_t)(in >> 1) ^ (-(int64_t)(in & 1));
+        }
+
     };
 
 
@@ -273,10 +287,10 @@ namespace xx {
             : cap(0) {
         }
 
-        // unsafe: 直接设置成员数值, 常用于有把握的借壳读写( 不会造成 Reserve / Resize ), 最后记得 Reset 清空 / 还原
-        [[maybe_unused]] XX_FORCE_INLINE void Reset(void const* const& buf_, size_t const& len_, size_t const& offset_, size_t const& cap_) {
+        // unsafe: 直接设置成员数值, 常用于有把握的"借壳" 读写( 不会造成 Reserve 操作的 ), 最后记得 Reset 还原
+        [[maybe_unused]] XX_FORCE_INLINE void Reset(void const* const& buf_ = nullptr, size_t const& len_ = 0, size_t const& offset_ = 0, size_t const& cap_ = 0) {
             this->Data_v::Reset(buf_, len_, offset_);
-            offset = offset_;
+            cap = cap_;
         }
 
         // 预分配空间
@@ -392,7 +406,6 @@ namespace xx {
                 memmove(buf, buf + siz, len);
             }
         }
-
 
 
         /***************************************************************************************************************************/
@@ -551,5 +564,17 @@ namespace xx {
             if (rtv == n) return n;
             else return rtv << 1;
         }
+
+        // 带符号整数 编码  return in < 0 ? (-in * 2 - 1) : (in * 2)
+        XX_FORCE_INLINE static uint16_t ZigZagEncode(int16_t const& in) noexcept {
+            return (uint16_t)((in << 1) ^ (in >> 15));
+        }
+        XX_FORCE_INLINE static uint32_t ZigZagEncode(int32_t const& in) noexcept {
+            return (in << 1) ^ (in >> 31);
+        }
+        XX_FORCE_INLINE static uint64_t ZigZagEncode(int64_t const& in) noexcept {
+            return (in << 1) ^ (in >> 63);
+        }
+
     };
 }
