@@ -43,47 +43,120 @@
 
 namespace xx {
 
-    // 基础二进制数据容器( 视图只读版 )( 带 xx::Data 的 Read 系列函数 )
-    struct Data_v {
-        uint8_t *buf;
+    // 基础二进制数据跨度/引用容器( buf + len ) 类似 C++20 的 std::span
+    struct Span {
+        uint8_t* buf;
         size_t len;
-        size_t offset;
 
-        Data_v()
-                : buf(nullptr), len(0), offset(0) {
+        Span()
+            : buf(nullptr), len(0) {
         }
 
-        // 引用一段数据 构造
-        [[maybe_unused]] Data_v(void const *const &buf, size_t const &len, size_t const &offset = 0)
-                : buf((uint8_t *) buf), len(len), offset(offset) {
+        Span(Span const& o) = default;
+
+        Span& operator=(Span const& o) = default;
+
+
+        // 引用一段数据
+        [[maybe_unused]] Span(void const* const& buf, size_t const& len)
+            : buf((uint8_t*)buf), len(len) {
         }
 
-        [[maybe_unused]] void Reset(void const *const &buf_, size_t const &len_, size_t const &offset_ = 0) {
-            buf = (uint8_t *) buf_;
+        // 引用一个 含有 buf + len 成员的对象的数据
+        template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
+        [[maybe_unused]] Span(T const& d)
+            : buf((uint8_t*)d.buf), len(d.len) {
+        }
+
+        // 引用一段数据
+        [[maybe_unused]] XX_FORCE_INLINE void Reset(void const* const& buf_, size_t const& len_) {
+            buf = (uint8_t*)buf_;
             len = len_;
-            offset = offset_;
         }
 
-        Data_v(Data_v const &o) = default;
+        // 引用一个 含有 buf + len 成员的对象的数据
+        template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE void Reset(T const& d, size_t const& offset_ = 0) {
+            Reset(d.buf, d.len, offset_);
+        }
 
-        Data_v &operator=(Data_v const &o) = default;
+        // 引用一个 含有 buf + len 成员的对象的数据
+        template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
+        Span& operator=(T const& o) {
+            Reset(o.buf, o.len);
+            return *this;
+        }
 
         // 判断数据是否一致
-        XX_FORCE_INLINE bool operator==(Data_v const &o) {
+        XX_FORCE_INLINE bool operator==(Span const& o) {
             if (&o == this) return true;
             if (len != o.len) return false;
             return 0 == memcmp(buf, o.buf, len);
+        }
+
+        XX_FORCE_INLINE bool operator!=(Span const& o) {
+            return !this->operator==(o);
+        }
+
+        // 下标只读访问
+        XX_FORCE_INLINE uint8_t const& operator[](size_t const& idx) const {
+            assert(idx < len);
+            return buf[idx];
+        }
+    };
+
+    // 基础二进制数据跨度/引用容器 附带基础 流式读 功能( offset )
+    struct Data_v : Span {
+        size_t offset;
+
+        Data_v()
+                : offset(0) {
+        }
+
+        Data_v(Data_v const& o) = default;
+
+        Data_v& operator=(Data_v const& o) = default;
+
+
+        // 引用一段数据
+        [[maybe_unused]] Data_v(void const *const &buf, size_t const &len, size_t const &offset = 0) {
+            Reset(buf, len, offset);
+        }
+
+        // 引用一个 含有 buf + len 成员的对象的数据
+        template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
+        [[maybe_unused]] Data_v(T const& d, size_t const& offset = 0) {
+            Reset(d.buf, d.len, offset);
+        }
+
+        // 引用一段数据
+        [[maybe_unused]] XX_FORCE_INLINE void Reset(void const *const &buf_, size_t const &len_, size_t const &offset_ = 0) {
+            this->Span::Reset(buf_, len_);
+            offset = offset_;
+        }
+
+        // 引用一个 含有 buf + len 成员的对象的数据
+        template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE void Reset(T const& d, size_t const &offset_ = 0) {
+            Reset(d.buf, d.len, offset_);
+        }
+
+        // 引用一个 含有 buf + len 成员的对象的数据
+        template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
+        Data_v& operator=(T const& o) {
+            Reset(o.buf, o.len);
+            return *this;
+        }
+
+        // 判断数据是否一致
+        XX_FORCE_INLINE bool operator==(Data_v const &o) {
+            return this->Span::operator==(o);
         }
 
         XX_FORCE_INLINE bool operator!=(Data_v const &o) {
             return !this->operator==(o);
         }
 
-        // 下标访问
-        XX_FORCE_INLINE uint8_t const &operator[](size_t const &idx) const {
-            assert(idx < len);
-            return buf[idx];
-        }
 
         // 数字字节序交换( 浮点例外 )
         template<typename T>
@@ -190,12 +263,23 @@ namespace xx {
     /***************************************************************************************************************************/
 
 
-    // 基础二进制数据容器. 可简单读写( 当前不支持大尾 )，可配置预留长度( 方便有些操作在 buf 最头上放东西 )
+    // 基础二进制数据容器 附带基础 流式读写 功能，可配置预留长度方便有些操作在 buf 最头上放东西
     template<size_t reserveLen = 0>
     struct Data : Data_v {
-        size_t cap = 0;
+        size_t cap;
 
-        // 预分配空间 构造
+        // buf = len = offset = cap = 0
+        Data()
+            : cap(0) {
+        }
+
+        // unsafe: 直接设置成员数值, 常用于有把握的借壳读写( 不会造成 Reserve / Resize ), 最后记得 Reset 清空 / 还原
+        [[maybe_unused]] XX_FORCE_INLINE void Reset(void const* const& buf_, size_t const& len_, size_t const& offset_, size_t const& cap_) {
+            this->Data_v::Reset(buf_, len_, offset_);
+            offset = offset_;
+        }
+
+        // 预分配空间
         [[maybe_unused]] explicit Data(size_t const &cap)
                 : cap(cap) {
             assert(cap);
@@ -204,28 +288,39 @@ namespace xx {
             this->cap = siz - reserveLen;
         }
 
-        // 通过 复制一段数据 来构造
-        [[maybe_unused]] Data(void const *const &ptr, size_t const &siz) {
+        // 复制( offset = 0 )
+        [[maybe_unused]] Data(void const *const &ptr, size_t const &siz)
+            : cap(0) {
             WriteBuf(ptr, siz);
         }
 
-        Data() = default;
-
-        Data(Data const &o) {
+        // 复制( offset = 0 )
+        Data(Data const &o)
+            : cap(0) {
             operator=(o);
         }
 
-        Data(Data &&o) noexcept {
-            operator=(std::move(o));
+        // 复制( offset = 0 )
+        XX_FORCE_INLINE Data& operator=(Data const& o) {
+            return operator=<Data>(o);
         }
 
-        XX_FORCE_INLINE Data &operator=(Data const &o) {
+        // 复制含有 buf + len 成员的类实例的数据( offset = 0 )
+        template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
+        XX_FORCE_INLINE Data& operator=(T const& o) {
             if (this == &o) return *this;
             Clear();
             WriteBuf(o.buf, o.len);
             return *this;
         }
 
+        // 将 o 的数据挪过来
+        Data(Data &&o) noexcept {
+            memcpy(this, &o, sizeof(Data));
+            memset(&o, 0, sizeof(Data));
+        }
+
+        // 交换数据
         XX_FORCE_INLINE Data &operator=(Data &&o) noexcept {
             std::swap(buf, o.buf);
             std::swap(len, o.len);
@@ -234,9 +329,9 @@ namespace xx {
             return *this;
         }
 
-        // 判断数据是否一致
+        // 判断数据是否一致( 忽略 offset, cap )
         XX_FORCE_INLINE bool operator==(Data const &o) {
-            return ((Data_v *) this)->operator==(*(Data_v *) &o);
+            return this->Span::operator==(o);
         }
 
         XX_FORCE_INLINE bool operator!=(Data const &o) {
@@ -250,7 +345,9 @@ namespace xx {
 
             auto siz = Round2n(reserveLen + newCap);
             auto newBuf = (new uint8_t[siz]) + reserveLen;
-            memcpy(newBuf, buf, len);
+            if (len) {
+                memcpy(newBuf, buf, len);
+            }
 
             // 这里判断 cap 不判断 buf, 是因为 gcc 优化会导致 if 失效, 无论如何都会执行 free
             if (cap) {
@@ -260,7 +357,7 @@ namespace xx {
             cap = siz - reserveLen;
         }
 
-        // 返回旧长度
+        // 修改数据长度( 可能扩容 )。会返回旧长度
         XX_FORCE_INLINE size_t Resize(size_t const &newLen) {
             if (newLen > cap) {
                 Reserve<false>(newLen);
@@ -269,7 +366,6 @@ namespace xx {
             len = newLen;
             return rtv;
         }
-
 
         // 通过 初始化列表 填充内容. 填充前会先 Clear. 用法: d.Fill({ 1,2,3. ....})
         template<typename T = int32_t, typename = std::enable_if_t<std::is_convertible_v<T, uint8_t>>>
@@ -280,7 +376,6 @@ namespace xx {
                 buf[len++] = (uint8_t) b;
             }
         }
-
 
         // 下标可写访问
         XX_FORCE_INLINE uint8_t &operator[](size_t const &idx) {
@@ -298,11 +393,11 @@ namespace xx {
             }
         }
 
+
+
         /***************************************************************************************************************************/
 
-
-
-        // 追加写入一段 buf
+        // 追加写入一段 buf( 不记录数据长度 )
         template<bool needReserve = true>
         XX_FORCE_INLINE void WriteBuf(void const *const &ptr, size_t const &siz) {
             if constexpr (needReserve) {
@@ -314,7 +409,7 @@ namespace xx {
             len += siz;
         }
 
-        // 在指定 idx 写入一段 buf
+        // 在指定 idx 写入一段 buf( 不记录数据长度 )
         [[maybe_unused]] XX_FORCE_INLINE void WriteBufAt(size_t const &idx, void const *const &ptr, size_t const &siz) {
             if (idx + siz > len) {
                 Resize(idx + siz);
@@ -431,20 +526,22 @@ namespace xx {
         // 计算内存对齐的工具函数
         XX_FORCE_INLINE static size_t Calc2n(size_t const &n) noexcept {
             assert(n);
-#ifdef _MSC_VER
+#ifdef _WIN32
             unsigned long r = 0;
-#if defined(_WIN64) || defined(_M_X64)
-            _BitScanReverse64(&r, n);
-# else
-            _BitScanReverse(&r, n);
-# endif
+            if constexpr (sizeof(size_t) == 8) {
+                _BitScanReverse64(&r, n);
+            }
+            else {
+                _BitScanReverse(&r, n);
+            }
             return (size_t) r;
 #else
-#if defined(__LP64__) || __WORDSIZE == 64
-            return int(63 - __builtin_clzl(n));
-# else
-            return int(31 - __builtin_clz(n));
-# endif
+            if constexpr (sizeof(size_t) == 8) {
+                return int(63 - __builtin_clzl(n));
+            }
+            else {
+                return int(31 - __builtin_clz(n));
+            }
 #endif
         }
 
