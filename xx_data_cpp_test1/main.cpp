@@ -5,22 +5,6 @@
 
 void Test1() {
 	xx::Data d;
-	d.Reserve(1024 * 1024 * 1024);
-	for (int j = 0; j < 10; ++j) {
-		auto t = std::chrono::system_clock::now();
-		d.Clear();
-		for (uint64_t i = 0; i < 100000000; ++i) {
-			d.WriteFixed(i);
-		}
-		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::system_clock::now() - t)).count() << std::endl;
-		std::cout << d.len << std::endl;
-	}
-}
-
-int main() {
-	//Test1();
-
-	xx::Data d;
 	assert(d.buf == nullptr);
 	assert(d.len == 0);
 	assert(d.offset == 0);
@@ -197,6 +181,57 @@ int main() {
 	assert(d2[6] == 255);
 	assert(d2[7] == 255);
 	assert(d2[8] == 127);
+	d2.Clear();
+	d2.WriteFixedArray<char>("12345", 5);
+	assert(d2.len == 5);
+	assert(d2[0] == '1');
+	assert(d2[1] == '2');
+	assert(d2[2] == '3');
+	assert(d2[3] == '4');
+	assert(d2[4] == '5');
+	{
+		char buf[5];
+		int r = d2.ReadFixedArray<char>(buf, 5);
+		assert(r == 0);
+		assert(memcmp(buf, "12345", 5) == 0);
+	}
+	{
+		d2.Clear();
+		int buf[2];
+		buf[0] = 0x01020304;
+		buf[1] = 0x05060708;
+		d2.WriteFixedArray((int*)buf, 2);
+		assert(d2.len == 8);
+		assert(((int*)d2.buf)[0] == 0x01020304);
+		assert(((int*)d2.buf)[1] == 0x05060708);
+		buf[0] = 0;
+		buf[1] = 0;
+		int r = d2.ReadFixedArray((int*)buf, 2);
+		assert(r == 0);
+		assert(buf[0] == 0x01020304);
+		assert(buf[1] == 0x05060708);
+	}
+}
+
+
+void Test2() {
+	xx::Data d;
+	d.Reserve(1024 * 1024 * 1024);
+	for (int j = 0; j < 10; ++j) {
+		auto t = std::chrono::system_clock::now();
+		d.Clear();
+		for (uint64_t i = 0; i < 100000000; ++i) {
+			d.WriteFixed(i);
+		}
+		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::system_clock::now() - t)).count() << std::endl;
+		std::cout << d.len << std::endl;
+	}
+}
+
+
+int main() {
+	Test1();
+	//Test2();
 
 	std::cout << "end." << std::endl;
 	return 0;

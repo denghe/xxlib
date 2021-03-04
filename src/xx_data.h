@@ -162,6 +162,7 @@ namespace xx {
 
         // 读 定长buf 到 tar. 返回非 0 则读取失败
         [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadBuf(void *const &tar, size_t const &siz) {
+            assert(tar);
             if (offset + siz > len) return __LINE__;
             memcpy(tar, buf + offset, siz);
             offset += siz;
@@ -170,6 +171,7 @@ namespace xx {
 
         // 从指定下标 读 定长buf. 不改变 offset. 返回非 0 则读取失败
         [[maybe_unused]]  [[nodiscard]] XX_FORCE_INLINE int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
+            assert(tar);
             if (idx + siz > len) return __LINE__;
             memcpy(tar, buf + idx, siz);
             return 0;
@@ -220,6 +222,26 @@ namespace xx {
 #endif
             return 0;
         }
+
+        // 读 定长小尾数字 数组. 返回非 0 则读取失败
+        template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixedArray(T* const& tar, size_t const& siz) {
+            assert(tar);
+            if (offset + sizeof(T) * siz > len) return __LINE__;
+#ifdef __BIG_ENDIAN__
+            auto p = buf + offset;
+            T v;
+            for (size_t i = 0; i < siz; ++i) {
+                memcpy(&v, p + i * sizeof(T), sizeof(T));
+                tar[i] = BSwap(v);
+            }
+#else
+            memcpy(tar, buf + offset, sizeof(T) * siz);
+#endif
+            offset += sizeof(T) * siz;
+            return 0;
+        }
+
 
         // 读 变长整数. 返回非 0 则读取失败
         template<typename T>
@@ -280,11 +302,11 @@ namespace xx {
 
     // 基础二进制数据容器 附带基础 流式读写 功能，可配置预留长度方便有些操作在 buf 最头上放东西
     template<size_t reserveLen = 0>
-    struct Data : Data_v {
+    struct Data_rw : Data_v {
         size_t cap;
 
         // buf = len = offset = cap = 0
-        Data()
+        Data_rw()
             : cap(0) {
         }
 
@@ -295,7 +317,7 @@ namespace xx {
         }
 
         // 预分配空间
-        [[maybe_unused]] explicit Data(size_t const &cap)
+        [[maybe_unused]] explicit Data_rw(size_t const &cap)
                 : cap(cap) {
             assert(cap);
             auto siz = Round2n(reserveLen + cap);
@@ -304,25 +326,25 @@ namespace xx {
         }
 
         // 复制( offset = 0 )
-        [[maybe_unused]] Data(void const *const &ptr, size_t const &siz)
+        [[maybe_unused]] Data_rw(void const *const &ptr, size_t const &siz)
             : cap(0) {
             WriteBuf(ptr, siz);
         }
 
         // 复制( offset = 0 )
-        Data(Data const &o)
+        Data_rw(Data_rw const &o)
             : cap(0) {
             operator=(o);
         }
 
         // 复制( offset = 0 )
-        XX_FORCE_INLINE Data& operator=(Data const& o) {
-            return operator=<Data>(o);
+        XX_FORCE_INLINE Data_rw& operator=(Data_rw const& o) {
+            return operator=<Data_rw>(o);
         }
 
         // 复制含有 buf + len 成员的类实例的数据( offset = 0 )
         template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
-        XX_FORCE_INLINE Data& operator=(T const& o) {
+        XX_FORCE_INLINE Data_rw& operator=(T const& o) {
             if (this == &o) return *this;
             Clear();
             WriteBuf(o.buf, o.len);
@@ -330,13 +352,13 @@ namespace xx {
         }
 
         // 将 o 的数据挪过来
-        Data(Data &&o) noexcept {
-            memcpy(this, &o, sizeof(Data));
-            memset(&o, 0, sizeof(Data));
+        Data_rw(Data_rw &&o) noexcept {
+            memcpy(this, &o, sizeof(Data_rw));
+            memset(&o, 0, sizeof(Data_rw));
         }
 
         // 交换数据
-        XX_FORCE_INLINE Data &operator=(Data &&o) noexcept {
+        XX_FORCE_INLINE Data_rw &operator=(Data_rw &&o) noexcept {
             std::swap(buf, o.buf);
             std::swap(len, o.len);
             std::swap(cap, o.cap);
@@ -345,11 +367,11 @@ namespace xx {
         }
 
         // 判断数据是否一致( 忽略 offset, cap )
-        XX_FORCE_INLINE bool operator==(Data const &o) {
+        XX_FORCE_INLINE bool operator==(Data_rw const &o) {
             return this->Span::operator==(o);
         }
 
-        XX_FORCE_INLINE bool operator!=(Data const &o) {
+        XX_FORCE_INLINE bool operator!=(Data_rw const &o) {
             return !this->operator==(o);
         }
 
@@ -414,6 +436,7 @@ namespace xx {
         // 追加写入一段 buf( 不记录数据长度 )
         template<bool needReserve = true>
         XX_FORCE_INLINE void WriteBuf(void const *const &ptr, size_t const &siz) {
+            assert(ptr);
             if constexpr (needReserve) {
                 if (len + siz > cap) {
                     Reserve<false>(len + siz);
@@ -486,6 +509,28 @@ namespace xx {
             memcpy(buf + idx, &v, sizeof(T));
         }
 
+        // 追加写入 float / double / integer ( 定长 Little Endian ) 数组
+        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+        [[maybe_unused]] XX_FORCE_INLINE void WriteFixedArray(T const* const& ptr, size_t const& siz) {
+            assert(ptr);
+            if constexpr (needReserve) {
+                if (len + sizeof(T) * siz > cap) {
+                    Reserve<false>(len + sizeof(T) * siz);
+                }
+            }
+#ifdef __BIG_ENDIAN__
+            auto p = buf + len;
+            T v;
+            for (size_t i = 0; i < siz; ++i) {
+                v = BSwap(ptr[i]);
+                memcpy(p + i * sizeof(T), &v, sizeof(T));
+            }
+#else
+            memcpy(buf + len, ptr, sizeof(T) * siz);
+#endif
+            len += sizeof(T) * siz;
+        }
+
         // 追加写入整数( 7bit 变长格式 )
         template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_integral_v<T>>>
         [[maybe_unused]] XX_FORCE_INLINE void WriteVarInteger(T const &v) {
@@ -506,6 +551,7 @@ namespace xx {
             buf[len++] = uint8_t(u);
         }
 
+
         // 跳过指定长度字节数不写。返回起始 len
         template<bool needReserve = true>
         [[maybe_unused]] XX_FORCE_INLINE size_t WriteJump(size_t const &siz) {
@@ -522,7 +568,7 @@ namespace xx {
 
         /***************************************************************************************************************************/
 
-        ~Data() {
+        ~Data_rw() {
             Clear(true);
         }
 
@@ -576,6 +622,7 @@ namespace xx {
         XX_FORCE_INLINE static uint64_t ZigZagEncode(int64_t const& in) noexcept {
             return (in << 1) ^ (in >> 63);
         }
-
     };
+
+    using Data = Data_rw<0>;
 }
