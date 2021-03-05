@@ -177,6 +177,20 @@ namespace xx {
             return 0;
         }
 
+        // 读 定长buf 起始指针 方便外面 copy. 返回 nullptr 则读取失败
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE void* ReadBuf(size_t const& siz) {
+            if (offset + siz > len) return nullptr;
+            auto bak = offset;
+            offset += siz;
+            return buf + bak;
+        }
+
+        // 从指定下标 读 定长buf 起始指针 方便外面 copy. 返回 nullptr 则读取失败
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE void* ReadBufAt(size_t const& idx, size_t const& siz) const {
+            if (idx + siz > len) return nullptr;
+            return buf + idx;
+        }
+
         // 读 定长小尾数字. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadFixed(T &v) {

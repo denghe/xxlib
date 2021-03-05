@@ -25,61 +25,101 @@ lua_checkstack 看情况加
 */
 
 namespace xx::DataLua {
-	using D = xx::Data;
 	inline auto key = "xxData";
+	using D = xx::Data;
+	using S = std::pair<char const*, size_t>;
 
-	// 读取参数1 Data 的工具函数
-	inline D* GetSelf(lua_State* const& L) {
-		return (D*)lua_touserdata(L, 1);
+	void AttachMT(lua_State* const& L);
+
+	// 向 lua stack 压入
+	template<typename T>
+	inline int Push_(lua_State* const& L, T&& v) {
+		if constexpr (std::is_same_v<std::decay_t<T>, S>) {
+			lua_pushlstring(L, v.first, v.second);
+		}
+		else if constexpr (std::is_same_v<std::decay_t<T>, D>) {
+			lua_newuserdata(L, sizeof(D));
+			new (lua_touserdata(L, -1)) Data(std::forward(v));
+			AttachMT(L);
+		}
+		else if constexpr (std::is_floating_point_v<T>) {
+			lua_pushnumber(L, (lua_Number)v);
+		}
+		else if constexpr (std::is_integral_v<T>) {
+			lua_pushinteger(L, (lua_Integer)v);
+
+		}
+		// todo: more types here
+		else {
+			throw - 1;
+		}
+		return 1;
+	}
+	template<typename...Args>
+	inline int Push(lua_State* const& L, Args&&... args) {
+		return (... + Push_(L, std::forward<Args>(args)));
 	}
 
-	// 读取数值参数的工具函数
+	// 从 lua stack 读
 	template<typename T = size_t>
-	inline T GetNum(lua_State* const& L, int const& idx) {
-		if constexpr (std::is_floating_point_v<T>) return (T)lua_tonumber(L, idx);
+	inline T To(lua_State* const& L, int const& idx = 1) {
+		if constexpr (std::is_same_v<S, T>) {
+			S r;
+			r.first = lua_tolstring(L, idx, &r.second);
+			return r;
+		}
+		if constexpr (std::is_same_v<D*, T>) {
+			return (T)lua_touserdata(L, idx);
+		}
+		else if constexpr (std::is_floating_point_v<T>) {
+			return (T)lua_tonumber(L, idx);
+		}
+		else if constexpr (std::is_integral_v<T>) {
 #if LUA_VERSION_NUM == 501
-		// todo: 兼容 int64 的处理
-		return (T)lua_tonumber(L, idx);
+			// todo: 兼容 int64 的处理
+			return (T)lua_tonumber(L, idx);
 #else
-		return (T)lua_tointeger(L, idx);
+			return (T)lua_tointeger(L, idx);
 #endif
+		}
+		// todo: more types here
+		else throw - 1;
 	}
 
 	inline int __gc(lua_State* L) {
-		auto d = GetSelf(L);
+		auto d = To<D*>(L, 1);
 		d->~D();
 		return 0;
 	}
 
 	inline int Ensure(lua_State* L) {
 		assert(lua_gettop(L) == 2);
-		auto d = GetSelf(L);
-		auto siz = GetNum(L, 2);
+		auto d = To<D*>(L, 1);
+		auto siz = To(L, 2);
 		d->Reserve(d->len + siz);
 		return 0;
 	}
 
 	inline int Reserve(lua_State* L) {
 		assert(lua_gettop(L) == 2);
-		auto d = GetSelf(L);
-		auto cap = GetNum(L, 2);
+		auto d = To<D*>(L, 1);
+		auto cap = To(L, 2);
 		d->Reserve(cap);
 		return 0;
 	}
 
 	inline int Resize(lua_State* L) {
 		assert(lua_gettop(L) == 2);
-		auto d = GetSelf(L);
-		auto len = GetNum(L, 2);
+		auto d = To<D*>(L, 1);
+		auto len = To(L, 2);
 		auto r = d->Resize(len);
-		lua_pushinteger(L, r);
-		return 1;
+		return Push(L, r);
 	}
 
 	inline int Clear(lua_State* L) {
 		auto top = lua_gettop(L);
 		assert(top >= 1);
-		auto d = GetSelf(L);
+		auto d = To<D*>(L, 1);
 		if (top == 1) {
 			d->Clear();
 		}
@@ -92,50 +132,92 @@ namespace xx::DataLua {
 
 	inline int GetCap(lua_State* L) {
 		assert(lua_gettop(L) == 1);
-		auto d = GetSelf(L);
-		lua_pushinteger(L, d->cap);
-		return 1;
+		auto d = To<D*>(L, 1);
+		return Push(L, d->cap);
 	}
 
 	inline int GetLen(lua_State* L) {
 		assert(lua_gettop(L) == 1);
-		auto d = GetSelf(L);
-		lua_pushinteger(L, d->len);
-		return 1;
+		auto d = To<D*>(L, 1);
+		return Push(L, d->len);
 	}
 
 	inline int SetLen(lua_State* L) {
 		assert(lua_gettop(L) == 2);
-		auto d = GetSelf(L);
-		auto len = GetNum(L, 2);
+		auto d = To<D*>(L, 1);
+		auto len = To(L, 2);
 		d->len = len;
 		return 0;
 	}
 
 	inline int GetOffset(lua_State* L) {
 		assert(lua_gettop(L) == 1);
-		auto d = GetSelf(L);
-		lua_pushinteger(L, d->offset);
-		return 1;
+		auto d = To<D*>(L, 1);
+		return Push(L, d->offset);
 	}
 
 	inline int SetOffset(lua_State* L) {
 		assert(lua_gettop(L) == 2);
-		auto d = GetSelf(L);
-		auto offset = GetNum(L, 2);
+		auto d = To<D*>(L, 1);
+		auto offset = To(L, 2);
 		d->offset = offset;
 		return 0;
+	}
+
+	inline int Wj(lua_State* L) {
+		assert(lua_gettop(L) == 2);
+		auto d = To<D*>(L, 1);
+		auto siz = To(L, 2);
+		d->WriteJump(siz);
+		return 0;
+	}
+	inline int Ws(lua_State* L) {
+		assert(lua_gettop(L) == 2);
+		auto d = To<D*>(L, 1);
+		auto s = To<S>(L, 2);
+		d->WriteBuf(s.first, s.second);
+		return 0;
+	}
+	inline int Ws_at(lua_State* L) {
+		assert(lua_gettop(L) == 2);
+		auto d = To<D*>(L, 1);
+		auto idx = To(L, 2);
+		auto s = To<S>(L, 3);
+		d->WriteBufAt(idx, s.first, s.second);
+		return 0;
+	}
+
+	// 从 Data 读 指定长度 buf 向 lua 压入 r, str( 如果 r 不为 0 则 str 为 nil )
+	inline int Rs(lua_State* L) {
+		assert(lua_gettop(L) == 2);
+		auto d = To<D*>(L, 1);
+		auto siz = To(L, 2);
+		if (auto ptr = (char const*)d->ReadBuf(siz)) {
+			return Push(L, 0, S(ptr, siz));
+		}
+		return Push(L, __LINE__);
+	}
+
+	inline int Rs_at(lua_State* L) {
+		assert(lua_gettop(L) == 3);
+		auto d = To<D*>(L, 1);
+		auto idx = To(L, 2);
+		auto siz = To(L, 3);
+		if (auto ptr = (char const*)d->ReadBufAt(idx, siz)) {
+			return Push(L, 0, S(ptr, siz));
+		}
+		return Push(L, __LINE__);
 	}
 
 	// 读参数并调用 d->WriteXxxx
 	template<typename T, bool isFixed = true, bool isBE = false, bool isAt = false>
 	inline int W(lua_State* L) {
 		assert(lua_gettop(L) > 1);
-		auto d = GetSelf(L);
+		auto d = To<D*>(L, 1);
 		if constexpr (isFixed) {
 			if constexpr (isAt) {
-				auto idx = GetNum<size_t>(L, 2);
-				auto v = GetNum<T>(L, 3);
+				auto idx = To<size_t>(L, 2);
+				auto v = To<T>(L, 3);
 				if constexpr (isBE) {
 					d->WriteFixedBEAt(idx, v);
 				}
@@ -144,7 +226,7 @@ namespace xx::DataLua {
 				}
 			}
 			else {
-				auto v = GetNum<T>(L, 2);
+				auto v = To<T>(L, 2);
 				if constexpr (isBE) {
 					d->WriteFixedBE(v);
 				}
@@ -154,15 +236,11 @@ namespace xx::DataLua {
 			}
 		}
 		else {
-			auto v = GetNum<T>(L, 2);
+			auto v = To<T>(L, 2);
 			d->WriteVarInteger(v);
 		}
 		return 0;
 	}
-
-	// Wj
-	// Ws
-	// Ws_at
 	inline int Wvi(lua_State* L) { return W<ptrdiff_t, false>(L); }
 	inline int Wvu(lua_State* L) { return W<size_t, false>(L); }
 
@@ -207,35 +285,16 @@ namespace xx::DataLua {
 	inline int Wd_be_at(lua_State* L) { return W<double, true, true, true>(L); }
 
 
-	void AttachMT(lua_State* const& L);
-
-	template<typename T>
-	inline void Push(lua_State* const& L, T&& v) {
-		if constexpr (std::is_floating_point_v<T>) {
-			lua_pushnumber(L, (lua_Number)v);
-		}
-		else if constexpr (std::is_integral_v<T>) {
-			lua_pushinteger(L, (lua_Integer)v);
-		}
-		else if constexpr (std::is_same_v<std::decay_t<T>, D>) {
-			lua_newuserdata(L, sizeof(D));
-			new (lua_touserdata(L, -1)) Data(std::forward(v));
-			AttachMT(L);
-		}
-		// todo: more types here
-		else throw - 1;
-	}
-
-	// 读参数并调用 d->ReadXxxx. 向 lua 压入 r, v ( 1 ~ 2 个参数 ). r == 0 则有 v
+	// 读参数并调用 d->ReadXxxx. 向 lua 压入 r, v( v 可能 nil, 可能不止一个值 )
 	template<typename T, bool isFixed = true, bool isBE = false, bool isAt = false>
 	inline int R(lua_State* L) {
 		assert(lua_gettop(L) >= 1);
-		auto d = GetSelf(L);
+		auto d = To<D*>(L, 1);
 		int r;
 		T v;
 		if constexpr (isFixed) {
 			if constexpr (isAt) {
-				auto idx = GetNum<size_t>(L, 2);
+				auto idx = To<size_t>(L, 2);
 				if constexpr (isBE) {
 					r = d->ReadFixedBEAt(idx, v);
 				}
@@ -255,13 +314,9 @@ namespace xx::DataLua {
 		else {
 			r = d->ReadVarInteger(v);
 		}
-		Push(L, r);
-		if (r) return 1;
-		Push(L, v);
-		return 2;
+		if (r) return Push(L, r);
+		return Push(L, r, v);
 	}
-	// Rs
-	// Rs_at
 	inline int Rvi(lua_State* L) { return R<ptrdiff_t, false>(L); }
 	inline int Rvu(lua_State* L) { return R<size_t, false>(L); }
 
@@ -308,6 +363,7 @@ namespace xx::DataLua {
 
 	inline luaL_Reg funcs[] = {
 		{ "__gc", __gc },
+		//{ "__tostring", __tostring },
 
 		// todo: ==, clone fill reset 啥的
 
@@ -320,11 +376,10 @@ namespace xx::DataLua {
 		{ "SetLen", SetLen },
 		{ "GetOffset", GetOffset },
 		{ "SetOffset", SetOffset },
-		//{ "__tostring", __tostring },
 
-		//{ "Wj", Wj },
-		//{ "Ws", Ws },
-		//{ "Ws_at", Ws_at },
+		{ "Wj", Wj },
+		{ "Ws", Ws },
+		{ "Ws_at", Ws_at },
 
 		{ "Wvi", Wvi },
 		{ "Wvu", Wvu },
@@ -370,11 +425,11 @@ namespace xx::DataLua {
 		{ "Wd_be_at", Wd_be_at },
 
 
-		//{ "Rs", Rs },
-		//{ "Rs_at", Rs_at },
+		{ "Rs", Rs },
+		{ "Rs_at", Rs_at },
 
-		//{ "Rvi", Rvi },
-		//{ "Rvu", Rvu },
+		{ "Rvi", Rvi },
+		{ "Rvu", Rvu },
 
 		{ "Ri8", Ri8 },
 		{ "Ru8", Ru8 },
@@ -421,13 +476,13 @@ namespace xx::DataLua {
 
 	// 创建 mt 到栈顶
 	inline void CreateMT(lua_State* const& L) {
-		lua_createtable(L, 0, _countof(funcs));			// mt
+		lua_createtable(L, 0, _countof(funcs));				// mt
 
-		luaL_setfuncs(L, funcs, 0);						// mt
-		lua_pushvalue(L, -1);							// mt, mt
-		lua_setfield(L, -2, "__index");					// mt
-		lua_pushvalue(L, -1);							// mt, mt
-		lua_setfield(L, -2, "__metatable");				// mt
+		luaL_setfuncs(L, funcs, 0);							// mt
+		lua_pushvalue(L, -1);								// mt, mt
+		lua_setfield(L, -2, "__index");						// mt
+		lua_pushvalue(L, -1);								// mt, mt
+		lua_setfield(L, -2, "__metatable");					// mt
 	}
 
 	// 从注册表拿 mt 附加给 ud
