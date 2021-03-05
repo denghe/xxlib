@@ -65,7 +65,7 @@ namespace xx {
 
         // 引用一个 含有 buf + len 成员的对象的数据
         template<typename T, typename = std::enable_if_t<std::is_class_v<T>>>
-        [[maybe_unused]] Span(T const& d)
+        [[maybe_unused]] explicit Span(T const& d)
             : buf((uint8_t*)d.buf), len(d.len) {
         }
 

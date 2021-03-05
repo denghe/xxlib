@@ -14,6 +14,7 @@ extern "C" {
 
 #include "xx_data.h"
 #include <string>
+#include <exception>
 
 /*
 将 Data 封到 lua. 执行 xx::DataLua::Register( L ) 之后脚本中可用
@@ -55,8 +56,8 @@ namespace xx::DataLua {
 		}
 		// todo: more types here
 		else {
-			auto tid = typeid(T).name();
-			throw - 1;
+			//auto tid = typeid(T).name();
+			throw std::exception("unsupported type");
 		}
 		return 1;
 	}
@@ -89,8 +90,8 @@ namespace xx::DataLua {
 		}
 		// todo: more types here
 		else {
-			auto tid = typeid(T).name();
-			throw - 1;
+			//auto tid = typeid(T).name();
+            throw std::exception("unsupported type");
 		}
 	}
 
@@ -216,7 +217,7 @@ namespace xx::DataLua {
 		case 5:
 			d->Reset(To<uint8_t*>(L, 2), To(L, 3), To(L, 4), To(L, 5)); break;
 		default:
-			throw - 1;
+            throw std::exception("too many args");
 		}
 		return 0;
 	}
@@ -234,7 +235,7 @@ namespace xx::DataLua {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
 		auto d2 = To<D*>(L, 2);
-		auto r = (*d) == (*d2);
+		auto r = ((*d) == (*d2));
 		return Push(L, r);
 	}
 
@@ -258,7 +259,7 @@ namespace xx::DataLua {
 		return 0;
 	}
 
-	inline int Ws(lua_State* L) {
+	inline int Wbuf(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
 		auto s = To<S>(L, 2);
@@ -266,7 +267,7 @@ namespace xx::DataLua {
 		return 0;
 	}
 
-	inline int Ws_at(lua_State* L) {
+	inline int Wbuf_at(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
 		auto idx = To(L, 2);
@@ -275,18 +276,28 @@ namespace xx::DataLua {
 		return 0;
 	}
 
-	// 从 Data 读 指定长度 buf 向 lua 压入 r, str( 如果 r 不为 0 则 str 为 nil )
-	inline int Rs(lua_State* L) {
+    // 写 lua string ( 变长长度 + 内容 )
+    inline int Wstr(lua_State* L) {
+        assert(lua_gettop(L) == 2);
+        auto d = To<D*>(L, 1);
+        auto s = To<S>(L, 2);
+        d->WriteVarInteger(s.second);
+        d->WriteBuf(s.first, s.second);
+        return 0;
+    }
+
+    // 从 Data 读 指定长度 buf 向 lua 压入 r, str( 如果 r 不为 0 则 str 为 nil )
+	inline int Rbuf(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
-		auto siz = To(L, 2);
-		if (auto ptr = (char const*)d->ReadBuf(siz)) {
-			return Push(L, 0, S(ptr, siz));
+		auto len = To(L, 2);
+		if (auto ptr = (char const*)d->ReadBuf(len)) {
+			return Push(L, 0, S(ptr, len));
 		}
 		return Push(L, __LINE__);
 	}
 
-	inline int Rs_at(lua_State* L) {
+	inline int Rbuf_at(lua_State* L) {
 		assert(lua_gettop(L) == 3);
 		auto d = To<D*>(L, 1);
 		auto idx = To(L, 2);
@@ -296,6 +307,20 @@ namespace xx::DataLua {
 		}
 		return Push(L, __LINE__);
 	}
+
+	// 读 lua string ( 变长长度 + 内容 ). 返回值参考 Rbuf
+    inline int Rstr(lua_State* L) {
+        assert(lua_gettop(L) == 1);
+        auto d = To<D*>(L, 1);
+        size_t len;
+        if (int r = d->ReadVarInteger(len)) {
+            return Push(L, r);
+        }
+        if (auto ptr = (char const*)d->ReadBuf(len)) {
+            return Push(L, 0, S(ptr, len));
+        }
+        return Push(L, __LINE__);
+    }
 
 	// 读参数并调用 d->WriteXxxx
 	template<typename T, bool isFixed = true, bool isBE = false, bool isAt = false>
@@ -470,8 +495,9 @@ namespace xx::DataLua {
 		{ "At", At },
 
 		{ "Wj", Wj },
-		{ "Ws", Ws },
-		{ "Ws_at", Ws_at },
+		{ "Wbuf", Wbuf },
+		{ "Wbuf_at", Wbuf_at },
+		{ "Wstr", Wstr },
 
 		{ "Wvi", Wvi },
 		{ "Wvu", Wvu },
@@ -517,8 +543,9 @@ namespace xx::DataLua {
 		{ "Wd_be_at", Wd_be_at },
 
 
-		{ "Rs", Rs },
-		{ "Rs_at", Rs_at },
+		{ "Rbuf", Rbuf },
+		{ "Rbuf_at", Rbuf_at },
+		{ "Rstr", Rstr },
 
 		{ "Rvi", Rvi },
 		{ "Rvu", Rvu },
