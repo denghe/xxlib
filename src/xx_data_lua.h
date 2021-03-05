@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 #include "xx_data.h"
+#include <string>
 
 /*
 将 Data 封到 lua. 执行 xx::DataLua::Register( L ) 之后脚本中可用
@@ -101,9 +102,16 @@ namespace xx::DataLua {
 
 	inline int __tostring(lua_State* L) {
 		auto d = To<D*>(L, 1);
-		return Push(L, d->len);
-		// todo
-		// sprintf_s()
+		std::string s;
+		s.reserve(d->len * 4);
+		for (size_t i = 0; i < d->len; ++i) {
+			s.append(std::to_string((*d)[i]));
+			s.push_back(',');
+		}
+		if (d->len) {
+			s.resize(s.size() - 1);
+		}
+		return Push(L, S(s.data(), s.size()));
 	}
 
 	inline int Ensure(lua_State* L) {
@@ -176,6 +184,13 @@ namespace xx::DataLua {
 		auto offset = To(L, 2);
 		d->offset = offset;
 		return 0;
+	}
+
+	inline int At(lua_State* L) {
+		assert(lua_gettop(L) == 2);
+		auto d = To<D*>(L, 1);
+		auto idx = To(L, 2);
+		return Push(L, (*d)[idx]);
 	}
 
 	// 返回所有数据( buf, len, offset, cap )
@@ -452,6 +467,7 @@ namespace xx::DataLua {
 		{ "SetLen", SetLen },
 		{ "GetOffset", GetOffset },
 		{ "SetOffset", SetOffset },
+		{ "At", At },
 
 		{ "Wj", Wj },
 		{ "Ws", Ws },
