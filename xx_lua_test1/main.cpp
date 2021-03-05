@@ -8,14 +8,15 @@ void Test1() {
 
 	luaL_dostring(L, R"(
 local d = NewXxData()
-print(d)
-local mt = getmetatable(d)
-print( mt )
-print(11111111111)
-print( mt.GetLen )
-local x = mt.GetLen(d)
-print(2222222222)
-print( x )
+print( d:GetAll() )
+d:Fill(1,2,3,4,5,6,7)
+print( d:GetAll() )
+local d2 = d:Copy()
+print( d2:GetAll() )
+d:Clear()
+print( d:GetAll() )
+
+
 	)");
 
 	//auto top = lua_gettop(L);

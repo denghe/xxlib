@@ -34,23 +34,27 @@ namespace xx::DataLua {
 	// 向 lua stack 压入
 	template<typename T>
 	inline int Push_(lua_State* const& L, T&& v) {
-		if constexpr (std::is_same_v<std::decay_t<T>, S>) {
+		using U = std::decay_t<T>;
+		if constexpr (std::is_same_v<U, S>) {
 			lua_pushlstring(L, v.first, v.second);
 		}
-		else if constexpr (std::is_same_v<std::decay_t<T>, D>) {
+		else if constexpr (std::is_same_v<U, D>) {
 			lua_newuserdata(L, sizeof(D));
 			new (lua_touserdata(L, -1)) Data(std::forward(v));
 			AttachMT(L);
 		}
-		else if constexpr (std::is_floating_point_v<T>) {
+		else if constexpr (std::is_floating_point_v<U>) {
 			lua_pushnumber(L, (lua_Number)v);
 		}
-		else if constexpr (std::is_integral_v<T>) {
+		else if constexpr (std::is_integral_v<U>) {
 			lua_pushinteger(L, (lua_Integer)v);
-
+		}
+		else if constexpr (std::is_pointer_v<U>) {
+			lua_pushlightuserdata(L, (void*)v);
 		}
 		// todo: more types here
 		else {
+			auto tid = typeid(T).name();
 			throw - 1;
 		}
 		return 1;
@@ -60,7 +64,7 @@ namespace xx::DataLua {
 		return (... + Push_(L, std::forward<Args>(args)));
 	}
 
-	// 从 lua stack 读
+	// 从 lua stack 读( 考虑到是为生成物服务的，就不做类型正确性检测了 )
 	template<typename T = size_t>
 	inline T To(lua_State* const& L, int const& idx = 1) {
 		if constexpr (std::is_same_v<S, T>) {
@@ -68,7 +72,7 @@ namespace xx::DataLua {
 			r.first = lua_tolstring(L, idx, &r.second);
 			return r;
 		}
-		if constexpr (std::is_same_v<D*, T>) {
+		if constexpr (std::is_pointer_v<T>) {
 			return (T)lua_touserdata(L, idx);
 		}
 		else if constexpr (std::is_floating_point_v<T>) {
@@ -83,13 +87,23 @@ namespace xx::DataLua {
 #endif
 		}
 		// todo: more types here
-		else throw - 1;
+		else {
+			auto tid = typeid(T).name();
+			throw - 1;
+		}
 	}
 
 	inline int __gc(lua_State* L) {
 		auto d = To<D*>(L, 1);
 		d->~D();
 		return 0;
+	}
+
+	inline int __tostring(lua_State* L) {
+		auto d = To<D*>(L, 1);
+		return Push(L, d->len);
+		// todo
+		// sprintf_s()
 	}
 
 	inline int Ensure(lua_State* L) {
@@ -164,6 +178,63 @@ namespace xx::DataLua {
 		return 0;
 	}
 
+	// 返回所有数据( buf, len, offset, cap )
+	inline int GetAll(lua_State* L) {
+		assert(lua_gettop(L) == 1);
+		auto d = To<D*>(L, 1);
+		return Push(L, d->buf, d->len, d->offset, d->cap);
+	}
+
+	inline int Reset(lua_State* L) {
+		auto top = lua_gettop(L);
+		assert(top >= 1);
+		auto d = To<D*>(L, 1);
+		switch (top) {
+		case 1:
+			d->Reset();	break;
+		case 2:
+			d->Reset(To<uint8_t*>(L, 2)); break;
+		case 3:
+			d->Reset(To<uint8_t*>(L, 2), To(L, 3)); break;
+		case 4:
+			d->Reset(To<uint8_t*>(L, 2), To(L, 3), To(L, 4)); break;
+		case 5:
+			d->Reset(To<uint8_t*>(L, 2), To(L, 3), To(L, 4), To(L, 5)); break;
+		default:
+			throw - 1;
+		}
+		return 0;
+	}
+
+	inline int Copy(lua_State* L) {
+		assert(lua_gettop(L) == 1);
+		auto d = To<D*>(L, 1);
+		lua_newuserdata(L, sizeof(D));						// ..., ud
+		new (lua_touserdata(L, -1)) Data(*d);
+		AttachMT(L);										// ..., ud
+		return 1;
+	}
+
+	inline int Equals(lua_State* L) {
+		assert(lua_gettop(L) == 2);
+		auto d = To<D*>(L, 1);
+		auto d2 = To<D*>(L, 2);
+		auto r = (*d) == (*d2);
+		return Push(L, r);
+	}
+
+	inline int Fill(lua_State* L) {
+		auto top = lua_gettop(L);
+		assert(top >= 1);
+		auto d = To<D*>(L, 1);
+		for (int idx = 2; idx <= top; ++idx) {
+			auto v = To<uint8_t>(L, idx);
+			d->WriteFixed(v);
+		}
+		return 0;
+	}
+
+
 	inline int Wj(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
@@ -171,6 +242,7 @@ namespace xx::DataLua {
 		d->WriteJump(siz);
 		return 0;
 	}
+
 	inline int Ws(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
@@ -178,6 +250,7 @@ namespace xx::DataLua {
 		d->WriteBuf(s.first, s.second);
 		return 0;
 	}
+
 	inline int Ws_at(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
@@ -363,10 +436,13 @@ namespace xx::DataLua {
 
 	inline luaL_Reg funcs[] = {
 		{ "__gc", __gc },
-		//{ "__tostring", __tostring },
+		{ "__tostring", __tostring },
 
-		// todo: ==, clone fill reset 啥的
-
+		{ "Fill", Fill },
+		{ "GetAll", GetAll },
+		{ "Reset", Reset },
+		{ "Copy", Copy },
+		{ "Equals", Equals },
 		{ "Ensure", Ensure },
 		{ "Reserve", Reserve },
 		{ "Resize", Resize },
