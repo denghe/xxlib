@@ -187,6 +187,12 @@ namespace xx::DataLua {
 		return 0;
 	}
 
+    inline int GetLeft(lua_State* L) {
+        assert(lua_gettop(L) == 1);
+        auto d = To<D*>(L, 1);
+        return Push(L, d->len - d->offset);
+    }
+
 	inline int At(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L, 1);
@@ -479,7 +485,6 @@ namespace xx::DataLua {
 		{ "__tostring", __tostring },
 
 		{ "Fill", Fill },
-		{ "GetAll", GetAll },
 		{ "Reset", Reset },
 		{ "Copy", Copy },
 		{ "Equals", Equals },
@@ -492,7 +497,9 @@ namespace xx::DataLua {
 		{ "SetLen", SetLen },
 		{ "GetOffset", GetOffset },
 		{ "SetOffset", SetOffset },
-		{ "At", At },
+		{ "GetLeft", GetLeft },
+        { "GetAll", GetAll },
+        { "At", At },
 
 		{ "Wj", Wj },
 		{ "Wbuf", Wbuf },

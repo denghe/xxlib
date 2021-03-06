@@ -6,6 +6,13 @@ void Test1() {
 	luaL_openlibs(L);
 	xx::DataLua::Register(L);
 
+	lua_pushlightuserdata(L, nullptr);
+	lua_setglobal(L, "nullptr");
+    lua_pushlightuserdata(L, nullptr);
+    lua_setglobal(L, "null");
+	lua_pushlightuserdata(L, nullptr);
+	lua_setglobal(L, "NULL");
+
 	//luaL_dofile(L, "test.lua");
 	luaL_dofile(L, "om.lua");
 

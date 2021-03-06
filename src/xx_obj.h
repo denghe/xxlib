@@ -225,7 +225,7 @@ namespace xx {
 						d.WriteFixed((uint8_t)0);
 					}
 					else {
-						// 写入格式： offset + typeId + content
+						// 写入格式： idx + typeId + content ( idx 临时存入 h->offset )
 						auto h = ((PtrHeader*)v.pointer - 1);
 						if (h->offset == 0) {
 							ptrs.push_back(&h->offset);
@@ -385,15 +385,15 @@ namespace xx {
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-					uint32_t offs;
-					if (int r = Read_(offs)) return r;
-					if (!offs) {
+					uint32_t idx;
+					if (int r = Read_(idx)) return r;
+					if (!idx) {
 						v.Reset();
 						return 0;
 					}
 
 					auto len = (uint32_t)ptrs.size();
-					if (offs == len + 1) {
+					if (idx == len + 1) {
 						uint16_t typeId;
 						if (int r = Read_(typeId)) return r;
 						if (!typeId) return __LINE__;
@@ -406,8 +406,8 @@ namespace xx {
 						if (int r = Read_(*v)) return r;
 					}
 					else {
-						if (offs > len) return __LINE__;
-						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
+						if (idx > len) return __LINE__;
+						auto& o = *(ObjBase_s*)&ptrs[idx - 1];
 						if (!IsBaseOf<U>(o.typeId())) return __LINE__;
 						v = o.template ReinterpretCast<U>();
 					}
