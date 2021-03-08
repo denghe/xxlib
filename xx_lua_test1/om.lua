@@ -6,7 +6,7 @@ ObjMgr = {
         setmetatable(om, ObjMgr)
         return om
     end
-    -- 记录 typeId 到 创建函数的映射
+    -- 记录 typeId 到 元表 的映射
 , Register = function(self, o)
         self[o.typeId] = o
     end
@@ -24,7 +24,10 @@ ObjMgr = {
     end
     -- 内部函数: 向 d 写入一个 "类". 格式: idx + typeId + content
 , Write = function(self, o)
+        print("self = ", self)
         local d = self.d
+        print("d = ", d)
+        print("self.m = ", self.m)
         if o == null or o == nil then
             d:Wu8(0)
         else
@@ -104,6 +107,7 @@ ObjMgr = {
             return r
         end
         if len > d:GetLeft() then
+            print("len > d:GetLeft()", len, d:GetAll())
             return 107
         end
         local t = {}
@@ -241,7 +245,7 @@ Bar = {
 , typeId = 2
 , New = function(c)
         local o = c or {}
-        o.f = null --Foo.New();
+        o.foos = {}
         o.ints = {}
         if c == nil then
             setmetatable(o, Bar)
@@ -252,17 +256,16 @@ Bar = {
         -- no base
         local d = om.d
 
-        om:Write(self.f)
+        om:WriteArray(self.foos)
         om:WriteArray(self.ints, "Wvi")
     end
 , Read = function(self, om)
         local d = om.d, r
 
-        r, self.f = om:Read()
+        r, self.foos = om:ReadArray()
         if r ~= 0 then
             return r
         end
-
         r, self.ints = om:ReadArray("Rvi")
         if r ~= 0 then
             return r
@@ -284,39 +287,49 @@ end
 
 -- hand write
 local om = ObjMgr.New()
-
---for i, v in pairs(XXXXX) do
---    print(i, v)
---end
-
 XXX_RegisterTypesTo(om)
 
-local d = NewXxData()
 print("-------1111111----------")
+local d = NewXxData()
+local fb = FooBase.New()
+om:WriteTo(d, fb)
+print(d:GetAll())
 print(d)
+local r, o = om:ReadFrom(d)
+print("r, o = ", r, o)
+print(d:GetAll())
+
+print("-------22222222----------")
+d:Clear()
 local f = Foo.New()
 om:WriteTo(d, f)
+print(d:GetAll())
 print(d)
-print("-------22222222----------")
-local r, o = om:ReadFrom(d)
+r, o = om:ReadFrom(d)
 print("r, o = ", r, o)
 for i, v in pairs(o) do
     print(i, v)
 end
-print("-------333----------")
+print(d:GetAll())
 
+
+print("-------333----------")
 d:Clear()
 local b = Bar.New()
-b.ints = {3,4,5}
+table.insert(b.foos, FooBase.New())
+--table.insert(b.foos, Foo.New())
+--b.ints = {3,4,5}
 for i, v in pairs(b) do
     print(i, v)
 end
 om:WriteTo(d, b)
 print(d)
+print(d:GetAll())
 
-print("-------44444444----------")
 r, o = om:ReadFrom(d)
 print("r, o = ", r, o)
+print(d:GetAll())
+
 for k, v in pairs(o) do
     print(k, v)
 end
