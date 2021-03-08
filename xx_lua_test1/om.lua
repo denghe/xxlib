@@ -7,23 +7,23 @@ ObjMgr = {
         return om
     end
     -- 记录 typeId 到 创建函数的映射
-    , Register = function(self, o)
+, Register = function(self, o)
         self[o.typeId] = o
     end
     -- 入口函数: 始向 d 写入一个 "类"
-    , WriteTo = function(self, d, o)
+, WriteTo = function(self, d, o)
         self.d = d
         self.m = {}
         self:Write(o)
     end
     -- 入口函数: 开始从 d 读出一个 "类" 并返回 r, o    ( r == 0 表示成功 )
-    , ReadFrom = function(self, d)
+, ReadFrom = function(self, d)
         self.d = d
-        self.objs = {}
+        self.m = {}
         return self:Read()
     end
     -- 内部函数: 向 d 写入一个 "类". 格式: idx + typeId + content
-    , Write = function(self, o)
+, Write = function(self, o)
         local d = self.d
         if o == null or o == nil then
             d:Wu8(0)
@@ -42,104 +42,94 @@ ObjMgr = {
         end
     end
     -- 内部函数: 从 d 读出一个 "类" 并返回 r, o    ( r == 0 表示成功 )
-    , Read = function(self)
+, Read = function(self)
         local d = self.d
         local r, n = d:Rvu()
-        if r ~= 0 then return r end
-        if n == 0 then return 0 end
+        if r ~= 0 then
+            return r
+        end
+        if n == 0 then
+            return 0, null
+        end
         local m = self.m
         local len = #m, typeId
         if n == len + 1 then
             r, typeId = d:Rvu()
-            if r ~= 0 then return r end
-            if typeId == 0 then return 55 end
+            if r ~= 0 then
+                return r
+            end
+            if typeId == 0 then
+                return 62
+            end
             local v = self[typeId].New()
             m[n] = v
             v:Read(self)
             return 0, v
         else
-            if n > len then return 61 end
+            if n > len then
+                return 70
+            end
             return 0, m[n]
         end
     end
-    -- 内部函数: 向 d 写入一个 "类"数组
-    , WriteList = function(self, list)
+    -- 内部函数: 向 d 写入一个 "类"数组 或 子集合( 可能嵌套 ). fn 为最后一级的操作函数名, level 为级数
+, WriteArray = function(self, a, fn, level)
         local d = self.d
-        d:Wvu(#list)
-        for _, v in ipairs(list) do
-            self:Write(v)
+        d:Wvu(#a)
+        if #a == 0 then
+            return
         end
-    end
-    -- 内部函数: 从 d 读出一个 "类"数组
-    , ReadList = function(self)
-        local d = self.d
-        local r, len = d:Rvu()
-        if r ~= 0 then return r end
-        if len > d:GetLeft() then return 78 end
-        local t = {}
-        for i = 1, len do
-            r, t[i] = self:Read()
-            if r ~= 0 then return r end
-        end
-        return 0, t
-    end
-    -- 内部函数: 向 d 写入一个 值数组. 需要传递 Data 的写函数名
-    , WriteListValue = function(self, list, wfn)
-        local d = self.d
-        d:Wvu(#list)
-        local wf = getmetatable(d)[wfn]
-        for _, v in ipairs(list) do
-            wf(d, v)
-        end
-    end
-    -- 内部函数: 从 d 读出一个 值数组. 需要传递 Data 的写函数名
-    , ReadListValue = function(self, rfn)
-        local d = self.d
-        local r, len = d:Rvu()
-        if r ~= 0 then return r end
-        if len > d:GetLeft() then return 100 end
-        local rf = getmetatable(d)[rfn]
-        local t = {}
-        for i = 1, len do
-            r, t[i] = rf(d)
-            if r ~= 0 then return r end
-        end
-        return 0, t
-    end
-    -- 内部函数: 向 d 写入一个 可空(null代表)值 数组. 需要传递 Data 的写函数名
-    , WriteListNullableValue = function(self, list, wfn)
-        local d = self.d
-        local mt = getmetatable(d)
-        mt.Wvu(d, #list)
-        local wf1 = mt.Wu8
-        local wf2 = mt[wfn]
-        for _, v in ipairs(list) do
-            if v == null then
-                wf1(d, 0)
+        if level == nil or level == 1 then
+            if fn == nil then
+                for _, v in ipairs(a) do
+                    self:Write(v)
+                end
             else
-                wf1(d, 1)
-                wf2(d, v)
+                local wf = getmetatable(d)[fn]
+                for _, v in ipairs(a) do
+                    wf(d, v)
+                end
+            end
+        else
+            for _, v in ipairs(a) do
+                self:WriteArray(v, fn, level - 1)
             end
         end
     end
-    -- 内部函数: 从 d 读出一个 可空(null代表)值 数组. 需要传递 Data 的写函数名
-    , ReadListNullableValue = function(self, rfn)
+    -- 内部函数: 从 d 读出一个 "类"数组 或 子集合( 可能递归 ). fn 为最后一级的操作函数名, level 为级数
+, ReadArray = function(self, fn, level)
         local d = self.d
-        local mt = getmetatable(d)
-        local r, len = mt.Rvu(d)
-        if r ~= 0 then return r end
-        if len > mt.GetLeft(d) then return 100 end
-        local rf1 = mt.Ru8
-        local rf2 = mt[rfn]
-        local t = {}, n
-        for i = 1, len do
-            r, n = rf1(d)
-            if r ~= 0 then return r end
-            if n == 0 then
-                t[i] = null
+        local r, len = d:Rvu()
+        if r ~= 0 then
+            return r
+        end
+        if len > d:GetLeft() then
+            return 107
+        end
+        local t = {}
+        if level == nil or level == 1 then
+            if fn == nil then
+                for i = 1, len do
+                    r, t[i] = self:Read()
+                    if r ~= 0 then
+                        return r
+                    end
+                end
             else
-                r, t[i] = rf2(d)
-                if r ~= 0 then return r end
+                local f = getmetatable(d)[fn]
+                for i = 1, len do
+                    r, t[i] = f(d)
+                    if r ~= 0 then
+                        return r
+                    end
+                end
+            end
+        else
+            for i = 1, len do
+                r, t[i] = self:ReadArray(fn, level - 1)
+                if r ~= 0 then
+                    return r
+                end
             end
         end
         return 0, t
@@ -147,11 +137,35 @@ ObjMgr = {
 }
 ObjMgr.__index = ObjMgr
 
+-- 为 table 附加精简的集合操作函数
+List = {
+    New = function(...)
+        t = { ... }
+        setmetatable(t, List)
+        return t
+    end
+, Add = function(self, ...)
+        local args = { ... }
+        for i, v in pairs(args) do
+            table.insert(self, v)
+        end
+    end
+, SwapRemoveAt = function(self, idx)
+        local siz = #self
+        assert(idx > 0 and idx <= siz)
+        if idx < siz then
+            self[idx] = self[siz]
+        end
+        self[siz] = nil
+    end
+}
+List.__index = List
+
 -- code gens
 FooBase = {
     typeName = "FooBase"
-    , typeId = 3
-    , New = function(c)
+, typeId = 3
+, New = function(c)
         local o = c or {}
         o.d = 1.234
         o.f = 1.2
@@ -160,20 +174,24 @@ FooBase = {
         end
         return o
     end
-    , Write = function(self, om)
+, Write = function(self, om)
         local d = om.d
         -- todo: 向下兼容
         d:Wd(self.d)
         d:Wf(self.f)
         -- todo: 向下兼容
     end
-    , Read = function(self, om)
+, Read = function(self, om)
         local d = om.d, r
         -- todo: 向下兼容
         r, self.d = d:Rd()
-        if r ~= 0 then return r end
+        if r ~= 0 then
+            return r
+        end
         r, self.f = d:Rf()
-        if r ~= 0 then return r end
+        if r ~= 0 then
+            return r
+        end
         -- todo: 向下兼容
         return 0
     end
@@ -182,8 +200,8 @@ FooBase.__index = FooBase
 
 Foo = {
     typeName = "Foo"
-    , typeId = 1
-    , New = function(c)
+, typeId = 1
+, New = function(c)
         local o = c or {}
         FooBase.New(o)                          -- call base func
         o.n = 123
@@ -193,20 +211,26 @@ Foo = {
         end
         return o
     end
-    , Write = function(self, om)
+, Write = function(self, om)
         FooBase.Write(self, om)                 -- call base func
         local d = om.d
         d:Wi32(self.n)
         d:Wstr(self.s)
     end
-    , Read = function(self, om)
+, Read = function(self, om)
         local r = FooBase.Read(self, om)        -- call base func
-        if r ~= 0 then return r end
+        if r ~= 0 then
+            return r
+        end
         local d = om.d
         r, self.n = d:Ri32()
-        if r ~= 0 then return r end
+        if r ~= 0 then
+            return r
+        end
         r, self.s = d:Rstr()
-        if r ~= 0 then return r end
+        if r ~= 0 then
+            return r
+        end
         return 0
     end
 }
@@ -214,24 +238,36 @@ Foo.__index = Foo
 
 Bar = {
     typeName = "Bar"
-    , typeId = 2
-    , New = function(c)
+, typeId = 2
+, New = function(c)
         local o = c or {}
         o.f = null --Foo.New();
+        o.ints = {}
         if c == nil then
             setmetatable(o, Bar)
         end
         return o
     end
-    , Write = function(self, om)
+, Write = function(self, om)
         -- no base
         local d = om.d
-        om.Write(self.f)
+
+        om:Write(self.f)
+        om:WriteArray(self.ints, "Wvi")
     end
-    , Read = function(self, om)
+, Read = function(self, om)
         local d = om.d, r
-        r, self.f = om.Read()
-        if r ~= 0 then return r end
+
+        r, self.f = om:Read()
+        if r ~= 0 then
+            return r
+        end
+
+        r, self.ints = om:ReadArray("Rvi")
+        if r ~= 0 then
+            return r
+        end
+
         return 0
     end
 }
@@ -262,16 +298,30 @@ local f = Foo.New()
 om:WriteTo(d, f)
 print(d)
 print("-------22222222----------")
-
 local r, o = om:ReadFrom(d)
-print("r, o = ",r, o)
+print("r, o = ", r, o)
 for i, v in pairs(o) do
     print(i, v)
 end
-
 print("-------333----------")
 
---local b = Bar.New()
---b.f.
+d:Clear()
+local b = Bar.New()
+b.ints = {3,4,5}
+for i, v in pairs(b) do
+    print(i, v)
+end
+om:WriteTo(d, b)
+print(d)
 
--- todo: List 读写测试
+print("-------44444444----------")
+r, o = om:ReadFrom(d)
+print("r, o = ", r, o)
+for k, v in pairs(o) do
+    print(k, v)
+end
+for _, v in ipairs(o.ints) do
+    print(v)
+end
+
+print("-------55555----------")
