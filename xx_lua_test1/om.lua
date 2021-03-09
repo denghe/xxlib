@@ -14,6 +14,7 @@ ObjMgr = {
 , WriteTo = function(self, d, o)
         self.d = d
         self.m = {}
+        self.m.len = 0
         self:Write(o)
     end
     -- 入口函数: 开始从 d 读出一个 "类" 并返回 r, o    ( r == 0 表示成功 )
@@ -24,17 +25,15 @@ ObjMgr = {
     end
     -- 内部函数: 向 d 写入一个 "类". 格式: idx + typeId + content
 , Write = function(self, o)
-        print("self = ", self)
         local d = self.d
-        print("d = ", d)
-        print("self.m = ", self.m)
         if o == null or o == nil then
             d:Wu8(0)
         else
             local m = self.m
             local n = m[o]
             if n == nil then
-                n = #m + 1
+                n = m.len + 1
+                m.len = n
                 m[o] = n
                 d:Wvu(n)
                 d:Wvu(getmetatable(o).typeId)
@@ -62,7 +61,7 @@ ObjMgr = {
                 return r
             end
             if typeId == 0 then
-                return 62
+                return 64
             end
             local v = self[typeId].New()
             m[n] = v
@@ -70,7 +69,7 @@ ObjMgr = {
             return 0, v
         else
             if n > len then
-                return 70
+                return 72
             end
             return 0, m[n]
         end
@@ -107,8 +106,7 @@ ObjMgr = {
             return r
         end
         if len > d:GetLeft() then
-            print("len > d:GetLeft()", len, d:GetAll())
-            return 107
+            return 109
         end
         local t = {}
         if level == nil or level == 1 then
@@ -141,30 +139,6 @@ ObjMgr = {
 }
 ObjMgr.__index = ObjMgr
 
--- 为 table 附加精简的集合操作函数
-List = {
-    New = function(...)
-        t = { ... }
-        setmetatable(t, List)
-        return t
-    end
-, Add = function(self, ...)
-        local args = { ... }
-        for i, v in pairs(args) do
-            table.insert(self, v)
-        end
-    end
-, SwapRemoveAt = function(self, idx)
-        local siz = #self
-        assert(idx > 0 and idx <= siz)
-        if idx < siz then
-            self[idx] = self[siz]
-        end
-        self[siz] = nil
-    end
-}
-List.__index = List
-
 -- code gens
 FooBase = {
     typeName = "FooBase"
@@ -180,23 +154,39 @@ FooBase = {
     end
 , Write = function(self, om)
         local d = om.d
-        -- todo: 向下兼容
+        local bak = d:Wj(4)
+
         d:Wd(self.d)
         d:Wf(self.f)
-        -- todo: 向下兼容
+
+        d:Wu32_at(bak, d:GetLen() - bak)
+        print(222)
     end
 , Read = function(self, om)
-        local d = om.d, r
-        -- todo: 向下兼容
-        r, self.d = d:Rd()
-        if r ~= 0 then
-            return r
+        local d = om.d        -- 如果非兼容模式 则 r 声明在这句
+
+        local r, siz = d:Ru32()
+        if r ~= 0 then return r end
+        local eo = d:GetOffset() - 4 + siz
+
+        if d:GetOffset() >= eo then
+            self.d = 1.234              -- 填默认值
+        else
+            r, self.d = d:Rd()
+            if r ~= 0 then
+                return r
+            end
         end
-        r, self.f = d:Rf()
-        if r ~= 0 then
-            return r
+
+        if d:GetOffset() >= eo then
+            self.f = 1.2                -- 填默认值
+        else
+            r, self.f = d:Rf()
+            if r ~= 0 then return r end
         end
-        -- todo: 向下兼容
+
+        if d:GetOffset() > eo then return -1 end
+        d:SetOffset(eo)
         return 0
     end
 }
@@ -245,8 +235,8 @@ Bar = {
 , typeId = 2
 , New = function(c)
         local o = c or {}
-        o.foos = {}
-        o.ints = {}
+        o.foos = {} -- List<Foo>
+        o.ints = {} -- List<int>
         if c == nil then
             setmetatable(o, Bar)
         end
@@ -312,13 +302,12 @@ for i, v in pairs(o) do
 end
 print(d:GetAll())
 
-
 print("-------333----------")
 d:Clear()
 local b = Bar.New()
-table.insert(b.foos, FooBase.New())
---table.insert(b.foos, Foo.New())
---b.ints = {3,4,5}
+table.insert(b.foos, Foo.New())
+table.insert(b.foos, Foo.New())
+b.ints = { 3, 4, 5 }
 for i, v in pairs(b) do
     print(i, v)
 end
@@ -332,6 +321,17 @@ print(d:GetAll())
 
 for k, v in pairs(o) do
     print(k, v)
+end
+for k, v in pairs(o.foos) do
+    print(k, v)
+    --for _, v2 in ipairs(v) do
+    --    print(v2)
+    --end
+end
+for _, v in ipairs(o.foos) do
+    for k, v2 in pairs(v) do
+        print(k, v2)
+    end
 end
 for _, v in ipairs(o.ints) do
     print(v)

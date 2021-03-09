@@ -263,8 +263,7 @@ namespace xx::DataLua {
         assert(lua_gettop(L) == 2);
         auto d = To<D *>(L, 1);
         auto siz = To(L, 2);
-        d->WriteJump(siz);
-        return 0;
+        return Push(L, d->WriteJump(siz));
     }
 
     inline int Wbuf(lua_State *L) {
