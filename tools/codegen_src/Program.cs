@@ -38,7 +38,7 @@ public static class Program {
         }
 
         // file -> cfg instance
-        var cfg = Cfg.GetCfg(cfgPath);
+        var cfg = Cfg.ReadFrom(cfgPath);
 
 
 

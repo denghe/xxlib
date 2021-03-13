@@ -63,7 +63,7 @@ public partial class Cfg {
     public string outdir_cpp { get; set; }
 }
 
-// 功能扩展
+// 常用生成器需求功能扩展
 partial class Cfg {
 
     /// <summary>
@@ -159,7 +159,6 @@ partial class Cfg {
     /// </summary>
     public Dictionary<Type, ushort> ClassTypeIdMappings;
 
-    // todo: enums
 
     /// <summary>
     /// 是否本地类型
@@ -196,7 +195,24 @@ partial class Cfg {
 
 
 
-// 功能扩展
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*********************************************************************************************************/
+/*********************************************************************************************************/
+/*********************************************************************************************************/
+
+// 初始化功能扩展
 partial class Cfg {
     // 用于查找引用
     public static Dictionary<string, Cfg> allConfigs = new Dictionary<string, Cfg>();
@@ -240,27 +256,47 @@ partial class Cfg {
     }
 
     // json -> cfg instance
-    public static Cfg GetCfg(string fn) {
+    public static Cfg ReadFrom(string fn) {
+        // 转为完全路径
         fn = Path.GetFullPath(fn);
 
-        // check file
+        // 如果已创建配置就直接短路返回
+        if (allConfigs.ContainsKey(fn)) return allConfigs[fn];
+
+        // 检查文件是否存在
         if (!File.Exists(fn)) {
             Console.WriteLine("can't open code gen config json file: ", fn);
             Environment.Exit(-1);
         }
 
-        // return exists instance
-        if (allConfigs.ContainsKey(fn)) return allConfigs[fn];
+        // 反序列化配置创建类实例
+        var cfg = DeSerialize<Cfg>(File.ReadAllText(fn));
 
-        // json -> cfg class instance
-        var cfg = Cfg.DeSerialize<Cfg>(File.ReadAllText(fn));
+        // 放入字典去重
         allConfigs.Add(fn, cfg);
 
-        // prepare
-        if (string.IsNullOrWhiteSpace(cfg.name)) throw new Exception("bad name: " + cfg.name);
+        // 如果有填写 refs, 就加载
+        if (cfg.refs != null) {
+            foreach (var s in cfg.refs) {
+                var c = ReadFrom(s);
+                if (!cfg.refsCfgs.Contains(c)) {
+                    cfg.refsCfgs.Add(c);
+                }
+            }
+        }
 
+        // 检查名字是否不合规
+        if (string.IsNullOrWhiteSpace(cfg.name) || cfg.name.Trim() != cfg.name) throw new Exception("bad name: " + cfg.name);
+
+        // 检查模板文件列表
         if (cfg.files == null || cfg.files.Count == 0) throw new Exception("miss files?");
 
+        // 转为完整路径
+        for (int i = 0; i < cfg.files.Count; i++) {
+            cfg.files[i] = Path.GetFullPath(cfg.files[i]);
+        }
+
+        // 输出路径检查
         if (string.IsNullOrWhiteSpace(cfg.outdir_cs)
             && string.IsNullOrWhiteSpace(cfg.outdir_lua)
             && string.IsNullOrWhiteSpace(cfg.outdir_cpp)) throw new Exception("miss outdir_cs | outdir_lua | outdir_cpp ?");
@@ -275,20 +311,16 @@ partial class Cfg {
             if (!Directory.Exists(cfg.outdir_cpp)) throw new Exception("can't find outdir_cpp dir: " + cfg.outdir_cpp);
         }
 
-        // fill asm
-        cfg.asm = CreateAssembly(cfg.files);
-        if (cfg.asm == null) Environment.Exit(-1);
-
-        if (cfg.refs != null) {
-            foreach (var s in cfg.refs) {
-                var c = GetCfg(s);
-                if (!cfg.refsCfgs.Contains(c)) {
-                    cfg.refsCfgs.Add(c);
-                }
-            }
+        // 归纳所有 refsCfgs 的所有源代码文件
+        var allCsFiles = new List<string>();
+        foreach (var rc in cfg.refsCfgs) {
+            allCsFiles.AddRange(rc.files);
         }
+        allCsFiles = allCsFiles.Distinct().ToList();
 
-        // begin fill lists...
+        // 编译出 assembly
+        cfg.asm = CreateAssembly(allCsFiles);
+        if (cfg.asm == null) Environment.Exit(-1);
 
         // 得到所有 class & struct & enum & interface ( 含有当前 asm 以及 refs asm 的所有类型 )
         cfg.types = cfg.asm.GetTypes().Where(
@@ -363,10 +395,24 @@ partial class Cfg {
         cfg.externalClasssStructsEnums.AddRange(cfg.externalClasssStructs);
         cfg.externalClasssStructsEnums.AddRange(cfg.externalEnums);
 
+        // 填充 typeId
+        foreach (var c in cfg.classs) {
+            var id = c._GetTypeId();
+            if (id == null) { }// throw new Exception("type: " + c.FullName + " miss [TypeId(xxxxxx)]");
+            else {
+                if (cfg.typeIdClassMappings.ContainsKey(id.Value)) {
+                    throw new Exception("type: " + c.FullName + "'s typeId is duplicated with " + cfg.typeIdClassMappings[id.Value].FullName);
+                }
+                else {
+                    cfg.typeIdClassMappings.Add(id.Value, c);
+                }
+            }
+        }
+        foreach (var kv in cfg.typeIdClassMappings) {
+            cfg.ClassTypeIdMappings.Add(kv.Value, kv.Key);
+        }
 
-        // todo
-        // typeIdClassMappings
-        // ClassTypeIdMappings
+        // todo: more 合法性检测( 标签加错位置? 值不对? .... )
 
 
         // todo: recursive refs check
