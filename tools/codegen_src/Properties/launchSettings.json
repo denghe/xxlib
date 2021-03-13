@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "tools_codegen_src": {
+      "commandName": "Project",
+      "commandLineArgs": "D:\\xx.json"
+    }
+  }
+}
