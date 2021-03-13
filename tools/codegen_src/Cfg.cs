@@ -255,6 +255,14 @@ partial class Cfg {
         }
     }
 
+    // 递归合并 files 填充到 list
+    public static void FillCsFiles(Cfg cfg, ref List<string> list) {
+        list.AddRange(cfg.files);
+        foreach (var rc in cfg.refsCfgs) {
+            FillCsFiles(rc, ref list);
+        }
+    }
+
     // json -> cfg instance
     public static Cfg ReadFrom(string fn) {
         // 转为完全路径
@@ -268,6 +276,10 @@ partial class Cfg {
             Console.WriteLine("can't open code gen config json file: ", fn);
             Environment.Exit(-1);
         }
+
+        // 备份并修改 工作目录 为 cfg 所在目录
+        var cd = Environment.CurrentDirectory;
+        Environment.CurrentDirectory = new FileInfo(fn).Directory.FullName;
 
         // 反序列化配置创建类实例
         var cfg = DeSerialize<Cfg>(File.ReadAllText(fn));
@@ -291,10 +303,12 @@ partial class Cfg {
         // 检查模板文件列表
         if (cfg.files == null || cfg.files.Count == 0) throw new Exception("miss files?");
 
+
         // 转为完整路径
         for (int i = 0; i < cfg.files.Count; i++) {
             cfg.files[i] = Path.GetFullPath(cfg.files[i]);
         }
+
 
         // 输出路径检查
         if (string.IsNullOrWhiteSpace(cfg.outdir_cs)
@@ -302,25 +316,26 @@ partial class Cfg {
             && string.IsNullOrWhiteSpace(cfg.outdir_cpp)) throw new Exception("miss outdir_cs | outdir_lua | outdir_cpp ?");
 
         if (!string.IsNullOrWhiteSpace(cfg.outdir_cs)) {
+            cfg.outdir_cs = Path.GetFullPath(cfg.outdir_cs);
             if (!Directory.Exists(cfg.outdir_cs)) throw new Exception("can't find outdir_cs dir: " + cfg.outdir_cs);
         }
         if (!string.IsNullOrWhiteSpace(cfg.outdir_lua)) {
+            cfg.outdir_lua = Path.GetFullPath(cfg.outdir_lua);
             if (!Directory.Exists(cfg.outdir_lua)) throw new Exception("can't find outdir_lua dir: " + cfg.outdir_lua);
         }
         if (!string.IsNullOrWhiteSpace(cfg.outdir_cpp)) {
+            cfg.outdir_cpp = Path.GetFullPath(cfg.outdir_cpp);
             if (!Directory.Exists(cfg.outdir_cpp)) throw new Exception("can't find outdir_cpp dir: " + cfg.outdir_cpp);
         }
 
-        // 归纳所有 refsCfgs 的所有源代码文件
+        // 合并所有 refsCfgs 的所有源代码文件列表
         var allCsFiles = new List<string>();
-        foreach (var rc in cfg.refsCfgs) {
-            allCsFiles.AddRange(rc.files);
-        }
+        FillCsFiles(cfg, ref allCsFiles);
         allCsFiles = allCsFiles.Distinct().ToList();
 
         // 编译出 assembly
         cfg.asm = CreateAssembly(allCsFiles);
-        if (cfg.asm == null) Environment.Exit(-1);
+        if (cfg.asm == null) throw new Exception("compile error.");
 
         // 得到所有 class & struct & enum & interface ( 含有当前 asm 以及 refs asm 的所有类型 )
         cfg.types = cfg.asm.GetTypes().Where(
@@ -416,6 +431,10 @@ partial class Cfg {
 
 
         // todo: recursive refs check
+
+        // 还原工作目录
+        Environment.CurrentDirectory = cd;
+
 
         return cfg;
     }

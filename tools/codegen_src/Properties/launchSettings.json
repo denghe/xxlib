@@ -2,7 +2,7 @@
   "profiles": {
     "tools_codegen_src": {
       "commandName": "Project",
-      "commandLineArgs": "D:\\xx.json"
+      "commandLineArgs": "C:\\Codes\\xxlib\\tools_codegen_test1\\gen_cfg.json"
     }
   }
 }
