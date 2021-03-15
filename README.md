@@ -52,7 +52,8 @@ set_source_files_properties(Classes/test.cpp PROPERTIES COMPILE_FLAGS "-fvisibil
 
 
 附录：
-so 特征分析手段: 
+apk 所有文件 特征分析手段: 
 	zip 解开 apk 在 lib 找到 so  
 	用 strings 导出 特征字符串列表( 混合了导出函数列表 和 代码内写死的字串 )  
 	用 IDA 打开 看 Exports, Strings( 可排序，更方便 ), 配合插件甚至可以删掉各种导出函数，只留下 JNI Java 字样的.  
+	用 FileLocator Pro 针对 apk 展开后的目录，查找 *.*, 将 “黑名单” 关键词 用 OR 串联 匹配, 一个个文件观察，看有没有问题( 所有文件类型都有可能出问题 )
