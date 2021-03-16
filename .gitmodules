@@ -1,0 +1,3 @@
+[submodule "xxlib_codegen"]
+	path = xxlib_codegen
+	url = https://github.com/denghe/xxlib_codegen
