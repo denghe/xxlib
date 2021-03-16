@@ -15,8 +15,8 @@ public static class GenCpp {
     static Cfg cfg;
     static List<string> createEmptyFiles = new List<string>();
 
-    public static void Gen(Cfg cfg_) {
-        cfg = cfg_;
+    public static void Gen() {
+        cfg = TypeHelpers.cfg;
         createEmptyFiles.Clear();
 
         Gen_h();

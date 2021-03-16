@@ -40,9 +40,15 @@ public static class Program {
 
         Console.WriteLine("开始生成");
         try {
-            GenCpp.Gen(TypeHelpers.cfg);
-            //GenCSharp.Gen(TypeHelpers.cfg);
-            //GenLua.Gen(TypeHelpers.cfg);
+            if (!string.IsNullOrWhiteSpace(TypeHelpers.cfg.outdir_cpp)) {
+                GenCpp.Gen();
+            }
+            if (!string.IsNullOrWhiteSpace(TypeHelpers.cfg.outdir_cs)) {
+                GenCS.Gen();
+            }
+            if (!string.IsNullOrWhiteSpace(TypeHelpers.cfg.outdir_lua)) {
+                GenLua.Gen();
+            }
         }
         catch (Exception ex) {
             TipsAndExit("生成失败: " + ex.Message + "\r\n" + ex.StackTrace);
