@@ -153,11 +153,11 @@ partial class Cfg {
     /// <summary>
     /// typeId : type 字典，包含 asm 中所有用户类型( 本地&外部 填写了 [TypeId( ? )] 的 )
     /// </summary>
-    public Dictionary<ushort, Type> typeIdClassMappings;
+    public Dictionary<ushort, Type> typeIdClassMappings = new Dictionary<ushort, Type>();
     /// <summary>
     /// type : typeId 字典，包含 asm 中所有用户类型( 本地&外部 填写了 [TypeId( ? )] 的 )
     /// </summary>
-    public Dictionary<Type, ushort> ClassTypeIdMappings;
+    public Dictionary<Type, ushort> ClassTypeIdMappings = new Dictionary<Type, ushort>();
 
 
     /// <summary>
@@ -234,7 +234,7 @@ partial class Cfg {
             .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location)
                 , MetadataReference.CreateFromFile(typeof(Console).GetTypeInfo().Assembly.Location)
-                , MetadataReference.CreateFromFile(typeof(TypeHelpers).GetTypeInfo().Assembly.Location)
+                , MetadataReference.CreateFromFile(typeof(TemplateLibrary.TypeId).GetTypeInfo().Assembly.Location)
                 , MetadataReference.CreateFromFile(Path.Combine(dllPath, "mscorlib.dll"))
                 , MetadataReference.CreateFromFile(Path.Combine(dllPath, "netstandard.dll"))
                 , MetadataReference.CreateFromFile(Path.Combine(dllPath, "System.Runtime.dll")))
