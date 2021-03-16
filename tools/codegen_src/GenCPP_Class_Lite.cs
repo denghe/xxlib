@@ -11,20 +11,15 @@ using System.Collections.Generic;
 // 针对 struct 或标记有 [Struct] 的 class: 生成 ObjFuncs 模板特化适配
 
 public static class GenCPP_Class_Lite {
-    // 存放标记了 [TypeId(xxx)] 的 id, type 映射
-    static Dictionary<ushort, Type> typeIdMappings = new Dictionary<ushort, Type>();
+    // 简化传参
+    static Cfg cfg;
     static List<string> createEmptyFiles = new List<string>();
-    static Assembly asm = null;
-    static string templateName = null;
-    static List<Type> cs = null;
-    static List<Type> ts = null;
-
 
     static void GenH_Head(this StringBuilder sb) {
         sb.Append(@"#pragma once
 #include ""xx_obj.h""
-#include """ + templateName + @"_class_lite.h.inc""  // user create it for extend include files
-namespace " + templateName + @" {
+#include """ + cfg.name + @"_class_lite.h.inc""  // user create it for extend include files
+namespace " + cfg.name + @" {
 	struct PkgGenMd5 {
 		inline static const ::std::string value = """ + StringHelpers.MD5PlaceHolder + @""";
     };
@@ -32,16 +27,16 @@ namespace " + templateName + @" {
         static void RegisterTo(::xx::ObjManager& om);
     };
 ");
-        createEmptyFiles.Add(templateName + "_class_lite.h.inc");
+        createEmptyFiles.Add(cfg.name + "_class_lite.h.inc");
     }
 
 
     static void GenH_ClassPredefine(this StringBuilder sb) {
-        for (int i = 0; i < cs.Count; ++i) {
-            var c = cs[i];
-            var o = asm.CreateInstance(c.FullName);
+        for (int i = 0; i < cfg.localClasss.Count; ++i) {
+            var c = cfg.localClasss[i];
+            var o = c._GetInstance();
 
-            if (c.Namespace != null && (i == 0 || (i > 0 && cs[i - 1].Namespace != c.Namespace))) // namespace 去重
+            if (c.Namespace != null && (i == 0 || (i > 0 && cfg.localClasss[i - 1].Namespace != c.Namespace))) // namespace 去重
             {
                 sb.Append(@"
 namespace " + c.Namespace.Replace(".", "::") + @" {");
@@ -103,7 +98,7 @@ namespace " + e.Namespace.Replace(".", "::") + @" {");
     static void GenH_Structs(this StringBuilder sb) {
         for (int i = 0; i < cs.Count; ++i) {
             var c = cs[i];
-            if (!c._IsUserStruct()) continue;
+            if (!c._IsStruct()) continue;
             var o = asm.CreateInstance(c.FullName);
 
             if (c.Namespace != null && (i == 0 || (i > 0 && cs[i - 1].Namespace != c.Namespace))) // namespace 去重
@@ -124,7 +119,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
     static void GenH_Classs(this StringBuilder sb) {
         for (int i = 0; i < cs.Count; ++i) {
             var c = cs[i];
-            if (c._IsUserStruct()) continue;
+            if (c._IsStruct()) continue;
             var o = asm.CreateInstance(c.FullName);
 
             if (c.Namespace != null && (i == 0 || (i > 0 && cs[i - 1].Namespace != c.Namespace))) // namespace 去重
@@ -147,7 +142,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         var bt = c.BaseType;
 
 
-        if (c._IsUserStruct()) {
+        if (c._IsStruct()) {
             var btn = c._HasBaseType() ? (" : " + bt._GetTypeDecl_Cpp(templateName)) : "";
             sb.Append(c._GetDesc()._GetComment_Cpp(4) + @"
     struct " + c.Name + btn + @" {
@@ -203,7 +198,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 }
 namespace xx {");
         foreach (var c in cs) {
-            if (!c._IsUserStruct()) continue;
+            if (!c._IsStruct()) continue;
             var ctn = c._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
 	XX_GENCODE_STRUCT_TEMPLATE_H(" + ctn + @")");
@@ -233,7 +228,7 @@ namespace xx {");
             var bt = c.BaseType;
             var btn = bt._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
-        this->" + (c._IsUserStruct() ? btn : "BaseType") + "::operator=(std::move(o));");
+        this->" + (c._IsStruct() ? btn : "BaseType") + "::operator=(std::move(o));");
         }
         var fs = c._GetFields();
         foreach (var f in fs) {
@@ -245,7 +240,7 @@ namespace xx {");
         return *this;
     }");
 
-        if (c._IsUserClass()) {
+        if (c._IsClass()) {
 
             sb.Append(@"
     void " + c.Name + @"::Write(::xx::ObjManager& om) const {");
@@ -452,7 +447,7 @@ namespace xx {");
 
 
     static void GenCPP_Template(this StringBuilder sb, Type c) {
-        if (!c._IsUserStruct()) return;
+        if (!c._IsStruct()) return;
         var o = asm.CreateInstance(c.FullName);
 
         var ctn = c._GetTypeDecl_Cpp(templateName);
@@ -662,7 +657,7 @@ namespace xx {");
     }
 
     static void GenCPP_TypeId(this StringBuilder sb, Type c) {
-        if (c._IsUserStruct()) return;
+        if (c._IsStruct()) return;
         var ctn = c._GetTypeDecl_Cpp(templateName);
         var typeId = c._GetTypeId();
         if (typeId.HasValue) {
@@ -759,7 +754,7 @@ AJSON(" + templateName + "::" + c.Name);
 ");
     }
 
-    public static void Gen(Assembly asm_, string outDir, string templateName_) {
+    public static void Gen(Cfg cfg_) {
         createEmptyFiles.Clear();
         asm = asm_;
         templateName = templateName_;
