@@ -1,7 +1,7 @@
 {
-  "refs": [],
-  "name": "PKG_",
-  "files": [ "pkg.cs" ],
+  "refs": ["shared.json"],
+  "name": "p1_",
+  "files": [ "p1.cs" ],
   "outdir_cs": "cs",
   "outdir_lua": "lua",
   "outdir_cpp": "cpp"

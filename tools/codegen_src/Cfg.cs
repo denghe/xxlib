@@ -227,10 +227,10 @@ partial class Cfg {
     }
 
     // json -> assembly
-    public static Assembly CreateAssembly(IEnumerable<string> fileNames) {
+    public static Assembly CreateAssembly(string asmName, IEnumerable<string> fileNames) {
         var dllPath = RuntimeEnvironment.GetRuntimeDirectory();
 
-        var compilation = CSharpCompilation.Create("TmpLib")
+        var compilation = CSharpCompilation.Create(asmName)
             .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddReferences(MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location)
                 , MetadataReference.CreateFromFile(typeof(Console).GetTypeInfo().Assembly.Location)
@@ -261,6 +261,14 @@ partial class Cfg {
         foreach (var rc in cfg.refsCfgs) {
             FillCsFiles(rc, ref list);
         }
+    }
+
+    // 检查 tar 在 ref 树中是否存在
+    public bool RecursiveRefExists(Cfg tar) {
+        foreach (var c in refsCfgs) {
+            if (c.RecursiveRefExists(tar)) return true;
+        }
+        return false;
     }
 
     // json -> cfg instance
@@ -296,6 +304,9 @@ partial class Cfg {
                 }
             }
         }
+
+        // 检查循环引用
+        if (cfg.RecursiveRefExists(cfg)) throw new Exception("recursive ref?");
 
         // 检查名字是否不合规
         if (string.IsNullOrWhiteSpace(cfg.name) || cfg.name.Trim() != cfg.name) throw new Exception("bad name: " + cfg.name);
@@ -334,7 +345,7 @@ partial class Cfg {
         allCsFiles = allCsFiles.Distinct().ToList();
 
         // 编译出 assembly
-        cfg.asm = CreateAssembly(allCsFiles);
+        cfg.asm = CreateAssembly(cfg.name, allCsFiles);
         if (cfg.asm == null) throw new Exception("compile error.");
 
         // 得到所有 class & struct & enum & interface ( 含有当前 asm 以及 refs asm 的所有类型 )
@@ -347,11 +358,12 @@ partial class Cfg {
         foreach (var rc in cfg.refsCfgs) {
             allExts.AddRange(rc.types);
         }
-        allExts = allExts.Distinct().ToList();
+        // 得到所有 type 的名称( 直接对比 type 的话，跨 asm 会不同 )
+        var allExtNames = allExts.Select(o => o.FullName).Distinct().ToList();
 
 
         // 本地 所有 类型 = types 除开 allExts 以及明确标记为外部类型的
-        cfg.localClasssStructsEnumsInterfaces = cfg.types.Where(o => !allExts.Contains(o) && !o._Has<TemplateLibrary.External>()).ToList();
+        cfg.localClasssStructsEnumsInterfaces = cfg.types.Where(o => !allExtNames.Contains(o.FullName) && !o._Has<TemplateLibrary.External>()).ToList();
 
         // 外部 所有 类型 = types 除开 本地 的
         cfg.externalClasssStructsEnumsInterfaces = cfg.types.Where(o => !cfg.localClasssStructsEnumsInterfaces.Contains(o)).ToList();

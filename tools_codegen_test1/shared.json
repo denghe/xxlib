@@ -1,0 +1,8 @@
+{
+  "refs": [],
+  "name": "shared_",
+  "files": [ "shared.cs" ],
+  "outdir_cs": "cs",
+  "outdir_lua": "lua",
+  "outdir_cpp": "cpp"
+}

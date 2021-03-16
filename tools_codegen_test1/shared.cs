@@ -1,5 +1,7 @@
 using TemplateLibrary;
 
+// type id ºÅ¶Î: 1 ~ 9
+
 struct C {
 	float x, y;
 	List<Weak<A>> targets;
@@ -20,3 +22,5 @@ class A {
 	Weak<A> parent;
 	List<Shared<A>> children;
 };
+
+// todo: enum
