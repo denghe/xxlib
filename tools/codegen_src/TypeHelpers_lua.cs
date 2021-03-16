@@ -12,7 +12,7 @@ public static partial class TypeHelpers {
     /// <summary>
     /// 获取 LUA 的默认值填充代码
     /// </summary>
-    public static string _GetDefaultValueDecl_Lua(this object v, string templateName) {
+    public static string _GetDefaultValueDecl_Lua(this object v) {
         if (v == null) return "null";
         var t = v.GetType();
         if (t._IsNullable()) {
@@ -25,7 +25,7 @@ public static partial class TypeHelpers {
                 // 如果 v 的值在枚举中找不到, 输出硬转格式. 否则输出枚举项
                 var fs = t._GetEnumFields();
                 if (fs.Exists(f => f._GetEnumValue(t).ToString() == sv)) {
-                    return _GetTypeDecl_Lua(t, templateName) + "." + v.ToString();
+                    return _GetTypeDecl_Lua(t) + "." + v.ToString();
                 }
                 else {
                     return sv.ToString();
@@ -47,19 +47,19 @@ public static partial class TypeHelpers {
     /// <summary>
     /// 获取 C++ 的类型声明串
     /// </summary>
-    public static string _GetTypeDecl_Lua(this Type t, string templateName) {
+    public static string _GetTypeDecl_Lua(this Type t) {
         if (t._IsNullable()) {
-            return "Nullable" + _GetTypeDecl_Lua(t.GenericTypeArguments[0], templateName);
+            return "Nullable" + _GetTypeDecl_Lua(t.GenericTypeArguments[0]);
         }
         else if (t._IsWeak()) {
-            return "Weak_" + _GetTypeDecl_Lua(t.GenericTypeArguments[0], templateName);
+            return "Weak_" + _GetTypeDecl_Lua(t.GenericTypeArguments[0]);
         }
         else if (t._IsList()) {
             string rtv = t.Name.Substring(0, t.Name.IndexOf('`')) + "_";
             for (int i = 0; i < t.GenericTypeArguments.Length; ++i) {
                 if (i > 0)
                     rtv += "_";
-                rtv += _GetTypeDecl_Lua(t.GenericTypeArguments[i], templateName);
+                rtv += _GetTypeDecl_Lua(t.GenericTypeArguments[i]);
             }
             rtv += "_";
             return rtv;
@@ -67,7 +67,7 @@ public static partial class TypeHelpers {
         else if (t.Namespace == nameof(System) || t.Namespace == nameof(TemplateLibrary)) {
             return t.Name;
         }
-        return (t._IsExternal() ? "" : templateName) + "_" + t.FullName.Replace(".", "_");
+        return (t._IsExternal() ? "" : "") + "_" + t.FullName.Replace(".", "_");
     }
 
 

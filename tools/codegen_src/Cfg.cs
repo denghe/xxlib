@@ -353,6 +353,9 @@ partial class Cfg {
             t => t.Namespace != nameof(System) && t.Namespace != nameof(TemplateLibrary)
         ).ToList();
 
+        // 按引用关系排序
+        cfg.types._SortByInheritRelation();
+
         // 归并 refs asm 所有 types
         var allExts = new List<Type>();
         foreach (var rc in cfg.refsCfgs) {

@@ -12,7 +12,7 @@ public static partial class TypeHelpers {
     /// <summary>
     /// 获取 CPP 的默认值填充代码
     /// </summary>
-    public static string _GetDefaultValueDecl_Cpp(this Type t, object v, string templateName) {
+    public static string _GetDefaultValueDecl_Cpp(this Type t, object v) {
         if (t._IsNullable()) {
             return v == null ? "" : v.ToString();
         }
@@ -25,14 +25,14 @@ public static partial class TypeHelpers {
         if (t.IsValueType) {
             if (t.IsEnum) {
                 var sv = v._GetEnumInteger(t);
-                if (sv == "0") return "(" + _GetTypeDecl_Cpp(t, templateName) + ")0";
+                if (sv == "0") return "(" + _GetTypeDecl_Cpp(t) + ")0";
                 // 如果 v 的值在枚举中找不到, 输出硬转格式. 否则输出枚举项
                 var fs = t._GetEnumFields();
                 if (fs.Exists(f => f._GetEnumValue(t).ToString() == sv)) {
-                    return _GetTypeDecl_Cpp(t, templateName) + "::" + v.ToString();
+                    return _GetTypeDecl_Cpp(t) + "::" + v.ToString();
                 }
                 else {
-                    return "(" + _GetTypeDecl_Cpp(t, templateName) + ")" + v._GetEnumInteger(t);
+                    return "(" + _GetTypeDecl_Cpp(t) + ")" + v._GetEnumInteger(t);
                 }
             }
             if (t._IsNumeric()) {
@@ -53,9 +53,9 @@ public static partial class TypeHelpers {
     /// <summary>
     /// 获取 C++ 的类型声明串
     /// </summary>
-    public static string _GetTypeDecl_Cpp(this Type t, string templateName) {
+    public static string _GetTypeDecl_Cpp(this Type t) {
         if (t._IsNullable()) {
-            return "::std::optional<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ">";
+            return "::std::optional<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp() + ">";
         }
         if (t._IsData()) {
             return "::xx::Data";
@@ -66,33 +66,33 @@ public static partial class TypeHelpers {
                 if (i > 0) {
                     rtv += ", ";
                 }
-                rtv += t.GenericTypeArguments[i]._GetTypeDecl_Cpp(templateName);
+                rtv += t.GenericTypeArguments[i]._GetTypeDecl_Cpp();
             }
             rtv += ">";
             return rtv;
         }
         else if (t.IsEnum)  // enum & struct
         {
-            return "::" + (t._IsExternal() ? "" : (templateName + "::")) + t.FullName.Replace(".", "::");
+            return "::" + (t._IsExternal() ? "" : ("::")) + t.FullName.Replace(".", "::");
         }
         else {
             if (t.Namespace == nameof(TemplateLibrary)) {
                 switch (t.Name) {
                     case "Weak`1":
-                        return "::xx::Weak<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "::xx::Weak<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0]) + ">";
                     case "Shared`1":
-                        return "::xx::Shared<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "::xx::Shared<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0]) + ">";
                     case "Unique`1":
-                        return "::std::unique_ptr<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "::std::unique_ptr<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0]) + ">";
                     case "List`1": {
                             var ct = t.GenericTypeArguments[0];
-                            return "::std::vector" + @"<" + ct._GetTypeDecl_Cpp(templateName) + ">";
+                            return "::std::vector" + @"<" + ct._GetTypeDecl_Cpp() + ">";
                         }
                     case "Dict`2": {
-                            return "::std::map" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp(templateName) + ">";
+                            return "::std::map" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp() + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp() + ">";
                         }
                     case "Pair`2": {
-                            return "::std::pair" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp(templateName) + ">";
+                            return "::std::pair" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp() + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp() + ">";
                         }
                     case "Data":
                         return "::xx::Data";
@@ -140,7 +140,7 @@ public static partial class TypeHelpers {
                         return "::std::string";
                 }
             }
-            return "::" + (t._IsExternal() ? "" : (templateName + "::")) + t.FullName.Replace(".", "::");
+            return "::" + (t._IsExternal() ? "" : ("::")) + t.FullName.Replace(".", "::");
             //return (t._IsExternal() ? "" : ("::" + templateName)) + "::" + t.FullName.Replace(".", "::") + (t.IsValueType ? "" : ((t._IsExternal() && !t._GetExternalSerializable()) ? "" : suffix));
         }
     }

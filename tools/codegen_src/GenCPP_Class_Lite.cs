@@ -15,127 +15,6 @@ public static class GenCPP_Class_Lite {
     static Cfg cfg;
     static List<string> createEmptyFiles = new List<string>();
 
-    static void GenH_Head(this StringBuilder sb) {
-        sb.Append(@"#pragma once
-#include ""xx_obj.h""
-#include """ + cfg.name + @"_class_lite.h.inc""  // user create it for extend include files
-namespace " + cfg.name + @" {
-	struct PkgGenMd5 {
-		inline static const ::std::string value = """ + StringHelpers.MD5PlaceHolder + @""";
-    };
-	struct PkgGenTypes {
-        static void RegisterTo(::xx::ObjManager& om);
-    };
-");
-        createEmptyFiles.Add(cfg.name + "_class_lite.h.inc");
-    }
-
-
-    static void GenH_ClassPredefine(this StringBuilder sb) {
-        for (int i = 0; i < cfg.localClasss.Count; ++i) {
-            var c = cfg.localClasss[i];
-            var o = c._GetInstance();
-
-            if (c.Namespace != null && (i == 0 || (i > 0 && cfg.localClasss[i - 1].Namespace != c.Namespace))) // namespace 去重
-            {
-                sb.Append(@"
-namespace " + c.Namespace.Replace(".", "::") + @" {");
-            }
-
-            sb.Append(@"
-    struct " + c.Name + ";");
-
-            if (c.Namespace != null && ((i < cs.Count - 1 && cs[i + 1].Namespace != c.Namespace) || i == cs.Count - 1)) {
-                sb.Append(@"
-}");
-            }
-        }
-
-        sb.Append(@"
-}
-namespace xx {");
-        foreach (var c in cs) {
-            sb.GenCPP_TypeId(c);
-        }
-        sb.Append(@"
-}
-namespace " + templateName + @" {
-");
-
-    }
-
-
-    static void GenH_Enums(this StringBuilder sb) {
-        var es = ts._GetEnums();
-        for (int i = 0; i < es.Count; ++i) {
-            var e = es[i];
-            if (e.Namespace != null && (i == 0 || (i > 0 && es[i - 1].Namespace != e.Namespace))) // namespace 去重
-            {
-                sb.Append(@"
-namespace " + e.Namespace.Replace(".", "::") + @" {");
-            }
-
-            sb.Append(e._GetDesc()._GetComment_Cpp(4) + @"
-    enum class " + e.Name + @" : " + e._GetEnumUnderlyingTypeName_Cpp() + @" {");
-
-            var fs = e._GetEnumFields();
-            foreach (var f in fs) {
-                sb.Append(f._GetDesc()._GetComment_Cpp(8) + @"
-        " + f.Name + " = " + f._GetEnumValue(e) + ",");
-            }
-
-            sb.Append(@"
-    };");
-
-            if (e.Namespace != null && ((i < es.Count - 1 && es[i + 1].Namespace != e.Namespace) || i == es.Count - 1)) {
-                sb.Append(@"
-}");
-            }
-        }
-    }
-
-
-    static void GenH_Structs(this StringBuilder sb) {
-        for (int i = 0; i < cs.Count; ++i) {
-            var c = cs[i];
-            if (!c._IsStruct()) continue;
-            var o = asm.CreateInstance(c.FullName);
-
-            if (c.Namespace != null && (i == 0 || (i > 0 && cs[i - 1].Namespace != c.Namespace))) // namespace 去重
-            {
-                sb.Append(@"
-namespace " + c.Namespace.Replace(".", "::") + @" {");
-            }
-
-            sb.GenH_Struct(c, o);
-
-            if (c.Namespace != null && ((i < cs.Count - 1 && cs[i + 1].Namespace != c.Namespace) || i == cs.Count - 1)) {
-                sb.Append(@"
-}");
-            }
-        }
-    }
-
-    static void GenH_Classs(this StringBuilder sb) {
-        for (int i = 0; i < cs.Count; ++i) {
-            var c = cs[i];
-            if (c._IsStruct()) continue;
-            var o = asm.CreateInstance(c.FullName);
-
-            if (c.Namespace != null && (i == 0 || (i > 0 && cs[i - 1].Namespace != c.Namespace))) // namespace 去重
-            {
-                sb.Append(@"
-namespace " + c.Namespace.Replace(".", "::") + @" {");
-            }
-
-            sb.GenH_Struct(c, o);
-
-            if (c.Namespace != null && ((i < cs.Count - 1 && cs[i + 1].Namespace != c.Namespace) || i == cs.Count - 1)) {
-                sb.Append(@"
-}");
-            }
-        }
-    }
 
     static void GenH_Struct(this StringBuilder sb, Type c, object o) {
         // 定位到基类
@@ -143,13 +22,13 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 
 
         if (c._IsStruct()) {
-            var btn = c._HasBaseType() ? (" : " + bt._GetTypeDecl_Cpp(templateName)) : "";
+            var btn = c._HasBaseType() ? (" : " + bt._GetTypeDecl_Cpp()) : "";
             sb.Append(c._GetDesc()._GetComment_Cpp(4) + @"
     struct " + c.Name + btn + @" {
         XX_GENCODE_STRUCT_H(" + c.Name + @")");
         }
         else {
-            var btn = c._HasBaseType() ? bt._GetTypeDecl_Cpp(templateName) : "::xx::ObjBase";
+            var btn = c._HasBaseType() ? bt._GetTypeDecl_Cpp() : "::xx::ObjBase";
             sb.Append(c._GetDesc()._GetComment_Cpp(4) + @"
     struct " + c.Name + " : " + btn + @" {
         XX_GENCODE_OBJECT_H(" + c.Name + @", " + btn + @")");
@@ -158,16 +37,16 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 
         if (c._Has<TemplateLibrary.Include>()) {
             sb.Append(@"
-#include """ + c._GetTypeDecl_Lua(templateName) + @".inc""");
-            createEmptyFiles.Add(c._GetTypeDecl_Lua(templateName) + ".inc");
+#include """ + c._GetTypeDecl_Lua() + @".inc""");
+            createEmptyFiles.Add(c._GetTypeDecl_Lua() + ".inc");
         }
 
         sb.GenH_Struct_Fields(c, o);
 
         if (c._Has<TemplateLibrary.Include_>()) {
             sb.Append(@"
-#include """ + c._GetTypeDecl_Lua(templateName) + @"_.inc""");
-            createEmptyFiles.Add(c._GetTypeDecl_Lua(templateName) + ".inc");
+#include """ + c._GetTypeDecl_Lua() + @"_.inc""");
+            createEmptyFiles.Add(c._GetTypeDecl_Lua() + ".inc");
         }
 
         sb.Append(@"
@@ -178,12 +57,12 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         var fs = c._GetFieldsConsts();
         foreach (var f in fs) {
             var ft = f.FieldType;
-            var ftn = ft._GetTypeDecl_Cpp(templateName);
+            var ftn = ft._GetTypeDecl_Cpp();
             sb.Append(f._GetDesc()._GetComment_Cpp(8) + @"
         " + (f.IsStatic ? "constexpr " : "") + ftn + " " + f.Name);
 
             var v = f.GetValue(f.IsStatic ? null : o);
-            var dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+            var dv = ft._GetDefaultValueDecl_Cpp(v);
             if (dv != "") {
                 sb.Append(" = " + dv + ";");
             }
@@ -193,31 +72,9 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         }
     }
 
-    static void GenH_StructTemplates(this StringBuilder sb) {
-        sb.Append(@"
-}
-namespace xx {");
-        foreach (var c in cs) {
-            if (!c._IsStruct()) continue;
-            var ctn = c._GetTypeDecl_Cpp(templateName);
-            sb.Append(@"
-	XX_GENCODE_STRUCT_TEMPLATE_H(" + ctn + @")");
-        }
-        sb.Append(@"
-}");
-    }
-
-
-    static void GenH_Tail(this StringBuilder sb) {
-        sb.Append(@"
-#include """ + templateName + @"_class_lite_.h.inc""  // user create it for extend include files at the end
-");
-        createEmptyFiles.Add(templateName + "_class_lite_.h.inc");
-    }
-
 
     static void GenCPP_Struct_CopyAssign(this StringBuilder sb, Type c) {
-        var o = asm.CreateInstance(c.FullName);
+        var o = c._GetInstance();
 
         sb.Append(@"
     " + c.Name + @"::" + c.Name + @"(" + c.Name + @"&& o) noexcept {
@@ -226,7 +83,7 @@ namespace xx {");
     " + c.Name + @"& " + c.Name + @"::operator=(" + c.Name + @"&& o) noexcept {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         this->" + (c._IsStruct() ? btn : "BaseType") + "::operator=(std::move(o));");
         }
@@ -289,7 +146,7 @@ namespace xx {");
 
                     string dv = "";
                     var v = f.GetValue(f.IsStatic ? null : o);
-                    dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                    dv = ft._GetDefaultValueDecl_Cpp(v);
                     if (dv != "") {
                         dv = "this->" + f.Name + " = " + dv;
                     }
@@ -317,7 +174,7 @@ namespace xx {");
             sb.Append(@"
         return 0;
     }");
-            var ctn = c._GetTypeDecl_Cpp(templateName);
+            var ctn = c._GetTypeDecl_Cpp();
             sb.Append(@"
     void " + c.Name + @"::Append(::xx::ObjManager& om) const {
         om.Append(""{\""__typeId__\"":"", this->ObjBase::GetTypeId());");
@@ -350,7 +207,7 @@ namespace xx {");
             }
             if (fs.Count > 0) {
                 sb.Append(@"
-        auto out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
+        auto out = (" + c._GetTypeDecl_Cpp() + @"*)tar;");
             }
             foreach (var f in fs) {
                 var ft = f.FieldType;
@@ -368,7 +225,7 @@ namespace xx {");
             }
             if (fs.Count > 0) {
                 sb.Append(@"
-        auto out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
+        auto out = (" + c._GetTypeDecl_Cpp() + @"*)tar;");
             }
 
             foreach (var f in fs) {
@@ -424,7 +281,7 @@ namespace xx {");
 
                 string dv = "";
                 var v = f.GetValue(f.IsStatic ? null : o);
-                dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                dv = ft._GetDefaultValueDecl_Cpp(v);
                 if (dv != "") {
                     dv = "this->" + f.Name + " = " + dv;
                 }
@@ -448,16 +305,16 @@ namespace xx {");
 
     static void GenCPP_Template(this StringBuilder sb, Type c) {
         if (!c._IsStruct()) return;
-        var o = asm.CreateInstance(c.FullName);
+        var o = c._GetInstance();
 
-        var ctn = c._GetTypeDecl_Cpp(templateName);
+        var ctn = c._GetTypeDecl_Cpp();
         var fs = c._GetFields();
         sb.Append(@"
 	void ObjFuncs<" + ctn + @", void>::Write(::xx::ObjManager& om, " + ctn + @" const& in) {");
 
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         ObjFuncs<" + btn + ">::Write(om, in);");
         }
@@ -486,7 +343,7 @@ namespace xx {");
 
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
 
             sb.Append(@"
         if (int r = ObjFuncs<" + btn + ">::Read(om, out)) return r;");
@@ -503,7 +360,7 @@ namespace xx {");
 
                 string dv = "";
                 var v = f.GetValue(f.IsStatic ? null : o);
-                dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                dv = ft._GetDefaultValueDecl_Cpp(v);
                 if (dv != "") {
                     dv = "out." + f.Name + " = " + dv;
                 }
@@ -536,7 +393,7 @@ namespace xx {");
 	void ObjFuncs<" + ctn + @", void>::AppendCore(ObjManager &om, " + ctn + @" const& in) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         auto sizeBak = om.str->size();
         ObjFuncs<" + btn + ">::AppendCore(om, in);");
@@ -566,7 +423,7 @@ namespace xx {");
     void ObjFuncs<" + ctn + @">::Clone1(::xx::ObjManager& om, " + ctn + @" const& in, " + ctn + @" &out) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         ObjFuncs<" + btn + ">::Clone1(om, in, out);");
         }
@@ -582,7 +439,7 @@ namespace xx {");
     void ObjFuncs<" + ctn + @">::Clone2(::xx::ObjManager& om, " + ctn + @" const& in, " + ctn + @" &out) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         ObjFuncs<" + btn + ">::Clone2(om, in, out);");
         }
@@ -598,7 +455,7 @@ namespace xx {");
     int ObjFuncs<" + ctn + @">::RecursiveCheck(::xx::ObjManager& om, " + ctn + @" const& in) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         if (int r = ObjFuncs<" + btn + ">::RecursiveCheck(om, in)) return r;");
         }
@@ -615,7 +472,7 @@ namespace xx {");
     void ObjFuncs<" + ctn + @">::RecursiveReset(::xx::ObjManager& om, " + ctn + @"& in) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         ObjFuncs<" + btn + ">::RecursiveReset(om, in);");
         }
@@ -631,7 +488,7 @@ namespace xx {");
     void ObjFuncs<" + ctn + @">::SetDefaultValue(::xx::ObjManager& om, " + ctn + @"& in) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
-            var btn = bt._GetTypeDecl_Cpp(templateName);
+            var btn = bt._GetTypeDecl_Cpp();
             sb.Append(@"
         ObjFuncs<" + btn + ">::SetDefaultValue(om, in);");
         }
@@ -640,7 +497,7 @@ namespace xx {");
 
             string dv = "";
             var v = f.GetValue(f.IsStatic ? null : o);
-            dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+            dv = ft._GetDefaultValueDecl_Cpp(v);
             if (dv != "") {
                 dv = "in." + f.Name + " = " + dv;
             }
@@ -658,7 +515,7 @@ namespace xx {");
 
     static void GenCPP_TypeId(this StringBuilder sb, Type c) {
         if (c._IsStruct()) return;
-        var ctn = c._GetTypeDecl_Cpp(templateName);
+        var ctn = c._GetTypeDecl_Cpp();
         var typeId = c._GetTypeId();
         if (typeId.HasValue) {
             sb.Append(@"
@@ -668,10 +525,10 @@ namespace xx {");
 
     static void GenCPP_Register(this StringBuilder sb) {
         sb.Append(@"
-namespace " + templateName + @" {
+namespace " + cfg.name + @" {
 	void PkgGenTypes::RegisterTo(::xx::ObjManager& om) {");
-        foreach (var kv in typeIdMappings) {
-            var ctn = kv.Value._GetTypeDecl_Cpp(templateName);
+        foreach (var kv in cfg.typeIdClassMappings) {
+            var ctn = kv.Value._GetTypeDecl_Cpp();
             sb.Append(@"
 	    om.Register<" + ctn + @">();");
         }
@@ -682,9 +539,9 @@ namespace " + templateName + @" {
     }
 
     static void GenCPP_Includes(this StringBuilder sb) {
-        sb.Append("#include \"" + templateName + @"_class_lite.h""
-#include """ + templateName + @"_class_lite.cpp.inc""");
-        createEmptyFiles.Add(templateName + "_class_lite.cpp.inc");
+        sb.Append("#include \"" + cfg.name + @"_class_lite.h""
+#include """ + cfg.name + @"_class_lite.cpp.inc""");
+        createEmptyFiles.Add(cfg.name + "_class_lite.cpp.inc");
     }
 
     static void GenCPP_FuncImpls(this StringBuilder sb) {
@@ -692,20 +549,20 @@ namespace " + templateName + @" {
 
         sb.Append(@"
 namespace xx {");
-        foreach (var c in cs) {
+        foreach (var c in cfg.classs) {
             sb.GenCPP_Template(c);
         }
         sb.Append(@"
 }");
 
         sb.Append(@"
-namespace " + templateName + @" {");
+namespace " + cfg.name + @" {");
 
-        for (int i = 0; i < cs.Count; ++i) {
-            var c = cs[i];
+        for (int i = 0; i < cfg.classs.Count; ++i) {
+            var c = cfg.classs[i];
 
             // namespace c_ns {
-            if (c.Namespace != null && (i == 0 || (i > 0 && cs[i - 1].Namespace != c.Namespace))) // namespace 去重
+            if (c.Namespace != null && (i == 0 || (i > 0 && cfg.classs[i - 1].Namespace != c.Namespace))) // namespace 去重
             {
                 sb.Append(@"
 namespace " + c.Namespace.Replace(".", "::") + @" {");
@@ -714,7 +571,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
             sb.GenCPP_Struct_CopyAssign(c);
 
             // namespace }
-            if (c.Namespace != null && ((i < cs.Count - 1 && cs[i + 1].Namespace != c.Namespace) || i == cs.Count - 1)) {
+            if (c.Namespace != null && ((i < cfg.classs.Count - 1 && cfg.classs[i + 1].Namespace != c.Namespace) || i == cfg.classs.Count - 1)) {
                 sb.Append(@"
 }");
             }
@@ -727,7 +584,157 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
     }
 
 
+    public static void Gen(Cfg cfg_) {
+        cfg = cfg_;
+        createEmptyFiles.Clear();
 
+        Gen_h();
+        Gen_cpp();
+        Gen_ajson_h();
+        Gen_empties();
+    }
+
+    public static void Gen_h() {
+        var sb = new StringBuilder();
+
+        // 生成 .h
+
+        sb.Append(@"#pragma once
+#include ""xx_obj.h""
+#include """ + cfg.name + @"_class_lite.h.inc""  // user create it for extend include files
+namespace " + cfg.name + @" {
+	struct PkgGenMd5 {
+		inline static const ::std::string value = """ + StringHelpers.MD5PlaceHolder + @""";
+    };
+	struct PkgGenTypes {
+        static void RegisterTo(::xx::ObjManager& om);
+    };
+");
+        createEmptyFiles.Add(cfg.name + "_class_lite.h.inc");
+
+        for (int i = 0; i < cfg.localClasss.Count; ++i) {
+            var c = cfg.localClasss[i];
+            var o = c._GetInstance();
+
+            if (c.Namespace != null && (i == 0 || (i > 0 && cfg.localClasss[i - 1].Namespace != c.Namespace))) // namespace 去重
+            {
+                sb.Append(@"
+namespace " + c.Namespace.Replace(".", "::") + @" {");
+            }
+
+            sb.Append(@"
+    struct " + c.Name + ";");
+
+            if (c.Namespace != null && ((i < cfg.classs.Count - 1 && cfg.classs[i + 1].Namespace != c.Namespace) || i == cfg.classs.Count - 1)) {
+                sb.Append(@"
+}");
+            }
+        }
+
+        sb.Append(@"
+}
+namespace xx {");
+        foreach (var c in cfg.classs) {
+            sb.GenCPP_TypeId(c);
+        }
+        sb.Append(@"
+}
+");
+
+        for (int i = 0; i < cfg.enums.Count; ++i) {
+            var e = cfg.enums[i];
+            if (e.Namespace != null && (i == 0 || (i > 0 && cfg.enums[i - 1].Namespace != e.Namespace))) // namespace 去重
+            {
+                sb.Append(@"
+namespace " + e.Namespace.Replace(".", "::") + @" {");
+            }
+
+            sb.Append(e._GetDesc()._GetComment_Cpp(4) + @"
+    enum class " + e.Name + @" : " + e._GetEnumUnderlyingTypeName_Cpp() + @" {");
+
+            var fs = e._GetEnumFields();
+            foreach (var f in fs) {
+                sb.Append(f._GetDesc()._GetComment_Cpp(8) + @"
+        " + f.Name + " = " + f._GetEnumValue(e) + ",");
+            }
+
+            sb.Append(@"
+    };");
+
+            if (e.Namespace != null && ((i < cfg.enums.Count - 1 && cfg.enums[i + 1].Namespace != e.Namespace) || i == cfg.enums.Count - 1)) {
+                sb.Append(@"
+}");
+            }
+        }
+
+        for (int i = 0; i < cfg.classs.Count; ++i) {
+            var c = cfg.classs[i];
+            if (!c._IsStruct()) continue;
+            var o = c._GetInstance();
+
+            if (c.Namespace != null && (i == 0 || (i > 0 && cfg.classs[i - 1].Namespace != c.Namespace))) // namespace 去重
+            {
+                sb.Append(@"
+namespace " + c.Namespace.Replace(".", "::") + @" {");
+            }
+
+            sb.GenH_Struct(c, o);
+
+            if (c.Namespace != null && ((i < cfg.classs.Count - 1 && cfg.classs[i + 1].Namespace != c.Namespace) || i == cfg.classs.Count - 1)) {
+                sb.Append(@"
+}");
+            }
+        }
+
+
+        for (int i = 0; i < cfg.classs.Count; ++i) {
+            var c = cfg.classs[i];
+            if (c._IsStruct()) continue;
+            var o = c._GetInstance();
+
+            if (c.Namespace != null && (i == 0 || (i > 0 && cfg.classs[i - 1].Namespace != c.Namespace))) // namespace 去重
+            {
+                sb.Append(@"
+namespace " + c.Namespace.Replace(".", "::") + @" {");
+            }
+
+            sb.GenH_Struct(c, o);
+
+            if (c.Namespace != null && ((i < cfg.classs.Count - 1 && cfg.classs[i + 1].Namespace != c.Namespace) || i == cfg.classs.Count - 1)) {
+                sb.Append(@"
+}");
+            }
+        }
+
+
+        sb.Append(@"
+}
+namespace xx {");
+        foreach (var c in cfg.classs) {
+            if (!c._IsStruct()) continue;
+            var ctn = c._GetTypeDecl_Cpp();
+            sb.Append(@"
+	XX_GENCODE_STRUCT_TEMPLATE_H(" + ctn + @")");
+        }
+        sb.Append(@"
+}");
+
+        sb.Append(@"
+#include """ + cfg.name + @"_class_lite_.h.inc""  // user create it for extend include files at the end
+");
+        createEmptyFiles.Add(cfg.name + "_class_lite_.h.inc");
+
+
+        sb._WriteToFile(Path.Combine(cfg.outdir_cpp, cfg.name + "_class_lite.h"));
+    }
+
+    public static void Gen_cpp() {
+        var sb = new StringBuilder();
+        sb.GenCPP_Includes();
+        sb.GenCPP_FuncImpls();
+        sb._WriteToFile(Path.Combine(cfg.outdir_cpp, cfg.name + "_class_lite.cpp"));
+
+    }
 
     static void GenH_AJSON(this StringBuilder sb, Type c) {
         if (c._HasBaseType()) {
@@ -739,66 +746,27 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         }
     }
 
-    static void GenH_AJSON(this StringBuilder sb) {
+    public static void Gen_ajson_h() {
+        var sb = new StringBuilder();
         sb.Append(@"#pragma once
-#include """ + templateName + @"_class_lite.h""
+#include """ + cfg.name + @".h""
 #include ""ajson.hpp""");
-        foreach (var c in cs) {
+        foreach (var c in cfg.localClasssStructs) {
             if (c._HasClassMember()) continue;
             sb.Append(@"
-AJSON(" + templateName + "::" + c.Name);
+AJSON(" + "::" + c.Name);
             GenH_AJSON(sb, c);
             sb.Append(");");
         }
         sb.Append(@"
 ");
+        sb._WriteToFile(Path.Combine(cfg.outdir_cpp, cfg.name + "_ajson.h"));
     }
 
-    public static void Gen(Cfg cfg_) {
-        createEmptyFiles.Clear();
-        asm = asm_;
-        templateName = templateName_;
-        ts = asm_._GetTypes();
-
-        // 填充 typeId for class
-        foreach (var c in ts._GetClasss().Where(o => !o._Has<TemplateLibrary.Struct>())) {
-            var id = c._GetTypeId();
-            if (id == null) { }// throw new Exception("type: " + c.FullName + " miss [TypeId(xxxxxx)]");
-            else {
-                if (typeIdMappings.ContainsKey(id.Value)) {
-                    throw new Exception("type: " + c.FullName + "'s typeId is duplicated with " + typeIdMappings[id.Value].FullName);
-                }
-                else {
-                    typeIdMappings.Add(id.Value, c);
-                }
-            }
-        }
-
-        cs = ts._GetClasssStructs();
-        cs._SortByInheritRelation();
-        // todo: 要将 class 的 members 引用到的 struct 排到前面去
-
+    public static void Gen_empties() {
         var sb = new StringBuilder();
-        // 生成 .h
-        sb.GenH_Head();
-        sb.GenH_ClassPredefine();
-        sb.GenH_Enums();
-        sb.GenH_Structs();
-        sb.GenH_Classs();
-        sb.GenH_StructTemplates();
-        sb.GenH_Tail();
-        sb._WriteToFile(Path.Combine(outDir, templateName + "_class_lite.h"));
-        sb.Clear();
-        sb.GenCPP_Includes();
-        sb.GenCPP_FuncImpls();
-        sb._WriteToFile(Path.Combine(outDir, templateName + "_class_lite.cpp"));
-        sb.Clear();
-        sb.GenH_AJSON();
-        sb._WriteToFile(Path.Combine(outDir, templateName + "_class_lite.ajson.h"));
-
-        sb.Clear();
         foreach (var fn in createEmptyFiles) {
-            var path = Path.Combine(outDir, fn);
+            var path = Path.Combine(cfg.outdir_cpp, fn);
             if (File.Exists(path)) {
                 Console.ForegroundColor = ConsoleColor.DarkGreen;
                 Console.WriteLine("已跳过 " + fn);
