@@ -146,6 +146,12 @@ public static partial class TypeHelpers {
         return t.IsGenericType && t.Namespace == nameof(TemplateLibrary) && t.Name == "List`1";
     }
 
+    /// <summary>
+    /// 返回 t 是否为 List<Shared<?>>>
+    /// </summary>
+    public static bool _IsListShared(this Type t) {
+        return t._IsList() && t.GetGenericArguments()[0]._IsShared();
+    }
 
     /**************************************************************************************************/
     // Has 系列

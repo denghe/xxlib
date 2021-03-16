@@ -30,6 +30,8 @@ public static class GenCpp {
     public static void Gen_h() {
         var sb = new StringBuilder();
 
+        // 校验和注册
+
         sb.Append(@"#pragma once
 #include ""xx_obj.h""
 #include """ + cfg.name + @".h.inc""
@@ -41,7 +43,12 @@ namespace " + cfg.name + @" {
         static void Register();
     };
 ");
+
+        // 前置切片文件
+
         createEmptyFiles.Add(cfg.name + ".h.inc");
+
+        // 所有 class 的预声明( 
 
         for (int i = 0; i < cfg.localClasss.Count; ++i) {
             var c = cfg.localClasss[i];
