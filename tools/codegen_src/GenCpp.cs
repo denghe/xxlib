@@ -18,6 +18,8 @@ public static class GenCpp {
     public static void Gen() {
         cfg = TypeHelpers.cfg;
         createEmptyFiles.Clear();
+        cfg.types._SortByInheritRelation();
+        cfg.classsStructs._SortByInheritRelation();
 
         Gen_h();
         Gen_cpp();
@@ -28,20 +30,18 @@ public static class GenCpp {
     public static void Gen_h() {
         var sb = new StringBuilder();
 
-        // 生成 .h
-
         sb.Append(@"#pragma once
 #include ""xx_obj.h""
-#include """ + cfg.name + @"_class_lite.h.inc""  // user create it for extend include files
+#include """ + cfg.name + @".h.inc""
 namespace " + cfg.name + @" {
-	struct PkgGenMd5 {
+	struct CodeGenMd5 {
 		inline static const ::std::string value = """ + StringHelpers.MD5PlaceHolder + @""";
     };
-	struct PkgGenTypes {
-        static void RegisterTo(::xx::ObjManager& om);
+	struct CodeGenTypes {
+        static void Register();
     };
 ");
-        createEmptyFiles.Add(cfg.name + "_class_lite.h.inc");
+        createEmptyFiles.Add(cfg.name + ".h.inc");
 
         for (int i = 0; i < cfg.localClasss.Count; ++i) {
             var c = cfg.localClasss[i];
@@ -162,7 +162,7 @@ namespace xx {");
         createEmptyFiles.Add(cfg.name + "_class_lite_.h.inc");
 
 
-        sb._WriteToFile(Path.Combine(cfg.outdir_cpp, cfg.name + "_class_lite.h"));
+        sb._WriteToFile(Path.Combine(cfg.outdir_cpp, cfg.name + ".h"));
     }
 
     static void GenH_Struct(this StringBuilder sb, Type c, object o) {
@@ -219,17 +219,17 @@ namespace xx {");
 
     public static void Gen_cpp() {
         var sb = new StringBuilder();
-        sb.Append("#include \"" + cfg.name + @"_class_lite.h""
-#include """ + cfg.name + @"_class_lite.cpp.inc""");
-        createEmptyFiles.Add(cfg.name + "_class_lite.cpp.inc");
+        sb.Append("#include \"" + cfg.name + @".h""
+#include """ + cfg.name + @".cpp.inc""");
+        createEmptyFiles.Add(cfg.name + ".cpp.inc");
 
         sb.Append(@"
 namespace " + cfg.name + @" {
-	void PkgGenTypes::RegisterTo(::xx::ObjManager& om) {");
+	void CodeGenTypes::Register() {");
         foreach (var kv in cfg.typeIdClassMappings) {
             var ctn = kv.Value._GetTypeDecl_Cpp();
             sb.Append(@"
-	    om.Register<" + ctn + @">();");
+	    ::xx::ObjManager::Register<" + ctn + @">();");
         }
         sb.Append(@"
 	}
@@ -699,7 +699,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 }
 ");    // namespace _templateName
 
-        sb._WriteToFile(Path.Combine(cfg.outdir_cpp, cfg.name + "_class_lite.cpp"));
+        sb._WriteToFile(Path.Combine(cfg.outdir_cpp, cfg.name + ".cpp"));
 
     }
 

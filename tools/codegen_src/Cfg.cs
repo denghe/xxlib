@@ -143,6 +143,10 @@ partial class Cfg {
     /// </summary>
     public List<Type> structs;
     /// <summary>
+    /// asm 中所有用户类型( 本地&外部 class & struct )
+    /// </summary>
+    public List<Type> classsStructs;
+    /// <summary>
     /// asm 中所有用户类型( 本地&外部 enum )
     /// </summary>
     public List<Type> enums;
@@ -353,9 +357,6 @@ partial class Cfg {
             t => t.Namespace != nameof(System) && t.Namespace != nameof(TemplateLibrary)
         ).ToList();
 
-        // 按引用关系排序
-        cfg.types._SortByInheritRelation();
-
         // 归并 refs asm 所有 types
         var allExts = new List<Type>();
         foreach (var rc in cfg.refsCfgs) {
@@ -411,6 +412,10 @@ partial class Cfg {
         cfg.externalStructs = cfg.externalClasssStructsEnumsInterfaces.Where(o => o.IsClass && o._Has<TemplateLibrary.Struct>() || o.IsValueType).ToList();
 
         // 各种合并
+        cfg.classsStructs = new List<Type>();
+        cfg.classsStructs.AddRange(cfg.classs);
+        cfg.classsStructs.AddRange(cfg.structs);
+
         cfg.localClasssStructs = new List<Type>();
         cfg.localClasssStructs.AddRange(cfg.localClasss);
         cfg.localClasssStructs.AddRange(cfg.localStructs);
