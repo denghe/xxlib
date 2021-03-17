@@ -1,8 +1,8 @@
 {
   "refs": [ "shared.json" ],
-  "name": "p2_",
+  "name": "p2",
   "files": [ "p2.cs" ],
-  "outdir_cs": "cs",
-  "outdir_lua": "lua",
+  "!outdir_cs": "cs",
+  "!outdir_lua": "lua",
   "outdir_cpp": "cpp"
 }

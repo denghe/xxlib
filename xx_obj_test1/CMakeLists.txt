@@ -8,8 +8,11 @@ endif()
 
 include_directories(
 	../src
+	../codegen_test1/cpp
 )
 
 add_executable(xx_obj_test1
         main.cpp
+		../codegen_test1/cpp/shared.cpp
+		../codegen_test1/cpp/p1.cpp
         )

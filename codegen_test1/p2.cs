@@ -1,6 +1,6 @@
-using TemplateLibrary;
+﻿using TemplateLibrary;
 
-// type id �Ŷ�: 20 ~ 29
+// type id 号段: 20 ~ 29
 
 namespace P2 {
 

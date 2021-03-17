@@ -1,7 +1,8 @@
-using TemplateLibrary;
+﻿using TemplateLibrary;
 
-// type id �Ŷ�: 1 ~ 9
+// type id 号段: 1 ~ 9
 
+[Desc("我怕擦")]
 struct C {
 	float x, y;
 	List<Weak<A>> targets;

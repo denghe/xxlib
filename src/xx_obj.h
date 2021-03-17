@@ -138,13 +138,13 @@ namespace xx {
 		typedef ObjBase_s(*FT)();
 
 		// typeId 创建函数 映射容器
-		std::array<FT, std::numeric_limits<uint16_t>::max()> fs{};
+		inline static std::array<FT, std::numeric_limits<uint16_t>::max()> fs{};
 
 		// 存储 typeId 的 父typeId 的下标
-		std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
+		inline static std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
 
 		// 根据 typeid 判断父子关系
-		XX_FORCE_INLINE bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) const noexcept {
+		XX_FORCE_INLINE static bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) noexcept {
 			for (; typeId != baseTypeId; typeId = pids[typeId]) {
 				if (!typeId || typeId == pids[typeId]) return false;
 			}
@@ -153,14 +153,14 @@ namespace xx {
 
 		// 根据 类型 判断父子关系
 		template<typename BT>
-		XX_FORCE_INLINE bool IsBaseOf(uint32_t const& typeId) const noexcept {
+		XX_FORCE_INLINE static bool IsBaseOf(uint32_t const& typeId) noexcept {
 			static_assert(std::is_base_of_v<ObjBase, BT>);
 			return IsBaseOf(TypeId_v<BT>, typeId);
 		}
 
 		// 根据 类型 判断父子关系
 		template<typename BT, typename T>
-		XX_FORCE_INLINE bool IsBaseOf() const noexcept {
+		XX_FORCE_INLINE static bool IsBaseOf() noexcept {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			static_assert(std::is_base_of_v<ObjBase, BT>);
 			return IsBaseOf(TypeId_v<BT>, TypeId_v<T>);
@@ -168,7 +168,7 @@ namespace xx {
 
 		// 避开 dynamic_case 的快速实现
 		template<typename T, typename U>
-		XX_FORCE_INLINE Shared<T>& As(Shared<U> const& v) const noexcept {
+		XX_FORCE_INLINE static Shared<T>& As(Shared<U> const& v) noexcept {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			static_assert(std::is_base_of_v<ObjBase, U>);
 			if constexpr (std::is_same_v<U, T> || std::is_base_of_v<T, U>) {
@@ -184,14 +184,14 @@ namespace xx {
 
 		// 关联 typeId 与创建函数
 		template<typename T>
-		XX_FORCE_INLINE void Register() {
+		XX_FORCE_INLINE static void Register() {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			pids[TypeId_v<T>] = TypeId_v<typename T::BaseType>;
 			fs[TypeId_v<T>] = []() -> ObjBase_s { return MakeShared<T>(); };
 		}
 
 		// 根据 typeId 来创建对象. 失败返回空
-		XX_FORCE_INLINE ObjBase_s Create(uint16_t const& typeId) const {
+		XX_FORCE_INLINE static ObjBase_s Create(uint16_t const& typeId) {
 			if (!typeId || !fs[typeId]) return nullptr;
 			return fs[typeId]();
 		}
@@ -1135,13 +1135,13 @@ namespace xx {
 
 
 
-#define XX_GENCODE_OBJECT_H(T, BT) \
+#define XX_OBJ_OBJECT_H(T, BT) \
 using BaseType = BT; \
 T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
-T(T&& o) noexcept; \
-T& operator=(T&& o) noexcept; \
+T(T&& o) noexcept = default; \
+T& operator=(T&& o) noexcept = default; \
 void Write(xx::ObjManager& o) const override; \
 int Read(xx::ObjManager& o) override; \
 void Append(xx::ObjManager& o) const override; \
@@ -1152,14 +1152,14 @@ int RecursiveCheck(xx::ObjManager& o) const override; \
 void RecursiveReset(xx::ObjManager& o) override; \
 void SetDefaultValue(xx::ObjManager& o) override;
 
-#define XX_GENCODE_STRUCT_H(T) \
+#define XX_OBJ_STRUCT_H(T) \
 T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
-T(T&& o) noexcept; \
-T& operator=(T&& o) noexcept;
+T(T&& o) noexcept = default; \
+T& operator=(T&& o) noexcept = default;
 
-#define XX_GENCODE_STRUCT_TEMPLATE_H(T) \
+#define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \
 struct ObjFuncs<T, void> { \
 static void Write(ObjManager & om, T const& in); \
