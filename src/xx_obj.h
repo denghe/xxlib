@@ -17,14 +17,14 @@ namespace xx {
 	template<typename T, typename ENABLED = void>
 	struct ObjFuncs {
 		static inline void Write(ObjManager& om, T const& in) {
-			std::string s(xx::TypeName_v<T>);
+			std::string s(TypeName_v<T>);
 			assert(false);
 		}
 		static inline int Read(ObjManager& om, T& out) {
 			return 0;
 		}
 		static inline void Append(ObjManager& om, T const& in) {
-			std::string s(xx::TypeName_v<T>);
+			std::string s(TypeName_v<T>);
 			assert(false);
 		}
 		static inline void AppendCore(ObjManager& om, T const& in) {
@@ -301,7 +301,7 @@ namespace xx {
 				d.WriteVarInteger(v.size());
 				d.WriteBuf(v.data(), v.size());
 			}
-			else if constexpr (std::is_base_of_v<T, xx::Span>) {
+			else if constexpr (std::is_base_of_v<Span, T>) {
 				d.WriteVarInteger(v.len);
 				d.WriteBuf(v.buf, v.len);
 			}
@@ -482,7 +482,7 @@ namespace xx {
 				v.assign((char*)d.buf + d.offset, siz);
 				d.offset += siz;
 			}
-			else if constexpr (std::is_same_v<T, xx::Data>) {
+			else if constexpr (std::is_same_v<T, Data>) {
 				size_t siz;
 				if (int r = Read_(siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
@@ -687,7 +687,7 @@ namespace xx {
 				//ss << std::put_time(&tm, "%F %T");
 				//s.append(ss.str());
 			}
-			else if constexpr (std::is_base_of_v<T, xx::Span>) {
+			else if constexpr (std::is_base_of_v<Span, T>) {
 				s.push_back('[');
 				if (auto inLen = v.len) {
 					for (size_t i = 0; i < inLen; ++i) {
@@ -819,7 +819,7 @@ namespace xx {
 			else if constexpr (IsVector_v<T>) {
 				auto siz = in.size();
 				out.resize(siz);
-				if constexpr (xx::IsPod_v<typename T::value_type>) {
+				if constexpr (IsPod_v<typename T::value_type>) {
 					memcpy(out.data(), in.data(), siz * sizeof(typename T::value_type));
 				}
 				else {
@@ -849,6 +849,9 @@ namespace xx {
 					Clone1(kv.second, tar.second);
 					out.insert(std::move(tar));
 				}
+			}
+			else if constexpr (std::is_same_v<std::string, T> || std::is_base_of_v<Span, T>) {
+				out = in;
 			}
 			else {
 				ObjFuncs<T>::Clone1(*this, in, out);
@@ -887,7 +890,7 @@ namespace xx {
 			}
 			else if constexpr (IsVector_v<T>) {
 				auto siz = in.size();
-				if constexpr (xx::IsPod_v<typename T::value_type>) {
+				if constexpr (IsPod_v<typename T::value_type>) {
 				}
 				else {
 					for (size_t i = 0; i < siz; ++i) {
@@ -896,7 +899,7 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsUnorderedSet_v<T>) {
-				static_assert(xx::IsPod_v<T>);
+				static_assert(IsPod_v<T>);
 			}
 			else if constexpr (IsTuple_v<T>) {
 				TupleForeachClone<T, std::tuple_size_v<T>>::Clone2(*this, in, out);
@@ -911,6 +914,8 @@ namespace xx {
 					//Clone2(kv.first, *(K*)&iter->first);	// 理论上讲 key 应该为简单类型 否则可能出问题
 					Clone2(kv.second, iter->second);
 				}
+			}
+			else if constexpr (std::is_same_v<std::string, T> || std::is_base_of_v<Span, T>) {
 			}
 			else {
 				ObjFuncs<T>::Clone2(*this, in, out);
@@ -978,6 +983,8 @@ namespace xx {
 				for (auto& kv : v) {
 					RecursiveReset_(kv.second);
 				}
+			}
+			else if constexpr (std::is_same_v<std::string, T> || std::is_base_of_v<Span, T>) {
 			}
 			else {
 				ObjFuncs<T>::RecursiveReset(*this, v);
@@ -1063,6 +1070,8 @@ namespace xx {
 					if (int r = RecursiveCheck_(kv.second)) return r;
 				}
 			}
+			else if constexpr (std::is_same_v<std::string, T> || std::is_base_of_v<Span, T>) {
+			}
 			else {
 				return ObjFuncs<T>::RecursiveCheck(*this, v);
 			}
@@ -1131,6 +1140,58 @@ namespace xx {
 			}
 		}
 	};
+
+//	void ObjFuncs<Data, void>::Write(ObjManager& om, Data const& in) {
+//		om.Write(in.x);
+//		om.Write(in.y);
+//		om.Write(in.targets);
+//	}
+//	int ObjFuncs<Data, void>::Read(ObjManager& om, Data& out) {
+//		if (int r = om.Read(out.x)) return r;
+//		if (int r = om.Read(out.y)) return r;
+//		if (int r = om.Read(out.targets)) return r;
+//		return 0;
+//	}
+//	void ObjFuncs<Data, void>::Append(ObjManager& om, Data const& in) {
+//#ifndef XX_DISABLE_APPEND
+//		om.str->push_back('{');
+//		AppendCore(om, in);
+//		om.str->push_back('}');
+//#endif
+//	}
+//	void ObjFuncs<Data, void>::AppendCore(ObjManager& om, Data const& in) {
+//#ifndef XX_DISABLE_APPEND
+//		om.Append("\"x\":", in.x);
+//		om.Append(",\"y\":", in.y);
+//		om.Append(",\"targets\":", in.targets);
+//#endif
+//	}
+//	void ObjFuncs<Data>::Clone1(ObjManager& om, Data const& in, Data& out) {
+//		om.Clone1(in.x, out.x);
+//		om.Clone1(in.y, out.y);
+//		om.Clone1(in.targets, out.targets);
+//	}
+//	void ObjFuncs<Data>::Clone2(ObjManager& om, Data const& in, Data& out) {
+//		om.Clone2(in.x, out.x);
+//		om.Clone2(in.y, out.y);
+//		om.Clone2(in.targets, out.targets);
+//	}
+//	int ObjFuncs<Data>::RecursiveCheck(ObjManager& om, Data const& in) {
+//		if (int r = om.RecursiveCheck(in.x)) return r;
+//		if (int r = om.RecursiveCheck(in.y)) return r;
+//		if (int r = om.RecursiveCheck(in.targets)) return r;
+//		return 0;
+//	}
+//	void ObjFuncs<Data>::RecursiveReset(ObjManager& om, Data& in) {
+//		om.RecursiveReset(in.x);
+//		om.RecursiveReset(in.y);
+//		om.RecursiveReset(in.targets);
+//	}
+//	void ObjFuncs<Data>::SetDefaultValue(ObjManager& om, Data& in) {
+//		in.x = 0.0f;
+//		in.y = 0.0f;
+//		om.SetDefaultValue(in.targets);
+//	}
 }
 
 

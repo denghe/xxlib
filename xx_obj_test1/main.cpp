@@ -7,13 +7,15 @@ void Test1() {
 
 	xx::ObjManager om;
 	xx::Data d;
+	auto a = xx::MakeShared<A>();
+	auto b = xx::MakeShared<B>();
 	C c;
 	c.x = 1.2;
 	c.y = 3.4;
-	c.targets.emplace_back();
-	c.targets.emplace_back();
-	c.targets.emplace_back();
-	om.WriteTo(d, c);
+	c.targets.emplace_back(a);
+	c.targets.emplace_back(b);
+	C c2 = c;
+	om.WriteTo(d, c2);
 	std::cout << d.len << std::endl;
 	for (size_t i = 0; i < d.len; i++)
 	{

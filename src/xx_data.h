@@ -104,6 +104,12 @@ namespace xx {
             assert(idx < len);
             return buf[idx];
         }
+
+        // 下标可写访问
+        XX_FORCE_INLINE uint8_t& operator[](size_t const& idx) {
+            assert(idx < len);
+            return buf[idx];
+        }
     };
 
     // 基础二进制数据跨度/引用容器 附带基础 流式读 功能( offset )
@@ -170,7 +176,7 @@ namespace xx {
         }
 
         // 从指定下标 读 定长buf. 不改变 offset. 返回非 0 则读取失败
-        [[maybe_unused]]  [[nodiscard]] XX_FORCE_INLINE int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
+        [[maybe_unused]] [[nodiscard]] XX_FORCE_INLINE int ReadBufAt(size_t const &idx, void *const &tar, size_t const &siz) const {
             assert(tar);
             if (idx + siz > len) return __LINE__;
             memcpy(tar, buf + idx, siz);
@@ -426,12 +432,6 @@ namespace xx {
             for (auto &&b : bytes) {
                 buf[len++] = (uint8_t) b;
             }
-        }
-
-        // 下标可写访问
-        XX_FORCE_INLINE uint8_t &operator[](size_t const &idx) {
-            assert(idx < len);
-            return buf[idx];
         }
 
         // 从头部移除指定长度数据( 常见于拆包处理移除掉已经访问过的包数据, 将残留部分移动到头部 )
