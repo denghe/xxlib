@@ -828,4 +828,28 @@ auto __cdecl xx::Detail::NameOf<
 		last = now;
 		return rtv;
 	}
+
+	// 时间点转为本地时间 string ( 填充 )
+	template<typename T>
+	inline void AppendTimePoint_Local(std::string& s, T const& tp) {
+		auto&& t = std::chrono::system_clock::to_time_t(tp);
+		std::tm tm{};
+#ifdef _WIN32
+		localtime_s(&tm, &t);
+#else
+		localtime_r(&t, &tm);
+#endif
+		auto bak = s.size();
+		s.resize(s.size() + 30);
+		auto len = std::strftime(&s[bak], 30, "%Y-%m-%d %H:%M:%S", &tm);
+		s.resize(bak + len);
+	}
+
+	// 时间点转为本地时间 string 返回
+	template<typename T>
+	inline std::string TimePointToString_Local(T const& tp) {
+		std::string s;
+		AppendTimePoint_Local(s, tp);
+		return s;
+	}
 }

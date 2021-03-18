@@ -16,12 +16,12 @@ void Test1() {
 	b->id = 22;
 	b->nick = "bbbbb";
 	b->parent = a;
-	//b->children.push_back(a);
+	b->children.push_back(a);
 	b->data.Fill({ 1,2,3,4,5 });
 	b->c.x = 1.2f;
 	b->c.y = 3.4f;
-	//b->c.targets.emplace_back(a);
-	//b->c.targets.emplace_back(b);
+	b->c.targets.emplace_back(a);
+	b->c.targets.emplace_back(b);
 	b->c2 = b->c;
 	b->c3.emplace_back().push_back(b->c2);
 
@@ -55,9 +55,17 @@ void Test1() {
 	std::cout << om.ToString(f) << std::endl;
 	assert(om.ToString(b) == om.ToString(f));
 
+	std::cout << "om.HasRecursive(a) = " << om.HasRecursive(a) << std::endl;
+	std::cout << "om.HasRecursive(b) = " << om.HasRecursive(b) << std::endl;
+	std::cout << "om.HasRecursive(c) = " << om.HasRecursive(c) << std::endl;
+	std::cout << "om.HasRecursive(d) = " << om.HasRecursive(d) << std::endl;
+	std::cout << "om.HasRecursive(e) = " << om.HasRecursive(e) << std::endl;
+	std::cout << "om.HasRecursive(f) = " << om.HasRecursive(f) << std::endl;
+
 	om.KillRecursive(a);
 	om.KillRecursive(b);
 	om.KillRecursive(c);
+	om.KillRecursive(d);
 	om.KillRecursive(e);
 	om.KillRecursive(f);
 }

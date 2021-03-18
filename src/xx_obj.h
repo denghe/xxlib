@@ -122,7 +122,7 @@ namespace xx {
 
 	struct ObjManager {
 		// 公共上下文
-		std::vector<void*> ptrs;								// for write, append
+		std::vector<void*> ptrs;								// for write, append, clone
 		std::vector<void*> ptrs2;								// for read, clone
 		std::vector<std::pair<PtrHeader*, PtrHeader**>> weaks;	// for clone
 		Data* data = nullptr;
@@ -196,7 +196,6 @@ namespace xx {
 		XX_FORCE_INLINE void WriteTo(Data& d, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
-			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
@@ -347,8 +346,6 @@ namespace xx {
 		XX_FORCE_INLINE int ReadFrom(Data& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
-			//ptrs.clear();
-			//ptrs2.clear();
 			auto sg = MakeScopeGuard([this] {
 				ptrs.clear();
 				for (auto& p : ptrs2) {
@@ -543,7 +540,6 @@ namespace xx {
 		XX_FORCE_INLINE void AppendTo(std::string& s, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			str = &s;
-			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
@@ -667,20 +663,7 @@ namespace xx {
 				s.push_back(']');
 			}
 			else if constexpr (IsTimePoint_v<T>) {
-				auto&& t = std::chrono::system_clock::to_time_t(v);
-				std::tm tm{};
-#ifdef _WIN32
-				localtime_s(&tm, &t);
-#else
-				localtime_r(&t, &tm);
-#endif
-				auto bak = s.size();
-				s.resize(s.size() + 30);
-				auto len = std::strftime(&s[bak], 30, "%Y-%m-%d %H:%M:%S", &tm);
-				s.resize(bak + len);
-				//std::stringstream ss;
-				//ss << std::put_time(&tm, "%F %T");
-				//s.append(ss.str());
+				AppendTimePoint_Local(s, v);
 			}
 			else if constexpr (std::is_base_of_v<Span, T>) {
 				s.push_back('[');
@@ -861,7 +844,6 @@ namespace xx {
 		template<typename...Args>
 		XX_FORCE_INLINE void KillRecursive(Args&...args) {
 			static_assert(sizeof...(args) > 0);
-			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
@@ -937,7 +919,7 @@ namespace xx {
 
 
 
-		// 判断是否存在循环引用，存在则返回非 0 ( 通常返回代码行号 )( 入口 )
+		// 判断是否存在循环引用，存在则返回非 0 ( 第几个Shared )( 入口 )
 		template<typename...Args>
 		XX_FORCE_INLINE int HasRecursive(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
@@ -970,11 +952,11 @@ namespace xx {
 				if (v) {
 					auto h = ((PtrHeader*)v.pointer - 1);
 					if (h->offset == 0) {
-						h->offset = 1;
 						ptrs.push_back(&h->offset);
+						h->offset = (uint32_t)ptrs.size();
 						return RecursiveCheck_(*v);
 					}
-					else return __LINE__;
+					else return h->offset;
 				}
 			}
 			else if constexpr (IsXxWeak_v<T>) {
