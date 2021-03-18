@@ -723,8 +723,7 @@ namespace xx {
 		XX_FORCE_INLINE std::string ToString(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			std::string s;
-			str = &s;
-			(Append_(args), ...);
+			AppendTo(s, args...);
 			str = nullptr;
 			return s;
 		}
@@ -1140,58 +1139,6 @@ namespace xx {
 			}
 		}
 	};
-
-//	void ObjFuncs<Data, void>::Write(ObjManager& om, Data const& in) {
-//		om.Write(in.x);
-//		om.Write(in.y);
-//		om.Write(in.targets);
-//	}
-//	int ObjFuncs<Data, void>::Read(ObjManager& om, Data& out) {
-//		if (int r = om.Read(out.x)) return r;
-//		if (int r = om.Read(out.y)) return r;
-//		if (int r = om.Read(out.targets)) return r;
-//		return 0;
-//	}
-//	void ObjFuncs<Data, void>::Append(ObjManager& om, Data const& in) {
-//#ifndef XX_DISABLE_APPEND
-//		om.str->push_back('{');
-//		AppendCore(om, in);
-//		om.str->push_back('}');
-//#endif
-//	}
-//	void ObjFuncs<Data, void>::AppendCore(ObjManager& om, Data const& in) {
-//#ifndef XX_DISABLE_APPEND
-//		om.Append("\"x\":", in.x);
-//		om.Append(",\"y\":", in.y);
-//		om.Append(",\"targets\":", in.targets);
-//#endif
-//	}
-//	void ObjFuncs<Data>::Clone1(ObjManager& om, Data const& in, Data& out) {
-//		om.Clone1(in.x, out.x);
-//		om.Clone1(in.y, out.y);
-//		om.Clone1(in.targets, out.targets);
-//	}
-//	void ObjFuncs<Data>::Clone2(ObjManager& om, Data const& in, Data& out) {
-//		om.Clone2(in.x, out.x);
-//		om.Clone2(in.y, out.y);
-//		om.Clone2(in.targets, out.targets);
-//	}
-//	int ObjFuncs<Data>::RecursiveCheck(ObjManager& om, Data const& in) {
-//		if (int r = om.RecursiveCheck(in.x)) return r;
-//		if (int r = om.RecursiveCheck(in.y)) return r;
-//		if (int r = om.RecursiveCheck(in.targets)) return r;
-//		return 0;
-//	}
-//	void ObjFuncs<Data>::RecursiveReset(ObjManager& om, Data& in) {
-//		om.RecursiveReset(in.x);
-//		om.RecursiveReset(in.y);
-//		om.RecursiveReset(in.targets);
-//	}
-//	void ObjFuncs<Data>::SetDefaultValue(ObjManager& om, Data& in) {
-//		in.x = 0.0f;
-//		in.y = 0.0f;
-//		om.SetDefaultValue(in.targets);
-//	}
 }
 
 
