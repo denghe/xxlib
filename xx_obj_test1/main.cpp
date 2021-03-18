@@ -16,16 +16,17 @@ void Test1() {
 	b->id = 22;
 	b->nick = "bbbbb";
 	b->parent = a;
-	b->children.push_back(a);
+	//b->children.push_back(a);
 	b->data.Fill({ 1,2,3,4,5 });
 	b->c.x = 1.2f;
 	b->c.y = 3.4f;
-	b->c.targets.emplace_back(a);
-	b->c.targets.emplace_back(b);
+	//b->c.targets.emplace_back(a);
+	//b->c.targets.emplace_back(b);
 	b->c2 = b->c;
 	b->c3.emplace_back().push_back(b->c2);
 
 	xx::ObjManager om;
+	std::cout << om.ToString(a) << std::endl;
 	std::cout << om.ToString(b) << std::endl;
 
 	xx::Data d;
@@ -36,8 +37,29 @@ void Test1() {
 	int r = om.ReadFrom(d, c);
 	assert(!r);
 	std::cout << om.ToString(c) << std::endl;
+	assert(om.ToString(b) == om.ToString(c));
 
-	//om.KillRecursive()
+	std::cout << "auto e = om.Clone(a);" << std::endl;
+	auto e = om.Clone(a);
+	auto ha = ((xx::PtrHeader*)a.pointer - 1);
+	auto he = ((xx::PtrHeader*)e.pointer - 1);
+	std::cout << om.ToString(a) << std::endl;
+	std::cout << om.ToString(e) << std::endl;
+	assert(om.ToString(a) == om.ToString(e));
+
+	std::cout << "auto f = om.Clone(b);" << std::endl;
+	auto f = om.Clone(b);
+	auto hb = b.header();
+	auto hf = f.header();
+	std::cout << om.ToString(b) << std::endl;
+	std::cout << om.ToString(f) << std::endl;
+	assert(om.ToString(b) == om.ToString(f));
+
+	om.KillRecursive(a);
+	om.KillRecursive(b);
+	om.KillRecursive(c);
+	om.KillRecursive(e);
+	om.KillRecursive(f);
 }
 
 void Test2() {

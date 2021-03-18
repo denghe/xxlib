@@ -29,10 +29,8 @@ namespace xx {
 		}
 		static inline void AppendCore(ObjManager& om, T const& in) {
 		}
-		static inline void Clone1(ObjManager& om, T const& in, T& out) {
+		static inline void Clone(ObjManager& om, T const& in, T& out) {
 			out = in;
-		}
-		static inline void Clone2(ObjManager& om, T const& in, T& out) {
 		}
 		static inline int RecursiveCheck(ObjManager& om, T const& in) {
 			return 0;
@@ -51,8 +49,7 @@ namespace xx {
 	inline int Read(xx::ObjManager& o) override { }
 	inline void Append(xx::ObjManager& o) const override { }
 	inline void AppendCore(xx::ObjManager& o) const override { }
-	inline void Clone1(xx::ObjManager& o, void* const& tar) const override { }
-	inline void Clone2(xx::ObjManager& o, void* const& tar) const override { }
+	inline void Clone(xx::ObjManager& o, void* const& tar) const override { }
 	inline int RecursiveCheck(xx::ObjManager& o) const override { }
 	inline void RecursiveReset(xx::ObjManager& o) override { }
 	inline void SetDefaultValue(xx::ObjManager& o) { }
@@ -80,11 +77,8 @@ namespace xx {
 		// 输出 json 长相时用于输出花括号内部的成员拼接
 		virtual void AppendCore(ObjManager& om) const = 0;
 
-		// 克隆步骤1: 拷贝普通数据，遇到 Shared 就同型新建, 并保存映射关系
-		virtual void Clone1(ObjManager& om, void* const& tar) const = 0;
-
-		// 克隆步骤2: 只处理成员中的 Weak 类型。根据步骤 1 建立的映射关系来填充
-		virtual void Clone2(ObjManager& om, void* const& tar) const = 0;
+		// 克隆( 效果类似 Write + Read ), 遇到 引用到 野Shared 的 Weak 将保留原值
+		virtual void Clone(ObjManager& om, void* const& tar) const = 0;
 
 		// 返回成员变量( 如果是 Shared 的话 )是否存在递归引用
 		virtual int RecursiveCheck(ObjManager& om) const = 0;
@@ -128,8 +122,9 @@ namespace xx {
 
 	struct ObjManager {
 		// 公共上下文
-		std::vector<void*> ptrs;
-		std::vector<void*> ptrs2;
+		std::vector<void*> ptrs;								// for write, append
+		std::vector<void*> ptrs2;								// for read, clone
+		std::vector<std::pair<PtrHeader*, PtrHeader**>> weaks;	// for clone
 		Data* data = nullptr;
 		std::string* str = nullptr;
 		ObjBase_s null;
@@ -732,18 +727,26 @@ namespace xx {
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
 		XX_FORCE_INLINE void CloneTo(T const& in, T& out) {
-			//ptrs.clear();
-			auto sg1 = MakeScopeGuard([this] {
+			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
 				ptrs.clear();
+				ptrs2.clear();
+				weaks.clear();
 				});
-			//ptrs2.clear();
-			auto sg2 = MakeScopeGuard([this] { ptrs2.clear(); });
-			Clone1(in, out);
-			sg1();
-			Clone2(in, out);
+			Clone_(in, out);
+			for (auto& kv : weaks) {
+				if (kv.first->offset) {
+					auto h = (PtrHeader*)ptrs2[kv.first->offset - 1] - 1;
+					++h->refCount;
+					*kv.second = h;
+				}
+				else {
+					*kv.second = kv.first;
+					++kv.first->refCount;
+				}
+			}
 		}
 
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
@@ -756,26 +759,19 @@ namespace xx {
 
 		template<class Tuple, std::size_t N>
 		struct TupleForeachClone {
-			XX_FORCE_INLINE static void Clone1(ObjManager& self, Tuple const& in, Tuple& out) {
-				self.Clone1(std::get<N - 1>(in), std::get<N - 1>(out));
-				TupleForeachClone<Tuple, N - 1>::Clone1(in, out);
-			}
-
-			XX_FORCE_INLINE static void Clone2(ObjManager& self, Tuple& out, Tuple const& in) {
-				self.Clone1(std::get<N - 1>(in), std::get<N - 1>(out));
-				TupleForeachClone<Tuple, N - 1>::Clone1(in, out);
+			XX_FORCE_INLINE static void Clone(ObjManager& self, Tuple const& in, Tuple& out) {
+				self.Clone_(std::get<N - 1>(in), std::get<N - 1>(out));
+				TupleForeachClone<Tuple, N - 1>::Clone_(in, out);
 			}
 		};
 
 		template<class Tuple>
 		struct TupleForeachClone<Tuple, 1> {
-			static void Clone1(ObjManager& self, Tuple const& in, Tuple& out) {}
-			static void Clone2(ObjManager& self, Tuple const& in, Tuple& out) {}
+			static void Clone(ObjManager& self, Tuple const& in, Tuple& out) {}
 		};
 
-
 		template<typename T>
-		XX_FORCE_INLINE void Clone1(T const& in, T& out) {
+		XX_FORCE_INLINE void Clone_(T const& in, T& out) {
 			if constexpr (IsXxShared_v<T>) {
 				if (!in) {
 					out.Reset();
@@ -791,7 +787,7 @@ namespace xx {
 							out = std::move(Create(inTypeId).template ReinterpretCast<typename T::ElementType>());
 						}
 						ptrs2.push_back(out.pointer);
-						Clone1(*in, *out);
+						Clone_(*in, *out);
 					}
 					else {
 						out = *(T*)&ptrs2[h->offset - 1];
@@ -800,16 +796,19 @@ namespace xx {
 			}
 			else if constexpr (IsXxWeak_v<T>) {
 				out.Reset();
+				if (in.h && in.h->useCount) {
+					weaks.emplace_back(in.h, &out.h);
+				}
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				in.Clone1(*this, (void*)&out);
+				in.Clone(*this, (void*)&out);
 			}
 			else if constexpr (IsOptional_v<T>) {
 				if (in.has_value()) {
 					if (!out.has_value()) {
 						out.emplace();
 					}
-					Clone1(*in, *out);
+					Clone_(*in, *out);
 				}
 				else {
 					out.reset();
@@ -823,29 +822,29 @@ namespace xx {
 				}
 				else {
 					for (size_t i = 0; i < siz; ++i) {
-						Clone1(in[i], out[i]);
+						Clone_(in[i], out[i]);
 					}
 				}
 			}
 			else if constexpr (IsUnorderedSet_v<T>) {
 				out.clear();
 				for (auto&& o : in) {
-					Clone1(o, out.emplace());
+					Clone_(o, out.emplace());
 				}
 			}
 			else if constexpr (IsTuple_v<T>) {
-				TupleForeachClone<T, std::tuple_size_v<T>>::Clone1(*this, in, out);
+				TupleForeachClone<T, std::tuple_size_v<T>>::Clone(*this, in, out);
 			}
 			else if constexpr (IsPair_v<T>) {
-				Clone1(out.first, in.first);
-				Clone1(out.second, in.second);
+				Clone_(out.first, in.first);
+				Clone_(out.second, in.second);
 			}
 			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
 				out.clear();
 				for (auto&& kv : in) {
 					std::pair<typename T::key_type, typename T::value_type> tar;
-					Clone1(kv.first, tar.first);
-					Clone1(kv.second, tar.second);
+					Clone_(kv.first, tar.first);
+					Clone_(kv.second, tar.second);
 					out.insert(std::move(tar));
 				}
 			}
@@ -853,74 +852,9 @@ namespace xx {
 				out = in;
 			}
 			else {
-				ObjFuncs<T>::Clone1(*this, in, out);
+				ObjFuncs<T>::Clone(*this, in, out);
 			}
 		}
-
-		template<typename T>
-		XX_FORCE_INLINE void Clone2(T const& in, T& out) {
-			if constexpr (IsXxShared_v<T>) {
-				if (in) {
-					auto h = ((PtrHeader*)in.pointer - 1);
-					if (h->offset == 0) {
-						ptrs.push_back(&h->offset);
-						h->offset = (uint32_t)ptrs.size();
-
-						Clone2(*in.pointer, *out.pointer);
-					}
-				}
-			}
-			else if constexpr (IsXxWeak_v<T>) {
-				if (!in) return;
-				if (in.h->offset) {
-					out = *(Shared<typename T::ElementType>*) & ptrs2[in.h->offset - 1];
-				}
-				else {
-					out = in;
-				}
-			}
-			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				in.Clone2(*this, (void*)&out);
-			}
-			else if constexpr (IsOptional_v<T>) {
-				if (in.has_value()) {
-					Clone2(*in, *out);
-				}
-			}
-			else if constexpr (IsVector_v<T>) {
-				auto siz = in.size();
-				if constexpr (IsPod_v<typename T::value_type>) {
-				}
-				else {
-					for (size_t i = 0; i < siz; ++i) {
-						Clone2(in[i], out[i]);
-					}
-				}
-			}
-			else if constexpr (IsUnorderedSet_v<T>) {
-				static_assert(IsPod_v<T>);
-			}
-			else if constexpr (IsTuple_v<T>) {
-				TupleForeachClone<T, std::tuple_size_v<T>>::Clone2(*this, in, out);
-			}
-			else if constexpr (IsPair_v<T>) {
-				Clone2(in.first, out.first);
-				Clone2(in.second, out.second);
-			}
-			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
-				for (auto&& kv : in) {
-					auto&& iter = out.find(kv.first);
-					//Clone2(kv.first, *(K*)&iter->first);	// 理论上讲 key 应该为简单类型 否则可能出问题
-					Clone2(kv.second, iter->second);
-				}
-			}
-			else if constexpr (std::is_same_v<std::string, T> || std::is_base_of_v<Span, T>) {
-			}
-			else {
-				ObjFuncs<T>::Clone2(*this, in, out);
-			}
-		}
-
 
 		// 斩断循环引用的 Shared 以方便顺利释放内存( 入口 )
 		// 并不直接清空 args
@@ -1154,8 +1088,7 @@ void Write(xx::ObjManager& o) const override; \
 int Read(xx::ObjManager& o) override; \
 void Append(xx::ObjManager& o) const override; \
 void AppendCore(xx::ObjManager& o) const override; \
-void Clone1(xx::ObjManager& o, void* const& tar) const override; \
-void Clone2(xx::ObjManager& o, void* const& tar) const override; \
+void Clone(xx::ObjManager& o, void* const& tar) const override; \
 int RecursiveCheck(xx::ObjManager& o) const override; \
 void RecursiveReset(xx::ObjManager& o) override; \
 void SetDefaultValue(xx::ObjManager& o) override;
@@ -1174,8 +1107,7 @@ static void Write(ObjManager & om, T const& in); \
 static int Read(ObjManager & om, T & out); \
 static void Append(ObjManager & om, T const& in); \
 static void AppendCore(ObjManager & om, T const& in); \
-static void Clone1(ObjManager & om, T const& in, T & out); \
-static void Clone2(ObjManager & om, T const& in, T & out); \
+static void Clone(ObjManager & om, T const& in, T & out); \
 static int RecursiveCheck(ObjManager & om, T const& in); \
 static void RecursiveReset(ObjManager & om, T & in); \
 static void SetDefaultValue(ObjManager & om, T & in); \

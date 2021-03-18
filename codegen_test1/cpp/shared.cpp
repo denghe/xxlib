@@ -30,15 +30,10 @@ namespace xx {
         om.Append(",\"targets\":", in.targets);
 #endif
     }
-    void ObjFuncs<::C>::Clone1(::xx::ObjManager& om, ::C const& in, ::C &out) {
-        om.Clone1(in.x, out.x);
-        om.Clone1(in.y, out.y);
-        om.Clone1(in.targets, out.targets);
-    }
-    void ObjFuncs<::C>::Clone2(::xx::ObjManager& om, ::C const& in, ::C &out) {
-        om.Clone2(in.x, out.x);
-        om.Clone2(in.y, out.y);
-        om.Clone2(in.targets, out.targets);
+    void ObjFuncs<::C>::Clone(::xx::ObjManager& om, ::C const& in, ::C &out) {
+        om.Clone_(in.x, out.x);
+        om.Clone_(in.y, out.y);
+        om.Clone_(in.targets, out.targets);
     }
     int ObjFuncs<::C>::RecursiveCheck(::xx::ObjManager& om, ::C const& in) {
         if (int r = om.RecursiveCheck(in.x)) return r;
@@ -85,19 +80,12 @@ void A::AppendCore(::xx::ObjManager& om) const {
     om.Append(",\"children\":", this->children);
 #endif
 }
-void A::Clone1(::xx::ObjManager& om, void* const &tar) const {
+void A::Clone(::xx::ObjManager& om, void* const &tar) const {
     auto out = (::A*)tar;
-    om.Clone1(this->id, out->id);
-    om.Clone1(this->nick, out->nick);
-    om.Clone1(this->parent, out->parent);
-    om.Clone1(this->children, out->children);
-}
-void A::Clone2(::xx::ObjManager& om, void* const &tar) const {
-    auto out = (::A*)tar;
-    om.Clone2(this->id, out->id);
-    om.Clone2(this->nick, out->nick);
-    om.Clone2(this->parent, out->parent);
-    om.Clone2(this->children, out->children);
+    om.Clone_(this->id, out->id);
+    om.Clone_(this->nick, out->nick);
+    om.Clone_(this->parent, out->parent);
+    om.Clone_(this->children, out->children);
 }
 int A::RecursiveCheck(::xx::ObjManager& om) const {
     if (int r = om.RecursiveCheck(this->id)) return r;
@@ -149,21 +137,13 @@ void B::AppendCore(::xx::ObjManager& om) const {
     om.Append(",\"c3\":", this->c3);
 #endif
 }
-void B::Clone1(::xx::ObjManager& om, void* const &tar) const {
-    this->BaseType::Clone1(om, tar);
+void B::Clone(::xx::ObjManager& om, void* const &tar) const {
+    this->BaseType::Clone(om, tar);
     auto out = (::B*)tar;
-    om.Clone1(this->data, out->data);
-    om.Clone1(this->c, out->c);
-    om.Clone1(this->c2, out->c2);
-    om.Clone1(this->c3, out->c3);
-}
-void B::Clone2(::xx::ObjManager& om, void* const &tar) const {
-    this->BaseType::Clone2(om, tar);
-    auto out = (::B*)tar;
-    om.Clone2(this->data, out->data);
-    om.Clone2(this->c, out->c);
-    om.Clone2(this->c2, out->c2);
-    om.Clone2(this->c3, out->c3);
+    om.Clone_(this->data, out->data);
+    om.Clone_(this->c, out->c);
+    om.Clone_(this->c2, out->c2);
+    om.Clone_(this->c3, out->c3);
 }
 int B::RecursiveCheck(::xx::ObjManager& om) const {
     if (int r = this->BaseType::RecursiveCheck(om)) return r;

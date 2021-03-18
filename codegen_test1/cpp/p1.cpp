@@ -23,13 +23,9 @@ namespace p1{
         om.Append(",\"a\":", this->a);
 #endif
     }
-    void p1c1::Clone1(::xx::ObjManager& om, void* const &tar) const {
+    void p1c1::Clone(::xx::ObjManager& om, void* const &tar) const {
         auto out = (p1::p1c1*)tar;
-        om.Clone1(this->a, out->a);
-    }
-    void p1c1::Clone2(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (p1::p1c1*)tar;
-        om.Clone2(this->a, out->a);
+        om.Clone_(this->a, out->a);
     }
     int p1c1::RecursiveCheck(::xx::ObjManager& om) const {
         if (int r = om.RecursiveCheck(this->a)) return r;
