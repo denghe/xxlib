@@ -2,9 +2,11 @@
 #include "xx_obj.h"
 #include "shared.h.inc"
 struct CodeGen_shared {
-	inline static const ::std::string md5 = "#*MD5<6e443a186f60ef284244ee0516383df9>*#";
+	inline static const ::std::string md5 = "#*MD5<efbef3f9f94775a0517bde7d323be937>*#";
     static void Register();
+    CodeGen_shared() { Register(); }
 };
+inline CodeGen_shared __CodeGen_shared;
 struct A;
 struct B;
 namespace xx {

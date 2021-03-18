@@ -2,9 +2,11 @@
 #include "shared.h"
 #include "p1.h.inc"
 struct CodeGen_p1 {
-	inline static const ::std::string md5 = "#*MD5<b78c5d5501bf94d3cdcfbeee2b0c2dc7>*#";
+	inline static const ::std::string md5 = "#*MD5<9ff553c2c4bddf4ed8bc5341835ae5f7>*#";
     static void Register();
+    CodeGen_p1() { Register(); }
 };
+inline CodeGen_p1 __CodeGen_p1;
 namespace p1 { struct p1c1; }
 namespace xx {
     template<> struct TypeId<p1::p1c1> { static const uint16_t value = 10; };

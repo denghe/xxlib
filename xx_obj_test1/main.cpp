@@ -2,10 +2,6 @@
 #include <iostream>
 
 void Test1() {
-	CodeGen_shared::Register();
-	CodeGen_p1::Register();
-
-
 	auto a = xx::MakeShared<A>();
 	a->id = 11;
 	a->nick = "aaa";
