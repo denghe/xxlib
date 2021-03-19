@@ -27,6 +27,7 @@ lua_checkstack 看情况加
 */
 
 // todo: 各种空值判断同时兼容 nil & null
+// todo: 各种读 nullable 空值返回 null
 // todo: lua 5.1 int64 模拟
 
 namespace xx::DataLua {
@@ -303,6 +304,29 @@ namespace xx::DataLua {
         return 0;
     }
 
+    // 写 lua XxData ( 变长长度 + 内容 )
+    template<bool nullable = false>
+    inline int Wdata(lua_State* L) {
+        assert(lua_gettop(L) == 2);
+        auto d = To<D*>(L, 1);
+        D* d2 = nullptr;
+        if constexpr (nullable) {
+            if (lua_isnil(L, 2) || !lua_touserdata(L, 2)) {
+                d->WriteFixed((uint8_t)0);
+                return 0;
+            }
+            else {
+                d->WriteFixed((uint8_t)1);
+            }
+        }
+        d2 = To<D*>(L, 2);
+        if (d2) {
+            d->WriteVarInteger(d2->len);
+            d->WriteBuf(d2->buf, d2->len);
+        }
+        return 0;
+    }
+
     // 从 Data 读 指定长度 buf 向 lua 压入 r, str( 如果 r 不为 0 则 str 为 nil )
     inline int Rbuf(lua_State *L) {
         assert(lua_gettop(L) == 2);
@@ -348,6 +372,55 @@ namespace xx::DataLua {
         }
         return Push(L, 0, nullptr);
     }
+
+    int NewXxData(lua_State* L);
+
+    // 读 lua XxData ( 变长长度 + 内容 ). 返回值参考 Rbuf
+    template<bool nullable = false>
+    inline int Rdata(lua_State* L) {
+        assert(lua_gettop(L) == 1);
+        auto d = To<D*>(L, 1);
+        uint8_t f = 1;
+        if constexpr (nullable) {
+            if (int r = d->ReadFixed(f)) {
+                return Push(L, r);
+            }
+        }
+        if (f == 1) {
+            size_t len;
+            if (int r = d->ReadVarInteger(len)) {
+                return Push(L, r);
+            }
+            Push(L, 0);                                 // ..., 0
+            NewXxData(L);                               // ..., 0, data
+            auto d2 = (D*)lua_touserdata(L, -1);
+            if (auto ptr = (char const*)d->ReadBuf(len)) {
+                d2->WriteBuf(ptr, len);
+                return 2;
+            }
+            lua_pop(L, 2);                              // ...
+            return Push(L, __LINE__);
+        }
+        return Push(L, 0, nullptr);
+    }
+
+    // 读 lua XxData ( 变长长度 + 内容 ) 填充到 第二个参数的 XxData
+    inline int RdataTo(lua_State* L) {
+        assert(lua_gettop(L) == 2);
+        auto d = To<D*>(L, 1);
+        auto d2 = To<D*>(L, 2);
+        size_t len;
+        if (int r = d->ReadVarInteger(len)) {
+            return Push(L, r);
+        }
+        if (auto ptr = (char const*)d->ReadBuf(len)) {
+            d2->Clear();
+            d2->WriteBuf(ptr, len);
+            return Push(L, 0);
+        }
+        return Push(L, __LINE__);
+    }
+
 
     // 读参数并调用 d->WriteXxxx
     template<typename T, bool isFixed = true, bool isBE = false, bool isAt = false, bool nullable = false>
@@ -449,14 +522,15 @@ namespace xx::DataLua {
             {"Wj",         Wj},
             {"Wbuf",       Wbuf},
             {"Wbuf_at",    Wbuf_at},
-            {"Rbuf",       Rbuf},
-            {"Rbuf_at",    Rbuf_at},
-
             {"Wstr",       Wstr},
+            {"Wnstr",      Wstr<true>},
+            {"Wdata",      Wdata},
+            {"Wndata",     Wdata<true>},
 
             {"Wvi",        W<ptrdiff_t, false>},
             {"Wvu",        W<size_t, false>},
 
+            {"Wb",         W<bool>},
             {"Wi8",        W<int8_t>},
             {"Wu8",        W<uint8_t>},
             {"Wi16",       W<int16_t>},
@@ -468,9 +542,10 @@ namespace xx::DataLua {
             {"Wf",         W<float>},
             {"Wd",         W<double>},
 
-            {"Wnstr",      Wstr<true>},
             {"Wnvi",       W<ptrdiff_t, false, false, false, true>},
             {"Wnvu",       W<size_t, false, false, false, true>},
+
+            {"Wnb",        W<bool, true, false, false, true>},
             {"Wni8",       W<int8_t, true, false, false, true>},
             {"Wnu8",       W<uint8_t, true, false, false, true>},
             {"Wni16",      W<int16_t, true, false, false, true>},
@@ -491,6 +566,7 @@ namespace xx::DataLua {
             {"Wf_be",      W<float, true, true>},
             {"Wd_be",      W<double, true, true>},
 
+            {"Wb_at",      W<bool, true, false, true>},
             {"Wi8_at",     W<int8_t, true, false, true>},
             {"Wu8_at",     W<uint8_t, true, false, true>},
             {"Wi16_at",    W<int16_t, true, false, true>},
@@ -512,11 +588,19 @@ namespace xx::DataLua {
             {"Wd_be_at",   W<double, true, true, true>},
 
 
+
+            {"Rbuf",       Rbuf},
+            {"Rbuf_at",    Rbuf_at},
             {"Rstr",       Rstr},
+            {"Rnstr",      Rstr<true>},
+            {"Rdata",      Rdata},
+            {"RdataTo",    RdataTo},
+            {"Rndata",     Rdata<true>},
 
             {"Rvi",        R<ptrdiff_t, false>},
             {"Rvu",        R<size_t, false>},
 
+            {"Rb",         R<bool>},
             {"Ri8",        R<int8_t>},
             {"Ru8",        R<uint8_t>},
             {"Ri16",       R<int16_t>},
@@ -528,21 +612,21 @@ namespace xx::DataLua {
             {"Rf",         R<float>},
             {"Rd",         R<double>},
 
-            {"Rnstr",       Rstr<true>},
 
-            {"Rnvi",        R<ptrdiff_t, false, false, false, true>},
-            {"Rnvu",        R<size_t, false, false, false, true>},
+            {"Rnvi",       R<ptrdiff_t, false, false, false, true>},
+            {"Rnvu",       R<size_t, false, false, false, true>},
 
-            {"Rni8",        R<int8_t, true, false, false, true>},
-            {"Rnu8",        R<uint8_t, true, false, false, true>},
-            {"Rni16",       R<int16_t, true, false, false, true>},
-            {"Rnu16",       R<uint16_t, true, false, false, true>},
-            {"Rni32",       R<int32_t, true, false, false, true>},
-            {"Rnu32",       R<uint32_t, true, false, false, true>},
-            {"Rni64",       R<int64_t, true, false, false, true>},
-            {"Rnu64",       R<uint64_t, true, false, false, true>},
-            {"Rnf",         R<float, true, false, false, true>},
-            {"Rnd",         R<double, true, false, false, true>},
+            {"Rnb",        R<bool, true, false, false, true>},
+            {"Rni8",       R<int8_t, true, false, false, true>},
+            {"Rnu8",       R<uint8_t, true, false, false, true>},
+            {"Rni16",      R<int16_t, true, false, false, true>},
+            {"Rnu16",      R<uint16_t, true, false, false, true>},
+            {"Rni32",      R<int32_t, true, false, false, true>},
+            {"Rnu32",      R<uint32_t, true, false, false, true>},
+            {"Rni64",      R<int64_t, true, false, false, true>},
+            {"Rnu64",      R<uint64_t, true, false, false, true>},
+            {"Rnf",        R<float, true, false, false, true>},
+            {"Rnd",        R<double, true, false, false, true>},
 
 
             {"Ri16_be",    R<int16_t, true, true>},
@@ -554,6 +638,7 @@ namespace xx::DataLua {
             {"Rf_be",      R<float, true, true>},
             {"Rd_be",      R<double, true, true>},
 
+            {"Rb_at",      R<bool, true, false, true>},
             {"Ri8_at",     R<int8_t, true, false, true>},
             {"Ru8_at",     R<uint8_t, true, false, true>},
             {"Ri16_at",    R<int16_t, true, false, true>},
@@ -582,9 +667,9 @@ namespace xx::DataLua {
         lua_createtable(L, 0, _countof(funcs));                // mt
 
         luaL_setfuncs(L, funcs, 0);                            // mt
-        lua_pushvalue(L, -1);                                // mt, mt
+        lua_pushvalue(L, -1);                                  // mt, mt
         lua_setfield(L, -2, "__index");                        // mt
-        lua_pushvalue(L, -1);                                // mt, mt
+        lua_pushvalue(L, -1);                                  // mt, mt
         lua_setfield(L, -2, "__metatable");                    // mt
     }
 
@@ -592,28 +677,28 @@ namespace xx::DataLua {
     inline void AttachMT(lua_State *const &L) {                // ..., ud
         auto top = lua_gettop(L);
         lua_pushlightuserdata(L, (void *) key);                // ..., ud, key
-        lua_rawget(L, LUA_REGISTRYINDEX);                   // ..., ud, mt
+        lua_rawget(L, LUA_REGISTRYINDEX);                      // ..., ud, mt
         assert(!lua_isnil(L, -1));
-        lua_setmetatable(L, -2);                            // ..., ud
+        lua_setmetatable(L, -2);                               // ..., ud
         assert(top == lua_gettop(L));
     }
 
 
     // 注册到 lua 全局, 创建 xx::Data userdata
     inline int NewXxData(lua_State *L) {
-        lua_newuserdata(L, sizeof(D));                        // ..., ud
+        lua_newuserdata(L, sizeof(D));                         // ..., ud
         new(lua_touserdata(L, -1)) Data();
-        AttachMT(L);                                        // ..., ud
+        AttachMT(L);                                           // ..., ud
         return 1;
     }
 
     // 在 lua 中注册 全局的 Data 创建函数 和 注册表中的 metatable
     inline void Register(lua_State *const &L) {
-        lua_pushcclosure(L, NewXxData, 0);                    // ..., v
-        lua_setglobal(L, "NewXxData");                        // ...
+        lua_pushcclosure(L, NewXxData, 0);                     // ..., v
+        lua_setglobal(L, "NewXxData");                         // ...
 
         lua_pushlightuserdata(L, (void *) key);                // ..., key
-        CreateMT(L);                                        // ..., key, mt
-        lua_rawset(L, LUA_REGISTRYINDEX);                    // ...
+        CreateMT(L);                                           // ..., key, mt
+        lua_rawset(L, LUA_REGISTRYINDEX);                      // ...
     }
 }

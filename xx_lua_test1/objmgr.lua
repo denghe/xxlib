@@ -1,14 +1,14 @@
 -- 包管理器( 读写, ... )
 ObjMgr = {
-    -- 创建 ObjMgr 实例
-    New = function()
+    -- 创建 ObjMgr 实例( 静态函数 )
+    Create = function()
         local om = {}
         setmetatable(om, ObjMgr)
         return om
     end
-    -- 记录 typeId 到 元表 的映射
-, Register = function(self, o)
-        self[o.typeId] = o
+    -- 记录 typeId 到 元表 的映射( 静态函数 )
+, Register = function(o)
+        ObjMgr[o.typeId] = o
     end
     -- 入口函数: 始向 d 写入一个 "类"
 , WriteTo = function(self, d, o)
@@ -63,7 +63,7 @@ ObjMgr = {
             if typeId == 0 then
                 return 64
             end
-            local v = self[typeId].New()
+            local v = ObjMgr[typeId].Create()
             m[n] = v
             v:Read(self)
             return 0, v

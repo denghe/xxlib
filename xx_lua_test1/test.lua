@@ -1,12 +1,13 @@
 require 'gen'
 
--- hand write
-local om = ObjMgr.New()
-XXX_RegisterTypesTo(om)
+CodeGen_xxx.Register()
+-- more register here
+
+local om = ObjMgr.Create()
 
 print("-------1111111----------")
 local d = NewXxData()
-local fb = FooBase.New()
+local fb = FooBase.Create()
 om:WriteTo(d, fb)
 print(d:GetAll())
 print(d)
@@ -16,7 +17,7 @@ print(d:GetAll())
 
 print("-------22222222----------")
 d:Clear()
-local f = Foo.New()
+local f = Foo.Create()
 om:WriteTo(d, f)
 print(d:GetAll())
 print(d)
@@ -29,9 +30,9 @@ print(d:GetAll())
 
 print("-------333----------")
 d:Clear()
-local b = Bar.New()
-table.insert(b.foos, Foo.New())
-table.insert(b.foos, Foo.New())
+local b = Bar.Create()
+table.insert(b.foos, Foo.Create())
+table.insert(b.foos, Foo.Create())
 b.ints = { 3, 4, 5 }
 for i, v in pairs(b) do
     print(i, v)

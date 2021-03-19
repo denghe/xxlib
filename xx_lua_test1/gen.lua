@@ -1,10 +1,20 @@
 -- 模拟生成物
 require 'objmgr'
 
+CodeGen_xxx = {
+    md5 = "xxxxxxxxxxxxxxxxxx",
+    Register = function()
+        local o = ObjMgr
+        o.Register(FooBase)
+        o.Register(Foo)
+        o.Register(Bar)
+    end
+}
+
 FooBase = {
     typeName = "FooBase"
 , typeId = 3
-, New = function(c)
+, Create = function(c)
         local o = c or {}
         o.d = 1.234
         o.f = 1.2
@@ -56,9 +66,9 @@ FooBase.__index = FooBase
 Foo = {
     typeName = "Foo"
 , typeId = 1
-, New = function(c)
+, Create = function(c)
         local o = c or {}
-        FooBase.New(o)                          -- call base func
+        FooBase.Create(o)                          -- call base func
         o.n = 123
         o.s = "asdf"
         if c == nil then
@@ -73,7 +83,8 @@ Foo = {
         d:Wstr(self.s)
     end
 , Read = function(self, om)
-        local r = FooBase.Read(self, om)        -- call base func
+        local r
+        r = FooBase.Read(self, om)        -- call base func
         if r ~= 0 then
             return r
         end
@@ -94,7 +105,7 @@ Foo.__index = Foo
 Bar = {
     typeName = "Bar"
 , typeId = 2
-, New = function(c)
+, Create = function(c)
         local o = c or {}
         o.foos = {} -- List<Foo>
         o.ints = {} -- List<int>
@@ -127,9 +138,3 @@ Bar = {
 }
 Bar.__index = Bar
 
--- 可能带前缀
-XXX_RegisterTypesTo = function(om)
-    om:Register(FooBase)
-    om:Register(Foo)
-    om:Register(Bar)
-end
