@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "shared.h.inc"
 struct CodeGen_shared {
-	inline static const ::std::string md5 = "#*MD5<efbef3f9f94775a0517bde7d323be937>*#";
+	inline static const ::std::string md5 = "#*MD5<20cc599a2933d0e16e23ea4de6548220>*#";
     static void Register();
     CodeGen_shared() { Register(); }
 };
@@ -35,7 +35,7 @@ struct B : ::A {
     ::xx::Data data;
     ::C c;
     ::std::optional<::C> c2;
-    ::std::vector<::std::vector<::std::optional<::C>>> c3;
+    ::std::vector<::std::optional<::C>> c3;
 };
 namespace xx {
 	XX_OBJ_STRUCT_TEMPLATE_H(::C)

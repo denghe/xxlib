@@ -13,7 +13,7 @@ class B : A {
 	byte[] data;
 	C c;
 	Nullable<C> c2;
-	List<List<Nullable<C>>> c3;
+	List<Nullable<C>> c3;
 };
 
 [Include, TypeId(1)]
