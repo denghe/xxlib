@@ -1,8 +1,7 @@
 ﻿#pragma once
 
-#include "xx_ptr.h"	// included xx_helpers.h
+#include "xx_ptr.h"
 #include "xx_data.h"
-//#include <sstream>		// format Time
 
 // 辅助宏在最下面
 

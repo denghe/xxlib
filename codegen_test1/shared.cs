@@ -2,10 +2,12 @@
 
 // type id 号段: 1 ~ 9
 
-[Desc("我怕擦")]
-struct C {
-	float x, y;
-	List<Weak<A>> targets;
+[Include, TypeId(1)]
+class A {
+	int id;
+	Nullable<string> nick;
+	Weak<A> parent;
+	List<Shared<A>> children;
 };
 
 [Include, TypeId(2)]
@@ -16,12 +18,10 @@ class B : A {
 	List<Nullable<C>> c3;
 };
 
-[Include, TypeId(1)]
-class A {
-	int id;
-	Nullable<string> nick;
-	Weak<A> parent;
-	List<Shared<A>> children;
+[Desc("asdfasdf")]
+struct C {
+	float x, y;
+	List<Weak<A>> targets;
 };
 
 // todo: enum

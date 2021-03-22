@@ -19,7 +19,6 @@ void Test1() {
 	b->c.targets.emplace_back(a);
 	b->c.targets.emplace_back(b);
 	b->c2 = b->c;
-	b->c3.emplace_back().push_back(b->c2);
 
 	xx::ObjManager om;
 	std::cout << om.ToString(a) << std::endl;

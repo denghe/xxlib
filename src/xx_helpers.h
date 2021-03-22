@@ -16,20 +16,11 @@
 #include <functional>
 #include <stdexcept>
 
-#include <cstdint>
 #include <cstddef>
 #include <cstring>
-#include <cassert>
 #include <ctime>  // std::tm std::strftime
-//#include <iomanip>  // std::put_time
 
-//#include <variant>
-//#include <stack>
-//#include <sstream>
-//#include <iostream>
-//#include <filesystem>
-//#include <thread>
-//#include <atomic>
+#include "xx_bits.h"
 
 #ifdef _WIN32
 #	define NOMINMAX
@@ -45,52 +36,9 @@
 #	include <unistd.h>	// for usleep
 #endif
 
-#ifndef XX_NOINLINE
-#   ifndef NDEBUG
-#       define XX_NOINLINE
-#       define XX_FORCE_INLINE
-#   else
-#       ifdef _MSC_VER
-#           define XX_NOINLINE __declspec(noinline)
-#           define XX_FORCE_INLINE __forceinline
-#       else
-#           define XX_NOINLINE __attribute__((noinline))
-#           define XX_FORCE_INLINE __attribute__((always_inline))
-#       endif
-#   endif
-#endif
-
-#if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
-#   if __BYTE_ORDER == __LITTLE_ENDIAN
-#       define __LITTLE_ENDIAN__
-#   elif __BYTE_ORDER == __BIG_ENDIAN
-#       define __BIG_ENDIAN__
-#   elif _WIN32
-#       define __LITTLE_ENDIAN__
-#   endif
-#endif
-
-#ifndef XX_STRINGIFY
-#	define XX_STRINGIFY(x)  XX_STRINGIFY_(x)
-#	define XX_STRINGIFY_(x)  #x
-#endif
-
-/*
-XX_?? example:
-	#define _REG_CLASS(t) Register<t>(XX_STRINGIFY(t))
-	#define _REG_FIELDS(t, a) .Field(XX_STRINGIFY(a), &t::a)
-	#define REGISTER_CLASS_FIELDS(...) XX_CONCAT(XX_, XX_BUGFIX(XX_NARG(__VA_ARGS__))) (_REG_CLASS, _REG_FIELDS, __VA_ARGS__)
-*/
-
-#define XX_HAS_TYPEDEF( TN ) \
-template<typename, typename = void> struct HasTypedef_##TN : std::false_type {}; \
-template<typename T> struct HasTypedef_##TN<T, std::void_t<typename T::TN>> : std::true_type {}; \
-template<typename T> constexpr bool TN = HasTypedef_##TN<T>::value;
-
-
 namespace xx {
 	/************************************************************************************/
-	// std::is_pod 的自定义扩展, 用于标识一个类可以在容器中被r memcpy | memmove
+	// std::is_pod 的自定义扩展, 用于标识一个类可以在容器中被 memcpy | memmove
 
 	template<typename T, typename ENABLED = void>
 	struct IsPod : std::false_type {

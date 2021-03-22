@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "xx_macro.h"
 
 // 注意：如果是 msvc, 需要打开编译参数  /Zc:preprocessor    项目设置 -- preprocessor -- use standard comforming preprocessor -- YES
 
@@ -378,3 +379,11 @@ XX_98(b,e,t,_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,_12,_13,_14,_15,_16,_17,_18,_19,_
 //		TupleDumper::DumpTuple(StructToPtrTuple(in));
 //	}
 }
+
+
+/*
+XX_?? example:
+	#define _REG_CLASS(t) Register<t>(XX_STRINGIFY(t))
+	#define _REG_FIELDS(t, a) .Field(XX_STRINGIFY(a), &t::a)
+	#define REGISTER_CLASS_FIELDS(...) XX_CONCAT(XX_, XX_BUGFIX(XX_NARG(__VA_ARGS__))) (_REG_CLASS, _REG_FIELDS, __VA_ARGS__)
+*/
