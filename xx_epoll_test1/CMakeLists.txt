@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(xx_logger_test1)
+project(xx_epoll_test1)
 
 set(CMAKE_CXX_STANDARD 20)
 if(UNIX)
@@ -11,10 +11,11 @@ include_directories(
 	../3rd
 )
 
-add_executable(xx_logger_test1
+add_executable(xx_epoll_test1
         main.cpp
         )
 
-target_link_libraries(xx_logger_test1
+target_link_libraries(xx_epoll_test1
 		pthread
+		readline
 		)

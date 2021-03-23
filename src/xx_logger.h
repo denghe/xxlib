@@ -554,7 +554,7 @@ namespace xx {
         std::mutex mtx;
 
         // 是否正在析构
-        volatile int disposing = 0;
+        std::atomic<int> disposing;
 
         // 后台是否没有正在写
         bool writing = false;

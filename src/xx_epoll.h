@@ -32,11 +32,9 @@
 #include <deque>
 #include <mutex>
 
-#include "xx_helpers.h"
-#include "xx_data_queue.h"
-#include "xx_string.h"
 #include "xx_logger.h"
-#include "function2.hpp"
+#include "xx_data_queue.h"
+#include <function2.hpp>    // replace std::function for resolve some bug
 
 namespace xx {
     // 适配 sockaddr const*
@@ -341,7 +339,7 @@ namespace xx::Epoll {
         // 公用 data( 需要的地方可临时用用 )
         xx::Data data;
         // 映射通过 stdin 进来的指令的处理函数. 去空格 去 tab 后第一个单词作为 key. 剩余部分作为 args
-        std::unordered_map<std::string, std::function<void(std::vector<std::string> const &args)>> cmds;
+        std::unordered_map<std::string, fu2::function<void(std::vector<std::string> const &args)>> cmds;
         // 公用发包数据指针+长度数组容器
         std::array<iovec, UIO_MAXIOV> iovecs{};
 
@@ -364,10 +362,10 @@ namespace xx::Epoll {
         virtual int Run();
 
         // 封送函数到 epoll 线程执行( 线程安全 ). 可能会阻塞.
-        int Dispatch(std::function<void()> &&action);
+        int Dispatch(fu2::function<void()> &&action);
 
         // 延迟执行一个函数( Wait 之后 )
-        void DelayExecute(std::function<void()> &&func);
+        void DelayExecute(fu2::function<void()> &&func);
 
         // 启用命令行输入控制. 支持方向键, tab 补齐, 上下历史
         int EnableCommandLine();
@@ -385,7 +383,7 @@ namespace xx::Epoll {
         // 存储的 epoll fd
         int efd = -1;
         // 延迟到 wait 之后执行的函数集合
-        std::vector<std::function<void()>> delayFuncs;
+        std::vector<fu2::function<void()>> delayFuncs;
 
         // 其他线程封送到 epoll 线程的函数容器
         std::deque<fu2::function<void()>> actions;
@@ -1101,7 +1099,7 @@ namespace xx::Epoll {
     inline int Context::HandleActions() {
         while (true) {
             // 当前正要执行的函数
-            std::function<void()> action;
+            fu2::function<void()> action;
             {
                 std::scoped_lock<std::mutex> g(actionsMutex);
                 if (actions.empty()) break;
@@ -1194,7 +1192,7 @@ namespace xx::Epoll {
         return 0;
     }
 
-    inline int Context::Dispatch(std::function<void()> &&f) {
+    inline int Context::Dispatch(fu2::function<void()> &&f) {
         {
             // 锁定并塞函数到队列
             std::scoped_lock<std::mutex> g(actionsMutex);
@@ -1203,7 +1201,7 @@ namespace xx::Epoll {
         return (pipeWriter) ? pipeWriter->WriteSome() : -2;
     }
 
-    inline void Context::DelayExecute(std::function<void()> &&func) {
+    inline void Context::DelayExecute(fu2::function<void()> &&func) {
         delayFuncs.emplace_back(std::move(func));
     }
 
