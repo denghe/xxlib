@@ -1,0 +1,7 @@
+{
+  "logLevel": 1,
+  "logFileName": "log/logg/log/logg/asdf.log",
+  "logFileMaxMB": 5,
+  "logFileCount": 30,
+  "outputConsole": true
+}
