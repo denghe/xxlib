@@ -113,7 +113,7 @@ namespace xx {
             }
             else if constexpr (std::is_floating_point_v<T>) {
                 char buf[32];
-                sprintf(buf, "%.5lf", (double)in);
+                snprintf(buf, 32, "%.16lf", (double) in);
                 s.append(buf);
             }
             else {
@@ -141,11 +141,22 @@ namespace xx {
     // 适配 std::optional<T>
     template<typename T>
     struct StringFuncs<std::optional<T>, void> {
-        static inline void Append(std::string& s, std::optional<T> const& in) {
+        static inline void Append(std::string &s, std::optional<T> const &in) {
             if (in.has_value()) {
                 ::xx::Append(s, in.value());
+            } else {
+                s.append("null");
             }
-            else {
+        }
+    };
+
+    // 适配 std::shared_ptr<T>
+    template<typename T>
+    struct StringFuncs<std::shared_ptr<T>, void> {
+        static inline void Append(std::string &s, std::shared_ptr<T> const &in) {
+            if (in) {
+                ::xx::Append(s, *in);
+            } else {
                 s.append("null");
             }
         }
@@ -238,6 +249,23 @@ namespace xx {
             s.push_back(']');
         }
     };
+	
+	
+    // 适配 std::tuple<......>
+    template<typename...T>
+    struct StringFuncs<std::tuple<T...>, void> {
+        static inline void Append(std::string &s, std::tuple<T...> const &in) {
+            s.push_back('[');
+            std::apply([&](auto const &... args) {
+                (::xx::Append(s, args, ','), ...);
+                if constexpr(sizeof...(args) > 0) {
+                    s.resize(s.size() - 1);
+                }
+            }, in);
+            s.push_back(']');
+        }
+    };
+	
 
     // 适配 Span, Data_r, Data_rw
     template<typename T>
@@ -387,6 +415,23 @@ namespace xx {
     inline std::string HtmlEncode(std::string const& src) {
         std::string rtv;
         ::xx::HtmlEncode(src, rtv);
+        return rtv;
+    }
+	
+	
+    // 获取 1, 2 级文件扩展名
+    inline std::pair<std::string_view, std::string_view> GetFileNameExts(std::string const& fn) {
+        std::pair<std::string_view, std::string_view> rtv;
+        auto dotPos = fn.rfind('.');
+        auto extLen = fn.size() - dotPos;
+        rtv.first = std::string_view(fn.data() + dotPos, extLen);
+        if (dotPos) {
+            dotPos = fn.rfind('.', dotPos - 1);
+            if(dotPos != std::string::npos) {
+                extLen = fn.size() - dotPos - extLen;
+                rtv.second = std::string_view(fn.data() + dotPos, extLen);
+            }
+        }
         return rtv;
     }
 
