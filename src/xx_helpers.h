@@ -463,7 +463,52 @@ namespace xx {
 		using type = T;
 	};
 
-	/************************************************************************************/
+
+    /************************************************************************************/
+    // tuple 系列
+
+    // 判断 tuple 里是否存在某种数据类型
+
+    template <typename T, typename Tuple>
+    struct HasType;
+
+    template <typename T>
+    struct HasType<T, std::tuple<>> : std::false_type {};
+
+    template <typename T, typename U, typename... Ts>
+    struct HasType<T, std::tuple<U, Ts...>> : HasType<T, std::tuple<Ts...>> {};
+
+    template <typename T, typename... Ts>
+    struct HasType<T, std::tuple<T, Ts...>> : std::true_type {};
+
+    template <typename T, typename Tuple>
+    using TupleContainsType = typename HasType<T, Tuple>::type;
+
+    template <typename T, typename Tuple>
+    constexpr bool TupleContainsType_v = TupleContainsType<T, Tuple>::value;
+
+
+    // 计算某类型在 tuple 里是第几个
+
+    template <class T, class Tuple>
+    struct TupleTypeIndex;
+
+    template <class T, class...TS>
+    struct TupleTypeIndex<T, std::tuple<T, TS...>> {
+        static const size_t value = 0;
+    };
+
+    template <class T, class U, class... TS>
+    struct TupleTypeIndex<T, std::tuple<U, TS...>> {
+        static const size_t value = 1 + TupleTypeIndex<T, std::tuple<TS...>>::value;
+    };
+
+    template <typename T, typename Tuple>
+    constexpr size_t TupleTypeIndex_v = TupleTypeIndex<T, Tuple>::value;
+
+
+
+    /************************************************************************************/
 	// shared_ptr 系列
 
 	template<typename T, typename ...Args>
