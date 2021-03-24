@@ -920,7 +920,7 @@ namespace xx::Lua {
 			auto i = (int64_t)n;
 			if ((double)i == n) {
 				d.WriteFixed(LuaTypes::Integer);
-				d.WriteVarIntger(i);
+				d.WriteVarInteger(i);
 			}
 			else {
 				d.WriteFixed(LuaTypes::Double);

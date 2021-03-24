@@ -25,13 +25,13 @@ namespace xx {
     }
 
     // 带符号整数 解码 return (in 为单数) ? -(in + 1) / 2 : in / 2
-    static int16_t ZigZagDecode(uint16_t const& in) {
+    [[maybe_unused]]static int16_t ZigZagDecode(uint16_t const& in) {
         return (int16_t)((int16_t)(in >> 1) ^ (-(int16_t)(in & 1)));
     }
-    static int32_t ZigZagDecode(uint32_t const& in) {
+    [[maybe_unused]]static int32_t ZigZagDecode(uint32_t const& in) {
         return (int32_t)(in >> 1) ^ (-(int32_t)(in & 1));
     }
-    static int64_t ZigZagDecode(uint64_t const& in) {
+    [[maybe_unused]]static int64_t ZigZagDecode(uint64_t const& in) {
         return (int64_t)(in >> 1) ^ (-(int64_t)(in & 1));
     }
 
@@ -65,13 +65,13 @@ namespace xx {
     }
 
     // 带符号整数 编码  return in < 0 ? (-in * 2 - 1) : (in * 2)
-    static uint16_t ZigZagEncode(int16_t const& in) {
+    [[maybe_unused]]static uint16_t ZigZagEncode(int16_t const& in) {
         return (uint16_t)((in << 1) ^ (in >> 15));
     }
-    static uint32_t ZigZagEncode(int32_t const& in) {
+    [[maybe_unused]]static uint32_t ZigZagEncode(int32_t const& in) {
         return (in << 1) ^ (in >> 31);
     }
-    static uint64_t ZigZagEncode(int64_t const& in) {
+    [[maybe_unused]]static uint64_t ZigZagEncode(int64_t const& in) {
         return (in << 1) ^ (in >> 63);
     }
 }

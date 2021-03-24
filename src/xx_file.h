@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "xx_data.h"
-#include "xx_scopeguard.h"
+#include "xx_helpers.h"
 #include <fstream>
 #include <filesystem>
 
@@ -9,7 +9,7 @@ namespace xx
 	inline int ReadAllBytes(std::filesystem::path const& path, Data& d) noexcept {
 		std::ifstream f(path, std::ifstream::binary);
 		if (!f) return -1;						// not found? no permission? locked?
-		xx::ScopeGuard sg([&] { f.close(); });
+		auto sg = MakeScopeGuard([&] { f.close(); });
 		f.seekg(0, f.end);
 		auto&& siz = f.tellg();
 		if ((uint64_t)siz > std::numeric_limits<size_t>::max()) return -2;	// too big
@@ -27,7 +27,7 @@ namespace xx
 		outSize = 0;
 		std::ifstream f(path, std::ifstream::binary);
 		if (!f) return -1;													// not found? no permission? locked?
-		ScopeGuard sg([&] { f.close(); });
+        auto sg = MakeScopeGuard([&] { f.close(); });
 		f.seekg(0, f.end);
 		auto&& siz = f.tellg();
 		if ((uint64_t)siz > std::numeric_limits<size_t>::max()) return -2;	// too big
@@ -44,7 +44,7 @@ namespace xx
 	inline int WriteAllBytes(std::filesystem::path const& path, char const* const& buf, size_t const& len) noexcept {
 		std::ofstream f(path, std::ios::binary | std::ios::trunc);
 		if (!f) return -1;						// no create permission? exists readonly?
-		xx::ScopeGuard sg([&] { f.close(); });
+        auto sg = MakeScopeGuard([&] { f.close(); });
 		f.write(buf, len);
 		if (!f) return -2;						// write error
 		return 0;

@@ -77,6 +77,10 @@ namespace xx {
         }
     };
 
+    // Data 序列化 / 反序列化 基础适配模板
+    template<typename T, typename ENABLED>
+    struct DataFuncs;
+
     // 基础二进制数据跨度/引用容器 附带基础 流式读 功能( offset )
     struct Data_r : Span {
         size_t offset;
@@ -248,6 +252,18 @@ namespace xx {
             }
             return __LINE__;
         }
+
+        // 读出并填充到变量. 可同时填充多个. 返回非 0 则读取失败
+        template<typename ...TS>
+        int Read(TS&...vs) {
+            return ReadCore(vs...);
+        }
+
+    protected:
+        template<typename T, typename ...TS>
+        int ReadCore(T& v, TS&...vs);
+        template<typename T>
+        int ReadCore(T& v);
     };
 
 
@@ -308,8 +324,8 @@ namespace xx {
 
         // 将 o 的数据挪过来
         Data_rw(Data_rw &&o) noexcept {
-            memcpy(this, &o, sizeof(Data_rw));
-            memset(&o, 0, sizeof(Data_rw));
+            memcpy((void*)this, &o, sizeof(Data_rw));
+            memset((void*)&o, 0, sizeof(Data_rw));
         }
 
         // 交换数据
@@ -513,6 +529,9 @@ namespace xx {
             return bak;
         }
 
+        // 支持同时写入多个值
+        template<typename ...TS>
+        void Write(TS const& ...vs);
 
         /***************************************************************************************************************************/
 
@@ -534,4 +553,36 @@ namespace xx {
 
     using Data = Data_rw<0>;
     using DataView = Data_r;
+
+    /************************************************************************************/
+    // Data 序列化 / 反序列化 基础适配模板
+    template<typename T, typename ENABLED = void>
+    struct DataFuncs {
+        // 整数变长写( 1字节除外 ), double 看情况, float 拷贝内存, 容器先变长写长度
+        static inline void Write(Data& dw, T const& in) {
+            assert(false);
+        }
+        // 返回非 0 表示操作失败
+        static inline int Read(Data_r& dr, T& out) {
+            assert(false);
+            return 0;
+        }
+    };
+
+    template<typename T, typename ...TS>
+    int Data_r::ReadCore(T& v, TS&...vs) {
+        if (auto r = DataFuncs<T>::Read(*this, v)) return r;
+        return ReadCore(vs...);
+    }
+    template<typename T>
+    int Data_r::ReadCore(T& v) {
+        return DataFuncs<T>::Read(*this, v);
+    }
+
+    template<size_t reserveLen>
+    template<typename ...TS>
+    void Data_rw<reserveLen>::Write(TS const& ...vs) {
+        std::initializer_list<int> n{ (DataFuncs<TS>::Write(*this, vs), 0)... };
+        (void)n;
+    }
 }
