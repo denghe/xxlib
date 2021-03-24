@@ -10,10 +10,9 @@
 #include "xx_string.h"
 
 // 宏在代码最下方
-// todo: 未做内存对齐，故不支持用于 android ios
 
-// 下面这些是 依赖零件, 折叠起来之后可见到 日志类主体
 namespace xx {
+    // 下面这些是 依赖零件, 折叠起来之后可见到 日志类主体
 
     // 初始化带定长部分的数据容器 for log
     template<size_t size = 256>
@@ -82,13 +81,24 @@ namespace xx {
     template<typename T, typename ENABLED = void>
     struct DumpFuncs;
 
+    // safety than o << *(T*)v for some CPU
+    template<typename T>
+    void DumpTo(std::ostream& o, char*& v) {
+        T tmp;
+        memcpy(&tmp, v, sizeof(tmp));
+        o << tmp;
+        v += sizeof(tmp);
+    }
+
     template<>
     struct DumpFuncs<char*> {
         static const char value = 0;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << std::string_view(v + sizeof(size_t), *(size_t*)v);
-            v += sizeof(size_t) + *(size_t*)v;
+            size_t siz;
+            memcpy(&siz, v, sizeof(siz));
+            o << std::string_view(v + sizeof(siz), siz);
+            v += sizeof(siz) + siz;
         }
     };
 
@@ -117,8 +127,7 @@ namespace xx {
         static const char value = 3;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(short*)v;
-            v += sizeof(short);
+            DumpTo<short>(o, v);
         }
     };
 
@@ -127,8 +136,7 @@ namespace xx {
         static const char value = 4;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(int*)v;
-            v += sizeof(int);
+            DumpTo<int>(o, v);
         }
     };
 
@@ -137,8 +145,7 @@ namespace xx {
         static const char value = 5;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(long long*)v;
-            v += sizeof(long long);
+            DumpTo<long long>(o, v);
         }
     };
 
@@ -147,10 +154,7 @@ namespace xx {
         static const char value = 6;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            //o << std::fixed << std::setprecision(5) << *(float *) v;
-            //o << std::fixed << *(float *) v;
-            o << *(float*)v;
-            v += sizeof(float);
+            DumpTo<float>(o, v);
         }
     };
 
@@ -159,10 +163,7 @@ namespace xx {
         static const char value = 7;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            //o << std::fixed << std::setprecision(5) << *(double *) v;
-            //o << std::fixed << *(double *) v;
-            o << *(double*)v;
-            v += sizeof(double);
+            DumpTo<double>(o, v);
         }
     };
 
@@ -181,8 +182,7 @@ namespace xx {
         static const char value = 9;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(unsigned short*)v;
-            v += sizeof(unsigned short);
+            DumpTo<unsigned short>(o, v);
         }
     };
 
@@ -191,8 +191,7 @@ namespace xx {
         static const char value = 10;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(unsigned int*)v;
-            v += sizeof(unsigned int);
+            DumpTo<unsigned int>(o, v);
         }
     };
 
@@ -201,8 +200,7 @@ namespace xx {
         static const char value = 11;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(unsigned long long*) v;
-            v += sizeof(unsigned long long);
+            DumpTo<unsigned long long>(o, v);
         }
     };
 
@@ -211,15 +209,10 @@ namespace xx {
         static const char value = 12;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            auto&& t = std::chrono::system_clock::to_time_t(*(std::chrono::system_clock::time_point*)v);
-            std::tm tm{};
-#ifdef _WIN32
-            localtime_s(&tm, &t);
-#else
-            localtime_r(&t, &tm);
-#endif
-            o << std::put_time(&tm, "%F %T");
-            v += sizeof(std::chrono::system_clock::time_point);
+            std::chrono::system_clock::time_point tmp;
+            memcpy(&tmp, v, sizeof(tmp));
+            o << TimePointToString_Local(tmp);
+            v += sizeof(tmp);
         }
     };
 
@@ -520,6 +513,7 @@ json 样板:
 
 }
     AJSON(xx::LoggerConfig, logLevel, logFileName, logFileMaxMB, logFileCount, outputConsole);
+
 namespace xx {
 
     // 适配 std::cout
@@ -808,7 +802,12 @@ namespace xx {
     };
 }
 
+// tips:
+// android's config maybe can't read at program startup
+// android & ios need writable path for write log
+#ifndef XX_DISABLE_DEFAULT_LOGGER
 inline xx::Logger __xxLogger;
+
 #if defined(LOG_INFO) ||  defined(LOG_WARN) || defined(LOG_ERROR) || defined(LOG_ERR) || defined(LOG_TRACE) || defined(LOG_DEBUG)
 #error
 #endif
@@ -827,4 +826,5 @@ inline xx::Logger __xxLogger;
 #   define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_TRACE(...) __xxLogger.Log(xx::LogLevels::TRACE, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_DEBUG(...) __xxLogger.Log(xx::LogLevels::DEBUG, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#endif
 #endif
