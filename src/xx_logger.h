@@ -5,17 +5,14 @@
 #include <iostream>
 #include <sstream>
 #include <filesystem>
-#include <iomanip>
-#include<unistd.h>
-#include <atomic>
+#include <cstdio>
 #include "ajson.hpp"
 #include "xx_string.h"
 
 // 宏在代码最下方
-// todo: 未做内存对齐，故不支持用于 android ios
 
-// 下面这些是 依赖零件, 折叠起来之后可见到 日志类主体
 namespace xx {
+    // 下面这些是 依赖零件, 折叠起来之后可见到 日志类主体
 
     // 初始化带定长部分的数据容器 for log
     template<size_t size = 256>
@@ -84,13 +81,24 @@ namespace xx {
     template<typename T, typename ENABLED = void>
     struct DumpFuncs;
 
+    // safety than o << *(T*)v for some CPU
+    template<typename T>
+    void DumpTo(std::ostream& o, char*& v) {
+        T tmp;
+        memcpy(&tmp, v, sizeof(tmp));
+        o << tmp;
+        v += sizeof(tmp);
+    }
+
     template<>
     struct DumpFuncs<char*> {
         static const char value = 0;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << std::string_view(v + sizeof(size_t), *(size_t*)v);
-            v += sizeof(size_t) + *(size_t*)v;
+            size_t siz;
+            memcpy(&siz, v, sizeof(siz));
+            o << std::string_view(v + sizeof(siz), siz);
+            v += sizeof(siz) + siz;
         }
     };
 
@@ -119,8 +127,7 @@ namespace xx {
         static const char value = 3;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(short*)v;
-            v += sizeof(short);
+            DumpTo<short>(o, v);
         }
     };
 
@@ -129,8 +136,7 @@ namespace xx {
         static const char value = 4;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(int*)v;
-            v += sizeof(int);
+            DumpTo<int>(o, v);
         }
     };
 
@@ -139,8 +145,7 @@ namespace xx {
         static const char value = 5;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(long long*)v;
-            v += sizeof(long long);
+            DumpTo<long long>(o, v);
         }
     };
 
@@ -149,10 +154,7 @@ namespace xx {
         static const char value = 6;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            //o << std::fixed << std::setprecision(5) << *(float *) v;
-            //o << std::fixed << *(float *) v;
-            o << *(float*)v;
-            v += sizeof(float);
+            DumpTo<float>(o, v);
         }
     };
 
@@ -161,10 +163,7 @@ namespace xx {
         static const char value = 7;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            //o << std::fixed << std::setprecision(5) << *(double *) v;
-            //o << std::fixed << *(double *) v;
-            o << *(double*)v;
-            v += sizeof(double);
+            DumpTo<double>(o, v);
         }
     };
 
@@ -183,8 +182,7 @@ namespace xx {
         static const char value = 9;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(unsigned short*)v;
-            v += sizeof(unsigned short);
+            DumpTo<unsigned short>(o, v);
         }
     };
 
@@ -193,8 +191,7 @@ namespace xx {
         static const char value = 10;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(unsigned int*)v;
-            v += sizeof(unsigned int);
+            DumpTo<unsigned int>(o, v);
         }
     };
 
@@ -203,8 +200,7 @@ namespace xx {
         static const char value = 11;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            o << *(unsigned long long*) v;
-            v += sizeof(unsigned long long);
+            DumpTo<unsigned long long>(o, v);
         }
     };
 
@@ -213,15 +209,10 @@ namespace xx {
         static const char value = 12;
 
         inline static void Dump(std::ostream& o, char*& v) {
-            auto&& t = std::chrono::system_clock::to_time_t(*(std::chrono::system_clock::time_point*)v);
-            std::tm tm{};
-#ifdef _WIN32
-            localtime_s(&tm, &t);
-#else
-            localtime_r(&t, &tm);
-#endif
-            o << std::put_time(&tm, "%F %T");
-            v += sizeof(std::chrono::system_clock::time_point);
+            std::chrono::system_clock::time_point tmp;
+            memcpy(&tmp, v, sizeof(tmp));
+            o << TimePointToString_Local(tmp);
+            v += sizeof(tmp);
         }
     };
 
@@ -433,7 +424,7 @@ namespace xx {
     template<size_t len>
     inline constexpr char const* CutPath(char const(&in)[len]) {
         auto&& i = len - 1;
-        for(; i >= 0; --i) {
+        for (; i >= 0; --i) {
             if (in[i] == '\\' || in[i] == '/') return in + i + 1;
         }
         return in + i;
@@ -457,8 +448,8 @@ namespace xx {
 
     // 将时间转为 2020-08-01 13:56:48.123456 这样的长相
     inline std::string
-    ToString(std::chrono::system_clock::time_point const &tp, char const *const &format = "%F %T") noexcept {
-        auto &&t = std::chrono::system_clock::to_time_t(tp);
+        ToString(std::chrono::system_clock::time_point const& tp, char const* const& format = "%F %T") noexcept {
+        auto&& t = std::chrono::system_clock::to_time_t(tp);
         std::tm tm;
 #ifdef _WIN32
         localtime_s(&tm, &t);
@@ -467,9 +458,9 @@ namespace xx {
 #endif
         std::stringstream ss;
         ss << std::put_time(&tm, format);
-        auto &&e = tp.time_since_epoch();
+        auto&& e = tp.time_since_epoch();
         ss << "." << std::chrono::duration_cast<std::chrono::microseconds>(e).count() -
-                     std::chrono::duration_cast<std::chrono::seconds>(e).count() * 1000000LL;
+            std::chrono::duration_cast<std::chrono::seconds>(e).count() * 1000000LL;
         return ss.str();
     }
 
@@ -477,12 +468,12 @@ namespace xx {
     enum class LogLevels : int {
         TRACE, DEBUG, INFO, WARN, ERROR
     };
-    inline char const *logLevelNames[] = {
+    inline char const* logLevelNames[] = {
         "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
     };
 
     // 带颜色的 日志级别串（ERROR 那个是红色，别的乱来的）
-    inline char const *logLevelColorNames[] = {
+    inline char const* logLevelColorNames[] = {
             "\033[35mTRACE\033[37m", "\033[32mDEBUG\033[37m", "\033[33mINFO\033[37m", "\033[34mWARN\033[37m",
             "\033[31mERROR\033[37m"
     };
@@ -503,7 +494,7 @@ json 样板:
      */
     struct LoggerConfig {
         // 小于等于这个级别的才记录日志
-        int logLevel = (int) LogLevels::TRACE;
+        int logLevel = (int)LogLevels::TRACE;
         // 日志文件 路径 & 文件名前缀( 后面可能还有日期 / 分段标志 )
         std::string logFileName = GetExecuteName() + ".log";
         // 单个日志文件体积上限( 字节 )
@@ -515,13 +506,14 @@ json 样板:
         bool outputConsole = true;
 
         LoggerConfig() = default;
-        LoggerConfig(LoggerConfig const &) = default;
-        LoggerConfig &operator=(LoggerConfig const &) = default;
+        LoggerConfig(LoggerConfig const&) = default;
+        LoggerConfig& operator=(LoggerConfig const&) = default;
         ~LoggerConfig() = default;
     };
 
 }
-    AJSON(xx::LoggerConfig, logLevel, logFileName, logFileMaxMB, logFileCount, outputConsole);
+AJSON(xx::LoggerConfig, logLevel, logFileName, logFileMaxMB, logFileCount, outputConsole);
+
 namespace xx {
 
     // 适配 std::cout
@@ -581,7 +573,7 @@ namespace xx {
 
     public:
         // 参数：开辟多少兆初始内存 cache
-        explicit Logger(size_t const &capMB = 8, char const* const& cfgName = nullptr) {
+        explicit Logger(size_t const& capMB = 8, char const* const& cfgName = nullptr) {
             // 如果有传入新的配置文件名 就覆盖
             if (cfgName) {
                 this->cfgName = cfgName;
@@ -615,7 +607,7 @@ namespace xx {
         // 固定以 level, __LINE__, __FILE__, __FUNCTION__, now 打头的日志内容写入. 宏代指的 char* 不会丢失，故不需要复制其内容
         // 直接写入固定无 type 前缀: level + lineNumber + fileName* + funcName* + now
         template<typename ...TS>
-        void Log(xx::LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, TS const &...vs) {
+        void Log(xx::LogLevels const& level, int const& lineNumber, char const* const& fileName, char const* const& funcName, TS const &...vs) {
             // 忽略一些级别不写入
             if ((int)level < cfg.logLevel) return;
 
@@ -625,17 +617,17 @@ namespace xx {
             // 锁定队列
             std::lock_guard<std::mutex> lg(mtx);
             // 申请一条存储空间
-            auto &&d = items1.emplace_back();
+            auto&& d = items1.emplace_back();
             // 确保存储空间一定存的下这些参数
-            static_assert(Item::innerSpaceLen >= sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point));
+            static_assert(Item::innerSpaceLen >= sizeof(int) + sizeof(int) + sizeof(char*) + sizeof(char*) + sizeof(std::chrono::system_clock::time_point));
             // 准备开始将参数复制到 data( 这几个 char* 参数可以直接复制指针而不必担心其消失，因为是编译器编译到代码数据段里的 )
             auto p = d.buf;
-            *(int *) p = (int)level;
-            *(int *) (p + sizeof(int)) = lineNumber;
-            *(char const **) (p + sizeof(int) + sizeof(int)) = fileName;
-            *(char const **) (p + sizeof(int) + sizeof(int) + sizeof(char *)) = funcName;
-            *(std::chrono::system_clock::time_point*) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *)) = std::chrono::system_clock::now();
-            d.len = sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point);
+            *(int*)p = (int)level;
+            *(int*)(p + sizeof(int)) = lineNumber;
+            *(char const**)(p + sizeof(int) + sizeof(int)) = fileName;
+            *(char const**)(p + sizeof(int) + sizeof(int) + sizeof(char*)) = funcName;
+            *(std::chrono::system_clock::time_point*)(p + sizeof(int) + sizeof(int) + sizeof(char*) + sizeof(char*)) = std::chrono::system_clock::now();
+            d.len = sizeof(int) + sizeof(int) + sizeof(char*) + sizeof(char*) + sizeof(std::chrono::system_clock::time_point);
             // 继续常规写入变参部分( typeid + data, typeid + data, ....... )
             xx::WriteTo(d, vs...);
         }
@@ -669,17 +661,18 @@ namespace xx {
                     continue;
                 }
 
-                LabEnd:
+            LabEnd:
                 // 如果需要退出，还是要多循环一次，写光数据
                 {
                     if (disposing == 1) {
                         ++disposing;
                         continue;
-                    } else if (disposing == 2) break;
+                    }
+                    else if (disposing == 2) break;
                 }
 
                 // 省点 cpu
-                std::this_thread::sleep_for(std::chrono::milliseconds (loopSleepMS));
+                std::this_thread::sleep_for(std::chrono::milliseconds(loopSleepMS));
             }
         }
 
@@ -724,10 +717,10 @@ namespace xx {
                     cfg.maxBytes = cfg.logFileMaxMB * 1024 * 1024;
                     //std::cout << "logger load \"" << cfgName << "\" = " << cfg << std::endl;
                 }
-//                else {
-//                    std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg << std::endl;
-//                }
-                // 更新最后加载时间
+                //                else {
+                //                    std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg << std::endl;
+                //                }
+                                // 更新最后加载时间
                 lastLoadConfigTP = nowTicks;
             }
         }
@@ -758,7 +751,7 @@ namespace xx {
                 std::cout.setf(std::ios::fixed);
                 std::cout.precision(5);
 
-                for (auto &&item : items2) {
+                for (auto&& item : items2) {
                     DumpItem(std::cout, item, true);
                 }
                 std::cout.flush();
@@ -766,7 +759,7 @@ namespace xx {
 
             // 输出到文件 & 文件打开成功 ?
             if (ofs.is_open()) {
-                for (auto &&item : items2) {
+                for (auto&& item : items2) {
                     DumpItem(ofs, item, false);
 
                     // 粗略统计当前已经写了多长了. 不是很精确. 如果超长就换文件写
@@ -785,32 +778,37 @@ namespace xx {
             // dump 前缀. 反向取出几个头部参数, 传递到格式化函数
             auto p = item.buf;
             Dump_Prefix(o
-                    , (LogLevels)*(int *) p
-                    , *(int *) (p + sizeof(int))
-                    , *(char const **) (p + sizeof(int) + sizeof(int))
-                    , *(char const **) (p + sizeof(int) + sizeof(int) + sizeof(char *))
-                    , *(std::chrono::system_clock::time_point*) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *))
-                    , isConsole);
+                , (LogLevels) * (int*)p
+                , *(int*)(p + sizeof(int))
+                , *(char const**)(p + sizeof(int) + sizeof(int))
+                , *(char const**)(p + sizeof(int) + sizeof(int) + sizeof(char*))
+                , *(std::chrono::system_clock::time_point*)(p + sizeof(int) + sizeof(int) + sizeof(char*) + sizeof(char*))
+                , isConsole);
             // dump 内容
-            DumpTo(o, item, sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point));
+            DumpTo(o, item, sizeof(int) + sizeof(int) + sizeof(char*) + sizeof(char*) + sizeof(std::chrono::system_clock::time_point));
             // 弄个换行符
             o << std::endl;
         }
 
         // dump 单行日志 的前缀部分。可覆盖实现自己的写入格式
-        inline virtual void Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, std::chrono::system_clock::time_point const &tp, bool const& isConsole) {
+        inline virtual void Dump_Prefix(std::ostream& o, LogLevels const& level, int const& lineNumber, char const* const& fileName, char const* const& funcName, std::chrono::system_clock::time_point const& tp, bool const& isConsole) {
             if (isConsole) {
                 o << "\033[36m" << ToString(tp) << "\033[37m" << " [" << logLevelColorNames[(int)level] << "] [file:\033[36m"
-                << fileName << "\033[37m line:\033[36m" << lineNumber << "\033[37m func:\033[36m" << funcName << "\033[37m] ";
+                    << fileName << "\033[37m line:\033[36m" << lineNumber << "\033[37m func:\033[36m" << funcName << "\033[37m] ";
             }
             else {
-                o << ToString(tp) << " ["<< logLevelNames[(int)level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
+                o << ToString(tp) << " [" << logLevelNames[(int)level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
             }
         }
     };
 }
 
+// tips:
+// android's config maybe can't read at program startup
+// android & ios need writable path for write log
+#ifndef XX_DISABLE_DEFAULT_LOGGER
 inline xx::Logger __xxLogger;
+
 #if defined(LOG_INFO) ||  defined(LOG_WARN) || defined(LOG_ERROR) || defined(LOG_ERR) || defined(LOG_TRACE) || defined(LOG_DEBUG)
 #error
 #endif
@@ -829,4 +827,5 @@ inline xx::Logger __xxLogger;
 #   define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_TRACE(...) __xxLogger.Log(xx::LogLevels::TRACE, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_DEBUG(...) __xxLogger.Log(xx::LogLevels::DEBUG, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#endif
 #endif
