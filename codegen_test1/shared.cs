@@ -2,7 +2,7 @@
 
 // type id 号段: 1 ~ 9
 
-[Include, TypeId(1)]
+[Include, TypeId(1), Compatible]
 class A {
 	int id;
 	Nullable<string> nick;

@@ -1,4 +1,5 @@
 -- 模拟生成物
+print("before require 'objmgr'")
 require 'objmgr'
 
 CodeGen_xxx = {

@@ -12,16 +12,17 @@ ObjMgr = {
     end
     -- 入口函数: 始向 d 写入一个 "类"
 , WriteTo = function(self, d, o)
+        assert(o)
         self.d = d
-        self.m = {}
-        self.m.len = 0
-        self:Write(o)
+        self.m = { len = 1, [o] = 1 }
+        d:Wvu(getmetatable(o).typeId)
+        o:Write(self)
     end
     -- 入口函数: 开始从 d 读出一个 "类" 并返回 r, o    ( r == 0 表示成功 )
 , ReadFrom = function(self, d)
         self.d = d
         self.m = {}
-        return self:Read()
+        return self:ReadFirst()
     end
     -- 内部函数: 向 d 写入一个 "类". 格式: idx + typeId + content
 , Write = function(self, o)
@@ -44,6 +45,22 @@ ObjMgr = {
         end
     end
     -- 内部函数: 从 d 读出一个 "类" 并返回 r, o    ( r == 0 表示成功 )
+, ReadFirst = function(self)
+        local d = self.d
+        local m = self.m
+        local len = #m
+        local r, typeId = d:Rvu()
+        if r ~= 0 then
+            return r
+        end
+        if typeId == 0 then
+            return 56
+        end
+        local v = ObjMgr[typeId].Create()
+        m[1] = v
+        v:Read(self)
+        return 0, v
+    end
 , Read = function(self)
         local d = self.d
         local r, n = d:Rvu()

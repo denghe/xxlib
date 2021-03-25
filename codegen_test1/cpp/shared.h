@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "shared.h.inc"
 struct CodeGen_shared {
-	inline static const ::std::string md5 = "#*MD5<20cc599a2933d0e16e23ea4de6548220>*#";
+	inline static const ::std::string md5 = "#*MD5<dc7dd99be8bd2f5358e03d08fcc3e959>*#";
     static void Register();
     CodeGen_shared() { Register(); }
 };
@@ -14,7 +14,7 @@ namespace xx {
     template<> struct TypeId<::B> { static const uint16_t value = 2; };
 }
 
-// 我怕擦
+// asdfasdf
 struct C {
     XX_OBJ_STRUCT_H(C)
     float x = 0.0f;

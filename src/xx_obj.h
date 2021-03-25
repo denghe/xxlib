@@ -126,7 +126,8 @@ namespace xx {
 		std::vector<std::pair<PtrHeader*, PtrHeader**>> weaks;	// for clone
 		Data* data = nullptr;
 		std::string* str = nullptr;
-		ObjBase_s null;
+
+		inline static ObjBase_s null;
 
 		// 类创建函数
 		typedef ObjBase_s(*FT)();
@@ -202,12 +203,12 @@ namespace xx {
 				ptrs.clear();
 				});
 
-			(Write_(args), ...);
+			(Write_<Args, true>(args), ...);
 		}
 
 	protected:
 		// 内部函数
-		template<typename T>
+		template<typename T, bool isFirst = false>
 		XX_FORCE_INLINE void Write_(T const& v) {
 			auto& d = *data;
 			if constexpr (IsXxShared_v<T>) {
@@ -223,7 +224,9 @@ namespace xx {
 						if (h->offset == 0) {
 							ptrs.push_back(&h->offset);
 							h->offset = (uint32_t)ptrs.size();
-							d.WriteVarInteger(h->offset);
+							if constexpr (!isFirst) {
+								d.WriteVarInteger(h->offset);
+							}
 							d.WriteVarInteger(h->typeId);
 							Write_(*v.pointer);
 						}
@@ -354,7 +357,7 @@ namespace xx {
 				}
 				ptrs2.clear();
 				});
-			return Read_(args...);
+			return (... + Read_<Args, true>(args));
 		}
 
 	protected:
@@ -370,17 +373,22 @@ namespace xx {
 		}
 
 		// 内部函数
-		template<typename T>
+		template<typename T, bool isFirst = false>
 		XX_FORCE_INLINE int Read_(T& v) {
 			auto& d = *data;
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 					uint32_t idx;
-					if (int r = Read_(idx)) return r;
-					if (!idx) {
-						v.Reset();
-						return 0;
+					if constexpr (isFirst) {
+						idx = 1;
+					}
+					else {
+						if (int r = Read_(idx)) return r;
+						if (!idx) {
+							v.Reset();
+							return 0;
+						}
 					}
 
 					auto len = (uint32_t)ptrs.size();

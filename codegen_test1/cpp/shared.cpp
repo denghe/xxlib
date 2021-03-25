@@ -53,16 +53,29 @@ namespace xx {
     }
 }
 void A::Write(::xx::ObjManager& om) const {
+    auto bak = om.data->WriteJump(sizeof(uint32_t));
     om.Write(this->id);
     om.Write(this->nick);
     om.Write(this->parent);
     om.Write(this->children);
+    om.data->WriteFixedAt(bak, (uint32_t)(om.data->len - bak));
 }
 int A::Read(::xx::ObjManager& om) {
-    if (int r = om.Read(this->id)) return r;
-    if (int r = om.Read(this->nick)) return r;
-    if (int r = om.Read(this->parent)) return r;
-    if (int r = om.Read(this->children)) return r;
+    uint32_t siz;
+    if (int r = om.data->ReadFixed(siz)) return r;
+    auto endOffset = om.data->offset - sizeof(siz) + siz;
+
+    if (om.data->offset >= endOffset) this->id = 0;
+    else if (int r = om.Read(this->id)) return r;
+    if (om.data->offset >= endOffset) om.SetDefaultValue(this->nick);
+    else if (int r = om.Read(this->nick)) return r;
+    if (om.data->offset >= endOffset) om.SetDefaultValue(this->parent);
+    else if (int r = om.Read(this->parent)) return r;
+    if (om.data->offset >= endOffset) om.SetDefaultValue(this->children);
+    else if (int r = om.Read(this->children)) return r;
+
+    if (om.data->offset > endOffset) return __LINE__;
+    else om.data->offset = endOffset;
     return 0;
 }
 void A::Append(::xx::ObjManager& om) const {
