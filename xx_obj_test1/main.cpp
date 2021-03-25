@@ -66,10 +66,29 @@ void Test1() {
 }
 
 void Test2() {
+	auto a = xx::MakeShared<B>();
+	a->id = 1;
+	a->nick = "asdf";
+	a->parent = a;
+	a->children.push_back(a);
+	a->data.Fill({ 1, 2, 3, 4, 5 });
+	a->c.x = 1.2;
+	a->c.y = 2.3;
+	a->c.targets.push_back(a);
+	a->c2 = a->c;
+	a->c3.push_back(a->c);
+
+	xx::ObjManager om;
+	xx::Data d;
+	om.WriteTo(d, a);
+	std::cout << om.ToString(d) << std::endl;
+
+	// 2,14,0,0,0,2,1,4,97,115,100,102,1,1,1,5,1,2,3,4,5,154,153,153,63,51,51,19,64,1,1,1,154,153,153,63,51,51,19,64,1,1,1,1,154,153,153,63,51,51,19,64,1,1
+	//[2,14,0,0,0,2,1,4,97,115,100,102,1,1,1,5,1,2,3,4,5,154,153,153,63,51,51,19,64,1,1,1,154,153,153,63,51,51,19,64,1,1,1,1,154,153,153,63,51,51,19,64,1,1]
 }
 
 int main() {
-	Test1();
+	//Test1();
 	Test2();
 
 	std::cout << "end." << std::endl;

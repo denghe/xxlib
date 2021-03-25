@@ -291,7 +291,7 @@ namespace xx::DataLua {
         auto d = To<D *>(L, 1);
         uint8_t f = 1;
         if constexpr(nullable) {
-            if (lua_isnil(L, 2) || !lua_touserdata(L, 2)) {
+            if (lua_isnil(L, 2) || (lua_islightuserdata(L, 2) && !lua_touserdata(L, 2))) {
                 f = 0;
             }
             d->WriteFixed(f);
@@ -311,7 +311,7 @@ namespace xx::DataLua {
         auto d = To<D*>(L, 1);
         D* d2 = nullptr;
         if constexpr (nullable) {
-            if (lua_isnil(L, 2) || !lua_touserdata(L, 2)) {
+            if (lua_isnil(L, 2) || (lua_islightuserdata(L, 2) && !lua_touserdata(L, 2))) {
                 d->WriteFixed((uint8_t)0);
                 return 0;
             }
@@ -429,7 +429,7 @@ namespace xx::DataLua {
         auto d = To<D *>(L, 1);
         uint8_t f = 1;
         if constexpr(nullable) {
-            if (lua_isnil(L, 2) || !lua_touserdata(L, 2)) {
+            if (lua_isnil(L, 2) || (lua_islightuserdata(L, 2) && !lua_touserdata(L, 2))) {
                 f = 0;
             }
             d->WriteFixed(f);

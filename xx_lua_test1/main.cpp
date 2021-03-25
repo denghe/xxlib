@@ -13,7 +13,7 @@ void Test1() {
 	lua_pushlightuserdata(L, nullptr);
 	lua_setglobal(L, "NULL");
 
-	luaL_dofile(L, "test.lua");
+	luaL_dofile(L, "test3.lua");
 
 	// todo: close
 

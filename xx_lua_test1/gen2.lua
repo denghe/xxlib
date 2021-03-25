@@ -1,4 +1,4 @@
-﻿require "objmgr"
+require "objmgr"
 
 CodeGen_shared = {
     md5 = "#*MD5<ba498c10e8924c142dee6a88f0c79708>*#",
