@@ -32,6 +32,7 @@
 #include <deque>
 #include <mutex>
 
+#include "xx_ptr.h"
 #include "xx_logger.h"
 #include "xx_data_queue.h"
 #include <function2.hpp>    // replace std::function for resolve some bug
@@ -98,14 +99,14 @@ namespace xx::Epoll {
     // 所有受 Context 管理的子类的基类. 主要特征为其 fd 受 context 中的 epoll 管理
     struct Context;
 
-    struct Item : std::enable_shared_from_this<Item> {
+    struct Item {
         // 指向总容器
-        std::shared_ptr<Context> ec;
+        Shared<Context> ec;
         // linux 系统文件描述符
         int fd;
 
         // 初始化依赖上下文
-        explicit Item(std::shared_ptr<Context> const &ec, int const &fd = -1);
+        explicit Item(Shared<Context> const &ec, int const &fd = -1);
 
         // 注意：析构中调用虚函数，不会 call 到派生类的 override 版本
         virtual ~Item() { Close(0, " Item ~Item"); }
@@ -182,7 +183,7 @@ namespace xx::Epoll {
         inline virtual bool Alive() { return fd != -1; }
 
         // 和另一个 peer 互换 fd 和 mapping
-        void SwapFD(std::shared_ptr<TcpPeer> const &o);
+        void SwapFD(Shared<TcpPeer> const &o);
 
     protected:
         // 是否正在发送( 是：不管 sendQueue 空不空，都不能 write, 只能塞 sendQueue )
@@ -205,13 +206,13 @@ namespace xx::Epoll {
     template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
     struct TcpListener : Item {
         // 特化构造函数. 不需要传入 fd
-        explicit TcpListener(std::shared_ptr<Context> const &ec) : Item(ec, -1) {};
+        explicit TcpListener(Shared<Context> const &ec) : Item(ec, -1) {};
 
         // 开始监听. 失败返回非 0
         virtual int Listen(int const &port);
 
         // 提供为 peer 绑定事件的实现
-        virtual void Accept(std::shared_ptr<PeerType> const &peer) = 0;
+        virtual void Accept(Shared<PeerType> const &peer) = 0;
 
     protected:
         // 调用 accept
@@ -231,7 +232,7 @@ namespace xx::Epoll {
     template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
     struct TcpConn : Item {
         // 指向拨号器, 方便调用其 Connect 函数
-        std::shared_ptr<TcpDialer<PeerType>> dialer;
+        Shared<TcpDialer<PeerType>> dialer;
         // 继承构造函数
         using Item::Item;
 
@@ -249,7 +250,7 @@ namespace xx::Epoll {
         std::vector<sockaddr_in6> addrs;
 
         // 特化构造函数. 不需要传递 fd
-        explicit TcpDialer(std::shared_ptr<Context> const &ec) : Timer(ec, -1) {}
+        explicit TcpDialer(Shared<Context> const &ec) : Timer(ec, -1) {}
 
         // 向 addrs 追加地址. 如果地址转换错误将返回非 0
         int AddAddress(std::string const &ip, int const &port);
@@ -269,13 +270,13 @@ namespace xx::Epoll {
         void Stop();
 
         // 连接成功或超时后触发
-        virtual void Connect(std::shared_ptr<PeerType> const &peer) = 0;
+        virtual void Connect(Shared<PeerType> const &peer) = 0;
 
     protected:
         // 存个空值备用 以方便返回引用
-        std::shared_ptr<PeerType> emptyPeer;
+        Shared<PeerType> emptyPeer;
         // 内部连接对象. 拨号完毕后会被清空
-        std::vector<std::shared_ptr<TcpConn<PeerType>>> conns;
+        std::vector<Shared<TcpConn<PeerType>>> conns;
 
         // 超时表明所有连接都没有连上. 触发 Connect( nullptr )
         void Timeout() override;
@@ -303,10 +304,10 @@ namespace xx::Epoll {
     // CommandHandler
     // 处理键盘输入指令的专用类( 单例 ). 直接映射到 STDIN_FILENO ( fd == 0 ). 由首个创建的 epoll context 来注册和反注册
     struct CommandHandler : Item {
-        inline static std::shared_ptr<CommandHandler> self;
+        inline static Shared<CommandHandler> self;
         std::vector<std::string> args;
 
-        CommandHandler(std::shared_ptr<Context> const &ec);
+        CommandHandler(Shared<Context> const &ec);
 
         static void ReadLineCallback(char *line);
 
@@ -325,7 +326,7 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // Context
     // 封装了 epoll 的 fd
-    struct Context : std::enable_shared_from_this<Context> {
+    struct Context {
         // 执行标志位。如果要退出，修改它
         bool running = true;
         // 公共只读: 每帧开始时更新一下
@@ -391,11 +392,11 @@ namespace xx::Epoll {
         std::mutex actionsMutex;
 
         // pipe fd 容器( Run 内创建, Run 退出时析构 )
-        std::shared_ptr<PipeReader> pipeReader;
-        std::shared_ptr<PipeWriter> pipeWriter;
+        Shared<PipeReader> pipeReader;
+        Shared<PipeWriter> pipeWriter;
 
         // item 的智能指针的保持容器
-        std::unordered_map<Item *, std::shared_ptr<Item>> holdItems;
+        std::unordered_map<Item *, Shared<Item>> holdItems;
         // 要删除一个 peer 就把它的 指针 压到这个队列. 会在 稍后 从 items 删除
         std::vector<Item *> deadItems;
 
@@ -436,7 +437,7 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // Item
-    inline Item::Item(std::shared_ptr<Context> const &ec, int const &fd)
+    inline Item::Item(Shared<Context> const &ec, int const &fd)
             : ec(ec), fd(fd) {
         if (fd != -1) {
             if (ec->fdMappings[fd]) throw std::runtime_error(" Item Item if (ec->fdMappings[fd])");
@@ -462,7 +463,7 @@ namespace xx::Epoll {
     }
 
     inline void Item::Hold() {
-        ec->holdItems[this] = shared_from_this();
+        ec->holdItems[this] = SharedFromThis(this);
     }
 
     inline void Item::DelayUnhold() {
@@ -627,7 +628,7 @@ namespace xx::Epoll {
     }
 
     // 和另一个 peer 互换 fd 和 mapping
-    inline void TcpPeer::SwapFD(std::shared_ptr<TcpPeer> const &o) {
+    inline void TcpPeer::SwapFD(Shared<TcpPeer> const &o) {
         if (!o || fd == o->fd) return;
         if (fd == -1) {
             ec->fdMappings[o->fd] = this;
@@ -705,7 +706,7 @@ namespace xx::Epoll {
         // 撤销 退出确保
         sg.Cancel();
         // 创建类容器
-        auto &&p = xx::Make<PeerType>(ec, fd);
+        auto &&p = xx::MakeShared<PeerType>(ec, fd);
         // 填充 ip
         memcpy(&p->addr, &addr, len);
         // 触发事件
@@ -746,7 +747,7 @@ namespace xx::Epoll {
         // 这之后只能用 栈变量
 
         // 创建具体 peer
-        auto &&p = xx::Make<PeerType>(ec, fd);
+        auto &&p = xx::MakeShared<PeerType>(ec, fd);
         // fill address
         result_len = sizeof(p->addr);
         getpeername(fd, (sockaddr *) &p->addr, &result_len);
@@ -827,9 +828,9 @@ namespace xx::Epoll {
         // 撤销 自动close
         sg.Cancel();
         // 试创建目标类实例
-        auto &&o = xx::Make<TcpConn<PeerType>>(ec, fd);
+        auto &&o = xx::MakeShared<TcpConn<PeerType>>(ec, fd);
         // 继续初始化并放入容器
-        o->dialer = xx::As<TcpDialer<PeerType, ENABLED>>(shared_from_this());
+        o->dialer = SharedFromThis(this);
         conns.emplace_back(o);
         return 0;
     }
@@ -845,7 +846,7 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // CommandHandler
-    inline CommandHandler::CommandHandler(std::shared_ptr<Context> const &ec) : Item(ec, STDIN_FILENO) {
+    inline CommandHandler::CommandHandler(Shared<Context> const &ec) : Item(ec, STDIN_FILENO) {
         rl_attempted_completion_function = (rl_completion_func_t *) &CompleteCallback;
         rl_callback_handler_install("# ", (rl_vcpfunc_t *) &ReadLineCallback);
     }
@@ -976,13 +977,13 @@ namespace xx::Epoll {
         // 试将 fd 纳入 epoll 管理
         if (-1 == Ctl(STDIN_FILENO, EPOLLIN)) return -2;
         // 创建单例
-        xx::MakeTo(CommandHandler::self, shared_from_this());
+        CommandHandler::self.Emplace(SharedFromThis(this));
         return 0;
     }
 
     inline void Context::DisableCommandLine() {
         if (CommandHandler::self && &*CommandHandler::self->ec == this) {
-            CommandHandler::self.reset();
+            CommandHandler::self.Reset();
         }
     }
 
@@ -1131,13 +1132,13 @@ namespace xx::Epoll {
         // 将 pipe fd 纳入 epoll 管理
         Ctl(actionsPipes[0], EPOLLIN);
         // 为 pipe fd[0] 创建容器
-        xx::MakeTo(pipeReader, shared_from_this(), actionsPipes[0]);
-        xx::MakeTo(pipeWriter, shared_from_this(), actionsPipes[1]);
+        pipeReader.Emplace(SharedFromThis(this), actionsPipes[0]);
+        pipeWriter.Emplace(SharedFromThis(this), actionsPipes[1]);
 
         // 函数退出时自动删掉 pipe 容器, 以避免 Context 的引用计数无法清 0
         auto sg = xx::MakeScopeGuard([&] {
-            pipeReader.reset();
-            pipeWriter.reset();
+            pipeReader.Reset();
+            pipeWriter.Reset();
         });
 
         // 稳定帧回调用的时间池
