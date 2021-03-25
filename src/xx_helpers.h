@@ -21,6 +21,7 @@
 #include <ctime>  // std::tm std::strftime
 
 #include "xx_bits.h"
+#include "xx_macro.h"
 
 #ifdef _WIN32
 #	define NOMINMAX
@@ -591,8 +592,33 @@ namespace xx {
 */
 
 
-/************************************************************************************/
-// TypeName_v
+
+	/***********************************************************************************/
+	// MaxSizeof
+	/***********************************************************************************/
+
+	template<typename T, typename... Args>
+	struct MaxSizeof
+	{
+		static const size_t value = sizeof(T) > MaxSizeof<Args...>::value
+			? sizeof(T)
+			: MaxSizeof<Args...>::value;
+	};
+	template<typename T>
+	struct MaxSizeof<T>
+	{
+		static const size_t value = sizeof(T);
+	};
+
+	template<typename T, typename... Args>
+	constexpr size_t MaxSizeof_v = MaxSizeof<T, Args...>::value;
+
+
+
+
+
+	/************************************************************************************/
+	// TypeName_v
 
 	// 注意：这部分内容需要跟随各种编译器及时更新调整
 

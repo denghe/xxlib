@@ -91,20 +91,20 @@ namespace xx {
 		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T
 		// 得到当前类的强指针
 		template<typename T = ObjBase>
-		XX_FORCE_INLINE Shared<T> SharedFromThis() const {
+		XX_INLINE Shared<T> SharedFromThis() const {
 			auto h = (PtrHeader*)this - 1;
 			return (*((Weak<T>*) & h)).Lock();
 		}
 
 		// 得到当前类的弱指针
 		template<typename T = ObjBase>
-		XX_FORCE_INLINE Weak<T> WeakFromThis() const {
+		XX_INLINE Weak<T> WeakFromThis() const {
 			auto h = (PtrHeader*)this - 1;
 			return *((Weak<T>*) & h);
 		}
 
 		// 得到当前类的 typeId
-		XX_FORCE_INLINE int16_t GetTypeId() const {
+		XX_INLINE int16_t GetTypeId() const {
 			auto h = (PtrHeader*)this - 1;
 			return (int16_t)h->typeId;
 		}
@@ -139,7 +139,7 @@ namespace xx {
 		inline static std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
 
 		// 根据 typeid 判断父子关系
-		XX_FORCE_INLINE static bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) noexcept {
+		XX_INLINE static bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) noexcept {
 			for (; typeId != baseTypeId; typeId = pids[typeId]) {
 				if (!typeId || typeId == pids[typeId]) return false;
 			}
@@ -148,14 +148,14 @@ namespace xx {
 
 		// 根据 类型 判断父子关系
 		template<typename BT>
-		XX_FORCE_INLINE static bool IsBaseOf(uint32_t const& typeId) noexcept {
+		XX_INLINE static bool IsBaseOf(uint32_t const& typeId) noexcept {
 			static_assert(std::is_base_of_v<ObjBase, BT>);
 			return IsBaseOf(TypeId_v<BT>, typeId);
 		}
 
 		// 根据 类型 判断父子关系
 		template<typename BT, typename T>
-		XX_FORCE_INLINE static bool IsBaseOf() noexcept {
+		XX_INLINE static bool IsBaseOf() noexcept {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			static_assert(std::is_base_of_v<ObjBase, BT>);
 			return IsBaseOf(TypeId_v<BT>, TypeId_v<T>);
@@ -163,7 +163,7 @@ namespace xx {
 
 		// 避开 dynamic_case 的快速实现
 		template<typename T, typename U>
-		XX_FORCE_INLINE static Shared<T>& As(Shared<U> const& v) noexcept {
+		XX_INLINE static Shared<T>& As(Shared<U> const& v) noexcept {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			static_assert(std::is_base_of_v<ObjBase, U>);
 			if constexpr (std::is_same_v<U, T> || std::is_base_of_v<T, U>) {
@@ -179,21 +179,21 @@ namespace xx {
 
 		// 关联 typeId 与创建函数
 		template<typename T>
-		XX_FORCE_INLINE static void Register() {
+		XX_INLINE static void Register() {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			pids[TypeId_v<T>] = TypeId_v<typename T::BaseType>;
 			fs[TypeId_v<T>] = []() -> ObjBase_s { return MakeShared<T>(); };
 		}
 
 		// 根据 typeId 来创建对象. 失败返回空
-		XX_FORCE_INLINE static ObjBase_s Create(uint16_t const& typeId) {
+		XX_INLINE static ObjBase_s Create(uint16_t const& typeId) {
 			if (!typeId || !fs[typeId]) return nullptr;
 			return fs[typeId]();
 		}
 
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		template<typename...Args>
-		XX_FORCE_INLINE void WriteTo(Data& d, Args const&...args) {
+		XX_INLINE void WriteTo(Data& d, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			auto sg = MakeScopeGuard([this] {
@@ -209,7 +209,7 @@ namespace xx {
 	protected:
 		// 内部函数
 		template<typename T, bool isFirst = false>
-		XX_FORCE_INLINE void Write_(T const& v) {
+		XX_INLINE void Write_(T const& v) {
 			auto& d = *data;
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
@@ -337,7 +337,7 @@ namespace xx {
 	public:
 		// 转发到 Write_
 		template<typename...Args>
-		XX_FORCE_INLINE void Write(Args const&...args) {
+		XX_INLINE void Write(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			(Write_(args), ...);
 		}
@@ -345,7 +345,7 @@ namespace xx {
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
 		// 可传入开始读取的位置
 		template<typename...Args>
-		XX_FORCE_INLINE int ReadFrom(Data& d, Args&...args) {
+		XX_INLINE int ReadFrom(Data& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			auto sg = MakeScopeGuard([this] {
@@ -362,19 +362,19 @@ namespace xx {
 
 	protected:
 		template<std::size_t I = 0, typename... Tp>
-		XX_FORCE_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
 			return Read_(std::get<I>(t));
 		}
 
 		template<std::size_t I = 0, typename... Tp>
-		XX_FORCE_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
 			if (int r = Read_(std::get<I>(t))) return r;
 			return ReadTuple<I + 1, Tp...>(t);
 		}
 
 		// 内部函数
 		template<typename T, bool isFirst = false>
-		XX_FORCE_INLINE int Read_(T& v) {
+		XX_INLINE int Read_(T& v) {
 			auto& d = *data;
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
@@ -528,7 +528,7 @@ namespace xx {
 		}
 
 		template<typename T, typename ...TS>
-		XX_FORCE_INLINE int Read_(T& v, TS &...vs) {
+		XX_INLINE int Read_(T& v, TS &...vs) {
 			if (auto r = Read_(v)) return r;
 			return Read_(vs...);
 		}
@@ -536,7 +536,7 @@ namespace xx {
 	public:
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		XX_FORCE_INLINE int Read(Args&...args) {
+		XX_INLINE int Read(Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			return Read_(args...);
 		}
@@ -544,7 +544,7 @@ namespace xx {
 
 		// 向 s 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		template<typename...Args>
-		XX_FORCE_INLINE void AppendTo(std::string& s, Args const&...args) {
+		XX_INLINE void AppendTo(std::string& s, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			str = &s;
 			auto sg = MakeScopeGuard([this] {
@@ -559,7 +559,7 @@ namespace xx {
 
 		// 内部函数
 		template<typename T>
-		XX_FORCE_INLINE void Append_(T const& v) {
+		XX_INLINE void Append_(T const& v) {
 			auto& s = *str;
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
@@ -697,7 +697,7 @@ namespace xx {
 
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		XX_FORCE_INLINE void Append(Args const&...args) {
+		XX_INLINE void Append(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			(Append_(args), ...);
 		}
@@ -705,7 +705,7 @@ namespace xx {
 
 		// 字符串拼接，方便输出
 		template<typename...Args>
-		XX_FORCE_INLINE std::string ToString(Args const&...args) {
+		XX_INLINE std::string ToString(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			std::string s;
 			AppendTo(s, args...);
@@ -716,7 +716,7 @@ namespace xx {
 
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
-		XX_FORCE_INLINE void CloneTo(T const& in, T& out) {
+		XX_INLINE void CloneTo(T const& in, T& out) {
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
@@ -741,7 +741,7 @@ namespace xx {
 
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
-		XX_FORCE_INLINE std::decay_t<T> Clone(T const& in) {
+		XX_INLINE std::decay_t<T> Clone(T const& in) {
 			std::decay_t<T> out;
 			CloneTo(in, out);
 			return out;
@@ -749,7 +749,7 @@ namespace xx {
 
 		template<class Tuple, std::size_t N>
 		struct TupleForeachClone {
-			XX_FORCE_INLINE static void Clone(ObjManager& self, Tuple const& in, Tuple& out) {
+			XX_INLINE static void Clone(ObjManager& self, Tuple const& in, Tuple& out) {
 				self.Clone_(std::get<N - 1>(in), std::get<N - 1>(out));
 				TupleForeachClone<Tuple, N - 1>::Clone_(in, out);
 			}
@@ -761,7 +761,7 @@ namespace xx {
 		};
 
 		template<typename T>
-		XX_FORCE_INLINE void Clone_(T const& in, T& out) {
+		XX_INLINE void Clone_(T const& in, T& out) {
 			if constexpr (IsXxShared_v<T>) {
 				if (!in) {
 					out.Reset();
@@ -849,7 +849,7 @@ namespace xx {
 		// 斩断循环引用的 Shared 以方便顺利释放内存( 入口 )
 		// 并不直接清空 args
 		template<typename...Args>
-		XX_FORCE_INLINE void KillRecursive(Args&...args) {
+		XX_INLINE void KillRecursive(Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
@@ -863,7 +863,7 @@ namespace xx {
 
 	protected:
 		template<typename T>
-		XX_FORCE_INLINE void RecursiveReset_(T& v) {
+		XX_INLINE void RecursiveReset_(T& v) {
 			if constexpr (IsXxShared_v<T>) {
 				if (v) {
 					auto h = ((PtrHeader*)v.pointer - 1);
@@ -916,7 +916,7 @@ namespace xx {
 
 		// 供类成员函数调用
 		template<typename...Args>
-		XX_FORCE_INLINE void RecursiveReset(Args&...args) {
+		XX_INLINE void RecursiveReset(Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			(RecursiveReset_(args), ...);
 		}
@@ -928,7 +928,7 @@ namespace xx {
 
 		// 判断是否存在循环引用，存在则返回非 0 ( 第几个Shared )( 入口 )
 		template<typename...Args>
-		XX_FORCE_INLINE int HasRecursive(Args const&...args) {
+		XX_INLINE int HasRecursive(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
@@ -943,18 +943,18 @@ namespace xx {
 
 	protected:
 		template<std::size_t I = 0, typename... Tp>
-		XX_FORCE_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
 			return RecursiveCheck_(std::get<I>(t));
 		}
 
 		template<std::size_t I = 0, typename... Tp>
-		XX_FORCE_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
 			if (int r = RecursiveCheck_(std::get<I>(t))) return r;
 			return RecursiveCheckTuple<I + 1, Tp...>(t);
 		}
 
 		template<typename T>
-		XX_FORCE_INLINE int RecursiveCheck_(T const& v) {
+		XX_INLINE int RecursiveCheck_(T const& v) {
 			if constexpr (IsXxShared_v<T>) {
 				if (v) {
 					auto h = ((PtrHeader*)v.pointer - 1);
@@ -1001,7 +1001,7 @@ namespace xx {
 		}
 
 		template<typename T, typename ...TS>
-		XX_FORCE_INLINE int RecursiveCheck_(T const& v, TS const&...vs) {
+		XX_INLINE int RecursiveCheck_(T const& v, TS const&...vs) {
 			if (auto r = RecursiveCheck_(v)) return r;
 			return RecursiveCheck_(vs...);
 		}
@@ -1010,7 +1010,7 @@ namespace xx {
 
 		// 供类成员函数调用
 		template<typename...Args>
-		XX_FORCE_INLINE int RecursiveCheck(Args const&...args) {
+		XX_INLINE int RecursiveCheck(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			return RecursiveCheck_(args...);
 		}
@@ -1023,14 +1023,14 @@ namespace xx {
 
 		// 设置默认值( 主要针对 类，结构体 )
 		template<typename...Args>
-		XX_FORCE_INLINE void SetDefaultValue(Args&...args) {
+		XX_INLINE void SetDefaultValue(Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			(SetDefaultValue_(args), ...);
 		}
 
 	protected:
 		template<typename T>
-		XX_FORCE_INLINE void SetDefaultValue_(T& v) {
+		XX_INLINE void SetDefaultValue_(T& v) {
 			if constexpr (IsXxShared_v<T> || IsXxWeak_v<T>) {
 				v.Reset();
 			}

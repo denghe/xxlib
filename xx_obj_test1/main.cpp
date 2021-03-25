@@ -72,8 +72,8 @@ void Test2() {
 	a->parent = a;
 	a->children.push_back(a);
 	a->data.Fill({ 1, 2, 3, 4, 5 });
-	a->c.x = 1.2;
-	a->c.y = 2.3;
+	a->c.x = 1.2f;
+	a->c.y = 2.3f;
 	a->c.targets.push_back(a);
 	a->c2 = a->c;
 	a->c3.push_back(a->c);

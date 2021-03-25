@@ -9,7 +9,7 @@
 
 namespace xx {
 	/**********************************************************************************************************************/
-	// 开始适配 DataFuncs
+	// 为 Data.Read / Write 提供简单序列化功能( 1字节整数, float/double  memcpy,   别的整数 包括长度 变长. std::string/xx::Data 写 长度 + 内容
 
 	// 适配 Data
 	template<typename T>

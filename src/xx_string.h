@@ -436,6 +436,40 @@ namespace xx {
     }
 
 
+    // 将 string 里数字部分转为 n 字节定长（前面补0）后返回( 方便排序 ). 不支持小数
+    inline std::string InnerNumberToFixed(std::string const& s, int const& n = 16) {
+        std::string t, d;
+        bool handleDigit = false;
+        for (auto&& c : s) {
+            if (c >= '0' && c <= '9') {
+                if (!handleDigit) {
+                    handleDigit = true;
+                }
+                d.append(1, c);
+            }
+            else {
+                if (handleDigit) {
+                    handleDigit = false;
+                    t.append(16 - d.size(), '0');
+                    t.append(d);
+                    d.clear();
+                }
+                else {
+                    t.append(1, c);
+                }
+            }
+        }
+        if (handleDigit) {
+            handleDigit = false;
+            t.append(16 - d.size(), '0');
+            t.append(d);
+            d.clear();
+        }
+        return t;
+    }
+
+
+
     /************************************************************************************/
     // 各种 Cout
     /************************************************************************************/
