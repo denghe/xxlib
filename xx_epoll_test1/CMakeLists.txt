@@ -16,6 +16,6 @@ add_executable(xx_epoll_test1
         )
 
 target_link_libraries(xx_epoll_test1
-#		pthread
-#		readline
+		pthread
+		readline
 		)

@@ -475,7 +475,17 @@ namespace xx {
 		return new(h + 1) T(std::forward<Args>(args)...);
 	}
 
-
+	// unsafe
+    template<typename T>
+    XX_FORCE_INLINE Shared<T> SharedFromThis2(void* const& thiz) {
+        auto h = (PtrHeader*)thiz - 1;
+        return (*((Weak<T>*) & h)).Lock();
+    }
+    template<typename T>
+    XX_FORCE_INLINE Shared<T> SharedFromThis(T* const& thiz) {
+        auto h = (PtrHeader*)thiz - 1;
+        return (*((Weak<T>*) & h)).Lock();
+    }
 }
 
 // 令 Shared Weak 支持放入 hash 容器
