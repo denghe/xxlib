@@ -8,8 +8,8 @@ void Test1() {
 
 	lua_pushlightuserdata(L, nullptr);
 	lua_setglobal(L, "nullptr");
-    lua_pushlightuserdata(L, nullptr);
-    lua_setglobal(L, "null");
+	lua_pushlightuserdata(L, nullptr);
+	lua_setglobal(L, "null");
 	lua_pushlightuserdata(L, nullptr);
 	lua_setglobal(L, "NULL");
 
@@ -18,31 +18,36 @@ void Test1() {
 }
 
 #include "xx_lua.h"
+#include "xx_string.h"
 
 void Test2() {
 	auto L = luaL_newstate();
 	luaL_openlibs(L);
 
+	xx::CoutN("test Push NilType");
 	{
 		xx::Lua::Push(L, xx::Lua::NilType{});
 		lua_setglobal(L, "a");
 		luaL_dostring(L, "print(a)");
 	}
 
+	xx::CoutN("test Push true");
 	{
 		xx::Lua::Push(L, true);
 		lua_setglobal(L, "a");
 		luaL_dostring(L, "print(a)");
 	}
 
+	xx::CoutN("test Push To true");
 	{
 		xx::Lua::Push(L, true);
 		bool a;
 		xx::Lua::To(L, -1, a);
 		lua_pop(L, 1);
-		std::cout << a << std::endl;
+		xx::CoutN(a);
 	}
 
+	xx::CoutN("test Push To false 12");
 	{
 		auto top = lua_gettop(L);
 		xx::Lua::Push(L, false);
@@ -51,10 +56,30 @@ void Test2() {
 		int b;
 		xx::Lua::To(L, top + 1, a, b);
 		lua_settop(L, top);
-		std::cout << a << " " << b << std::endl;
+		xx::CoutN(a, " ", b);
 	}
 
+	xx::CoutN("test Push To Data(copy)");
+	{
+		xx::Data d;
+		d.Fill({ 1,2,3,4,5 });
+		xx::Lua::Push(L, d);
+		auto d2 = xx::Lua::To<xx::Data*>(L, -1);
+		xx::CoutN((d == *d2)," ", (&d == d2), d, *d2);
+		lua_pop(L, 1);
+	}
 
+	xx::CoutN("test Push To Data(move)");
+	{
+		xx::Data d;
+		d.Fill({ 1,2,3,4,5 });
+		xx::Lua::Push(L, std::move(d));
+		auto d2 = xx::Lua::To<xx::Data*>(L, -1);
+		xx::CoutN((d == *d2)," ", (&d == d2), d, *d2);
+		lua_pop(L, 1);
+	}
+
+	assert(lua_gettop(L) == 0);
 }
 
 int main() {

@@ -610,27 +610,33 @@ namespace xx::Lua::Data {
 		{nullptr,      nullptr}
 	};
 
-	// 创建 mt 到栈顶
+	// 创建 mt 到栈顶( 顺便存到注册表 )
 	inline void CreateMT(lua_State* const& L) {
-		lua_createtable(L, 0, _countof(funcs));					// mt
-
-		luaL_setfuncs(L, funcs, 0);								// mt
-		lua_pushvalue(L, -1);									// mt, mt
-		lua_setfield(L, -2, "__index");							// mt
-		lua_pushvalue(L, -1);									// mt, mt
-		lua_setfield(L, -2, "__metatable");						// mt
+		CheckStack(L, 7);
+		lua_createtable(L, 0, _countof(funcs));					// ..., mt
+		lua_pushlightuserdata(L, (void*)key);					// ..., mt, key
+		lua_pushvalue(L, -2);									// ..., mt, key, mt
+		luaL_setfuncs(L, funcs, 0);								// ..., mt, key, mt
+		lua_pushvalue(L, -1);									// ..., mt, key, mt, mt
+		lua_setfield(L, -2, "__index");							// ..., mt, key, mt
+		lua_pushvalue(L, -1);									// ..., mt, key, mt, mt
+		lua_setfield(L, -2, "__metatable");						// ..., mt, key, mt
+		lua_rawset(L, LUA_REGISTRYINDEX);						// ..., mt
 	}
 
 	// 从注册表拿 mt 附加给 ud
 	inline void AttachMT(lua_State* const& L) {					// ..., ud
+		CheckStack(L, 10);
 		auto top = lua_gettop(L);
 		lua_pushlightuserdata(L, (void*)key);					// ..., ud, key
-		lua_rawget(L, LUA_REGISTRYINDEX);						// ..., ud, mt
-		assert(!lua_isnil(L, -1));
+		lua_rawget(L, LUA_REGISTRYINDEX);						// ..., ud, mt?
+		if (lua_isnil(L, -1)) {
+			lua_pop(L, 1);										// ..., ud
+			CreateMT(L);										// ..., ud, mt
+		}
 		lua_setmetatable(L, -2);								// ..., ud
 		assert(top == lua_gettop(L));
 	}
-
 
 	// 注册到 lua 全局, 创建 xx::Data userdata
 	inline int NewXxData(lua_State* L) {

@@ -82,35 +82,208 @@ namespace xx::Lua {
 		return luaL_error(L, (... + args).c_str());
 	}
 
+	// 触发 lua 垃圾回收
+	inline void GC(lua_State* const& L) {
+		luaL_loadstring(L, "collectgarbage(\"collect\")");
+		lua_call(L, 0, 0);
+	}
 
-	/****************************************************************************************/
-	/****************************************************************************************/
-	// lua 向 c++ 注册的回调函数的封装, 将函数以 luaL_ref 方式放入注册表
-	// 通常被 lambda 捕获携带, 析构时同步删除 lua 端函数。 需确保比 L 早死, 否则 L 就野了
-	struct FuncWrapper {
-		FuncWrapper() = default;
-		FuncWrapper(FuncWrapper const& o) = default;
-		FuncWrapper& operator=(FuncWrapper const& o) = default;
-		FuncWrapper(FuncWrapper&& o) = default;
-		FuncWrapper& operator=(FuncWrapper&& o) = default;
+	// 检查 top 值是否符合预期. args 传附加 string 信息
+	template<typename...Args>
+	void AssertTop(lua_State* const& L, int const& n, Args &&...args) {
+		auto top = lua_gettop(L);
+		if (top != n) Error(L, "AssertTop( ", std::to_string(n), " ) failed! current top = ", std::to_string(top), std::forward<Args>(args)...);
+	}
 
-		Shared<std::pair<lua_State*, int>> p;
+	// 向 idx 的 table 写入 k, v
+	template<typename K, typename V>
+	inline void SetField(lua_State* const& L, int const& idx, K&& k, V&& v) {
+		Push(L, std::forward<K>(k), std::forward<V>(v));    // ..., table at idx, ..., k, v
+		lua_rawset(L, idx);                                 // ..., table at idx, ...
+	}
 
-		FuncWrapper(lua_State* const& L, int const& idx) {
-			if (!lua_isfunction(L, idx)) Error(L, "args[", std::to_string(idx), "] is not a lua function");
-			CheckStack(L, 1);
-			p.Emplace();
-			p->first = L;
-			lua_pushvalue(L, idx);                                      // ..., func, ..., func
-			p->second = luaL_ref(L, LUA_REGISTRYINDEX);                 // ..., func, ...
+	// 向 栈顶 的 table 写入 k, v
+	template<typename K, typename V>
+	inline void SetField(lua_State* const& L, K&& k, V&& v) {
+		Push(L, std::forward<K>(k), std::forward<V>(v));    // ..., table at idx, ..., k, v
+		lua_rawset(L, -3);                                  // ..., table at idx, ...
+	}
+
+
+	// 根据 k 从 idx 的 table 读出 v
+	template<typename K, typename V>
+	inline void GetField(lua_State* const& L, int const& idx, K const& k, V& v) {
+		auto top = lua_gettop(L);
+		Push(L, k);                             // ..., table at idx, ..., k
+		lua_rawget(L, idx);                     // ..., table at idx, ..., v
+		To(L, top + 1, v);
+		lua_settop(L, top);                     // ..., table at idx, ...
+	}
+
+	// 写 k, v 到全局
+	template<typename K, typename V>
+	inline void SetGlobal(lua_State* const& L, K const& k, V&& v) {
+		Push(L, std::forward<V>(v));
+		if constexpr (std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
+			lua_setglobal(L, k.c_str());
 		}
-
-		// 如果 p 引用计数唯一, 则反注册
-		~FuncWrapper() {
-			if (p.useCount() != 1) return;
-			luaL_unref(p->first, LUA_REGISTRYINDEX, p->second);
+		else {
+			lua_setglobal(L, k);
 		}
-	};
+	}
+
+	// 从全局以 k 读 v
+	template<typename K, typename V>
+	inline void GetGlobal(lua_State* const& L, K const& k, V& v) {
+		auto top = lua_gettop(L);
+		if constexpr (std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
+			lua_getglobal(L, k.c_str());
+		}
+		else {
+			lua_getglobal(L, k);
+		}
+		To(L, top + 1, v);
+		lua_settop(L, top);
+	}
+
+	// 写 k, v 到注册表
+	template<typename K, typename V>
+	inline void SetRegistry(lua_State* const& L, K const& k, V&& v) {
+		SetField(L, LUA_REGISTRYINDEX, k, std::forward<V>(v));
+	}
+
+	// 从注册表以 k 读 v
+	template<typename K, typename V>
+	inline void GetRegistry(lua_State* const& L, K const& k, V const& v) {
+		GetField(L, LUA_REGISTRYINDEX, k, v);
+	}
+
+	// 加载文件
+	template<typename T>
+	void LoadFile(lua_State* const& L, T&& fileName) {
+		int rtv = 0;
+		if constexpr (std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
+			rtv = luaL_loadfile(L, fileName.c_str());
+		}
+		else {
+			rtv = luaL_loadfile(L, fileName);
+		}
+		if (rtv != LUA_OK) {
+			lua_error(L);
+		};
+	}
+
+	namespace Detail {
+		// Exec / PCall 返回值封装, 易于使用
+		struct Result {
+			Result() = default;
+			Result(Result const&) = default;
+			Result& operator=(Result const&) = default;
+			Result(Result&& o) = default;
+			Result& operator=(Result&& o) = default;
+
+			int n = 0;
+			std::string m;
+
+			template<typename M>
+			Result(int const& n, M&& m) : n(n), m(std::forward<M>(m)) {}
+
+			inline operator bool() const {
+				return n != 0;
+			}
+		};
+
+		// for pcall
+		inline Result PCallCore(lua_State* const& L, int const& top, int const& n) {
+			Result rtv;
+			if ((rtv.n = lua_pcall(L, n, LUA_MULTRET, 0))) {                // ... ( func? errmsg? )
+				if (lua_isstring(L, -1)) {
+					rtv.m = lua_tostring(L, -1);
+				}
+				else if (rtv.n == -1) {
+					rtv.m = "cpp exception";
+				}
+				else {
+					rtv.m = "lua_error forget arg?";
+				}
+				lua_settop(L, top);
+			}
+			return rtv;
+		}
+	}
+
+	// 安全调用函数( 函数最先压栈，然后是 up values ). 出错将还原 top
+	// [-(nargs + 1), +(nresults|1), -]
+	template<typename...Args>
+	Detail::Result PCall(lua_State* const& L, Args &&...args) {
+		auto top = lua_gettop(L);
+		int n = 0;
+		if constexpr (sizeof...(args) > 0) {
+			n = Push(L, std::forward<Args>(args)...);
+		}
+		return Detail::PCallCore(L, top, n);
+	}
+
+	// 安全执行 lambda。出错将还原 top
+	template<typename T>
+	Detail::Result Try(lua_State* const& L, T&& func) {
+		if (!CheckStack(L, 2)) return { -2, "lua_checkstack(L, 1) failed." };
+		auto top = lua_gettop(L);
+		lua_pushlightuserdata(L, &func);                                // ..., &func
+		lua_pushcclosure(L, [](auto L) {                                // ..., cfunc
+			auto&& f = (T*)lua_touserdata(L, lua_upvalueindex(1));
+			(*f)();
+			return 0;
+			}, 1);
+		return Detail::PCallCore(L, top, 0);
+	}
+
+	// 安全调用指定名称的全局函数( 会留下函数和返回值在栈中 )
+	// [-(nargs + 1), +(nresults|1), -]
+	template<typename T, typename...Args>
+	Detail::Result PCallGlobalFunc(lua_State* const& L, T&& funcName, Args &&...args) {
+		if constexpr (std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
+			lua_getglobal(L, funcName.c_str());
+		}
+		else {
+			lua_getglobal(L, funcName);
+		}
+		return PCall(L, std::forward<Args>(args)...);
+	}
+
+	// 不安全调用栈顶函数
+	// [-(nargs + 1), +nresults, e]
+	template<typename...Args>
+	void Call(lua_State* const& L, Args &&...args) {
+		lua_call(L, Push(L, std::forward<Args>(args)...), LUA_MULTRET);
+	}
+
+	// 不安全调用指定名称的全局函数
+	// [-(nargs + 1), +(nresults|1), e]
+	template<typename T, typename...Args>
+	void CallGlobalFunc(lua_State* const& L, T&& funcName, Args &&...args) {
+		if constexpr (std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
+			lua_getglobal(L, funcName.c_str());
+		}
+		else {
+			lua_getglobal(L, funcName);
+		}
+		Call(L, std::forward<Args>(args)...);
+	}
+
+	template<typename T, typename...Args>
+	void CallFile(lua_State* const& L, T&& fileName, Args &&...args) {
+		LoadFile(L, std::forward<T>(fileName));
+		Call(L, std::forward<Args>(args)...);
+	}
+
+	template<typename...Args>
+	void DoString(lua_State* const& L, char const* const& code, Args &&...args) {
+		if (LUA_OK != luaL_loadstring(L, code)) {
+			lua_error(L);
+		}
+		Call(L, std::forward<Args>(args)...);
+	}
 
 
 	/****************************************************************************************/
