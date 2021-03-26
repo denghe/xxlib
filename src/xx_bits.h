@@ -100,7 +100,7 @@ namespace xx {
 
     inline bool IsPrime(size_t const& candidate) noexcept {
         if ((candidate & 1) != 0) {
-            size_t limit = size_t(sqrt(candidate));
+            size_t limit = size_t(sqrt((double)candidate));
             for (size_t divisor = 3; divisor <= limit; divisor += 2) {
                 if ((candidate % divisor) == 0) return false;
             }

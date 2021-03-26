@@ -242,6 +242,10 @@ namespace xx {
 
 
 	template<typename T>
+	constexpr bool IsMapSeries_v = IsUnorderedMap_v<T> || IsMap_v<T>;
+
+
+	template<typename T>
 	struct IsPair : std::false_type {
 	};
 	template<typename F, typename S>
@@ -280,6 +284,8 @@ namespace xx {
 	struct IsContainer<T, std::void_t<decltype(std::declval<T>().data()), decltype(std::declval<T>().size())>>
 		: std::true_type {
 	};
+	template<typename T>
+	constexpr bool IsIsContainer_v = IsContainer<T>::value;
 
 
 	/************************************************************************************/

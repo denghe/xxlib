@@ -6,9 +6,9 @@ namespace xx {
 	struct Package {
 		uint32_t serviceId = 0;
 		int serial = 0;
-		xx::BBuffer data;
+		Data data;
 
-		Package(uint32_t const& serviceId, int const& serial, xx::BBuffer&& data)
+		Package(uint32_t const& serviceId, int const& serial, Data&& data)
 			: serviceId(serviceId), serial(serial), data(std::move(data)) {}
 
 		Package() = default;
@@ -43,24 +43,24 @@ namespace xx {
 		}
 
 		// 向某 serviceId 发数据
-		inline int SendTo(uint32_t const& id, int32_t const& serial, Object_s const& msg) {
+		inline int SendTo(uint32_t const& id, int32_t const& serial, ObjBase_s const& msg) {
 			if (!peerBase) return -1;
 			auto&& bb = uv.sendBB;
 			peerBase->SendPrepare(bb, 1024);
 			bb.WriteFixed(id);
-			bb.Write(serial);
-			bb.WriteRoot(msg);
+			bb.WriteVarInteger(serial);
+			uv.om.WriteTo(bb, msg);
 			return peerBase->SendAfterPrepare(bb);
 		}
 
 		// 向某 serviceId 发数据
-		inline int SendTo(uint32_t const& id, int32_t const& serial, BBuffer const& data) {
+		inline int SendTo(uint32_t const& id, int32_t const& serial, Data const& data) {
 			if (!peerBase) return -1;
 			auto&& bb = uv.sendBB;
 			peerBase->SendPrepare(bb, 1024);
 			bb.WriteFixed(id);
-			bb.Write(serial);
-			bb.AddRange(data.buf, data.len);
+			bb.WriteVarInteger(serial);
+			bb.WriteBuf(data.buf, data.len);
 			return peerBase->SendAfterPrepare(bb);
 		}
 
@@ -91,9 +91,9 @@ namespace xx {
 				// 其他结构：int serial + PKG serial data
 				int serial = 0;
 				if(bb.Read(serial)) return __LINE__;
-				// 剩余数据打包为 xx::BBuffer 塞到收包队列
-				xx::BBuffer data;
-				data.AddRange(buf + bb.offset, len - bb.offset);
+				// 剩余数据打包为 Data 塞到收包队列
+				Data data;
+				data.WriteBuf(buf + bb.offset, len - bb.offset);
 				receivedPackages.emplace_back(serviceId, serial, std::move(data));
 			}
 			return 0;
@@ -158,14 +158,14 @@ namespace xx {
 		}
 
 		// 向某 serviceId 发数据
-		inline int SendTo(uint32_t const& id, int32_t const& serial, BBuffer const& data) {
+		inline int SendTo(uint32_t const& id, int32_t const& serial, Data const& data) {
 			if (!PeerAlive()) return -1;
 			return peer->SendTo(id, serial, data);
 		}
 
 		// 尝试 move 出一条最前面的消息( lua 那边则将 Package 变为 table, 以成员方式压栈. 之后分发 )
 		inline bool TryGetPackage(Package& pkg) {
-			if (!PeerAlive()) return nullptr;
+			if (!PeerAlive()) return false;
 			auto&& ps = peer->receivedPackages;
 		LabLoop:
 			if (ps.empty()) return false;
@@ -192,7 +192,7 @@ namespace xx {
 
 		// 尝试 move 出一条最前面的消息( for cpp 调用 )
 		inline bool TryGetCppPackage(Package& pkg) {
-			if (!PeerAlive()) return nullptr;
+			if (!PeerAlive()) return false;
 			auto&& ps = peer->receivedCppPackages;
 			if (ps.empty()) return false;
 			pkg = std::move(ps.front());

@@ -184,7 +184,7 @@ namespace xx {
 		for (int i = buckets[targetBucket]; i >= 0; i = nodes[i].next) {
 			if (nodes[i].hashCode == hashCode && items[i].key == k) {
 				if (override) {                      // 允许覆盖 value
-					if constexpr (!std::is_pod_v<TV>) {
+					if constexpr (!(std::is_standard_layout_v<TV> && std::is_trivial_v<TV>)) {
 						items[i].value.~TV();
 					}
 					new (&items[i].value) TV(std::forward<V>(v));
@@ -256,11 +256,11 @@ namespace xx {
 			auto newItems = (Data*)malloc(bucketsLen * sizeof(Data));
 			for (int i = 0; i < count; ++i) {
 				new (&newItems[i].key) TK((TK&&)items[i].key);
-				if constexpr (!std::is_pod_v<TK>) {
+				if constexpr (!(std::is_standard_layout_v<TK> && std::is_trivial_v<TK>)) {
 					items[i].key.TK::~TK();
 				}
 				new (&newItems[i].value) TV((TV&&)items[i].value);
-				if constexpr (!std::is_pod_v<TV>) {
+				if constexpr (!(std::is_standard_layout_v<TV> && std::is_trivial_v<TV>)) {
 					items[i].value.TV::~TV();
 				}
 			}
@@ -308,10 +308,10 @@ namespace xx {
 		freeList = idx;
 		freeCount++;
 
-		if constexpr (!std::is_pod_v<TK>) {
+		if constexpr (!(std::is_standard_layout_v<TK> && std::is_trivial_v<TK>)) {
 			items[idx].key.~TK();
 		}
-		if constexpr (!std::is_pod_v<TV>) {
+		if constexpr (!(std::is_standard_layout_v<TV> && std::is_trivial_v<TV>)) {
 			items[idx].value.~TV();
 		}
 		items[idx].prev = -2;           // foreach 时的无效标志
@@ -358,10 +358,10 @@ namespace xx {
 		assert(buckets);
 		for (int i = 0; i < count; ++i) {
 			if (items[i].prev != -2) {
-				if constexpr (!std::is_pod_v<TK>) {
+				if constexpr (!(std::is_standard_layout_v<TK> && std::is_trivial_v<TK>)) {
 					items[i].key.~TK();
 				}
-				if constexpr (!std::is_pod_v<TV>) {
+				if constexpr (!(std::is_standard_layout_v<TV> && std::is_trivial_v<TV>)) {
 					items[i].value.~TV();
 				}
 				items[i].prev = -2;
