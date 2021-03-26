@@ -420,42 +420,4 @@ namespace xx::Lua {
 		}
 	}
 
-	/******************************************************************************************************************/
-	// Lua State 简单封装, 可直接当指针用, 离开范围自动 close
-	struct State {
-		lua_State* L = nullptr;
-
-		inline operator lua_State* () {
-			return L;
-		}
-
-		~State() {
-			lua_close(L);
-		}
-
-		explicit State(bool const& openLibs = true) {
-			L = luaL_newstate();
-			if (!L) throw std::runtime_error("auto &&L = luaL_newstate(); if (!L)");
-			if (openLibs) {
-				if (auto r = Try(L, [&] { luaL_openlibs(L); })) {
-					throw std::runtime_error(r.m);
-				}
-			}
-		}
-
-		explicit State(lua_State* L) : L(L) {}
-
-		State(State const&) = delete;
-
-		State& operator=(State const&) = delete;
-
-		State(State&& o) noexcept : L(o.L) {
-			o.L = nullptr;
-		}
-
-		State& operator=(State&& o) noexcept {
-			std::swap(L, o.L);
-			return *this;
-		}
-	};
 }
