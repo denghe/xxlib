@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "xx_ptr.h"
-#include "xx_data.h"
 #ifndef MAKE_LIB
 extern "C" {
 #endif
@@ -50,6 +49,14 @@ namespace xx::Lua {
 			}
 		}
 		(ToFuncs<Args>::To(L, idx++, args), ...);
+	}
+
+	// 从指定位置读指定类型并返回
+	template<typename T>
+	inline T To(lua_State* const& L, int const& idx = 1) {
+		T v;
+		xx::Lua::To(L, idx, v);
+		return v;
 	}
 
 	/****************************************************************************************/
@@ -131,6 +138,7 @@ namespace xx::Lua {
 				lua_pushboolean(L, in ? 1 : 0);
 			}
 			else {
+				// todo: 兼容 int64 的处理
 				lua_pushinteger(L, in);
 			}
 			return 1;
@@ -145,6 +153,7 @@ namespace xx::Lua {
 				out = (bool)lua_toboolean(L, idx);
 			}
 			else {
+				// todo: 兼容 int64 的处理
 				int isnum = 0;
 				out = (T)lua_tointegerx(L, idx, &isnum);
 				if (!isnum) Error(L, "error! args[", std::to_string(idx), "] is not number");
@@ -216,13 +225,24 @@ namespace xx::Lua {
 		}
 	};
 
-	// 适配 std::string_view 写入
+	// 适配 std::string_view
 	template<typename T>
 	struct PushFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, std::string_view const& in) {
 			CheckStack(L, 1);
 			lua_pushlstring(L, in.data(), in.size());
 			return 1;
+		}
+	};
+
+	// 不复制数据. 需立刻使用
+	template<typename T>
+	struct ToFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
+		static inline void To(lua_State* const& L, int const& idx, std::string_view& out) {
+			if (!lua_isstring(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not string");
+			size_t len = 0;
+			auto buf = lua_tolstring(L, idx, &len);
+			out = std::string_view(buf, len);
 		}
 	};
 

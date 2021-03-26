@@ -18,8 +18,8 @@ class B : A {
 	List<Nullable<C>> c3;
 };
 
-[Desc("asdfasdf")]
-struct C {
+[Struct, Desc("asdfasdf")]
+class C {
 	float x, y;
 	List<Weak<A>> targets;
 };

@@ -80,7 +80,7 @@ int A::Read(::xx::ObjManager& om) {
 }
 void A::Append(::xx::ObjManager& om) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
+    om.Append("{\"__typeId__\":1");
     this->AppendCore(om);
     om.str->push_back('}');
 #endif
@@ -136,7 +136,7 @@ int B::Read(::xx::ObjManager& om) {
 }
 void B::Append(::xx::ObjManager& om) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
+    om.Append("{\"__typeId__\":2");
     this->AppendCore(om);
     om.str->push_back('}');
 #endif

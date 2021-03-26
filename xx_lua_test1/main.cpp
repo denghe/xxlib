@@ -4,7 +4,7 @@
 void Test1() {
 	auto L = luaL_newstate();
 	luaL_openlibs(L);
-	xx::DataLua::Register(L);
+	xx::Lua::Data::Register(L);
 
 	lua_pushlightuserdata(L, nullptr);
 	lua_setglobal(L, "nullptr");

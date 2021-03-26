@@ -13,7 +13,7 @@ namespace p1{
     }
     void p1c1::Append(::xx::ObjManager& om) const {
 #ifndef XX_DISABLE_APPEND
-        om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
+        om.Append("{\"__typeId__\":10");
         this->AppendCore(om);
         om.str->push_back('}');
 #endif

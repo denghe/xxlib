@@ -88,6 +88,7 @@ namespace xx {
 		// 恢复成员变量初始值
 		virtual void SetDefaultValue(ObjManager& om) = 0;
 
+		// 注意: 如果类以值类型方式使用, 则下列函数不可用
 		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T
 		// 得到当前类的强指针
 		template<typename T = ObjBase>
@@ -103,7 +104,7 @@ namespace xx {
 			return *((Weak<T>*) & h);
 		}
 
-		// 得到当前类的 typeId
+		// 得到当前类的 typeId( 
 		XX_INLINE int16_t GetTypeId() const {
 			auto h = (PtrHeader*)this - 1;
 			return (int16_t)h->typeId;
