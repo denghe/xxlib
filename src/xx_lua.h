@@ -105,19 +105,18 @@ namespace xx::Lua {
 	// 向 栈顶 的 table 写入 k, v
 	template<typename K, typename V>
 	inline void SetField(lua_State* const& L, K&& k, V&& v) {
-		Push(L, std::forward<K>(k), std::forward<V>(v));    // ..., table at idx, ..., k, v
-		lua_rawset(L, -3);                                  // ..., table at idx, ...
+		Push(L, std::forward<K>(k), std::forward<V>(v));    // ..., table, k, v
+		lua_rawset(L, -3);                                  // ..., table, 
 	}
-
 
 	// 根据 k 从 idx 的 table 读出 v
 	template<typename K, typename V>
 	inline void GetField(lua_State* const& L, int const& idx, K const& k, V& v) {
 		auto top = lua_gettop(L);
-		Push(L, k);                             // ..., table at idx, ..., k
-		lua_rawget(L, idx);                     // ..., table at idx, ..., v
+		Push(L, k);											// ..., table at idx, ..., k
+		lua_rawget(L, idx);									// ..., table at idx, ..., v
 		To(L, top + 1, v);
-		lua_settop(L, top);                     // ..., table at idx, ...
+		lua_settop(L, top);									// ..., table at idx, ...
 	}
 
 	// 写 k, v 到全局

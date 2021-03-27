@@ -1,4 +1,6 @@
-﻿#include "xx_lua_data.h"
+﻿#include "xx_lua_bind.h"
+#include "xx_lua_data.h"
+#include "xx_string.h"
 #include <iostream>
 
 void Test1() {
@@ -14,15 +16,11 @@ void Test1() {
 	lua_setglobal(L, "NULL");
 
 	luaL_dofile(L, "test3.lua");
-
 }
 
-#include "xx_lua.h"
-#include "xx_string.h"
 
 void Test2() {
-	auto L = luaL_newstate();
-	luaL_openlibs(L);
+	xx::Lua::State L;
 
 	xx::CoutN("test Push NilType");
 	{
@@ -31,11 +29,18 @@ void Test2() {
 		luaL_dostring(L, "print(a)");
 	}
 
-	xx::CoutN("test Push true");
+	xx::CoutN("test cost");
 	{
-		xx::Lua::Push(L, true);
-		lua_setglobal(L, "a");
-		luaL_dostring(L, "print(a)");
+		luaL_dostring(L, R"===(
+local add = function(a,b) return a+b end
+local starttime = os.clock()
+local r
+for i = 1, 30000000 do
+    r = add(1, 2)
+end
+print(r)
+print(os.clock() - starttime)
+)===");
 	}
 
 	xx::CoutN("test Push To true");
@@ -65,7 +70,7 @@ void Test2() {
 		d.Fill({ 1,2,3,4,5 });
 		xx::Lua::Push(L, d);
 		auto d2 = xx::Lua::To<xx::Data*>(L, -1);
-		xx::CoutN((d == *d2)," ", (&d == d2), d, *d2);
+		xx::CoutN((d == *d2), " ", (&d == d2), d, *d2);
 		lua_pop(L, 1);
 	}
 
@@ -75,8 +80,41 @@ void Test2() {
 		d.Fill({ 1,2,3,4,5 });
 		xx::Lua::Push(L, std::move(d));
 		auto d2 = xx::Lua::To<xx::Data*>(L, -1);
-		xx::CoutN((d == *d2)," ", (&d == d2), d, *d2);
+		xx::CoutN((d == *d2), " ", (&d == d2), d, *d2);
 		lua_pop(L, 1);
+	}
+
+	xx::CoutN("test To Func");
+	{
+		luaL_dostring(L, "function add(a,b) return a+b end");
+		auto secs = xx::NowEpochSeconds();
+		int r;
+		for (size_t i = 0; i < 30000000; i++) {
+			auto top = lua_gettop(L);
+			CheckStack(L, 5);
+			lua_getglobal(L, "add");
+			lua_pushinteger(L, 1);
+			lua_pushinteger(L, i);
+			lua_call(L, 2, 1);
+			r = lua_tointeger(L, -1);
+			lua_settop(L, top);
+		}
+		xx::CoutN(r);
+		xx::CoutN("secs = ", xx::NowEpochSeconds() - secs);
+	}
+
+	xx::CoutN("test To Func2");
+	{
+		luaL_dostring(L, "function add(a,b) return a+b end");
+		xx::Lua::Func f;
+		xx::Lua::GetGlobal(L, "add", f);
+		auto secs = xx::NowEpochSeconds();
+		int r;
+		for (size_t i = 0; i < 30000000; i++) {
+			r = f.Call<int>(1, i);
+		}
+		xx::CoutN(r);
+		xx::CoutN("secs = ", xx::NowEpochSeconds() - secs);
 	}
 
 	assert(lua_gettop(L) == 0);
