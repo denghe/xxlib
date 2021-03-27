@@ -4,19 +4,19 @@
 #include "xx_lua.h"
 
 /*
-使用 lua userdata 作为 xx::Data 内存管理的封装
+xx::Data 映射到 lua
 
 C++ 注册:
 	xx::Lua::Data::Register( L )
 
-LUA 函数:
+LUA 全局函数:
 	NewXxData()
 
 成员函数见 funcs 数组
 */
 
 namespace xx::Lua {
-	// 先适配指针版. 值版适配在最下面
+	// 适配指针版
 	template<typename T>
 	struct ToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data*, std::decay_t<T>> || std::is_same_v<xx::Data const*, std::decay_t<T>>>> {
 		static void To(lua_State* const& L, int const& idx, T& out) {
@@ -25,16 +25,20 @@ namespace xx::Lua {
 			out = (T)lua_touserdata(L, idx);
 		}
 	};
+
+	// 适配 mt 创建( 预声明 )
+	template<typename T>
+	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>>;
 }
 
 namespace xx::Lua::Data {
 	inline auto key = "xxData";
 	using D = xx::Data;
 
-	inline int __gc(lua_State* L) {
-		auto d = To<D*>(L);
-		d->~D();
-		return 0;
+	// 在 lua 中注册 全局的 Data 创建函数
+	inline void Register(lua_State* const& L) {
+		lua_pushcclosure(L, [](auto L) { return PushUserdata<D>(L); }, 0);
+		lua_setglobal(L, "NewXxData");
 	}
 
 	inline int __tostring(lua_State* L) {
@@ -169,14 +173,11 @@ namespace xx::Lua::Data {
 		return 0;
 	}
 
-	void AttachMT(lua_State* const& L);
 
 	inline int Copy(lua_State* L) {
 		assert(lua_gettop(L) == 1);
 		auto d = To<D*>(L);
-		lua_newuserdata(L, sizeof(D));							// ..., ud
-		new(lua_touserdata(L, -1)) D(*d);
-		AttachMT(L);											// ..., ud
+		PushUserdata<D>(L, *d);
 		return 1;
 	}
 
@@ -313,8 +314,6 @@ namespace xx::Lua::Data {
 		return Push(L, 0, nullptr);
 	}
 
-	int NewXxData(lua_State* L);
-
 	// 读 lua XxData ( 变长长度 + 内容 ). 返回值参考 Rbuf
 	template<bool nullable = false>
 	inline int Rdata(lua_State* L) {
@@ -332,7 +331,7 @@ namespace xx::Lua::Data {
 				return Push(L, r);
 			}
 			Push(L, 0);                                 // ..., 0
-			NewXxData(L);                               // ..., 0, data
+			PushUserdata<D>(L);							// ..., 0, data
 			auto d2 = (D*)lua_touserdata(L, -1);
 			if (auto ptr = (char const*)d->ReadBuf(len)) {
 				d2->WriteBuf(ptr, len);
@@ -447,7 +446,6 @@ namespace xx::Lua::Data {
 	}
 
 	inline luaL_Reg funcs[] = {
-		{"__gc",       __gc},
 		{"__tostring", __tostring},
 
 		{"Fill",       Fill},
@@ -609,63 +607,21 @@ namespace xx::Lua::Data {
 
 		{nullptr,      nullptr}
 	};
-
-	// 创建 mt 到栈顶( 顺便存到注册表 )
-	inline void CreateMT(lua_State* const& L) {
-		CheckStack(L, 7);
-		lua_createtable(L, 0, _countof(funcs));					// ..., mt
-		lua_pushlightuserdata(L, (void*)key);					// ..., mt, key
-		lua_pushvalue(L, -2);									// ..., mt, key, mt
-		luaL_setfuncs(L, funcs, 0);								// ..., mt, key, mt
-		lua_pushvalue(L, -1);									// ..., mt, key, mt, mt
-		lua_setfield(L, -2, "__index");							// ..., mt, key, mt
-		lua_pushvalue(L, -1);									// ..., mt, key, mt, mt
-		lua_setfield(L, -2, "__metatable");						// ..., mt, key, mt
-		lua_rawset(L, LUA_REGISTRYINDEX);						// ..., mt
-	}
-
-	// 从注册表拿 mt 附加给 ud
-	inline void AttachMT(lua_State* const& L) {					// ..., ud
-		CheckStack(L, 10);
-		auto top = lua_gettop(L);
-		lua_pushlightuserdata(L, (void*)key);					// ..., ud, key
-		lua_rawget(L, LUA_REGISTRYINDEX);						// ..., ud, mt?
-		if (lua_isnil(L, -1)) {
-			lua_pop(L, 1);										// ..., ud
-			CreateMT(L);										// ..., ud, mt
-		}
-		lua_setmetatable(L, -2);								// ..., ud
-		assert(top == lua_gettop(L));
-	}
-
-	// 注册到 lua 全局, 创建 xx::Data userdata
-	inline int NewXxData(lua_State* L) {
-		lua_newuserdata(L, sizeof(D));							// ..., ud
-		new(lua_touserdata(L, -1)) D();
-		AttachMT(L);											// ..., ud
-		return 1;
-	}
-
-	// 在 lua 中注册 全局的 Data 创建函数 和 注册表中的 metatable
-	inline void Register(lua_State* const& L) {
-		lua_pushcclosure(L, NewXxData, 0);						// ..., v
-		lua_setglobal(L, "NewXxData");							// ...
-
-		lua_pushlightuserdata(L, (void*)key);					// ..., key
-		CreateMT(L);											// ..., key, mt
-		lua_rawset(L, LUA_REGISTRYINDEX);						// ...
-	}
 }
 
 namespace xx::Lua {
-	// 复制或移动
+	template<typename T>
+	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
+		inline static std::string name = std::string(TypeName_v<std::decay_t<T>>);
+		static void Fill(lua_State* const& L) {
+			luaL_setfuncs(L, ::xx::Lua::Data::funcs, 0);
+		}
+	};
+
 	template<typename T>
 	struct PushFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
 		static int Push(lua_State* const& L, T&& in) {
-			auto rtv = ::xx::Lua::Data::NewXxData(L);
-			auto d = To<xx::Data*>(L, -1);
-			*d = std::forward<T>(in);
-			return rtv;
+			return PushUserdata<xx::Data>(L, std::forward<T>(in));
 		}
 	};
 }
