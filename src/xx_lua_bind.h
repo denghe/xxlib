@@ -57,7 +57,7 @@ namespace xx::Lua {
 			auto top = lua_gettop(L);
 			CheckStack(L, 1);
 			lua_rawgeti(L, LUA_REGISTRYINDEX, p->second);				// ..., func
-			auto n = Push(L, args...);									// ..., func, args...
+			auto n = Push(L, std::forward<Args>(args)...);				// ..., func, args...
 			lua_call(L, n, LUA_MULTRET);								// ..., rtv...?
 			if constexpr (!std::is_void_v<T>) {
 				T rtv;

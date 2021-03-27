@@ -6,6 +6,8 @@
 #include <sstream>
 #include <filesystem>
 #include <cstdio>
+#include <iomanip>
+#include <atomic>
 #include "ajson.hpp"
 #include "xx_string.h"
 
@@ -732,8 +734,10 @@ namespace xx {
             // 如果缺目录就建
             std::filesystem::path p(currLogFileName);
             if (!p.parent_path().empty()) {
-                if (!std::filesystem::create_directories(p.parent_path())) {
-                    throw std::runtime_error(std::string("create path's dirs failed! path = ") + currLogFileName);
+                if (!std::filesystem::exists(p.parent_path())){
+                    if (!std::filesystem::create_directories(p.parent_path())) {
+                        throw std::runtime_error(std::string("create path's dirs failed! path = ") + currLogFileName);
+                    }
                 }
             }
 

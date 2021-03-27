@@ -36,7 +36,7 @@ local add = function(a,b) return a+b end
 local starttime = os.clock()
 local r
 for i = 1, 30000000 do
-    r = add(1, 2)
+    r = add(1, i)
 end
 print(r)
 print(os.clock() - starttime)
@@ -85,6 +85,26 @@ print(os.clock() - starttime)
 	}
 
 	xx::CoutN("test To Func");
+	{
+		luaL_dostring(L, "function add(a,b) return a+b end");
+		CheckStack(L, 5);
+		lua_getglobal(L, "add");
+		auto secs = xx::NowEpochSeconds();
+		int r;
+		for (size_t i = 0; i < 30000000; i++) {
+			lua_pushvalue(L, -1);
+			lua_pushinteger(L, 1);
+			lua_pushinteger(L, i);
+			lua_call(L, 2, 1);
+			r = lua_tointeger(L, -1);
+			lua_pop(L, 1);
+		}
+		xx::CoutN(r);
+		xx::CoutN("secs = ", xx::NowEpochSeconds() - secs);
+		lua_pop(L, 1);
+	}
+
+	xx::CoutN("test To Func1");
 	{
 		luaL_dostring(L, "function add(a,b) return a+b end");
 		auto secs = xx::NowEpochSeconds();

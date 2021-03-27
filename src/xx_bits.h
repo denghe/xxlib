@@ -5,9 +5,9 @@
 
 #ifdef _WIN32
 #include <intrin.h>     // _BitScanReverse[64] _byteswap_ulong _byteswap_uint64
-//#include <objbase.h>
 #endif
 #include <algorithm>
+#include <cmath>
 
 namespace xx {
     // 数字字节序交换
