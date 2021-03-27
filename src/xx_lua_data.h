@@ -164,7 +164,7 @@ namespace xx::Lua::Data {
 			d->Reset(To<uint8_t*>(L, 2), To<size_t>(L, 3), To<size_t>(L, 4), To<size_t>(L, 5));
 			break;
 		default:
-			throw std::exception("too many args");
+			throw std::runtime_error("too many args");
 		}
 		return 0;
 	}

@@ -1,18 +1,8 @@
 ﻿#pragma once
 #include <initializer_list>
 #include <utility>
-#include <cassert>
-#include <cstdint>
-#include <cstring>      // memcmp
-
-#ifdef _WIN32
-#include <intrin.h>     // _BitScanReverse[64] _byteswap_ulong _byteswap_uint64
-#include <objbase.h>
-#else
-
-#include <arpa/inet.h>  // __BYTE_ORDER __LITTLE_ENDIAN __BIG_ENDIAN
-
-#endif
+#include <cstring>
+#include "xx_bits.h"
 
 namespace xx {
 

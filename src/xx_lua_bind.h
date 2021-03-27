@@ -100,7 +100,7 @@ namespace xx::Lua {
 	};
 
 	template<typename K, typename V>
-	inline void GetGlobalFunc(lua_State* const& L, K const& k) {
+	inline Func GetGlobalFunc(lua_State* const& L, K const& k) {
 		Func f;
 		GetGlobal(L, k, f);
 		return f;
@@ -214,94 +214,94 @@ namespace xx::Lua {
 		}
 	};
 
-	// 适配 RefWrapper
-	template<typename T>
-	struct ToFuncs<RefWrapper<T>, void> {
-		static inline void To(lua_State* const& L, int const& idx, RefWrapper<T>& out) {
-			PushToFuncs<T>::ToPtr(L, idx, out.p);
-		}
-	};
-
-
-	/******************************************************************************************************************/
-	// 元表辅助填充类
-
-	// C 传入 MetaFuncs 的 T
-	template<typename C, typename B = void>
-	struct Meta {
-	protected:
-		lua_State* const& L;
-	public:
-		explicit Meta(lua_State* const& L, std::string const& name) : L(L) {
-			if constexpr (!std::is_void_v<B>) {
-				MetaFuncs<B, void>::Fill(L);
-			}
-			SetField(L, (void*)name.data(), 1);
-		}
-
-		template<typename F>
-		Meta& Func(char const* const& name, F const& f) {
-			lua_pushstring(L, name);
-			new(lua_newuserdata(L, sizeof(F))) F(f);                    // ..., ud
-			lua_pushcclosure(L, [](auto L) {                            // ..., cc
-				C* p = nullptr;
-				PushToFuncs<C, void>::ToPtr(L, 1, p);
-				auto&& self = ToPointer(*p);
-				if (!self) Error(L, std::string("args[1] is nullptr?"));
-				auto&& f = *(F*)lua_touserdata(L, lua_upvalueindex(1));
-				FuncA_t<F> tuple;
-				To(L, 2, tuple);
-				int rtv = 0;
-				std::apply([&](auto &... args) {
-					if constexpr (std::is_void_v<FuncR_t<F>>) {
-						((*self).*f)(std::move(args)...);
-					}
-					else {
-						rtv = Push(L, ((*self).*f)(std::move(args)...));
-					}
-					}, tuple);
-				return rtv;
-				}, 1);
-			lua_rawset(L, -3);
-			return *this;
-		}
-
-		template<typename P>
-		Meta& Prop(char const* const& getName, P const& o) {
-			SetField(L, (char*)getName, [o](C& self) {
-				return (*ToPointer(self)).*o;
-				});
-			return *this;
-		}
-
-		template<typename P>
-		Meta& Prop(char const* const& getName, char const* const& setName, P const& o) {
-			if (getName) {
-				Prop<P>(getName, o);
-			}
-			if (setName) {
-				SetField(L, (char*)setName, [o](C& self, MemberPointerR_t<P> const& v) {
-					(*ToPointer(self)).*o = v;
-					});
-			}
-			return *this;
-		}
-
-		// lambda 第一个参数为 C& 类型，接受 self 传入
-		template<typename F>
-		Meta& Lambda(char const* const& name, F&& f) {
-			lua_pushstring(L, name);
-			Push(L, std::forward<F>(f));
-			lua_rawset(L, -3);
-			return *this;
-		}
-	};
-
-
-	template<typename T, typename ENABLED>
-	void MetaFuncs<T, ENABLED>::Fill(lua_State* const& L) {
-		if constexpr (!IsLambda_v<T>) {
-			Meta<T>(L, name);
-		}
-	}
+//	// 适配 RefWrapper
+//	template<typename T>
+//	struct ToFuncs<RefWrapper<T>, void> {
+//		static inline void To(lua_State* const& L, int const& idx, RefWrapper<T>& out) {
+//			PushToFuncs<T>::ToPtr(L, idx, out.p);
+//		}
+//	};
+//
+//
+//	/******************************************************************************************************************/
+//	// 元表辅助填充类
+//
+//	// C 传入 MetaFuncs 的 T
+//	template<typename C, typename B = void>
+//	struct Meta {
+//	protected:
+//		lua_State* const& L;
+//	public:
+//		explicit Meta(lua_State* const& L, std::string const& name) : L(L) {
+//			if constexpr (!std::is_void_v<B>) {
+//				MetaFuncs<B, void>::Fill(L);
+//			}
+//			SetField(L, (void*)name.data(), 1);
+//		}
+//
+//		template<typename F>
+//		Meta& Func(char const* const& name, F const& f) {
+//			lua_pushstring(L, name);
+//			new(lua_newuserdata(L, sizeof(F))) F(f);                    // ..., ud
+//			lua_pushcclosure(L, [](auto L) {                            // ..., cc
+//				C* p = nullptr;
+//				PushToFuncs<C, void>::ToPtr(L, 1, p);
+//				auto&& self = ToPointer(*p);
+//				if (!self) Error(L, std::string("args[1] is nullptr?"));
+//				auto&& f = *(F*)lua_touserdata(L, lua_upvalueindex(1));
+//				FuncA_t<F> tuple;
+//				To(L, 2, tuple);
+//				int rtv = 0;
+//				std::apply([&](auto &... args) {
+//					if constexpr (std::is_void_v<FuncR_t<F>>) {
+//						((*self).*f)(std::move(args)...);
+//					}
+//					else {
+//						rtv = Push(L, ((*self).*f)(std::move(args)...));
+//					}
+//					}, tuple);
+//				return rtv;
+//				}, 1);
+//			lua_rawset(L, -3);
+//			return *this;
+//		}
+//
+//		template<typename P>
+//		Meta& Prop(char const* const& getName, P const& o) {
+//			SetField(L, (char*)getName, [o](C& self) {
+//				return (*ToPointer(self)).*o;
+//				});
+//			return *this;
+//		}
+//
+//		template<typename P>
+//		Meta& Prop(char const* const& getName, char const* const& setName, P const& o) {
+//			if (getName) {
+//				Prop<P>(getName, o);
+//			}
+//			if (setName) {
+//				SetField(L, (char*)setName, [o](C& self, MemberPointerR_t<P> const& v) {
+//					(*ToPointer(self)).*o = v;
+//					});
+//			}
+//			return *this;
+//		}
+//
+//		// lambda 第一个参数为 C& 类型，接受 self 传入
+//		template<typename F>
+//		Meta& Lambda(char const* const& name, F&& f) {
+//			lua_pushstring(L, name);
+//			Push(L, std::forward<F>(f));
+//			lua_rawset(L, -3);
+//			return *this;
+//		}
+//	};
+//
+//
+//	template<typename T, typename ENABLED>
+//	void MetaFuncs<T, ENABLED>::Fill(lua_State* const& L) {
+//		if constexpr (!IsLambda_v<T>) {
+//			Meta<T>(L, name);
+//		}
+//	}
 }
