@@ -95,6 +95,52 @@ void Test2() {
 	assert(lua_gettop(L) == 0);
 }
 
+struct FooBase {
+	int n = 123;
+};
+struct Foo : FooBase {
+	std::string name = "Foo";
+	xx::Lua::Func onUpdate;
+};
+
+namespace xx::Lua {
+	template<typename T>
+	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<FooBase, std::decay_t<T>>>> {
+		using U = std::decay_t<T>;
+		inline static std::string name = std::string(TypeName_v<U>);
+		static void Fill(lua_State* const& L) {
+			SetTypeName<U>(L);
+			SetFieldCClosure(L, "n", [](auto L) { return Push(To<U*>(L)->name); });
+		}
+	};
+
+	template<typename T>
+	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<Foo, std::decay_t<T>>>> {
+		using U = std::decay_t<T>;
+		inline static std::string name = std::string(TypeName_v<U>);
+		static void Fill(lua_State* const& L) {
+			MetaFuncs<FooBase>::Fill(L);
+			SetTypeName<std::decay_t<T>>(L);
+			SetFieldCClosure(L, "name", [](auto L) { return Push(To<Foo*>(L)->name); });
+		}
+	};
+
+	template<typename T>
+	struct PushFuncs<T, std::enable_if_t<std::is_same_v<Foo, std::decay_t<T>>>> {
+		static int Push(lua_State* const& L, T&& in) {
+			return PushUserdata<Foo>(L, std::forward<T>(in));
+		}
+	};
+
+	template<typename T>
+	struct ToFuncs<T, std::enable_if_t<std::is_same_v<Foo*, std::decay_t<T>> || std::is_same_v<Foo const*, std::decay_t<T>>>> {
+		static void To(lua_State* const& L, int const& idx, T& out) {
+			if (!IsUserdata<Foo>(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not Foo");
+			out = (T)lua_touserdata(L, idx);
+		}
+	};
+}
+
 void Test3() {
 	xx::Lua::State L;
 
@@ -102,8 +148,8 @@ void Test3() {
 
 int main() {
 	//Test1();
-	Test2();
-	//Test3();
+	//Test2();
+	Test3();
 	std::cout << "end." << std::endl;
 	return 0;
 }

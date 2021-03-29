@@ -20,8 +20,7 @@ namespace xx::Lua {
 	template<typename T>
 	struct ToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data*, std::decay_t<T>> || std::is_same_v<xx::Data const*, std::decay_t<T>>>> {
 		static void To(lua_State* const& L, int const& idx, T& out) {
-			if (lua_type(L, idx) != LUA_TUSERDATA) Error(L, "error! args[", std::to_string(idx), "] is not xx::Data");
-			// todo: 进一步核实是否真的是 xx::Data
+			if (!IsUserdata<xx::Data>(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not xx::Data");
 			out = (T)lua_touserdata(L, idx);
 		}
 	};
@@ -32,7 +31,6 @@ namespace xx::Lua {
 }
 
 namespace xx::Lua::Data {
-	inline auto key = "xxData";
 	using D = xx::Data;
 
 	// 在 lua 中注册 全局的 Data 创建函数
@@ -612,8 +610,10 @@ namespace xx::Lua::Data {
 namespace xx::Lua {
 	template<typename T>
 	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
-		inline static std::string name = std::string(TypeName_v<std::decay_t<T>>);
+		using U = std::decay_t<T>;
+		inline static std::string name = std::string(TypeName_v<U>);
 		static void Fill(lua_State* const& L) {
+			SetTypeName<U>(L);
 			luaL_setfuncs(L, ::xx::Lua::Data::funcs, 0);
 		}
 	};

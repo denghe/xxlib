@@ -102,6 +102,40 @@ namespace xx::Lua {
 		return f;
 	}
 
+	// 栈顶 table[k] = cFunc( upvalues...
+	template<typename K, typename...VS>
+	inline void SetFieldCClosure(lua_State* const& L, K&& k, lua_CFunction&& f, VS&&...upvalues) {
+		CheckStack(L, 3 + sizeof...(VS));
+		Push(L, std::forward<K>(k), std::forward<VS>(upvalues)...);			// ..., table, k, upvalues...
+		lua_pushcclosure(L, f, sizeof...(VS));								// ..., table, k, cfunc
+		lua_rawset(L, -3);													// ..., table, 
+	}
+
+	// 判断指定 idx 所在是指定类型的 userdata ( 判断带 mt && mt.Typename == 1 )
+	template<typename T>
+	inline bool IsUserdata(lua_State* const& L, int const& idx) {
+		CheckStack(L, 2);
+		if (!lua_isuserdata(L, idx)) return false;
+		lua_getmetatable(L, idx);											// ..., mt?
+		if (!lua_istable(L, -1)) {
+			lua_pop(L, 1);
+			return false;
+		}
+		Push(L, (void*)MetaFuncs<T>::name.data());							// ..., mt, k
+		lua_rawget(L, -2);													// ..., mt, mt?
+		bool rtv = lua_rawequal(L, -1, -2);
+		lua_pop(L, 2);
+		return rtv;
+	}
+
+	// 为当前栈顶的 mt 附加 type 信息
+	template<typename T>
+	inline void SetTypeName(lua_State* const& L) {
+		CheckStack(L, 3);
+		Push(L, (void*)MetaFuncs<T>::name.data());							// ..., mt, k
+		lua_pushvalue(L, -2);												// ..., mt, k, mt
+		lua_rawset(L, -3);													// ..., mt
+	}
 
 	/****************************************************************************************/
 	/****************************************************************************************/
@@ -110,7 +144,11 @@ namespace xx::Lua {
 	struct MetaFuncs {
 		inline static std::string name = std::string(TypeName_v<T>);
 
-		// 该函数被调用时, 栈顶即为 mt, 使用 SetField 来为其增加成员
+		// 该函数被调用时, 栈顶即为 mt
+		// 使用 SetTypeName<std::decay_t<T>>(L); 附加 type 信息
+		// 调用 MetaFuncs<基类>::Fill(L); 填充依赖
+		// 使用 SetFieldCClosure(L, "key", [](auto L) { ..... return ?; }, ...) 添加函数
+		// 使用 luaL_setfuncs 批量添加函数也行
 		static void Fill(lua_State* const& L) {}
 	};
 
