@@ -8,7 +8,7 @@ extern "C" {
 #ifndef MAKE_LIB
 }
 #endif
-#include "xx_helpers.h"
+#include "xx_string.h"
 
 // 与 lua 交互的代码应 Try 执行, 方能正确响应 luaL_error 或 C++ 异常
 // luajit 有限支持 C++ 异常, 支持 中文变量名, 官方 lua 5.3/4 很多预编译库默认不支持, 必须强制以 C++ 方式自己编译
@@ -20,32 +20,28 @@ namespace xx::Lua {
 	/****************************************************************************************/
 	/****************************************************************************************/
 	// lua push 基础适配模板. 返回实际入栈的参数个数. 可能抛 lua 异常
+	// lua to 基础适配模板. 一些类型可能需要写多份适配( 填充版, 移动版, 指针版等 ). 可能抛 lua 异常
 	template<typename T, typename ENABLED = void>
-	struct PushFuncs {
+	struct PushToFuncs {
 		static int Push(lua_State* const& L, T&& in) {
+			CoutN("Push not found match template. type = ", TypeName_v<T>);
 			assert(false);
 			return 0;
 		}
-	};
-
-	// 封装为易用函数
-	template<typename...Args>
-	inline int Push(lua_State* const& L, Args &&...args) {
-		return (... + PushFuncs<Args>::Push(L, std::forward<Args>(args)));
-	}
-
-	/****************************************************************************************/
-	/****************************************************************************************/
-	// lua to 基础适配模板. 一些类型可能需要写多份适配( 填充版, 移动版, 指针版等 ). 可能抛 lua 异常
-	template<typename T, typename ENABLED = void>
-	struct ToFuncs {
 		static void To(lua_State* const& L, int const& idx, T& out) {
+			CoutN("To not found match template. type = ", TypeName_v<T>);
 			assert(false);
 		}
 	};
 
+	// 参数压栈并返回实际压栈个数
+	template<typename...Args>
+	inline int Push(lua_State* const& L, Args &&...args) {
+		if constexpr (sizeof...(Args) == 0) return 0;
+		else return (... + PushToFuncs<Args>::Push(L, std::forward<Args>(args)));
+	}
 
-	// 多参模式不支持负数 idx. 转正: lua_gettop(L) + 1 - idx
+	// 从栈读数据 填充到变量。多参模式不支持负数 idx. 转正: lua_gettop(L) + 1 - idx
 	template<typename...Args>
 	inline void To(lua_State* const& L, int idx, Args &...args) {
 		if constexpr (sizeof...(args) > 1) {
@@ -53,10 +49,10 @@ namespace xx::Lua {
 				luaL_error(L, "does not support negative idx when more than 1 args");
 			}
 		}
-		(ToFuncs<Args>::To(L, idx++, args), ...);
+		(PushToFuncs<Args>::To(L, idx++, args), ...);
 	}
 
-	// 从指定位置读指定类型并返回
+	// 从栈读数据 返回
 	template<typename T>
 	inline T To(lua_State* const& L, int const& idx = 1) {
 		T v;
@@ -84,7 +80,8 @@ namespace xx::Lua {
 	// for easy use
 	template<typename...Args>
 	inline int Error(lua_State* const& L, Args &&... args) {
-		return luaL_error(L, (... + args).c_str());
+		auto str = ToString(std::forward<Args>(args)...);
+		return luaL_error(L, str.c_str());
 	}
 
 	// 触发 lua 垃圾回收
@@ -334,7 +331,7 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 nil 写入
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<NilType, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<NilType, std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, NilType const&) {
 			CheckStack(L, 1);
 			lua_pushnil(L);
@@ -345,7 +342,7 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 整数( bool 也算 )
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_integral_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_integral_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			CheckStack(L, 1);
 			if constexpr (std::is_same_v<bool, std::decay_t<T>>) {
@@ -357,10 +354,6 @@ namespace xx::Lua {
 			}
 			return 1;
 		}
-	};
-
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_integral_v<std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			if constexpr (std::is_same_v<bool, std::decay_t<T>>) {
 				if (!lua_isboolean(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not bool");
@@ -378,34 +371,26 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 枚举( 转为整数 )
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_enum_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_enum_v<std::decay_t<T>>>> {
 		typedef std::underlying_type_t<T> UT;
 		static inline int Push(lua_State* const& L, T const& in) {
-			return PushFuncs<UT, void>::Push(L, (UT)in);
+			return PushToFuncs<UT, void>::Push(L, (UT)in);
 		}
-	};
-
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_enum_v<std::decay_t<T>>>> {
 		typedef std::underlying_type_t<T> UT;
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
-			ToFuncs<UT, void>::To(L, (UT&)out);
+			PushToFuncs<UT, void>::To(L, (UT&)out);
 		}
 	};
 
 	/******************************************************/
 	// 适配 浮点
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_floating_point_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_floating_point_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			CheckStack(L, 1);
 			lua_pushnumber(L, in);
 			return 1;
 		}
-	};
-
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_floating_point_v<std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			int isnum = 0;
 			out = (T)lua_tonumberx(L, idx, &isnum);
@@ -415,24 +400,23 @@ namespace xx::Lua {
 
 	/******************************************************/
 	// 适配 literal char[len] string 写入
-	template<size_t len>
-	struct PushFuncs<char[len], void> {
-		static inline int Push(lua_State* const& L, char const(&in)[len]) {
+	template<typename T>
+	struct PushToFuncs<T, std::enable_if_t<IsLiteral_v<T>>> {
+		static inline int Push(lua_State* const& L, T const& in) {
 			CheckStack(L, 1);
-			lua_pushlstring(L, in, len - 1);
+			lua_pushlstring(L, in, IsLiteral<T>::len - 1);
 			return 1;
 		}
 	};
 
 	// 适配 char*, char const* 写入
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<std::remove_reference_t<T>, char*> || std::is_same_v<std::remove_reference_t<T>, char const*>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::remove_reference_t<T>, char*> || std::is_same_v<std::remove_reference_t<T>, char const*>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			CheckStack(L, 1);
 			lua_pushstring(L, in);
 			return 1;
 		}
-
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			if (!lua_isstring(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not string");
 			out = (T)lua_tostring(L, idx);
@@ -441,17 +425,12 @@ namespace xx::Lua {
 
 	// 适配 std::string_view
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, std::string_view const& in) {
 			CheckStack(L, 1);
 			lua_pushlstring(L, in.data(), in.size());
 			return 1;
 		}
-	};
-
-	// 不复制数据. 需立刻使用
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, std::string_view& out) {
 			if (!lua_isstring(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not string");
 			size_t len = 0;
@@ -463,16 +442,12 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 std::string
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<std::string, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::string, std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, std::string const& in) {
 			CheckStack(L, 1);
 			lua_pushlstring(L, in.data(), in.size());
 			return 1;
 		}
-	};
-
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_same_v<std::string, std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, std::string& out) {
 			if (!lua_isstring(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not string");
 			size_t len = 0;
@@ -484,15 +459,12 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 void*
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<std::remove_reference_t<T>, void*>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::remove_reference_t<T>, void*>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			CheckStack(L, 1);
 			lua_pushlightuserdata(L, in);
 			return 1;
 		}
-	};
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_same_v<std::remove_reference_t<T>, void*>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			if (!lua_islightuserdata(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not void*");
 			out = (T)lua_touserdata(L, idx);
@@ -502,26 +474,23 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 std::optional
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<IsOptional_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<IsOptional_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, std::optional<T>&& in) {
 			CheckStack(L, 1);
 			if (in.has_value()) {
-				PushFuncs<T>::Push(in.value());
+				PushToFuncs<T>::Push(in.value());
 			}
 			else {
 				lua_pushnil(L);
 			}
 			return 1;
 		}
-	};
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<IsOptional_v<std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, std::optional<T>& out) {
 			if (lua_isnil(L, idx)) {
 				out.reset();
 			}
 			else {
-				ToFuncs<T>::To(L, idx, out.value());
+				PushToFuncs<T>::To(L, idx, out.value());
 			}
 		}
 	};
@@ -529,13 +498,10 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 std::pair ( 值展开 )
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<xx::IsPair_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<xx::IsPair_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			return ::xx::Lua::Push(L, in.first, in.second);
 		}
-	};
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<xx::IsPair_v<std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			::xx::Lua::To(L, idx, out.first, out.second);
 		}
@@ -544,7 +510,7 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 std::tuple ( 值展开 )
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<xx::IsTuple_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<xx::IsTuple_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			int rtv = 0;
 			std::apply([&](auto &... args) {
@@ -552,33 +518,25 @@ namespace xx::Lua {
 				}, in);
 			return rtv;
 		}
-	};
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<xx::IsTuple_v<std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			std::apply([&](auto &... args) {
 				::xx::Lua::To(L, idx, args...);
 				}, out);
 		}
 	};
-
 	template<>
-	struct PushFuncs<std::tuple<>, void> {
+	struct PushToFuncs<std::tuple<>, void> {
 		static inline int Push(lua_State* const& L, std::tuple<> const& in) {
 			return 0;
 		}
-	};
-	template<>
-	struct ToFuncs<std::tuple<>, void> {
 		static inline void To(lua_State* const& L, int const& idx, std::tuple<>& out) {
 		}
 	};
 
-
 	/******************************************************/
 	// 适配 std::vector<T>. 体现为 table
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<IsVector_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<IsVector_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			auto siz = (int)in.size();
 			lua_createtable(L, siz, 0);
@@ -587,9 +545,6 @@ namespace xx::Lua {
 			}
 			return 1;
 		}
-	};
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<IsVector_v<std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(xx::TypeName_v<T>));
 			out.clear();
@@ -613,7 +568,7 @@ namespace xx::Lua {
 	/******************************************************/
 	// 适配 std::[unordered_]map<K, V>. 体现为 table
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<IsMapSeries_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<IsMapSeries_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, T const& in) {
 			lua_createtable(L, 0, (int)in.size());
 			for (auto&& kv : in) {
@@ -621,9 +576,6 @@ namespace xx::Lua {
 			}
 			return 1;
 		}
-	};
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<IsMapSeries_v<std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			out.clear();
 			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", xx::TypeName_v<T>);

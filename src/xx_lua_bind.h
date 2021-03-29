@@ -73,7 +73,7 @@ namespace xx::Lua {
 
 	// 适配 Func
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<Func, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<Func, std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, Func const& f) {
 			CheckStack(L, 1);
 			if (f) {
@@ -85,10 +85,6 @@ namespace xx::Lua {
 			}
 			return 1;
 		}
-	};
-
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_same_v<Func, std::decay_t<T>>>> {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			out.Reset(L, idx);
 		}
@@ -130,11 +126,25 @@ namespace xx::Lua {
 
 	// 为当前栈顶的 mt 附加 type 信息
 	template<typename T>
-	inline void SetTypeName(lua_State* const& L) {
+	inline void SetType(lua_State* const& L) {
 		CheckStack(L, 3);
 		Push(L, (void*)MetaFuncs<T>::name.data());							// ..., mt, k
 		lua_pushvalue(L, -2);												// ..., mt, k, mt
 		lua_rawset(L, -3);													// ..., mt
+	}
+
+	template<typename T>
+	inline void EnsureType(lua_State* const& L, int const& idx) {
+		if (!IsUserdata<T>(L, idx)) {
+			Error(L, "error! args[", idx, "] is not ", MetaFuncs<T>::name);
+		}
+	}
+
+	template<typename T>
+	inline void AssertType(lua_State* const& L, int const& idx) {
+#ifndef NDEBUG
+		EnsureType<T>(L, idx);
+#endif
 	}
 
 	/****************************************************************************************/
@@ -145,7 +155,7 @@ namespace xx::Lua {
 		inline static std::string name = std::string(TypeName_v<T>);
 
 		// 该函数被调用时, 栈顶即为 mt
-		// 使用 SetTypeName<std::decay_t<T>>(L); 附加 type 信息
+		// 使用 SetUDType<std::decay_t<T>>(L); 附加 type 信息
 		// 调用 MetaFuncs<基类>::Fill(L); 填充依赖
 		// 使用 SetFieldCClosure(L, "key", [](auto L) { ..... return ?; }, ...) 添加函数
 		// 使用 luaL_setfuncs 批量添加函数也行
@@ -197,7 +207,7 @@ namespace xx::Lua {
 			lua_pushvalue(L, -1);                                           // ..., mt, mt
 			lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());   // ..., mt
 #endif
-			std::cout << "PushMeta MetaFuncs<T>::name.data() = " << (size_t)MetaFuncs<T>::name.data() << " T = " << MetaFuncs<T>::name << std::endl;
+			//CoutN("PushMeta MetaFuncs<T>::name.data() = ", (size_t)MetaFuncs<T>::name.data(), " T = ", MetaFuncs<T>::name);
 		}
 	}
 
@@ -215,7 +225,7 @@ namespace xx::Lua {
 
 	// 适配 lambda
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, T&& in) {
 			using U = std::decay_t<T>;
 			PushUserdata<U>(L, std::forward<T>(in));						// ..., ud

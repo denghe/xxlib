@@ -77,20 +77,20 @@ void Test2() {
 		xx::CoutN(f.Call<int>(3, 4));
 	}
 
-//	xx::CoutN("test Lambda");
-//	{
-//		xx::Lua::SetGlobal(L, "xxx", [](int const& a, int const& b) { return a + b; });
-//				luaL_dostring(L, R"===(
-//local add = xxx
-//local starttime = os.clock()
-//local r
-//for i = 1, 30000000 do
-//    r = xxx(1, i)
-//end
-//print(r)
-//print(os.clock() - starttime)
-//)===");
-//	}
+	//	xx::CoutN("test Lambda");
+	//	{
+	//		xx::Lua::SetGlobal(L, "xxx", [](int const& a, int const& b) { return a + b; });
+	//				luaL_dostring(L, R"===(
+	//local add = xxx
+	//local starttime = os.clock()
+	//local r
+	//for i = 1, 30000000 do
+	//    r = xxx(1, i)
+	//end
+	//print(r)
+	//print(os.clock() - starttime)
+	//)===");
+	//	}
 
 	assert(lua_gettop(L) == 0);
 }
@@ -101,49 +101,53 @@ struct FooBase {
 struct Foo : FooBase {
 	std::string name = "Foo";
 	xx::Lua::Func onUpdate;
+	Foo(lua_State* const& L);
 };
-
 namespace xx::Lua {
-	template<typename T>
-	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<FooBase, std::decay_t<T>>>> {
-		using U = std::decay_t<T>;
+	template<>
+	struct MetaFuncs<FooBase*, void> {
+		using U = FooBase*;
 		inline static std::string name = std::string(TypeName_v<U>);
 		static void Fill(lua_State* const& L) {
-			SetTypeName<U>(L);
-			SetFieldCClosure(L, "n", [](auto L) { return Push(To<U*>(L)->name); });
+			SetType<U>(L);
+			SetFieldCClosure(L, "n", [](auto L)->int { return Push(L, To<U>(L)->n); });
+			SetFieldCClosure(L, "set_n", [](auto L)->int { To(L, 2, To<U>(L)->n); return 0; });
 		}
 	};
-
-	template<typename T>
-	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<Foo, std::decay_t<T>>>> {
-		using U = std::decay_t<T>;
+	template<>
+	struct MetaFuncs<Foo*, void> {
+		using U = Foo*;
 		inline static std::string name = std::string(TypeName_v<U>);
 		static void Fill(lua_State* const& L) {
-			MetaFuncs<FooBase>::Fill(L);
-			SetTypeName<std::decay_t<T>>(L);
-			SetFieldCClosure(L, "name", [](auto L) { return Push(To<Foo*>(L)->name); });
+			MetaFuncs<FooBase*>::Fill(L);
+			SetType<U>(L);
+			SetFieldCClosure(L, "name", [](auto L)->int { return Push(L, To<U>(L)->name); });
+			SetFieldCClosure(L, "set_name", [](auto L)->int { To(L, 2, To<U>(L)->name); return 0; });
 		}
 	};
-
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<Foo, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<T>&& std::is_base_of_v<FooBase, std::remove_pointer_t<T>>>> {
 		static int Push(lua_State* const& L, T&& in) {
-			return PushUserdata<Foo>(L, std::forward<T>(in));
+			return PushUserdata<T>(L, in);
 		}
-	};
-
-	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_same_v<Foo*, std::decay_t<T>> || std::is_same_v<Foo const*, std::decay_t<T>>>> {
 		static void To(lua_State* const& L, int const& idx, T& out) {
-			if (!IsUserdata<Foo>(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not Foo");
-			out = (T)lua_touserdata(L, idx);
+			AssertType<T>(L, idx);
+			out = *(T*)lua_touserdata(L, idx);
 		}
 	};
 }
-
+Foo::Foo(lua_State* const& L) {
+	xx::Lua::SetGlobal(L, "foo", this);
+}
 void Test3() {
 	xx::Lua::State L;
-
+	Foo foo(L);
+	xx::Lua::DoString(L, R"--(
+	foo:set_n(12)
+	print(foo:n())
+	foo:set_name("asdf")
+	print(foo:name())
+)--");
 }
 
 int main() {

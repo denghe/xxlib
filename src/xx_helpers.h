@@ -60,12 +60,15 @@ namespace xx {
 	};
 	template<size_t L>
 	struct IsLiteral<char[L], void> : std::true_type {
+		static const size_t len = L;
 	};
 	template<size_t L>
 	struct IsLiteral<char const [L], void> : std::true_type {
+		static const size_t len = L;
 	};
 	template<size_t L>
 	struct IsLiteral<char const (&)[L], void> : std::true_type {
+		static const size_t len = L;
 	};
 	template<typename T>
 	constexpr bool IsLiteral_v = IsLiteral<T>::value;

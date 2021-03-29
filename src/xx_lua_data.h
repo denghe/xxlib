@@ -18,9 +18,9 @@ LUA 全局函数:
 namespace xx::Lua {
 	// 适配指针版
 	template<typename T>
-	struct ToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data*, std::decay_t<T>> || std::is_same_v<xx::Data const*, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data*, std::decay_t<T>> || std::is_same_v<xx::Data const*, std::decay_t<T>>>> {
 		static void To(lua_State* const& L, int const& idx, T& out) {
-			if (!IsUserdata<xx::Data>(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not xx::Data");
+			EnsureType<xx::Data>(L, idx);
 			out = (T)lua_touserdata(L, idx);
 		}
 	};
@@ -613,13 +613,13 @@ namespace xx::Lua {
 		using U = std::decay_t<T>;
 		inline static std::string name = std::string(TypeName_v<U>);
 		static void Fill(lua_State* const& L) {
-			SetTypeName<U>(L);
+			SetType<U>(L);
 			luaL_setfuncs(L, ::xx::Lua::Data::funcs, 0);
 		}
 	};
 
 	template<typename T>
-	struct PushFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
 		static int Push(lua_State* const& L, T&& in) {
 			return PushUserdata<xx::Data>(L, std::forward<T>(in));
 		}
