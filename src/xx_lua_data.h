@@ -20,7 +20,7 @@ namespace xx::Lua {
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data*, std::decay_t<T>> || std::is_same_v<xx::Data const*, std::decay_t<T>>>> {
 		static void To(lua_State* const& L, int const& idx, T& out) {
-			EnsureType<xx::Data>(L, idx);
+			AssertType<xx::Data>(L, idx);
 			out = (T)lua_touserdata(L, idx);
 		}
 	};
