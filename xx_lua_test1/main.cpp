@@ -97,10 +97,11 @@ void Test2() {
 
 struct FooBase {
 	int n = 123;
+	xx::Lua::Func onUpdate;
+	virtual void Update();
 };
 struct Foo : FooBase {
 	std::string name = "Foo";
-	xx::Lua::Func onUpdate;
 	Foo(lua_State* const& L);
 };
 namespace xx::Lua {
@@ -112,6 +113,8 @@ namespace xx::Lua {
 			SetType<U>(L);
 			SetFieldCClosure(L, "n", [](auto L)->int { return Push(L, To<U>(L)->n); });
 			SetFieldCClosure(L, "set_n", [](auto L)->int { To(L, 2, To<U>(L)->n); return 0; });
+			SetFieldCClosure(L, "onUpdate", [](auto L)->int { return Push(L, To<U>(L)->onUpdate); });
+			SetFieldCClosure(L, "set_onUpdate", [](auto L)->int { To(L, 2, To<U>(L)->onUpdate); return 0; });
 		}
 	};
 	template<>
@@ -137,17 +140,23 @@ namespace xx::Lua {
 	};
 }
 Foo::Foo(lua_State* const& L) {
-	xx::Lua::SetGlobal(L, "foo", this);
+	xx::Lua::SetGlobal(L, "this", this);
+	xx::Lua::DoString(L, R"--(
+	this:set_onUpdate(function()
+		this:set_n(12)
+		this:set_name("asdf")
+	end)
+)--");
+}
+void FooBase::Update() {
+	onUpdate.Call();
 }
 void Test3() {
 	xx::Lua::State L;
 	Foo foo(L);
-	xx::Lua::DoString(L, R"--(
-	foo:set_n(12)
-	print(foo:n())
-	foo:set_name("asdf")
-	print(foo:name())
-)--");
+	xx::Lua::SetGlobal(L, "foo", &foo);
+	foo.Update();
+	xx::CoutN(foo.n, foo.name);
 }
 
 int main() {
