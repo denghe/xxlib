@@ -4,25 +4,18 @@
 namespace xx {
 	// 包容器( 不封装到 lua )
 	struct Package {
+		Package() = default;
+		Package(Package const&) = default;
+		Package& operator=(Package const&) = default;
+		Package(Package&& o) = default;
+		Package& operator=(Package&& o) = default;
+
 		uint32_t serviceId = 0;
 		int serial = 0;
 		Data data;
 
 		Package(uint32_t const& serviceId, int const& serial, Data&& data)
 			: serviceId(serviceId), serial(serial), data(std::move(data)) {}
-
-		Package() = default;
-		Package(Package const&) = default;
-		Package& operator=(Package const&) = default;
-		inline Package(Package&& o) noexcept {
-			operator=(std::move(o));
-		}
-		inline Package& operator=(Package&& o) noexcept {
-			std::swap(serviceId, o.serviceId);
-			std::swap(serial, o.serial);
-			std::swap(data, o.data);
-			return *this;
-		}
 	};
 
 	// 连上 gateway 后产生的物理 peer( 不封装到 lua )
@@ -42,7 +35,7 @@ namespace xx {
 			return std::find(openServerIds.begin(), openServerIds.end(), serviceId) != openServerIds.end();
 		}
 
-		// 向某 serviceId 发数据
+		// 向某 serviceId 发数据( for C++ )
 		inline int SendTo(uint32_t const& id, int32_t const& serial, ObjBase_s const& msg) {
 			if (!peerBase) return -1;
 			auto&& bb = uv.sendBB;
@@ -53,7 +46,7 @@ namespace xx {
 			return peerBase->SendAfterPrepare(bb);
 		}
 
-		// 向某 serviceId 发数据
+		// 向某 serviceId 发数据( for lua )
 		inline int SendTo(uint32_t const& id, int32_t const& serial, Data const& data) {
 			if (!peerBase) return -1;
 			auto&& bb = uv.sendBB;
@@ -105,13 +98,13 @@ namespace xx {
 		using UvDialer::UvDialer;
 
 		// 物理链路 peer( Accept 之后存到这 )
-		std::shared_ptr<UvToGatewayPeer> peer;
+		Shared<UvToGatewayPeer> peer;
 
 		// 地址簿
 		std::vector<std::pair<std::string, int>> addrs;
 
 		inline virtual UvPeer_s CreatePeer() noexcept override {
-			return TryMake<UvToGatewayPeer>(uv);
+			return TryMakeShared<UvToGatewayPeer>(uv);
 		}
 
 		inline virtual void Accept(UvPeer_s peer_) noexcept override {
@@ -147,7 +140,7 @@ namespace xx {
 		inline void PeerDispose() {
 			if (peer) {
 				peer->Dispose();
-				peer.reset();
+				peer.Reset();
 			}
 		}
 
@@ -199,5 +192,18 @@ namespace xx {
 			ps.pop_front();
 			return true;
 		}
+	};
+
+	// 创建到 lua 中的类实例( lua 中最好只创建一份, 全局使用 )
+	struct UvClient {
+		Uv uv;
+		Shared<UvToGatewayDialerAndPeer> client;
+		Shared<UvResolver> resolver;
+		UvClient() {
+			client.Emplace(uv);
+			resolver.Emplace(uv);
+		}
+		UvClient(UvClient const&) = delete;
+		UvClient& operator=(UvClient const&) = delete;
 	};
 }

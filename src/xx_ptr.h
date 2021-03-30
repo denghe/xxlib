@@ -475,6 +475,39 @@ namespace xx {
 		return new(h + 1) T(std::forward<Args>(args)...);
 	}
 
+	template<typename T, typename ...Args>
+	Shared<T> TryMakeShared(Args &&...args) noexcept {
+		try {
+			return MakeShared<T>(std::forward<Args>(args)...);
+		}
+		catch (...) {
+			return Shared<T>();
+		}
+	}
+
+	template<typename T, typename ...Args>
+	Shared<T>& MakeTo(Shared<T>& v, Args &&...args) {
+		v = MakeShared<T>(std::forward<Args>(args)...);
+		return v;
+	}
+
+	template<typename T, typename ...Args>
+	Shared<T>& TryMakeTo(Shared<T>& v, Args &&...args) noexcept {
+		v = TryMakeShared<T>(std::forward<Args>(args)...);
+		return v;
+	}
+
+	template<typename T, typename U>
+	Shared<T> As(Shared<U> const& v) noexcept {
+		return v.As<T>();
+	}
+
+	template<typename T, typename U>
+	bool Is(Shared<U> const& v) noexcept {
+		return !v.As<T>().Empty();
+	}
+
+
 	// unsafe
     template<typename T>
     XX_INLINE Shared<T> SharedFromThis2(void* const& thiz) {

@@ -2,6 +2,14 @@
 #include "xx_lua_bind.h"
 #include "xx_lua_data.h"
 #include "xx_string.h"
+#include "xx_lua_uv_client.h"
+#ifdef _WIN32
+#pragma comment(lib, "../../../libuv/lib/win64/libuv.lib")
+#pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "iphlpapi.lib")
+#pragma comment(lib, "Psapi.lib")
+#pragma comment(lib, "userenv.lib")
+#endif
 
 void Test1() {
 	auto L = luaL_newstate();
@@ -95,14 +103,27 @@ void Test2() {
 	assert(lua_gettop(L) == 0);
 }
 
+void Test3() {
+	xx::Lua::State L;
+	xx::CoutN("test UvClient");
+	{
+		xx::Lua::UvClient::Register(L);
+		xx::Lua::DoString(L, R"--(
+uv = NewUvClient()
+print(uv)
+)--");
+		// todo: 测试域名解析, 拨号, 收发包等
+	}
+}
 
 #include "xx_lua_bind_samples.h"
 
 int main() {
-	Test1();
-	Test2();
-	TestLuaBind1();
-	TestLuaBind2();
+	//Test1();
+	//Test2();
+	Test3();
+	// TestLuaBind1();
+	//TestLuaBind2();
 	std::cout << "end." << std::endl;
 	return 0;
 }

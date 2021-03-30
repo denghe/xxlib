@@ -1,8 +1,5 @@
 ﻿#pragma once
 
-#include "xx_data.h"
-#include "xx_lua.h"
-
 /*
 xx::Data 主体映射到 lua
 
@@ -15,13 +12,15 @@ LUA 全局函数:
 成员函数见 funcs 数组
 */
 
+#include "xx_data.h"
+#include "xx_lua.h"
+
 namespace xx::Lua::Data {
 	using D = xx::Data;
 
 	// 在 lua 中注册 全局的 Data 创建函数
 	inline void Register(lua_State* const& L) {
-		lua_pushcclosure(L, [](auto L) { return PushUserdata<D>(L); }, 0);
-		lua_setglobal(L, "NewXxData");
+		SetGlobalCClosure(L, "NewXxData", [](auto L)->int { return PushUserdata<D>(L); });
 	}
 
 	inline int __tostring(lua_State* L) {

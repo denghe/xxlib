@@ -41,10 +41,13 @@ add_definitions("-DMAKE_LIB")
 
 include_directories(
 	../src
+    ../3rd
+	"../libuv/include"
     ../lua-5.4.x/src
 )
 
 add_executable(xx_lua_test1
     main.cpp
+    ../3rd/ikcp.c
     ../lua-5.4.x/src/onelua.cpp
 )
