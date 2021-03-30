@@ -4,7 +4,7 @@
 #include "xx_lua.h"
 
 /*
-xx::Data 映射到 lua
+xx::Data 主体映射到 lua
 
 C++ 注册:
 	xx::Lua::Data::Register( L )
@@ -14,21 +14,6 @@ LUA 全局函数:
 
 成员函数见 funcs 数组
 */
-
-namespace xx::Lua {
-	// 适配指针版
-	template<typename T>
-	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data*, std::decay_t<T>> || std::is_same_v<xx::Data const*, std::decay_t<T>>>> {
-		static void To(lua_State* const& L, int const& idx, T& out) {
-			AssertType<xx::Data>(L, idx);
-			out = (T)lua_touserdata(L, idx);
-		}
-	};
-
-	// 适配 mt 创建( 预声明 )
-	template<typename T>
-	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>>;
-}
 
 namespace xx::Lua::Data {
 	using D = xx::Data;
@@ -608,20 +593,29 @@ namespace xx::Lua::Data {
 }
 
 namespace xx::Lua {
+	// 值方式 meta 但是访问成员时转为指针
 	template<typename T>
 	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
-		using U = std::decay_t<T>;
+		using U = xx::Data;
 		inline static std::string name = std::string(TypeName_v<U>);
 		static void Fill(lua_State* const& L) {
 			SetType<U>(L);
 			luaL_setfuncs(L, ::xx::Lua::Data::funcs, 0);
 		}
 	};
-
+	// 值方式 push
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
 		static int Push(lua_State* const& L, T&& in) {
 			return PushUserdata<xx::Data>(L, std::forward<T>(in));
+		}
+	};
+	// 指针方式 to 但是做 值方式 检查
+	template<typename T>
+	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>> && std::is_same_v<xx::Data, std::decay_t<std::remove_pointer_t<std::decay_t<T>>>>>> {
+		static void To(lua_State* const& L, int const& idx, T& out) {
+			AssertType<xx::Data>(L, idx);
+			out = (T)lua_touserdata(L, idx);
 		}
 	};
 }

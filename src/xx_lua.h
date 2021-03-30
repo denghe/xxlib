@@ -124,7 +124,8 @@ namespace xx::Lua {
 	// 写 k, v 到全局
 	template<typename K, typename V>
 	inline void SetGlobal(lua_State* const& L, K const& k, V&& v) {
-		Push(L, std::forward<V>(v));
+		int n = Push(L, std::forward<V>(v));
+		assert(n == 1);
 		if constexpr (std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
 			lua_setglobal(L, k.c_str());
 		}
@@ -146,6 +147,14 @@ namespace xx::Lua {
 		To(L, top + 1, v);
 		lua_settop(L, top);
 	}
+
+	template<typename R, typename K>
+	inline R GetGlobal(lua_State* const& L, K const& k) {
+		R r;
+		GetGlobal(L, k, r);
+		return r;
+	}
+
 
 	// 写 k, v 到注册表
 	template<typename K, typename V>
