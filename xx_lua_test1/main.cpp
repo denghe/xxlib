@@ -98,7 +98,7 @@ void Test2() {
 struct FooBase {
 	int n = 123;
 	xx::Lua::Func onUpdate;
-	virtual void Update();
+	virtual int Update();
 };
 struct Foo : FooBase {
 	std::string name = "Foo";
@@ -140,23 +140,17 @@ namespace xx::Lua {
 	};
 }
 Foo::Foo(lua_State* const& L) {
-	xx::Lua::SetGlobal(L, "this", this);
-	xx::Lua::DoString(L, R"--(
-	this:set_onUpdate(function()
-		this:set_n(12)
-		this:set_name("asdf")
-	end)
-)--");
+	xx::Lua::DoFile(L, "test4.lua", this);
 }
-void FooBase::Update() {
-	onUpdate.Call();
+int FooBase::Update() {
+	return onUpdate.Call<int>(0.016f);
 }
 void Test3() {
 	xx::Lua::State L;
 	Foo foo(L);
 	xx::Lua::SetGlobal(L, "foo", &foo);
-	foo.Update();
-	xx::CoutN(foo.n, foo.name);
+	int r = foo.Update();
+	xx::CoutN("n = ",foo.n, " name = ", foo.name, " r = ", r);
 }
 
 int main() {

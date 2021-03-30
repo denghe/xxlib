@@ -150,6 +150,7 @@ namespace xx::Lua {
 	/****************************************************************************************/
 	/****************************************************************************************/
 	// 类型 metatable 填充函数适配模板
+	// 用法示例在最下面
 	template<typename T, typename ENABLED = void>
 	struct MetaFuncs {
 		inline static std::string name = std::string(TypeName_v<T>);
@@ -248,3 +249,80 @@ namespace xx::Lua {
 		}
 	};
 }
+
+
+/*
+示例1: 以 C++ 类为主体, 虚函数 call 到 lua function
+
+struct FooBase {
+	int n = 123;
+	xx::Lua::Func onUpdate;
+	virtual int Update();
+};
+struct Foo : FooBase {
+	std::string name = "Foo";
+	Foo(lua_State* const& L);
+};
+namespace xx::Lua {
+	template<>
+	struct MetaFuncs<FooBase*, void> {
+		using U = FooBase*;
+		inline static std::string name = std::string(TypeName_v<U>);
+		static void Fill(lua_State* const& L) {
+			SetType<U>(L);
+			SetFieldCClosure(L, "n", [](auto L)->int { return Push(L, To<U>(L)->n); });
+			SetFieldCClosure(L, "set_n", [](auto L)->int { To(L, 2, To<U>(L)->n); return 0; });
+			SetFieldCClosure(L, "onUpdate", [](auto L)->int { return Push(L, To<U>(L)->onUpdate); });
+			SetFieldCClosure(L, "set_onUpdate", [](auto L)->int { To(L, 2, To<U>(L)->onUpdate); return 0; });
+		}
+	};
+	template<>
+	struct MetaFuncs<Foo*, void> {
+		using U = Foo*;
+		inline static std::string name = std::string(TypeName_v<U>);
+		static void Fill(lua_State* const& L) {
+			MetaFuncs<FooBase*>::Fill(L);
+			SetType<U>(L);
+			SetFieldCClosure(L, "name", [](auto L)->int { return Push(L, To<U>(L)->name); });
+			SetFieldCClosure(L, "set_name", [](auto L)->int { To(L, 2, To<U>(L)->name); return 0; });
+		}
+	};
+	template<typename T>
+	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<T>&& std::is_base_of_v<FooBase, std::remove_pointer_t<T>>>> {
+		static int Push(lua_State* const& L, T&& in) {
+			return PushUserdata<T>(L, in);
+		}
+		static void To(lua_State* const& L, int const& idx, T& out) {
+			AssertType<T>(L, idx);
+			out = *(T*)lua_touserdata(L, idx);
+		}
+	};
+}
+Foo::Foo(lua_State* const& L) {
+	xx::Lua::DoFile(L, "test4.lua", this);
+}
+int FooBase::Update() {
+	return onUpdate.Call<int>(0.016f);
+}
+void Test3() {
+	xx::Lua::State L;
+	Foo foo(L);
+	xx::Lua::SetGlobal(L, "foo", &foo);
+	int r = foo.Update();
+	xx::CoutN("n = ",foo.n, " name = ", foo.name, " r = ", r);
+}
+
+
+test4.lua 文件内容：
+
+local this = ...
+this:set_onUpdate(function(delta)
+	print("lua print:", delta)
+	this:set_n(12)
+	this:set_name("asdf")
+	return 0
+end)
+
+
+
+*/

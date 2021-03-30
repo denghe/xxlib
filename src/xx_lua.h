@@ -273,7 +273,7 @@ namespace xx::Lua {
 	}
 
 	template<typename T, typename...Args>
-	void CallFile(lua_State* const& L, T&& fileName, Args &&...args) {
+	void DoFile(lua_State* const& L, T&& fileName, Args &&...args) {
 		LoadFile(L, std::forward<T>(fileName));
 		Call(L, std::forward<Args>(args)...);
 	}
