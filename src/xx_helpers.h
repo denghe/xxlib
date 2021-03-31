@@ -851,4 +851,11 @@ auto __cdecl xx::Detail::NameOf<
 		AppendTimePoint_Local(s, tp);
 		return s;
 	}
+
 }
+
+#ifndef _WIN32
+inline void Sleep(int const& ms) {
+	usleep(ms * 1000);
+}
+#endif

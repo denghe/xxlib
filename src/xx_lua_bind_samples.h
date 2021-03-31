@@ -79,7 +79,7 @@ int Foo::Update() {
 void TestLuaBind1() {
 	xx::Lua::State L;
 	Foo foo(L);
-	xx::Lua::SetGlobal(L, "foo", &foo);
+	//xx::Lua::SetGlobal(L, "foo", &foo);
 	int r = foo.Update();
 	xx::CoutN("n = ", foo.n, " name = ", foo.name, " r = ", r);
 }

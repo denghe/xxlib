@@ -33,7 +33,7 @@ namespace xx::Lua {
 			SetFieldCClosure(L, "Update", [](auto L)->int { To<U*>(L)->uv.Run(UV_RUN_NOWAIT); return 0; });
 			SetFieldCClosure(L, "AddAddress", [](auto L)->int { To<U*>(L)->client->AddAddress(To<char*>(L, 2), To<int>(L, 3)); return 0; });
 			SetFieldCClosure(L, "ClearAddresses", [](auto L)->int { To<U*>(L)->client->ClearAddresses(); return 0; });
-			SetFieldCClosure(L, "Dial", [](auto L)->int { return Push(L, To<U*>(L)->client->Dial(To<int>(L, 2))); });
+			SetFieldCClosure(L, "Dial", [](auto L)->int { return Push(L, To<U*>(L)->client->Dial(lua_gettop(L) > 1 ? To<int>(L, 2) : 5000)); });
 			SetFieldCClosure(L, "Busy", [](auto L)->int { auto c = To<U*>(L); return Push(L, c->client->Busy() || c->resolver->Busy()); });
 			SetFieldCClosure(L, "Cancel", [](auto L)->int { auto c = To<U*>(L); c->client->Cancel(); c->resolver->Cancel(); return 0; });
 			SetFieldCClosure(L, "Disconnect", [](auto L)->int { To<U*>(L)->client->PeerDispose(); return 0; });

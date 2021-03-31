@@ -103,16 +103,20 @@ void Test2() {
 	assert(lua_gettop(L) == 0);
 }
 
-void Test3() {
+void TestUv() {
 	xx::Lua::State L;
-	xx::CoutN("test UvClient");
-	{
-		xx::Lua::UvClient::Register(L);
-		xx::Lua::DoString(L, R"--(
-uv = NewUvClient()
-print(uv)
-)--");
-		// todo: 测试域名解析, 拨号, 收发包等
+	SetGlobalCClosure(L, "Nows", [](auto L)->int { return xx::Lua::Push(L, xx::NowEpochSeconds()); });
+	xx::Lua::UvClient::Register(L);
+	auto r = xx::Lua::Try(L, [&] {
+		xx::Lua::DoFile(L, "test_uv.lua");
+		auto cb = xx::Lua::GetGlobalFunc(L, "gFrameCallback");
+		while (true) {
+			cb.Call();
+			Sleep(100);
+		}
+	});
+	if (r) {
+		xx::CoutN(r.m);
 	}
 }
 
@@ -121,7 +125,7 @@ print(uv)
 int main() {
 	//Test1();
 	//Test2();
-	Test3();
+	TestUv();
 	// TestLuaBind1();
 	//TestLuaBind2();
 	std::cout << "end." << std::endl;
