@@ -1,5 +1,5 @@
 ﻿#ifdef _WIN32
-#pragma comment(lib, "../../../libuv/lib/win64/libuv.lib")
+#pragma comment(lib, "libuv.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "Psapi.lib")

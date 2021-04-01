@@ -16,6 +16,11 @@ add_executable(xx_uv_test1
         main.cpp
         )
 
+link_directories(
+		../libuv/lib/win64
+)
+
+
 #target_link_libraries(xx_uv_test1
 		#pthread
 		#readline

@@ -57,31 +57,46 @@ namespace xx {
 			return peerBase->SendAfterPrepare(bb);
 		}
 
+        // 向网关发 echo 指令( serviceId = 0xFFFFFFFF )( for lua & c++ )
+        inline int SendEcho(Data const& data) {
+            if (!peerBase) return -1;
+            auto&& bb = uv.sendBB;
+            peerBase->SendPrepare(bb, 1024);
+            bb.WriteFixed((uint32_t)0xFFFFFFFFu);
+            bb.Write("echo");
+            bb.WriteBuf(data.buf, data.len);
+            return peerBase->SendAfterPrepare(bb);
+        }
+
 	protected:
 		inline virtual int HandlePack(uint8_t* const& buf, uint32_t const& len) noexcept override {
-			auto& bb = uv.recvBB;
-			bb.Reset(buf, len);
-
+		    auto bb = xx::Data_r(buf, len);
 			// 最上层结构：4字节长度 + 4字节服务id + 其他
 			uint32_t serviceId = 0;
 			if (bb.ReadFixed(serviceId)) return __LINE__;
-			// 服务id 如果为 0xFFFFFFFFu 则为内部指令
+			// 服务id 如果为 0xFFFFFFFFu 则为内部指令：string cmd + args
 			if (serviceId == 0xFFFFFFFFu) {
-				// 其他结构：string cmd + args
-				std::string cmd;
-				if (bb.Read(cmd, serviceId)) return __LINE__;
-				if (cmd == "open") {
-					openServerIds.insert(serviceId);
-				}
-				else if (cmd == "close") {
-					openServerIds.erase(serviceId);
-				}
-				else {
-					return __LINE__;
-				}
-			}
+				std::string_view cmd;
+                if (bb.Read(cmd)) return __LINE__;
+                if (cmd == "open") {
+                    if (bb.Read(serviceId)) return __LINE__;
+                    openServerIds.insert(serviceId);
+                }
+                else if (cmd == "close") {
+                    if (bb.Read(serviceId)) return __LINE__;
+                    openServerIds.erase(serviceId);
+                }
+                else if (cmd == "echo") {
+                    Data data;
+                    data.WriteBuf(buf + bb.offset, len - bb.offset);
+                    receivedPackages.emplace_back(serviceId, 0, std::move(data));
+                }
+                else {
+                    return __LINE__;
+                }
+            }
 			else {
-				// 其他结构：int serial + PKG serial data
+                // 其他结构：int serial + PKG serial data
 				int serial = 0;
 				if(bb.Read(serial)) return __LINE__;
 				// 剩余数据打包为 Data 塞到收包队列
@@ -156,6 +171,12 @@ namespace xx {
 			return peer->SendTo(id, serial, data);
 		}
 
+        // 向网关发echo
+        inline int SendEcho(Data const& data) {
+            if (!PeerAlive()) return -1;
+            return peer->SendEcho(data);
+        }
+
 		// 尝试 move 出一条最前面的消息( lua 那边则将 Package 变为 table, 以成员方式压栈. 之后分发 )
 		inline bool TryGetPackage(Package& pkg) {
 			if (!PeerAlive()) return false;
@@ -176,10 +197,11 @@ namespace xx {
 		// 下面代码 for CPP 处理消息
 
 		// 存放 cpp 代码处理的 serviceId. 当 lua TryGetPackage 时, 判断如果 serviceId 相符，就移动到 receivedCppPackages
-		uint32_t cppServiceId = -1;
+		uint32_t cppServiceId = 0xFFFFFFFEu;    // 别令其等于 0xFFFFFFFFu, 防止无法识别 cmd
 
 		// 设置 cpp 代码处理的 serviceId( 映射到 lua )
 		inline void SetCppServiceId(uint32_t const& cppServiceId) {
+		    assert(cppServiceId != 0xFFFFFFFFu);
 			this->cppServiceId = cppServiceId;
 		}
 

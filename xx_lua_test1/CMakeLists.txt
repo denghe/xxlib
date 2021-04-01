@@ -38,6 +38,9 @@ endif()
 
 add_definitions("-DMAKE_LIB")
 
+link_directories(
+		../libuv/lib/win64
+)
 
 include_directories(
 	../src

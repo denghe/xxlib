@@ -41,6 +41,7 @@ namespace xx::Lua {
 			SetFieldCClosure(L, "IsKcp", [](auto L)->int { auto c = To<U*>(L)->client; if (c->PeerAlive()) return Push(L, c->peer->IsKcp()); return 0; });
 			SetFieldCClosure(L, "IsOpened", [](auto L)->int { return Push(L, To<U*>(L)->client->IsOpened(To<int>(L, 2))); });
 			SetFieldCClosure(L, "SendTo", [](auto L)->int { return Push(L, To<U*>(L)->client->SendTo(To<int>(L, 2), To<int>(L, 3), *To<xx::Data*>(L, 4))); });
+			SetFieldCClosure(L, "SendEcho", [](auto L)->int { return Push(L, To<U*>(L)->client->SendEcho(*To<xx::Data*>(L, 2))); });
 			SetFieldCClosure(L, "SetCppServiceId", [](auto L)->int { To<U*>(L)->client->SetCppServiceId(To<int>(L, 2)); return 0; });
 			SetFieldCClosure(L, "TryGetPackage", [](auto L)->int { xx::Package pkg; if (To<U*>(L)->client->TryGetPackage(pkg)) return Push(L, pkg.serviceId, pkg.serial, std::move(pkg.data)); return 0; });
 			SetFieldCClosure(L, "Resolve", [](auto L)->int { return Push(L, To<U*>(L)->resolver->Resolve(To<char*>(L, 2), lua_gettop(L) > 2 ? To<int>(L, 3) : 3000)); });

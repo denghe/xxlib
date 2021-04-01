@@ -1,11 +1,6 @@
 ﻿#pragma once
 #include "xx_data.h"
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <map>
-#include <optional>
-#include <cmath>
+#include "xx_helpers.h"
 
 namespace xx {
 	/**********************************************************************************************************************/
@@ -13,7 +8,7 @@ namespace xx {
 
 	// 适配 Data
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t<std::is_base_of_v<Data,T>>> {
+	struct DataFuncs<T, std::enable_if_t<std::is_base_of_v<Data, T>>> {
 		static inline void Write(Data& dw, T const& in) {
 			dw.WriteVarInteger(in.len);
 			dw.WriteBuf(in.buf, in.len);
@@ -63,33 +58,39 @@ namespace xx {
 		}
 	};
 
+    // 适配 std::string_view ( 写入 变长长度 + 内容 )
+    template<typename T>
+    struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
+        static inline void Write(Data& dw, T const& in) {
+            dw.WriteVarInteger(in.size());
+            dw.WriteBuf((char*)in.data(), in.size());
+        }
+        static inline int Read(Data_r& dr, T& out) {
+            size_t siz = 0;
+            if (auto r = dr.ReadVarInteger(siz)) return r;
+            if (auto buf = dr.ReadBuf(siz)) {
+                out = std::string_view((char*)buf, siz);
+                return 0;
+            }
+            return __LINE__;
+        }
+    };
+
 	// 适配 literal char[len] string  ( 写入 变长长度-1 + 内容. 不写入末尾 0 )
-	template<size_t len>
-	struct DataFuncs<char[len], void> {
-		static inline void Write(Data& dw, char const(&in)[len]) {
-			dw.WriteVarInteger((size_t)(len - 1));
-			dw.WriteBuf((char*)in, len - 1);
-		}
-		static inline int Read(Data_r& dr, char(&out)[len]) {
-			size_t readLen = 0;
-			if (auto r = dr.Read(readLen)) return r;
-			if (dr.offset + readLen > dr.len) return __LINE__;
-			if (readLen >= len) return __LINE__;
-			memcpy(out, dr.buf + dr.offset, readLen);
-			out[readLen] = 0;
-            dr.offset += readLen;
-			return 0;
+	template<typename T>
+	struct DataFuncs<T, std::enable_if_t<IsLiteral_v<T>>> {
+		static inline void Write(Data& dw, T const& v) {
+            DataFuncs<std::string_view, void>::Write(dw, std::string_view(v));
 		}
 	};
 
 	// 适配 std::string ( 写入 变长长度 + 内容 )
-	template<>
-	struct DataFuncs<std::string, void> {
-		static inline void Write(Data& dw, std::string const& in) {
-			dw.WriteVarInteger(in.size());
-			dw.WriteBuf((char*)in.data(), in.size());
+    template<typename T>
+    struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::string, std::decay_t<T>>>> {
+		static inline void Write(Data& dw, T const& in) {
+            DataFuncs<std::string_view, void>::Write(dw, std::string_view(in));
 		}
-		static inline int Read(Data_r& dr, std::string& out) {
+		static inline int Read(Data_r& dr, T& out) {
             size_t siz = 0;
             if (auto r = dr.ReadVarInteger(siz)) return r;
             if (dr.offset + siz > dr.len) return __LINE__;
@@ -101,8 +102,8 @@ namespace xx {
 
 	// 适配 std::optional<T>
 	template<typename T>
-	struct DataFuncs<std::optional<T>, void> {
-		static inline void Write(Data& dw, std::optional<T> const& in) {
+	struct DataFuncs<T, std::enable_if_t<IsOptional_v<T>>> {
+		static inline void Write(Data& dw, T const& in) {
 			if (in.has_value()) {
                 dw.Write((char)1, in.value());
 			}
@@ -110,7 +111,7 @@ namespace xx {
                 dw.Write((char)0);
 			}
 		}
-		static inline int Read(Data_r& dr, std::optional<T>& out) {
+		static inline int Read(Data_r& dr, T& out) {
 			char hasValue = 0;
 			if (int r = dr.Read(hasValue)) return r;
 			if (!hasValue) return 0;
@@ -122,12 +123,12 @@ namespace xx {
 	};
 
     // 适配 std::pair<K, V>
-    template<typename K, typename V>
-    struct DataFuncs<std::pair<K, V>, void> {
-        static inline void Write(Data& dw, std::pair<K, V> const& in) {
+    template<typename T>
+    struct DataFuncs<T, std::enable_if_t<IsPair_v<T>>> {
+        static inline void Write(Data& dw, T const& in) {
             dw.Write(in.first, in.second);
         }
-        static inline int Read(Data_r& dr, std::pair<K, V>& out) {
+        static inline int Read(Data_r& dr, T& out) {
             return dr.Read(out.first, out.second);
         }
     };

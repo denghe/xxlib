@@ -8,33 +8,8 @@ gBB = NewXxData()
 -- 公用序列化管理器
 gOM = ObjMgr.Create()
 
--- 网络协程执行状态
-NetStates = {
-	unknown = "unknown",
-	resolve = "resolve",
-	dial = "dial",
-	wait_0_open = "wait_0_open",
-	service_0_ready = "service_0_ready"
-}
-
--- 网络协程运行交互容器
-gNetStates = {
-	-- 可通知 网络协程 退出
-	running = true,
-	-- 可检测 网络协程 是否已退出
-	closed = false,
-	-- 可判断 网络协程 执行到哪步了
-	state = NetStates.unknown
-}
-
--- 每帧来一发 gNet Update
-gUpdates_Set("gNet", function() gNet:Update() end)
-
-
-
-
-
-
+-- 发送 0xFFFFFFFF "echo" Data 返回的 Data 部分将存放在此
+gNetEchos = {}
 
 -- 推送的多播处理函数集 key: proto, val: { name + func(serial, pkg)... }
 gNetHandlers = {}
@@ -66,6 +41,7 @@ gNetHandlers_Unregister = function(pkgProto, key)
 		end
 	end
 end
+
 
 -- service 分组 id 存放点. key: PKG 前缀( 例如 "PKG_Slots_Client_", "PKG_Golden88_"  ), value: serviceId
 gNetServiceIdMappings = {}
@@ -120,8 +96,6 @@ gNet_ClearSerialCallbacks = function()
 end
 
 
-
-
 -- 将 bb 转为 pkg 并返回 pkg. 失败返回 nil
 gReadRoot = function(bb)
 	if bb ~= nil then
@@ -148,11 +122,19 @@ end
 
 -- 发应答
 gNet_SendResponse = function(pkg, serial)
+	-- 如果已断线就直接短路返回 nil
+	if not gNet:Alive() then
+		print("gNet:Alive is false when SendResponse")
+		if pkg ~= nil then
+			dump(pkg)
+		end
+		return nil
+	end
 	-- 计算出目标服务id
 	local serviceId = gNet_GetServiceId(pkg)
 	-- 如果目标服务id未 open 则直接短路返回 nil
 	if not gNet:IsOpened(serviceId) then
-		print("gNet:IsOpened is failed when gNet_SendResponse", serverId)
+		print("gNet:IsOpened is failed when SendResponse", serverId)
 		return nil
 	end
 	-- 发送并返回 int
@@ -239,6 +221,7 @@ gNet_SendRequest = function(pkg, cb, timeoutMS)
 	end
 end
 
+
 -- 事件分发. 起个独立协程, 一直执行
 go(function()
 	local yield = coroutine.yield
@@ -252,8 +235,12 @@ go(function()
 	end
 	-- 试着 pop 出一条
 	local serverId, serial, bb = gNet:TryGetPackage()
+	--print("gNet:TryGetPackage() = ", serverId, serial, bb)
 	-- 如果没有取出消息就退出
 	if serverId == nil then
+		goto LabBegin
+	elseif serverId == 0xFFFFFFFF then
+		table.insert(gNetEchos, bb)
 		goto LabBegin
 	end
 	-- 解包( 解不出则 pkg 值为 nil )
@@ -266,18 +253,14 @@ go(function()
 	if serial <= 0 then
 		-- 反转
 		serial = -serial
-		-- 根据 pkg 的原型定位到一组回调
+		-- 根据 pkg 的元表定位到一组回调
 		local cbs = gNetHandlers[getmetatable(pkg)]
 		if cbs ~= nil then
 			-- 多播调用
-			for name, cb in pairs(cbs) do
+			for _, cb in pairs(cbs) do
 				if cb ~= nil then
 					cb(pkg, serial)
 				end
-			end
-		else
-			if getmetatable(pkg) ~= PKG_Generic_Pong then
-				print("NetHandle have no package:",getmetatable(pkg).typeName)
 			end
 		end
 	else

@@ -4,7 +4,7 @@
 #include "xx_string.h"
 #include "xx_lua_uv_client.h"
 #ifdef _WIN32
-#pragma comment(lib, "../../../libuv/lib/win64/libuv.lib")
+#pragma comment(lib, "libuv.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "Psapi.lib")
@@ -106,13 +106,16 @@ void Test2() {
 void TestUv() {
 	xx::Lua::State L;
 	SetGlobalCClosure(L, "Nows", [](auto L)->int { return xx::Lua::Push(L, xx::NowEpochSeconds()); });
+	SetGlobalCClosure(L, "NowSteadyEpochMS", [](auto L)->int { return xx::Lua::Push(L, xx::NowSteadyEpochMilliseconds()); });
 	xx::Lua::UvClient::Register(L);
+	xx::Lua::Data::Register(L);
+
 	auto r = xx::Lua::Try(L, [&] {
 		xx::Lua::DoFile(L, "test_uv.lua");
-		auto cb = xx::Lua::GetGlobalFunc(L, "gFrameCallback");
+		auto cb = xx::Lua::GetGlobalFunc(L, "gUpdate");
 		while (true) {
 			cb.Call();
-			Sleep(100);
+			Sleep(16);
 		}
 	});
 	if (r) {
@@ -126,7 +129,7 @@ int main() {
 	//Test1();
 	//Test2();
 	TestUv();
-	// TestLuaBind1();
+	//TestLuaBind1();
 	//TestLuaBind2();
 	std::cout << "end." << std::endl;
 	return 0;

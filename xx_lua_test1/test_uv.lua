@@ -1,5 +1,11 @@
-print("test UvClient")
-require('g_coros')
+require('g_net')
+
+-- 帧回调( C++ call )
+function gUpdate()
+	gNet:Update()
+	goexec()
+	gNet:Update()
+end
 
 -- 工具函数
 dump = function(t)
@@ -8,71 +14,87 @@ dump = function(t)
 	end
 end
 
--- 全局网络客户端
-gNet = NewUvClient()
-
--- 每帧来一发 gNet Update
-gUpdates_Set("gNet", function() gNet:Update() end)
-
-
-
-
+-- 网络协程执行状态
+NS = {
+	unknown = "unknown",
+	resolve = "resolve",
+	dial = "dial",
+	wait_0_open = "wait_0_open",
+	service_0_ready = "service_0_ready",
+}
 
 -- 全局环境
-g_env = {
+gEnv = {
 	-- 模拟基础配置
 	host = "192.168.1.196", --"www.baidu.com",
 	port = 20000,
+	ping_timeout_secs = 10,
 
-	-- 协程间通信变量
-
-	-- 可通知 net 协程 退出
-	coro_net_run = true,
-	-- 可检测 net 协程 是否已退出
-	coro_net_closed = false,
-	-- 可判断 net 协程 执行到哪步了
-	coro_net_state = gNetStates.unknown
+	-- 网络协程运行状态交互变量
+	-- 可通知 网络协程 退出
+	coro_net_running = nil,
+	-- 可检测 网络协程 是否已退出
+	coro_net_closed = nil,
+	-- 可判断 网络协程 执行到哪步了
+	coro_net_state = nil,
+	-- 保持连接逻辑顺便算出来的 ping 值( 到 网关 的 )
+	coro_net_ping = nil,
 }
 
 -- 网络协程
 function coro_net(printLog)
 	--------------------------------------------------------------------------
+	-- 初始化运行状态
+	--------------------------------------------------------------------------
+	gEnv.coro_net_running = true
+	gEnv.coro_net_closed = false
+	gEnv.coro_net_state = NS.unknown
+	-- 让 ui 协程能感知到这个状态
+	yield()
+	yield()
+	-- 预声明局部变量
+	local s, r, f
+	local d = gBB
+	local pts = gEnv.ping_timeout_secs
+	--------------------------------------------------------------------------
 	-- 开始域名解析
 	--------------------------------------------------------------------------
 ::LabResolve::
-	if not g_env.coro_net_run then return end
+	if not gEnv.coro_net_running then goto LabExit end
 	if printLog then print("resolve") end
-	g_env.coro_net_state = gNetStates.resolve
+	gEnv.coro_net_state = NS.resolve
 	-- 停掉 拨号/解析 断开连接
 	gNet:Cancel()
 	gNet:Disconnect()
 	-- 必要的小睡( 防止拨号频繁，以及留出各种断开后的 callback 的执行时机 )
-	local s = Nows() + 1
+	s = Nows() + 1
 	repeat yield() until Nows() > s
+	yield()
+	yield()
 	-- 开始解析( 默认 3 秒超时 )
-	local r = gNet:Resolve(g_env.host)
+	r = gNet:Resolve(gEnv.host)
 	-- 失败则重试
 	if r ~= 0 then goto LabResolve end
 	-- 等待解析完成或超时
 	while gNet:Busy() do
-		if not g_env.coro_net_run then return end
+		if not gEnv.coro_net_running then goto LabExit end
 		if printLog then print("resolve: busy") end
 		yield()
 	end
 	-- 拿解析结果
-	local ips = gNet:GetIPList()
+	r = gNet:GetIPList()
 	-- 如果解析结果为空则重试
-	if #ips == 0 then goto LabResolve end
-	if printLog then dump(ips) end
+	if #r == 0 then goto LabResolve end
+	if printLog then dump(r) end
 	--------------------------------------------------------------------------
 	-- 开始拨号
 	--------------------------------------------------------------------------
-	-- ips 转为 ip:port 添加到 gNet
+	-- ip list 转为 ip:port 添加到 gNet
 	gNet:ClearAddresses()
-	for _, v in ipairs(ips) do
-		gNet:AddAddress(v, g_env.port)
+	for _, v in ipairs(r) do
+		gNet:AddAddress(v, gEnv.port)
 	end
-	g_env.coro_net_state = gNetStates.dial
+	gEnv.coro_net_state = NS.dial
 	if printLog then print("dial") end
 	-- 开始拨号( 默认 5 秒超时 )
 	r = gNet:Dial()
@@ -80,7 +102,7 @@ function coro_net(printLog)
 	if r ~= 0 then goto LabResolve end
 	-- 等待拨号完成或超时
 	while gNet:Busy() do
-		if not g_env.coro_net_run then return end
+		if not gEnv.coro_net_running then goto LabExit end
 		if printLog then print("dial: busy") end
 		yield()
 	end
@@ -92,12 +114,12 @@ function coro_net(printLog)
 	--------------------------------------------------------------------------
 	-- 等 0 号服务 open
 	--------------------------------------------------------------------------
-	g_env.coro_net_state = gNetStates.wait_0_open
+	gEnv.coro_net_state = NS.wait_0_open
 	if printLog then print("wait_0_open") end
     -- 5 秒超时 等待
     s = Nows() + 5
     repeat
-		if not g_env.coro_net_run then return end
+		if not gEnv.coro_net_running then goto LabExit end
         yield()
         -- 如果断线, 重新拨号
 		if not gNet:Alive() then
@@ -111,82 +133,122 @@ function coro_net(printLog)
 		end
     until Nows() > s
 	-- 等 0 号服务 open 超时: 重连
-    if printLog then print("wait 0 open: timeout") end
-    goto LabResolve
+	if printLog then print("wait 0 open: timeout") end
+	goto LabResolve
 	-- 0 号服务已 open
 ::LabAfterWait::
-	g_env.coro_net_state = gNetStates.keepalive
-	if printLog then print("keepalive") end
-	--------------------------------------------------------------------------
-	-- 保持连接 处理收包
-	--------------------------------------------------------------------------
-::LabKeepAlive::
-	yield()
-	-- 如果 gNet 未就绪就退出
-	if gNet == nil or not gNet_Alive() then
-		-- 触发所有回调并清空
-		gNet_ClearSerialCallbacks()
-		goto LabKeepAlive
-	end
-	-- 试着 pop 出一条
-	local serverId, serial, bb = gNet:TryGetPackage()
-	-- 如果没有取出消息就退出
-	if serverId == nil then
-		goto LabKeepAlive
-	end
-	-- 解包( 解不出则 pkg 值为 nil )
-	local pkg = gReadRoot(bb)
-	if pkg == nil then
-		-- todo: log??
-		goto LabKeepAlive
-	end
-	-- 收到推送或请求: 去 gNetHandlers 找函数
-	if serial <= 0 then
-		-- 反转
-		serial = -serial
-		-- 根据 pkg 的原型定位到一组回调
-		local cbs = gNetHandlers[pkg.__proto]
-		if cbs ~= nil then
-			-- 多播调用
-			for name, cb in pairs(cbs) do
-				if cb ~= nil then
-					cb(pkg, serial)
+	gEnv.coro_net_state = NS.service_0_ready
+	if printLog then print("service_0_ready") end
+	f = false		-- 已发送标记
+	s = Nows()		-- 上个 echo 包发送时间
+	while true do
+		yield()
+		if not gEnv.coro_net_running then goto LabExit end
+		-- 如果断线, 重新拨号
+		if not gNet:Alive() then
+			if printLog then print("service_0_ready: peer disconnected.") end
+			goto LabResolve
+		end
+		-- 当前时间
+		local ns = Nows()
+		-- 已发送 echo
+		if f then
+			-- 如果有收到 echo 返回数据, 就 算ping 并改发送标记为 未发送
+			if #gNetEchos > 0 then
+				local v
+				r, v = gNetEchos[1]:Rd()
+				if r ~= 0 then
+					print("read echo data error: r = ", r)
+				else
+					gEnv.coro_net_ping = ns - v
+					gNetEchos = {}
+					f = false
 				end
+			-- 超过一定时长没有收到任何回包, 就主动掐线重拨
+			elseif s + pts < ns then
+				if printLog then print("service_0_ready: timeout disconnect. no echo receive.") end
+				goto LabResolve
 			end
 		else
-			if pkg.__proto ~= PKG_Generic_Pong then
-				print("NetHandle have no package:",pkg.__proto.typeName)
+			-- 未发送 echo, cd 时间到了就 发送 当前秒数值
+			if s < ns then
+				d:Clear()
+				d:Wd(ns)
+				gNet:SendEcho(d)
+				f = true
+				s = ns + 5			-- 大约每 5 秒来一发
 			end
 		end
-	else
-		-- 序列号转为 string 类型
-		local serialStr = tostring(serial)
-		-- 取出相应的回调
-		local cb = gNetSerialCallbacks[serialStr]
-		gNetSerialCallbacks[serialStr] = nil
-		-- 调用
-		if cb ~= nil then
-			cb(pkg)
-		end
 	end
-	goto LabKeepAlive
+::LabExit::
+	gNet:Cancel()
+	gNet:Disconnect()
+	yield()
+	yield()
+	gEnv.coro_net_running = false
+	gEnv.coro_net_closed = true
+	gEnv.coro_net_state = NS.unknown
 end
 
--- UI协程: 打印网络协程状态
-function coro_ui()
-	local ls = g_env.coro_net_state
-	print("g_env.coro_net_state = "..ls)
+-- 网络状态监视协程
+function coro_net_monitor()
+	local running = "nil"
+	local closed = "nil"
+	local state = "nil"
+	local ping = "nil"
+	local s
+	local e = gEnv
 	while true do
-		if ls ~= g_env.coro_net_state then
-			ls = g_env.coro_net_state
-			print("g_env.coro_net_state = "..ls)
+		s = tostring(e.coro_net_running)
+		if running ~= s then
+			print("gEnv.coro_net_running = "..s)
+			running = s
 		end
+
+		s = tostring(e.coro_net_closed)
+		if closed ~= s then
+			print("gEnv.coro_net_closed = "..s)
+			closed = s
+		end
+
+		s = tostring(e.coro_net_state)
+		if state ~= s then
+			print("gEnv.coro_net_state = "..s)
+			state = s
+		end
+
+		s = tostring(e.coro_net_ping)
+		if ping ~= s then
+			print("gEnv.coro_net_ping = "..s)
+			ping = s
+		end
+
 		yield()
 	end
 end
 
--- 启动网络协程( false: 不打印日志 )
-go_("net", coro_net, false)
+-- 主协程
+function coro_main()
+	-- 启动网络状态监视协程
+	go_("coro_net_monitor", coro_net_monitor)
 
--- 启动 UI 协程
-go_("ui", coro_ui)
+	-- 启动网络协程( false: 不打印日志 )
+	go_("coro_net", coro_net, false)
+
+	-- 等待 0 号服务 ready
+	while true do
+		yield()
+		if gEnv.coro_net_state == NS.service_0_ready then
+			break
+		end
+	end
+
+	-- 发送 登录 包?
+	print("todo: send login pkg?")
+end
+
+-- 启动主协程
+go_("coro_net", coro_main)
+
+-- 这个应该最先输出
+print("test UvClient")

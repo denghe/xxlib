@@ -583,7 +583,6 @@ namespace xx {
     template<size_t reserveLen>
     template<typename ...TS>
     void Data_rw<reserveLen>::Write(TS const& ...vs) {
-        std::initializer_list<int> n{ (DataFuncs<TS>::Write(*this, vs), 0)... };
-        (void)n;
+        (DataFuncs<TS>::Write(*this, vs), ...);
     }
 }
