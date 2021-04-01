@@ -221,8 +221,9 @@ namespace xx {
 		Uv uv;
 		Shared<UvToGatewayDialerAndPeer> client;
 		Shared<UvResolver> resolver;
-		UvClient() {
-			client.Emplace(uv);
+        // 0: tcp    1: kcp   2: both
+		explicit UvClient(int tcpKcp = 2) {
+			client.Emplace(uv, tcpKcp);
 			resolver.Emplace(uv);
 		}
 		UvClient(UvClient const&) = delete;

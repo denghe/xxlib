@@ -30,9 +30,11 @@ namespace xx::Lua {
 		void Reset(lua_State* const& L, int const& idx) {
 			if (!lua_isfunction(L, idx)) Error(L, "args[", std::to_string(idx), "] is not a lua function");
 			Reset();
-			CheckStack(L, 1);
+			CheckStack(L, 2);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);         // ..., func, ..., L
 			p.Emplace();
-			p->first = L;
+			p->first = lua_tothread(L, -1);
+			lua_pop(L, 1);                                                  // ..., func, ...
 			lua_pushvalue(L, idx);											// ..., func, ..., func
 			p->second = luaL_ref(L, LUA_REGISTRYINDEX);						// ..., func, ...
 		}

@@ -3,6 +3,7 @@ require('g_net')
 -- 帧回调( C++ call )
 function gUpdate()
 	gNet:Update()
+	coroutine.resume(gNetCoro)
 	goexec()
 	gNet:Update()
 end
@@ -111,6 +112,8 @@ function coro_net(printLog)
 		if printLog then print("dial: timeout") end
 		goto LabResolve
 	end
+	-- 看看是啥协议
+	print("gNet:IsKcp() = ", gNet:IsKcp())
 	--------------------------------------------------------------------------
 	-- 等 0 号服务 open
 	--------------------------------------------------------------------------

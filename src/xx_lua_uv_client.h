@@ -18,7 +18,12 @@ LUA 全局函数:
 namespace xx::Lua::UvClient {
 	// 在 lua 中注册 全局的 Uv 创建函数
 	inline void Register(lua_State* const& L) {
-		SetGlobalCClosure(L, "NewUvClient", [](auto L)->int { return PushUserdata<xx::UvClient>(L); });
+		SetGlobalCClosure(L, "NewUvClient", [](auto L)->int {
+		    if(lua_gettop(L) > 0) {
+                return PushUserdata<xx::UvClient>(L, To<int>(L, 1));
+		    }
+		    return PushUserdata<xx::UvClient>(L);
+		});
 	}
 }
 

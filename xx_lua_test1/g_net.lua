@@ -2,7 +2,7 @@
 require('g_objmgr')
 
 -- 全局网络客户端
-gNet = NewUvClient()
+gNet = NewUvClient(2) -- 0: tcp    1: kcp   2: both
 -- 公用序列化容器
 gBB = NewXxData()
 -- 公用序列化管理器
@@ -222,8 +222,8 @@ gNet_SendRequest = function(pkg, cb, timeoutMS)
 end
 
 
--- 事件分发. 起个独立协程, 一直执行
-go(function()
+-- 事件分发. 起个独立协程, 一直执行.
+gNetCoro = coroutine.create(function()
 	local yield = coroutine.yield
 ::LabBegin::
 	yield()
