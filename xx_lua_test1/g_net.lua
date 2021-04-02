@@ -119,6 +119,20 @@ end
 -- 发送原型:
 -- gNet:SendTo( serviceId, serial, gWriteRoot(gBB, pkg) );
 
+-- 工具函数
+dump = function(t)
+	print("===============================================")
+	print("|||||||||||||||||||||||||||||||||||||||||||||||")
+	local mt = getmetatable(t)
+	if mt ~= nil then
+		print("typeName:", mt.typeName)
+	end
+	for k, v in pairs(t) do
+		print(k, v)
+	end
+	print("|||||||||||||||||||||||||||||||||||||||||||||||")
+	print("===============================================")
+end
 
 -- 发应答
 gNet_SendResponse = function(pkg, serial)
@@ -208,7 +222,7 @@ gNet_SendRequest = function(pkg, cb, timeoutMS)
 			if NowSteadyEpochMS() - now > timeoutMS then
 				-- 反注册: 不等了
 				gNetSerialCallbacks[serialStr] = nil
-				print("recving package is overtime, call gNet:Disconnect()")
+				print("SendRequest timeout")
 				if pkg ~= nil then
 					dump(pkg)
 				end

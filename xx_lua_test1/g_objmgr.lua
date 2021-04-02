@@ -48,7 +48,6 @@ ObjMgr = {
 , ReadFirst = function(self)
         local d = self.d
         local m = self.m
-        local len = #m
         local r, typeId = d:Rvu()
         if r ~= 0 then
             return r
@@ -56,9 +55,12 @@ ObjMgr = {
         if typeId == 0 then
             return 56
         end
-        local v = ObjMgr[typeId].Create()
+        local mt = ObjMgr[typeId]
+        if mt == nil then
+            return 60
+        end
+        local v = mt.Create()
         m[1] = v
-        print("*****************************")
         r = v:Read(self)
         if r ~= 0 then
             return r
@@ -82,9 +84,13 @@ ObjMgr = {
                 return r
             end
             if typeId == 0 then
-                return 64
+                return 87
             end
-            local v = ObjMgr[typeId].Create()
+            local mt = ObjMgr[typeId]
+            if mt == nil then
+                return 91
+            end
+            local v = mt.Create()
             m[n] = v
             r = v:Read(self)
             if r ~= 0 then
@@ -93,7 +99,7 @@ ObjMgr = {
             return 0, v
         else
             if n > len then
-                return 72
+                return 102
             end
             return 0, m[n]
         end

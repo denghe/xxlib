@@ -8,13 +8,6 @@ function gUpdate()
 	gNet:Update()
 end
 
--- 工具函数
-dump = function(t)
-	for k, v in pairs(t) do
-		print(k, v)
-	end
-end
-
 -- 网络协程执行状态
 NS = {
 	unknown = "unknown",
@@ -230,6 +223,14 @@ function coro_net_monitor()
 	end
 end
 
+
+
+-- 加载收发包定义文件
+require('class_def')
+require('client_lobby')
+require('client_login')
+require('generic')
+
 -- 主协程
 function coro_main()
 	-- 启动网络状态监视协程
@@ -238,6 +239,7 @@ function coro_main()
 	-- 启动网络协程( false: 不打印日志 )
 	go_("coro_net", coro_net, false)
 
+::LabBegin::
 	-- 等待 0 号服务 ready
 	while true do
 		yield()
@@ -246,8 +248,22 @@ function coro_main()
 		end
 	end
 
-	-- 发送 登录 包?
-	print("todo: send login pkg?")
+	-- todo: int64 兼容
+
+	-- 构造 登录 包
+	local p = PKG_Client_Login_AuthByUsername.Create()
+	p.account_name = "acc1"
+	p.username = "un1"
+	-- 发送
+	dump(p)
+	local r = gNet_SendRequest(p)
+	if r == nil then goto LabBegin end
+	dump(r)
+
+	while true do
+		yield()
+		if not gNet:Alive() then goto LabBegin end
+	end
 end
 
 -- 启动主协程
