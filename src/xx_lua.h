@@ -385,7 +385,6 @@ namespace xx::Lua {
 		static inline int Push(lua_State* const& L, T && in) {
 			return PushToFuncs<UT, void>::Push(L, (UT)in);
 		}
-		typedef std::underlying_type_t<T> UT;
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			PushToFuncs<UT, void>::To(L, (UT&)out);
 		}

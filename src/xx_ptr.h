@@ -402,7 +402,7 @@ namespace xx {
 	};
 
 	template<typename T>
-	XX_INLINE Weak<T> Shared<T>::ToWeak() const noexcept {
+	Weak<T> Shared<T>::ToWeak() const noexcept {
 		if (pointer) {
 			auto h = (HeaderType*)pointer - 1;
 			return *(Weak<T>*)&h;
@@ -412,7 +412,7 @@ namespace xx {
 
 	template<typename T>
 	template<typename...Args>
-	XX_INLINE Shared<T>& Shared<T>::Emplace(Args&&...args) {
+	Shared<T>& Shared<T>::Emplace(Args&&...args) {
 		Reset();
 		auto h = (HeaderType*)malloc(sizeof(HeaderType) + sizeof(T));
 		h->useCount = 1;
@@ -477,7 +477,7 @@ namespace xx {
 	// helpers
 
 	template<typename T, typename...Args>
-	[[maybe_unused]] [[nodiscard]] XX_INLINE Shared<T> MakeShared(Args &&...args) {
+	[[maybe_unused]] [[nodiscard]] Shared<T> MakeShared(Args &&...args) {
 		auto h = (typename Shared<T>::HeaderType*)malloc(sizeof(typename Shared<T>::HeaderType) + sizeof(T));
 		h->useCount = 0;
 		h->refCount = 0;
@@ -512,23 +512,23 @@ namespace xx {
 
 	template<typename T, typename U>
 	Shared<T> As(Shared<U> const& v) noexcept {
-		return v.As<T>();
+		return v.template As<T>();
 	}
 
 	template<typename T, typename U>
 	bool Is(Shared<U> const& v) noexcept {
-		return !v.As<T>().Empty();
+		return !v.template As<T>().Empty();
 	}
 
 
 	// unsafe
     template<typename T>
-    XX_INLINE Shared<T> SharedFromThis2(void* const& thiz) {
+    Shared<T> SharedFromThis2(void* const& thiz) {
         auto h = (PtrHeader*)thiz - 1;
         return (*((Weak<T>*) & h)).Lock();
     }
     template<typename T>
-    XX_INLINE Shared<T> SharedFromThis(T* const& thiz) {
+    Shared<T> SharedFromThis(T* const& thiz) {
         auto h = (PtrHeader*)thiz - 1;
         return (*((Weak<T>*) & h)).Lock();
     }

@@ -124,7 +124,25 @@ namespace xx::Lua {
 		lua_rawset(L, -3);													// ..., table, 
 	}
 
-	// 判断指定 idx 所在是指定类型的 userdata ( 判断带 mt && mt.Typename == 1 )
+
+    /****************************************************************************************/
+    /****************************************************************************************/
+    // 类型 metatable 填充函数适配模板
+    // 用法示例在最下面
+    template<typename T, typename ENABLED = void>
+    struct MetaFuncs {
+        inline static std::string name = std::string(TypeName_v<T>);
+
+        // 该函数被调用时, 栈顶即为 mt
+        // 使用 SetUDType<std::decay_t<T>>(L); 附加 type 信息
+        // 调用 MetaFuncs<基类>::Fill(L); 填充依赖
+        // 使用 SetFieldCClosure(L, "key", [](auto L) { ..... return ?; }, ...) 添加函数
+        // 使用 luaL_setfuncs 批量添加函数也行
+        static void Fill(lua_State* const& L) {}
+    };
+
+
+    // 判断指定 idx 所在是指定类型的 userdata ( 判断带 mt && mt.Typename == 1 )
 	template<typename T>
 	inline bool IsUserdata(lua_State* const& L, int const& idx) {
 		CheckStack(L, 2);
@@ -163,22 +181,6 @@ namespace xx::Lua {
 		EnsureType<T>(L, idx);
 #endif
 	}
-
-	/****************************************************************************************/
-	/****************************************************************************************/
-	// 类型 metatable 填充函数适配模板
-	// 用法示例在最下面
-	template<typename T, typename ENABLED = void>
-	struct MetaFuncs {
-		inline static std::string name = std::string(TypeName_v<T>);
-
-		// 该函数被调用时, 栈顶即为 mt
-		// 使用 SetUDType<std::decay_t<T>>(L); 附加 type 信息
-		// 调用 MetaFuncs<基类>::Fill(L); 填充依赖
-		// 使用 SetFieldCClosure(L, "key", [](auto L) { ..... return ?; }, ...) 添加函数
-		// 使用 luaL_setfuncs 批量添加函数也行
-		static void Fill(lua_State* const& L) {}
-	};
 
 
 	// 压入指定类型的 metatable( 以 MetaFuncs<T>::name.data() 为 key, 存到注册表。没有找到就创建并放入 )
