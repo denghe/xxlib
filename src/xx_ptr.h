@@ -9,9 +9,12 @@ namespace xx {
 	/************************************************************************************/
 	// Make 时会在内存块头部附加
 
-	struct PtrHeader {
+	struct PtrHeaderBase {
 		uint32_t useCount;      // 强引用技术
 		uint32_t refCount;      // 弱引用技术
+	};
+
+	struct PtrHeader : PtrHeaderBase {
 		union {
 			struct {
 				uint32_t typeId;        // 序列化 或 类型转换用
@@ -21,6 +24,8 @@ namespace xx {
 		};
 	};
 
+    // 用 IsBaseofObjBase_v<T> 替代 is_base_of_v<ObjBase, T> 检测 以绕开函数内自引用时 类不完整的尴尬
+    XX_HAS_TYPEDEF(IsBaseofObjBase_v)
 
 	/************************************************************************************/
 	// std::shared_ptr like
@@ -30,8 +35,9 @@ namespace xx {
 
 	template<typename T>
 	struct Shared {
-		using ElementType = T;
-		T* pointer = nullptr;
+		using HeaderType = std::conditional_t<IsBaseofObjBase_v<T>, PtrHeader, PtrHeaderBase>;
+        using ElementType = T;
+        T* pointer = nullptr;
 
 		XX_INLINE operator T* const& () const noexcept {
 			return pointer;
@@ -80,8 +86,8 @@ namespace xx {
 		}
 
 		// unsafe
-		[[maybe_unused]] [[nodiscard]] XX_INLINE PtrHeader* header() const noexcept {
-			return ((PtrHeader*)pointer - 1);
+		[[maybe_unused]] [[nodiscard]] XX_INLINE HeaderType* header() const noexcept {
+			return ((HeaderType*)pointer - 1);
 		}
 
 		// 将 header 内容拼接为 string 返回 以方便显示 & 调试
@@ -92,11 +98,13 @@ namespace xx {
 			}
 			else {
 				auto h = header();
-				s += "{\"useCount\":" + std::to_string(h->useCount)
-					+ ",\"refCount\":" + std::to_string(h->refCount)
-					+ ",\"typeId\":" + std::to_string(h->typeId)
-					+ ",\"offset\":" + std::to_string(h->offset)
-					+ "}";
+                s += "{\"useCount\":" + std::to_string(h->useCount);
+                s += ",\"refCount\":" + std::to_string(h->refCount);
+                if constexpr (std::is_base_of_v<PtrHeader, HeaderType>) {
+                    s += ",\"typeId\":" + std::to_string(h->typeId);
+                    s += ",\"offset\":" + std::to_string(h->offset);
+                }
+                s += "}";
 			}
 			return s;
 		}
@@ -129,7 +137,7 @@ namespace xx {
 			Reset();
 			if (ptr) {
 				pointer = ptr;
-				++((PtrHeader*)ptr - 1)->useCount;
+				++((HeaderType*)ptr - 1)->useCount;
 			}
 		}
 
@@ -248,7 +256,8 @@ namespace xx {
 	template<typename T>
 	struct Weak {
 		using ElementType = T;
-		PtrHeader* h = nullptr;
+        using HeaderType = std::conditional_t<IsBaseofObjBase_v<T>, PtrHeader, PtrHeaderBase>;
+        HeaderType* h = nullptr;
 
 		[[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t useCount() const noexcept {
 			if (!h) return 0;
@@ -291,7 +300,7 @@ namespace xx {
 			static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
 			Reset();
 			if (s.pointer) {
-				h = ((PtrHeader*)s.pointer - 1);
+				h = ((HeaderType*)s.pointer - 1);
 				++h->refCount;
 			}
 		}
@@ -395,7 +404,7 @@ namespace xx {
 	template<typename T>
 	XX_INLINE Weak<T> Shared<T>::ToWeak() const noexcept {
 		if (pointer) {
-			auto h = (PtrHeader*)pointer - 1;
+			auto h = (HeaderType*)pointer - 1;
 			return *(Weak<T>*)&h;
 		}
 		return {};
@@ -405,11 +414,13 @@ namespace xx {
 	template<typename...Args>
 	XX_INLINE Shared<T>& Shared<T>::Emplace(Args&&...args) {
 		Reset();
-		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
+		auto h = (HeaderType*)malloc(sizeof(HeaderType) + sizeof(T));
 		h->useCount = 1;
 		h->refCount = 0;
-		h->typeId = TypeId_v<T>;
-		h->offset = 0;
+		if constexpr (std::is_base_of_v<PtrHeader, HeaderType>) {
+            h->typeId = TypeId_v<T>;
+            h->offset = 0;
+        }
 		pointer = new(h + 1) T(std::forward<Args>(args)...);
 		return *this;
 	}
@@ -467,11 +478,13 @@ namespace xx {
 
 	template<typename T, typename...Args>
 	[[maybe_unused]] [[nodiscard]] XX_INLINE Shared<T> MakeShared(Args &&...args) {
-		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
+		auto h = (typename Shared<T>::HeaderType*)malloc(sizeof(typename Shared<T>::HeaderType) + sizeof(T));
 		h->useCount = 0;
 		h->refCount = 0;
-		h->typeId = TypeId_v<T>;
-		h->offset = 0;
+        if constexpr (std::is_base_of_v<PtrHeader, typename Shared<T>::HeaderType>) {
+            h->typeId = TypeId_v<T>;
+            h->offset = 0;
+        }
 		return new(h + 1) T(std::forward<Args>(args)...);
 	}
 

@@ -87,9 +87,15 @@ void Test2() {
 	//[2,14,0,0,0,2,1,4,97,115,100,102,1,1,1,5,1,2,3,4,5,154,153,153,63,51,51,19,64,1,1,1,154,153,153,63,51,51,19,64,1,1,1,1,154,153,153,63,51,51,19,64,1,1]
 }
 
+void Test3() {
+    auto i = xx::MakeShared<int>();
+    std::cout << i.GetHeaderInfo() << std::endl;
+}
+
 int main() {
-	//Test1();
+	Test1();
 	Test2();
+	Test3();
 
 	std::cout << "end." << std::endl;
 	return 0;

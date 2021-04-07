@@ -59,6 +59,9 @@ namespace xx {
 		// 派生类须加这个声明以便于 Register 时探索父子关系
 		using BaseType = void;
 
+		// 用于标识当前类型是基于 ObjBase 为基类，用 has typedef 替代 is_base_of 检测 以绕开函数内自引用时 类不完整的尴尬
+        using IsBaseofObjBase_v = void;
+
 		// 派生类都需要有默认构造。
 		ObjBase() = default;
 
