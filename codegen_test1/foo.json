@@ -1,0 +1,8 @@
+{
+  "refs": [],
+  "name": "foo",
+  "files": [ "foo.cs" ],
+  "!outdir_cs": "cs",
+  "!outdir_lua": "lua",
+  "outdir_cpp": "cpp"
+}
