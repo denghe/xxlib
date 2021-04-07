@@ -88,18 +88,22 @@ void Test2() {
     //[2,14,0,0,0,2,1,4,97,115,100,102,1,1,1,5,1,2,3,4,5,154,153,153,63,51,51,19,64,1,1,1,154,153,153,63,51,51,19,64,1,1,1,1,154,153,153,63,51,51,19,64,1,1]
 }
 
+#include "xx_string.h"
 void Test3() {
     xx::ObjManager om;
     xx::Data d;
+    d.Reserve(100000000);
     auto f = xx::MakeShared<foo>();
     f->id = 100;
     f->name = "111111";
     auto s = xx::NowEpochSeconds();
     for (int i = 0; i < 10000000; ++i) {
-        d.Clear();
-        om.WriteTo(d, f);
+        d.WriteFixed(i);
+        //om.WriteTo(d, f);
     }
-    std::cout << xx::NowEpochSeconds() - s << std::endl;
+    xx::CoutN(xx::NowEpochSeconds() - s);
+    std::cin.get();
+    xx::CoutN(d);
 }
 
 int main() {
