@@ -196,9 +196,8 @@ namespace xx {
 		}
 
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
-		template<typename...Args>
-		XX_INLINE void WriteTo(Data& d, Args const&...args) {
-			static_assert(sizeof...(args) > 0);
+		template<typename Arg>
+		XX_INLINE void WriteTo(Data& d, Arg const& arg) {
 			data = &d;
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
@@ -206,8 +205,7 @@ namespace xx {
 				}
 				ptrs.clear();
 				});
-
-			(Write_<Args, true>(args), ...);
+			Write_<Arg, true>(arg);
 		}
 
 	protected:
@@ -348,9 +346,8 @@ namespace xx {
 
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
 		// 可传入开始读取的位置
-		template<typename...Args>
-		XX_INLINE int ReadFrom(Data& d, Args&...args) {
-			static_assert(sizeof...(args) > 0);
+		template<typename Arg>
+		XX_INLINE int ReadFrom(Data& d, Arg& arg) {
 			data = &d;
 			auto sg = MakeScopeGuard([this] {
 				ptrs.clear();
@@ -361,7 +358,7 @@ namespace xx {
 				}
 				ptrs2.clear();
 				});
-			return (... + Read_<Args, true>(args));
+			return Read_<Arg, true>(arg);
 		}
 
 	protected:

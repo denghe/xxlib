@@ -91,15 +91,12 @@ void Test2() {
 void Test3() {
     xx::ObjManager om;
     xx::Data d;
-    for (int i = 0; i < 30000000; ++i) {
-        d.WriteFixed((size_t)0);
-    }
-    d.Clear();
-    foo f;
-    f.id = 100;
-    f.name = "111111";
+    auto f = xx::MakeShared<foo>();
+    f->id = 100;
+    f->name = "111111";
     auto s = xx::NowEpochSeconds();
     for (int i = 0; i < 10000000; ++i) {
+        d.Clear();
         om.WriteTo(d, f);
     }
     std::cout << xx::NowEpochSeconds() - s << std::endl;
