@@ -4,6 +4,9 @@ project(xx_obj_test1)
 set(CMAKE_CXX_STANDARD 20)
 if(UNIX)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
+else()
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX")
+	#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LTCG")
 endif()
 
 include_directories(

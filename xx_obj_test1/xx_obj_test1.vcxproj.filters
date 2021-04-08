@@ -6,4 +6,7 @@
     <ClCompile Include="..\codegen_test1\cpp\p1.cpp" />
     <ClCompile Include="..\codegen_test1\cpp\shared.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\codegen_test1\foo.cs" />
+  </ItemGroup>
 </Project>
