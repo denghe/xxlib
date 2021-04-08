@@ -97,11 +97,21 @@ void Test3() {
     auto f = xx::MakeShared<foo>();
     f->id = 100;
     f->name = "111111";
+//    foo f;
+//    f.id = 100;
+//    f.name = "111111";
     for (int j = 0; j < 100; ++j) {
         auto s = xx::NowEpochSeconds();
         for (int i = 0; i < 10000000; ++i) {
             d.Clear();
+
             om.WriteTo(d, f);
+
+            //om.Write(d, f.id, f.name);
+
+//            d.WriteVarInteger(f.id);
+//            d.WriteVarInteger(f.name.size());
+//            d.WriteBuf(f.name.data(), f.name.size());
         }
         xx::CoutN(xx::NowEpochSeconds() - s);
         xx::CoutN(d);

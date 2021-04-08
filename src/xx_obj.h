@@ -128,7 +128,6 @@ namespace xx {
 		std::vector<void*> ptrs;								// for write, append, clone
 		std::vector<void*> ptrs2;								// for read, clone
 		std::vector<std::pair<PtrHeader*, PtrHeader**>> weaks;	// for clone
-		Data* data = nullptr;
 		std::string* str = nullptr;
 
 		inline static ObjBase_s null;
@@ -198,15 +197,12 @@ namespace xx {
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		template<typename Arg>
 		XX_INLINE void WriteTo(Data& d, Arg const& arg) {
-			data = &d;
-			auto sg = MakeScopeGuard([this] {
-				for (auto&& p : ptrs) {
-					*(uint32_t*)p = 0;
-				}
-				ptrs.clear();
-				});
 			Write_<Arg, true>(d, arg);
-		}
+            for (auto&& p : ptrs) {
+                *(uint32_t*)p = 0;
+            }
+            ptrs.clear();
+        }
 
 	protected:
 		// 内部函数
@@ -347,17 +343,15 @@ namespace xx {
 		// 可传入开始读取的位置
 		template<typename Arg>
 		XX_INLINE int ReadFrom(Data& d, Arg& arg) {
-			data = &d;
-			auto sg = MakeScopeGuard([this] {
-				ptrs.clear();
-				for (auto& p : ptrs2) {
-					if (--((PtrHeader*)p - 1)->useCount == 0) {
-						((ObjBase*)p)->~ObjBase();
-					}
-				}
-				ptrs2.clear();
-				});
-			return Read_<Arg, true>(d, arg);
+			auto r = Read_<Arg, true>(d, arg);
+            ptrs.clear();
+            for (auto& p : ptrs2) {
+                if (--((PtrHeader*)p - 1)->useCount == 0) {
+                    ((ObjBase*)p)->~ObjBase();
+                }
+            }
+            ptrs2.clear();
+			return r;
 		}
 
 	protected:
@@ -546,14 +540,11 @@ namespace xx {
 		XX_INLINE void AppendTo(std::string& s, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			str = &s;
-			auto sg = MakeScopeGuard([this] {
-				for (auto&& p : ptrs) {
-					*(uint32_t*)p = 0;
-				}
-				ptrs.clear();
-				});
-
 			(Append_(args), ...);
+            for (auto&& p : ptrs) {
+                *(uint32_t*)p = 0;
+            }
+            ptrs.clear();
 		}
 
 		// 内部函数
@@ -716,14 +707,6 @@ namespace xx {
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
 		XX_INLINE void CloneTo(T const& in, T& out) {
-			auto sg = MakeScopeGuard([this] {
-				for (auto&& p : ptrs) {
-					*(uint32_t*)p = 0;
-				}
-				ptrs.clear();
-				ptrs2.clear();
-				weaks.clear();
-				});
 			Clone_(in, out);
 			for (auto& kv : weaks) {
 				if (kv.first->offset) {
@@ -736,7 +719,13 @@ namespace xx {
 					++kv.first->refCount;
 				}
 			}
-		}
+            for (auto&& p : ptrs) {
+                *(uint32_t*)p = 0;
+            }
+            ptrs.clear();
+            ptrs2.clear();
+            weaks.clear();
+        }
 
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
@@ -850,14 +839,11 @@ namespace xx {
 		template<typename...Args>
 		XX_INLINE void KillRecursive(Args&...args) {
 			static_assert(sizeof...(args) > 0);
-			auto sg = MakeScopeGuard([this] {
-				for (auto&& p : ptrs) {
-					*(uint32_t*)p = 0;
-				}
-				ptrs.clear();
-				});
-
 			(RecursiveReset_(args), ...);
+            for (auto&& p : ptrs) {
+                *(uint32_t*)p = 0;
+            }
+            ptrs.clear();
 		}
 
 	protected:
@@ -929,15 +915,12 @@ namespace xx {
 		template<typename...Args>
 		XX_INLINE int HasRecursive(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
-			//ptrs.clear();
-			auto sg = MakeScopeGuard([this] {
-				for (auto&& p : ptrs) {
-					*(uint32_t*)p = 0;
-				}
-				ptrs.clear();
-				});
-
-			return RecursiveCheck_(args...);
+			auto r = RecursiveCheck_(args...);
+            for (auto&& p : ptrs) {
+                *(uint32_t*)p = 0;
+            }
+            ptrs.clear();
+            return r;
 		}
 
 	protected:
