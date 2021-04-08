@@ -52,36 +52,6 @@ namespace xx {
 		T const& Last() const noexcept;							// [ tail-1 ]
 		T& Last() noexcept;
 		void PopLast() noexcept;								// --tail
-
-
-		// 计算内存对齐的工具函数
-		inline static size_t Calc2n(size_t const& n) noexcept {
-			assert(n);
-#ifdef _WIN32
-			unsigned long r = 0;
-			if constexpr (sizeof(size_t) == 8) {
-				_BitScanReverse64(&r, n);
-			}
-			else {
-				_BitScanReverse(&r, n);
-			}
-			return (size_t)r;
-#else
-			if constexpr (sizeof(size_t) == 8) {
-				return int(63 - __builtin_clzl(n));
-			}
-			else {
-				return int(31 - __builtin_clz(n));
-			}
-#endif
-		}
-
-		// 返回一个刚好大于 n 的 2^x 对齐数
-		inline static size_t Round2n(size_t const& n) noexcept {
-			auto rtv = size_t(1) << Calc2n(n);
-			if (rtv == n) return n;
-			else return rtv << 1;
-		}
 	};
 }
 

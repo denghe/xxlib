@@ -90,6 +90,25 @@ size_t _countof(T const (&arr)[N]) {
   ((type *) ((char *) (ptr) - _offsetof(type, member)))
 #endif
 
+
+// stackless 协程相关
+// 当前主要用到这些宏。只有 lineNumber 一个特殊变量名要求
+#define COR_BEGIN	switch (lineNumber) { case 0:
+#define COR_YIELD	return __LINE__; case __LINE__:;
+#define COR_EXIT	return 0;
+#define COR_END		} return 0;
+
+/*
+	int lineNumber = 0;
+	int Update() {
+		COR_BEGIN
+			// COR_YIELD
+		COR_END
+	}
+	... lineNumber = Update();
+*/
+
+
 #define XX_ENUM_OPERATOR_EXT( EnumTypeName )                                                                    \
 inline EnumTypeName operator+(EnumTypeName const &a, std::underlying_type_t<EnumTypeName> const &b)	{			\
     return EnumTypeName((std::underlying_type_t<EnumTypeName>)(a) + b);											\

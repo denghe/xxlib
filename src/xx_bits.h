@@ -38,22 +38,20 @@ namespace xx {
     // 返回首个出现 1 的 bit 的下标
     static size_t Calc2n(size_t const& n) {
         assert(n);
-#ifdef _WIN32
+#ifdef _MSC_VER
         unsigned long r = 0;
-        if constexpr (sizeof(size_t) == 8) {
-            _BitScanReverse64(&r, n);
-        }
-        else {
-            _BitScanReverse(&r, (unsigned long)n);
-        }
-        return (size_t)r;
+# if defined(_WIN64) || defined(_M_X64)
+        _BitScanReverse64(&r, n);
+# else
+        _BitScanReverse(&r, n);
+# endif
+        return (std::size_t)r;
 #else
-        if constexpr (sizeof(size_t) == 8) {
-            return int(63 - __builtin_clzl(n));
-        }
-        else {
-            return int(31 - __builtin_clz(n));
-        }
+# if defined(__LP64__) || __WORDSIZE == 64
+		return int(63 - __builtin_clzl(n));
+# else
+		return int(31 - __builtin_clz(n));
+# endif
 #endif
     }
 
