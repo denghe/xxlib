@@ -105,9 +105,10 @@ void Test3() {
         for (int i = 0; i < 10000000; ++i) {
             d.Clear();
 
-            om.WriteTo(d, f);
+            //om.WriteTo(d, f);
+            //f->Write(om, d);
 
-            //om.Write(d, f.id, f.name);
+            om.Write(d, f->id, f->name);
 
 //            d.WriteVarInteger(f.id);
 //            d.WriteVarInteger(f.name.size());

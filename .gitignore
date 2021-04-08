@@ -5,3 +5,5 @@ cmake-build-release
 /out
 bin
 obj
+/x64
+/xx_obj_test1/x64
