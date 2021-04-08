@@ -4,11 +4,11 @@ void CodeGen_p1::Register() {
 	::xx::ObjManager::Register<p1::p1c1>();
 }
 namespace p1{
-    void p1c1::Write(::xx::ObjManager& om) const {
-        om.Write(this->a);
+    void p1c1::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+        om.Write(d, this->a);
     }
-    int p1c1::Read(::xx::ObjManager& om) {
-        if (int r = om.Read(this->a)) return r;
+    int p1c1::Read(::xx::ObjManager& om, ::xx::Data& d) {
+        if (int r = om.Read(d, this->a)) return r;
         return 0;
     }
     void p1c1::Append(::xx::ObjManager& om) const {

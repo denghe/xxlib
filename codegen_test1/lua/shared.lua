@@ -1,13 +1,6 @@
-﻿require "objmgr"
-
-CodeGen_shared = {
-    md5 = "#*MD5<ba498c10e8924c142dee6a88f0c79708>*#",
-    Register = function()
-        local o = ObjMgr
-        o.Register(A)
-        o.Register(B)
-    end
-}
+﻿
+require('g_net')
+CodeGen_shared_md5 ="#*MD5<5d630eeaf0b302cbb628d5c5299a74bb>*#"
 
 A = {
     typeName = "A",
@@ -205,3 +198,7 @@ C = {
     end
 }
 C.__index = C
+
+local o = ObjMgr
+o.Register(A)
+o.Register(B)

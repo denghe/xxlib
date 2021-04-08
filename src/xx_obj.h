@@ -15,11 +15,11 @@ namespace xx {
 	// 接口函数适配模板. 特化 以扩展类型支持
 	template<typename T, typename ENABLED = void>
 	struct ObjFuncs {
-		static inline void Write(ObjManager& om, T const& in) {
+		static inline void Write(ObjManager& om, Data& d, T const& in) {
 			std::string s(TypeName_v<T>);
 			assert(false);
 		}
-		static inline int Read(ObjManager& om, T& out) {
+		static inline int Read(ObjManager& om, Data& d, T& out) {
 			return 0;
 		}
 		static inline void Append(ObjManager& om, T const& in) {
@@ -44,8 +44,8 @@ namespace xx {
 	/************************************************************************************/
 	// 方便复制
 	/*
-	inline void Write(xx::ObjManager& o) const override { }
-	inline int Read(xx::ObjManager& o) override { }
+	inline void Write(xx::ObjManager& o, xx::Data& d) const override { }
+	inline int Read(xx::ObjManager& o, xx::Data& d) override { }
 	inline void Append(xx::ObjManager& o) const override { }
 	inline void AppendCore(xx::ObjManager& o) const override { }
 	inline void Clone(xx::ObjManager& o, void* const& tar) const override { }
@@ -68,10 +68,10 @@ namespace xx {
 		virtual ~ObjBase() = default;
 
 		// 序列化
-		virtual void Write(ObjManager& om) const = 0;
+		virtual void Write(ObjManager& om, xx::Data& d) const = 0;
 
 		// 反序列化
-		virtual int Read(ObjManager& om) = 0;
+		virtual int Read(ObjManager& om, xx::Data& d) = 0;
 
 		// 输出 json 长相时用于输出外包围 {  } 部分
 		virtual void Append(ObjManager& om) const = 0;
@@ -205,17 +205,16 @@ namespace xx {
 				}
 				ptrs.clear();
 				});
-			Write_<Arg, true>(arg);
+			Write_<Arg, true>(d, arg);
 		}
 
 	protected:
 		// 内部函数
 		template<typename T, bool isFirst = false>
-		XX_INLINE void Write_(T const& v) {
-			auto& d = *data;
+		XX_INLINE void Write_(Data& d, T const& v) {
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
-				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
+				if constexpr (std::is_base_of_v<ObjBase, U> || TypeId_v<U> > 0) {
 					if (!v) {
 						// 如果是 空指针， offset 值写 0
 						d.WriteFixed((uint8_t)0);
@@ -230,7 +229,7 @@ namespace xx {
 								d.WriteVarInteger(h->offset);
 							}
 							d.WriteVarInteger(h->typeId);
-							Write_(*v.pointer);
+							Write_(d, *v.pointer);
 						}
 						else {
 							d.WriteVarInteger(h->offset);
@@ -240,7 +239,7 @@ namespace xx {
 				else {
 					if (v) {
 						d.WriteFixed((uint8_t)1);
-						Write_(*v);
+						Write_(d, *v);
 					}
 					else {
 						d.WriteFixed((uint8_t)0);
@@ -250,19 +249,19 @@ namespace xx {
 			else if constexpr (IsXxWeak_v<T>) {
 				if (v) {
 					auto p = v.h + 1;
-					Write_(*(Shared<typename T::ElementType>*) & p);
+					Write_(d, *(Shared<typename T::ElementType>*) & p);
 				}
 				else {
 					d.WriteFixed((uint8_t)0);
 				}
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				v.Write(*this);
+				v.Write(*this, d);
 			}
 			else if constexpr (IsOptional_v<T>) {
 				if (v.has_value()) {
 					d.WriteFixed((uint8_t)1);
-					Write_(*v);
+					Write_(d, *v);
 				}
 				else {
 					d.WriteFixed((uint8_t)0);
@@ -285,14 +284,14 @@ namespace xx {
 				}
 				else {
 					for (auto&& o : v) {
-						Write_(o);
+						Write_(d, o);
 					}
 				}
 			}
 			else if constexpr (IsUnorderedSet_v<T>) {
 				d.WriteVarInteger(v.size());
 				for (auto&& o : v) {
-					Write_(o);
+					Write_(d, o);
 				}
 			}
 			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
@@ -312,14 +311,14 @@ namespace xx {
 				}
 			}
 			else if constexpr (std::is_enum_v<T>) {
-				Write_(*(std::underlying_type_t<T>*) & v);
+				Write_(d, *(std::underlying_type_t<T>*) & v);
 			}
 			else if constexpr (std::is_floating_point_v<T>) {
 				d.WriteFixed(v);
 			}
 			else if constexpr (IsTuple_v<T>) {
 				std::apply([&](auto const &... args) {
-					(Write_(args), ...);
+					(Write_(d, args), ...);
 					}, v);
 			}
 			else if constexpr (IsPair_v<T>) {
@@ -332,16 +331,16 @@ namespace xx {
 				}
 			}
 			else {
-				ObjFuncs<T>::Write(*this, v);
+				ObjFuncs<T>::Write(*this, d, v);
 			}
 		}
 
 	public:
 		// 转发到 Write_
 		template<typename...Args>
-		XX_INLINE void Write(Args const&...args) {
+		XX_INLINE void Write(Data& d, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
-			(Write_(args), ...);
+			(Write_(d, args), ...);
 		}
 
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
@@ -358,25 +357,24 @@ namespace xx {
 				}
 				ptrs2.clear();
 				});
-			return Read_<Arg, true>(arg);
+			return Read_<Arg, true>(d, arg);
 		}
 
 	protected:
 		template<std::size_t I = 0, typename... Tp>
-		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
-			return Read_(std::get<I>(t));
+		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(Data& d, std::tuple<Tp...>& t) {
+			return Read_(d, std::get<I>(t));
 		}
 
 		template<std::size_t I = 0, typename... Tp>
-		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
-			if (int r = Read_(std::get<I>(t))) return r;
-			return ReadTuple<I + 1, Tp...>(t);
+		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(Data& d, std::tuple<Tp...>& t) {
+			if (int r = Read_(d, std::get<I>(t))) return r;
+			return ReadTuple<I + 1, Tp...>(d, t);
 		}
 
 		// 内部函数
 		template<typename T, bool isFirst = false>
-		XX_INLINE int Read_(T& v) {
-			auto& d = *data;
+		XX_INLINE int Read_(Data& d, T& v) {
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
@@ -385,7 +383,7 @@ namespace xx {
 						idx = 1;
 					}
 					else {
-						if (int r = Read_(idx)) return r;
+						if (int r = Read_(d, idx)) return r;
 						if (!idx) {
 							v.Reset();
 							return 0;
@@ -395,7 +393,7 @@ namespace xx {
 					auto len = (uint32_t)ptrs.size();
 					if (idx == len + 1) {
 						uint16_t typeId;
-						if (int r = Read_(typeId)) return r;
+						if (int r = Read_(d, typeId)) return r;
 						if (!typeId) return __LINE__;
 						if (!IsBaseOf<U>(typeId)) return __LINE__;
 
@@ -403,7 +401,7 @@ namespace xx {
 							v = std::move(Create(typeId).template ReinterpretCast<U>());
 						}
 						ptrs.emplace_back(v.pointer);
-						if (int r = Read_(*v)) return r;
+						if (int r = Read_(d, *v)) return r;
 					}
 					else {
 						if (idx > len) return __LINE__;
@@ -414,7 +412,7 @@ namespace xx {
 				}
 				else {
 					uint8_t hasValue;
-					if (int r = Read_(hasValue)) return r;
+					if (int r = Read_(d, hasValue)) return r;
 					if (!hasValue) {
 						v.Reset();
 						return 0;
@@ -422,12 +420,12 @@ namespace xx {
 					if (v.Empty()) {
 						v = MakeShared<U>();
 					}
-					return Read_(v.Value());
+					return Read_(d, v.Value());
 				}
 			}
 			else if constexpr (IsXxWeak_v<T>) {
 				Shared<typename T::ElementType> o;
-				if (int r = Read_(o)) return r;
+				if (int r = Read_(d, o)) return r;
 				if (o.pointer) {
 					ptrs2.emplace_back(o.pointer);
 					++o.header()->useCount;
@@ -435,11 +433,11 @@ namespace xx {
 				v = o;
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				return v.Read(*this);
+				return v.Read(*this, d);
 			}
 			else if constexpr (IsOptional_v<T>) {
 				uint8_t hasValue;
-				if (int r = Read_(hasValue)) return r;
+				if (int r = Read_(d, hasValue)) return r;
 				if (!hasValue) {
 					v.reset();
 					return 0;
@@ -447,11 +445,11 @@ namespace xx {
 				if (!v.has_value()) {
 					v.emplace();
 				}
-				return Read_(v.value());
+				return Read_(d, v.value());
 			}
 			else if constexpr (IsVector_v<T>) {
 				size_t siz = 0;
-				if (int r = Read_(siz)) return r;
+				if (int r = Read_(d, siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.resize(siz);
 				if (siz == 0) return 0;
@@ -461,30 +459,30 @@ namespace xx {
 				}
 				else {
 					for (size_t i = 0; i < siz; ++i) {
-						if (int r = Read_(buf[i])) return r;
+						if (int r = Read_(d, buf[i])) return r;
 					}
 				}
 			}
 			else if constexpr (IsUnorderedSet_v<T>) {
 				size_t siz = 0;
-				if (int r = Read_(siz)) return r;
+				if (int r = Read_(d, siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.clear();
 				if (siz == 0) return 0;
 				for (size_t i = 0; i < siz; ++i) {
-					if (int r = Read_(v.emplace())) return r;
+					if (int r = Read_(d, v.emplace())) return r;
 				}
 			}
 			else if constexpr (std::is_same_v<T, std::string>) {
 				size_t siz;
-				if (int r = Read_(siz)) return r;
+				if (int r = Read_(d, siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.assign((char*)d.buf + d.offset, siz);
 				d.offset += siz;
 			}
 			else if constexpr (std::is_same_v<T, Data>) {
 				size_t siz;
-				if (int r = Read_(siz)) return r;
+				if (int r = Read_(d, siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.Clear();
 				v.WriteBuf(d.buf + d.offset, siz);
@@ -499,7 +497,7 @@ namespace xx {
 				}
 			}
 			else if constexpr (std::is_enum_v<T>) {
-				return Read_(*(std::underlying_type_t<T>*) & v);
+				return Read_(d, *(std::underlying_type_t<T>*) & v);
 			}
 			else if constexpr (std::is_floating_point_v<T>) {
 				if (int r = d.ReadFixed(v))  return __LINE__ * 1000000 + r;
@@ -512,34 +510,34 @@ namespace xx {
 			}
 			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
 				size_t siz;
-				if (int r = Read_(siz)) return r;
+				if (int r = Read_(d, siz)) return r;
 				if (siz == 0) return 0;
 				if (d.offset + siz * 2 > d.len) return __LINE__;
 				for (size_t i = 0; i < siz; ++i) {
 					UnorderedMap_Pair_t<T> kv;
-					if (int r = Read_(kv.first, kv.second)) return r;
+					if (int r = Read_(d, kv.first, kv.second)) return r;
 					v.insert(std::move(kv));
 				}
 				return 0;
 			}
 			else {
-				return ObjFuncs<T>::Read(*this, v);;
+				return ObjFuncs<T>::Read(*this, d, v);;
 			}
 			return 0;
 		}
 
 		template<typename T, typename ...TS>
-		XX_INLINE int Read_(T& v, TS &...vs) {
-			if (auto r = Read_(v)) return r;
-			return Read_(vs...);
+		XX_INLINE int Read_(Data& d, T& v, TS &...vs) {
+			if (auto r = Read_(d, v)) return r;
+			return Read_(d, vs...);
 		}
 
 	public:
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		XX_INLINE int Read(Args&...args) {
+		XX_INLINE int Read(Data& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
-			return Read_(args...);
+			return Read_(d, args...);
 		}
 
 
@@ -1074,8 +1072,8 @@ T(T const&) = default; \
 T& operator=(T const&) = default; \
 T(T&& o) noexcept = default; \
 T& operator=(T&& o) noexcept = default; \
-void Write(xx::ObjManager& o) const override; \
-int Read(xx::ObjManager& o) override; \
+void Write(xx::ObjManager& o, xx::Data& d) const override; \
+int Read(xx::ObjManager& o, xx::Data& d) override; \
 void Append(xx::ObjManager& o) const override; \
 void AppendCore(xx::ObjManager& o) const override; \
 void Clone(xx::ObjManager& o, void* const& tar) const override; \
@@ -1093,8 +1091,8 @@ T& operator=(T&& o) noexcept = default;
 #define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \
 struct ObjFuncs<T, void> { \
-static void Write(ObjManager & om, T const& in); \
-static int Read(ObjManager & om, T & out); \
+static void Write(ObjManager & om, xx::Data& d, T const& in); \
+static int Read(ObjManager & om, xx::Data& d, T & out); \
 static void Append(ObjManager & om, T const& in); \
 static void AppendCore(ObjManager & om, T const& in); \
 static void Clone(ObjManager & om, T const& in, T & out); \

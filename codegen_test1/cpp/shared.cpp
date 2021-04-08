@@ -5,15 +5,15 @@ void CodeGen_shared::Register() {
 	::xx::ObjManager::Register<::B>();
 }
 namespace xx {
-	void ObjFuncs<::C, void>::Write(::xx::ObjManager& om, ::C const& in) {
-        om.Write(in.x);
-        om.Write(in.y);
-        om.Write(in.targets);
+	void ObjFuncs<::C, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::C const& in) {
+        om.Write(d, in.x);
+        om.Write(d, in.y);
+        om.Write(d, in.targets);
     }
-	int ObjFuncs<::C, void>::Read(::xx::ObjManager& om, ::C& out) {
-        if (int r = om.Read(out.x)) return r;
-        if (int r = om.Read(out.y)) return r;
-        if (int r = om.Read(out.targets)) return r;
+	int ObjFuncs<::C, void>::Read(::xx::ObjManager& om, ::xx::Data& d, ::C& out) {
+        if (int r = om.Read(d, out.x)) return r;
+        if (int r = om.Read(d, out.y)) return r;
+        if (int r = om.Read(d, out.targets)) return r;
         return 0;
     }
 	void ObjFuncs<::C, void>::Append(ObjManager &om, ::C const& in) {
@@ -52,30 +52,30 @@ namespace xx {
         om.SetDefaultValue(in.targets);
     }
 }
-void A::Write(::xx::ObjManager& om) const {
-    auto bak = om.data->WriteJump(sizeof(uint32_t));
-    om.Write(this->id);
-    om.Write(this->nick);
-    om.Write(this->parent);
-    om.Write(this->children);
-    om.data->WriteFixedAt(bak, (uint32_t)(om.data->len - bak));
+void A::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+    auto bak = d.WriteJump(sizeof(uint32_t));
+    om.Write(d, this->id);
+    om.Write(d, this->nick);
+    om.Write(d, this->parent);
+    om.Write(d, this->children);
+    d.WriteFixedAt(bak, (uint32_t)(d.len - bak));
 }
-int A::Read(::xx::ObjManager& om) {
+int A::Read(::xx::ObjManager& om, ::xx::Data& d) {
     uint32_t siz;
-    if (int r = om.data->ReadFixed(siz)) return r;
-    auto endOffset = om.data->offset - sizeof(siz) + siz;
+    if (int r = d.ReadFixed(siz)) return r;
+    auto endOffset = d.offset - sizeof(siz) + siz;
 
-    if (om.data->offset >= endOffset) this->id = 0;
-    else if (int r = om.Read(this->id)) return r;
-    if (om.data->offset >= endOffset) om.SetDefaultValue(this->nick);
-    else if (int r = om.Read(this->nick)) return r;
-    if (om.data->offset >= endOffset) om.SetDefaultValue(this->parent);
-    else if (int r = om.Read(this->parent)) return r;
-    if (om.data->offset >= endOffset) om.SetDefaultValue(this->children);
-    else if (int r = om.Read(this->children)) return r;
+    if (d.offset >= endOffset) this->id = 0;
+    else if (int r = om.Read(d, this->id)) return r;
+    if (d.offset >= endOffset) om.SetDefaultValue(this->nick);
+    else if (int r = om.Read(d, this->nick)) return r;
+    if (d.offset >= endOffset) om.SetDefaultValue(this->parent);
+    else if (int r = om.Read(d, this->parent)) return r;
+    if (d.offset >= endOffset) om.SetDefaultValue(this->children);
+    else if (int r = om.Read(d, this->children)) return r;
 
-    if (om.data->offset > endOffset) return __LINE__;
-    else om.data->offset = endOffset;
+    if (d.offset > endOffset) return __LINE__;
+    else d.offset = endOffset;
     return 0;
 }
 void A::Append(::xx::ObjManager& om) const {
@@ -119,19 +119,19 @@ void A::SetDefaultValue(::xx::ObjManager& om) {
     om.SetDefaultValue(this->parent);
     om.SetDefaultValue(this->children);
 }
-void B::Write(::xx::ObjManager& om) const {
-    this->BaseType::Write(om);
-    om.Write(this->data);
-    om.Write(this->c);
-    om.Write(this->c2);
-    om.Write(this->c3);
+void B::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+    this->BaseType::Write(om, d);
+    om.Write(d, this->data);
+    om.Write(d, this->c);
+    om.Write(d, this->c2);
+    om.Write(d, this->c3);
 }
-int B::Read(::xx::ObjManager& om) {
-    if (int r = this->BaseType::Read(om)) return r;
-    if (int r = om.Read(this->data)) return r;
-    if (int r = om.Read(this->c)) return r;
-    if (int r = om.Read(this->c2)) return r;
-    if (int r = om.Read(this->c3)) return r;
+int B::Read(::xx::ObjManager& om, ::xx::Data& d) {
+    if (int r = this->BaseType::Read(om, d)) return r;
+    if (int r = om.Read(d, this->data)) return r;
+    if (int r = om.Read(d, this->c)) return r;
+    if (int r = om.Read(d, this->c2)) return r;
+    if (int r = om.Read(d, this->c3)) return r;
     return 0;
 }
 void B::Append(::xx::ObjManager& om) const {

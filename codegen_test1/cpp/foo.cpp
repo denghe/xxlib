@@ -3,13 +3,13 @@
 void CodeGen_foo::Register() {
 	::xx::ObjManager::Register<::foo>();
 }
-void foo::Write(::xx::ObjManager& om) const {
-    om.Write(this->id);
-    om.Write(this->name);
+void foo::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+    om.Write(d, this->id);
+    om.Write(d, this->name);
 }
-int foo::Read(::xx::ObjManager& om) {
-    if (int r = om.Read(this->id)) return r;
-    if (int r = om.Read(this->name)) return r;
+int foo::Read(::xx::ObjManager& om, ::xx::Data& d) {
+    if (int r = om.Read(d, this->id)) return r;
+    if (int r = om.Read(d, this->name)) return r;
     return 0;
 }
 void foo::Append(::xx::ObjManager& om) const {
