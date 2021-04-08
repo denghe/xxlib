@@ -89,6 +89,7 @@ void Test2() {
 }
 
 #include "xx_string.h"
+
 void Test3() {
     xx::ObjManager om;
     xx::Data d;
@@ -96,14 +97,15 @@ void Test3() {
     auto f = xx::MakeShared<foo>();
     f->id = 100;
     f->name = "111111";
-    auto s = xx::NowEpochSeconds();
-    for (int i = 0; i < 10000000; ++i) {
-        d.WriteFixed(i);
-        //om.WriteTo(d, f);
+    for (int j = 0; j < 100; ++j) {
+        auto s = xx::NowEpochSeconds();
+        for (int i = 0; i < 10000000; ++i) {
+            d.Clear();
+            om.WriteTo(d, f);
+        }
+        xx::CoutN(xx::NowEpochSeconds() - s);
+        xx::CoutN(d);
     }
-    xx::CoutN(xx::NowEpochSeconds() - s);
-    std::cin.get();
-    xx::CoutN(d);
 }
 
 int main() {
