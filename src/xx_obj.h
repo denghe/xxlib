@@ -123,6 +123,8 @@ namespace xx {
 		static const uint16_t value = 0;
 	};
 
+	XX_HAS_TYPEDEF(IsSimpleType_v);
+
 	struct ObjManager {
 		// 公共上下文
 		std::vector<void*> ptrs;								// for write, append, clone
@@ -140,6 +142,9 @@ namespace xx {
 
 		// 存储 typeId 的 父typeId 的下标
 		inline static std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
+
+		// 存储 typeId 对应的 Type 是否为 "简单类型"( 只含有基础数据类型, 可跳过递归检测，简化序列化操作 )
+		inline static std::array<bool, std::numeric_limits<uint16_t>::max()> simples{};
 
 		// 根据 typeid 判断父子关系
 		XX_INLINE static bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) noexcept {
@@ -180,12 +185,17 @@ namespace xx {
 			}
 		}
 
-		// 关联 typeId 与创建函数
+		// 关联 typeId 与创建函数, 顺便再填充点别的
 		template<typename T>
 		XX_INLINE static void Register() {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			pids[TypeId_v<T>] = TypeId_v<typename T::BaseType>;
 			fs[TypeId_v<T>] = []() -> ObjBase_s { return MakeShared<T>(); };
+			if constexpr (IsSimpleType_v<T>) {
+				if constexpr (std::is_same_v<typename T::IsSimpleType_v, T>) {
+					simples[TypeId_v<T>] = true;
+				}
+			}
 		}
 
 		// 根据 typeId 来创建对象. 失败返回空
@@ -195,9 +205,35 @@ namespace xx {
 		}
 
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
-		template<typename Arg>
-		XX_INLINE void WriteTo(Data& d, Arg const& arg) {
-			Write_<Arg, true>(d, arg);
+		// 如果 v 就是 T 本体( 并非基类 ), 则可 令 direct = true 以加速写入操作
+		template<bool direct = false, typename T>
+		XX_INLINE void WriteTo(Data& d, T const& v) {
+			if constexpr (IsXxShared_v<T>) {
+				assert(v);
+				using U = typename T::ElementType;
+				if constexpr (direct) {
+					assert(((PtrHeader*)v.pointer - 1)->typeId == TypeId_v<U>);
+				}
+				if constexpr (direct && IsSimpleType_v<U>) {
+					d.WriteVarInteger(TypeId_v<U>);
+					v.pointer->U::Write(*this, d);
+					return;
+				}
+				else {
+					auto tid = ((PtrHeader*)v.pointer - 1)->typeId;
+					if (simples[tid]) {
+						d.WriteVarInteger(tid);
+						Write_(d, *v.pointer);
+						return;
+					}
+					else {
+						Write_<T, true>(d, v);
+					}
+				}
+			}
+			else {
+				Write_<T>(d, v);
+			}
             for (auto&& p : ptrs) {
                 *(uint32_t*)p = 0;
             }
@@ -341,9 +377,9 @@ namespace xx {
 
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
 		// 可传入开始读取的位置
-		template<typename Arg>
-		XX_INLINE int ReadFrom(Data& d, Arg& arg) {
-			auto r = Read_<Arg, true>(d, arg);
+		template<typename T>
+		XX_INLINE int ReadFrom(Data& d, T& v) {
+			auto r = Read_<T, IsXxShared_v<T>>(d, v);
             ptrs.clear();
             for (auto& p : ptrs2) {
                 if (--((PtrHeader*)p - 1)->useCount == 0) {

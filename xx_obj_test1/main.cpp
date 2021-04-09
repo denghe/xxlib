@@ -2,6 +2,12 @@
 #include "foo.h"
 #include <iostream>
 
+// om 增加快速读写模式, 不处理递归引用( 生成阶段可根据类结构判断 是否含有互引用 ). 即便可能递归的结构，也可以手工强制使用( 可 assert recursive check )
+// 有无递归可能，使用 type 来标注, has type 来检测??
+// 初期可先手工强制 + assert，发送方自己应该清楚是否含有递归, 接收则为不信任原则
+
+// 针对 发送的类 无派生类 的情况，可 check type 标注（ 生成器辅助生成 ), 然后调用 o->T::RW 能跳过虚函数跳表
+
 void Test1() {
     auto a = xx::MakeShared<A>();
     a->id = 11;
@@ -107,6 +113,14 @@ void Test3() {
     f2.id = 100;
     f2.name = "111111";
 
+
+    auto fb = xx::MakeShared<FishBase>();
+
+    auto fwc = xx::MakeShared<FishWithChilds>();
+    fwc->childs.push_back(fwc);
+    auto sg_fwc = xx::MakeScopeGuard([&] { om.KillRecursive(fwc); });
+
+
     for (int j = 0; j < 100; ++j) {
         {
             auto s = xx::NowEpochSeconds();
@@ -120,9 +134,25 @@ void Test3() {
             auto s = xx::NowEpochSeconds();
             for (int i = 0; i < 10000000; ++i) {
                 d.Clear();
+                om.WriteTo<true>(d, f);
+            }
+            xx::CoutN("om.WriteTo<true>(d, f)      ", xx::NowEpochSeconds() - s, d);
+        }
+        {
+            auto s = xx::NowEpochSeconds();
+            for (int i = 0; i < 10000000; ++i) {
+                d.Clear();
                 om.WriteTo(d, b);
             }
             xx::CoutN("om.WriteTo(d, b)            ", xx::NowEpochSeconds() - s, d);
+        }
+        {
+            auto s = xx::NowEpochSeconds();
+            for (int i = 0; i < 10000000; ++i) {
+                d.Clear();
+                om.WriteTo<true>(d, b);
+            }
+            xx::CoutN("om.WriteTo<true>(d, b)      ", xx::NowEpochSeconds() - s, d);
         }
         {
             auto s = xx::NowEpochSeconds();
@@ -132,62 +162,98 @@ void Test3() {
             }
             xx::CoutN("om.WriteTo(d, f2)           ", xx::NowEpochSeconds() - s, d);
         }
+
         {
             auto s = xx::NowEpochSeconds();
             for (int i = 0; i < 10000000; ++i) {
                 d.Clear();
-                om.Write(d, f2);
+                om.WriteTo(d, fb);
             }
-            xx::CoutN("om.Write(d, f2)             ", xx::NowEpochSeconds() - s, d);
+            xx::CoutN("om.WriteTo(d, fb)           ", xx::NowEpochSeconds() - s, d);
         }
         {
             auto s = xx::NowEpochSeconds();
             for (int i = 0; i < 10000000; ++i) {
                 d.Clear();
-                om.Write(d, *f);
+                om.WriteTo<true>(d, fb);
             }
-            xx::CoutN("om.Write(d, *f)             ", xx::NowEpochSeconds() - s, d);
+            xx::CoutN("om.WriteTo<true>(d, fb)     ", xx::NowEpochSeconds() - s, d);
+        }
+
+        {
+            auto s = xx::NowEpochSeconds();
+            for (int i = 0; i < 10000000; ++i) {
+                d.Clear();
+                om.WriteTo(d, fwc);
+            }
+            xx::CoutN("om.WriteTo(d, fwc)          ", xx::NowEpochSeconds() - s, d);
         }
         {
             auto s = xx::NowEpochSeconds();
             for (int i = 0; i < 10000000; ++i) {
                 d.Clear();
-                f->Write(om, d);
+                om.WriteTo<true>(d, fwc);
             }
-            xx::CoutN("f->Write(om, d)             ", xx::NowEpochSeconds() - s, d);
+            xx::CoutN("om.WriteTo<true>(d, fwc)    ", xx::NowEpochSeconds() - s, d);
         }
-        {
-            auto s = xx::NowEpochSeconds();
-            for (int i = 0; i < 10000000; ++i) {
-                d.Clear();
-                f->foo::Write(om, d);
-            }
-            xx::CoutN("f->foo::Write(om, d)        ", xx::NowEpochSeconds() - s, d);
-        }
-        {
-            auto s = xx::NowEpochSeconds();
-            for (int i = 0; i < 10000000; ++i) {
-                d.Clear();
-                b->Write(om, d);
-            }
-            xx::CoutN("b->Write(om, d)             ", xx::NowEpochSeconds() - s, d);
-        }
-        {
-            auto s = xx::NowEpochSeconds();
-            for (int i = 0; i < 10000000; ++i) {
-                d.Clear();
-                b->bar::Write(om, d);
-            }
-            xx::CoutN("b->bar::Write(om, d)        ", xx::NowEpochSeconds() - s, d);
-        }
-        {
-            auto s = xx::NowEpochSeconds();
-            for (int i = 0; i < 10000000; ++i) {
-                d.Clear();
-                om.Write(d, f->id, f->name);
-            }
-            xx::CoutN("om.Write(d, f->id, f->name) ", xx::NowEpochSeconds() - s, d);
-        }
+
+
+        //{
+        //    auto s = xx::NowEpochSeconds();
+        //    for (int i = 0; i < 10000000; ++i) {
+        //        d.Clear();
+        //        om.Write(d, f2);
+        //    }
+        //    xx::CoutN("om.Write(d, f2)             ", xx::NowEpochSeconds() - s, d);
+        //}
+        //{
+        //    auto s = xx::NowEpochSeconds();
+        //    for (int i = 0; i < 10000000; ++i) {
+        //        d.Clear();
+        //        om.Write(d, *f);
+        //    }
+        //    xx::CoutN("om.Write(d, *f)             ", xx::NowEpochSeconds() - s, d);
+        //}
+        //{
+        //    auto s = xx::NowEpochSeconds();
+        //    for (int i = 0; i < 10000000; ++i) {
+        //        d.Clear();
+        //        f->Write(om, d);
+        //    }
+        //    xx::CoutN("f->Write(om, d)             ", xx::NowEpochSeconds() - s, d);
+        //}
+        //{
+        //    auto s = xx::NowEpochSeconds();
+        //    for (int i = 0; i < 10000000; ++i) {
+        //        d.Clear();
+        //        f->foo::Write(om, d);
+        //    }
+        //    xx::CoutN("f->foo::Write(om, d)        ", xx::NowEpochSeconds() - s, d);
+        //}
+        //{
+        //    auto s = xx::NowEpochSeconds();
+        //    for (int i = 0; i < 10000000; ++i) {
+        //        d.Clear();
+        //        b->Write(om, d);
+        //    }
+        //    xx::CoutN("b->Write(om, d)             ", xx::NowEpochSeconds() - s, d);
+        //}
+        //{
+        //    auto s = xx::NowEpochSeconds();
+        //    for (int i = 0; i < 10000000; ++i) {
+        //        d.Clear();
+        //        b->bar::Write(om, d);
+        //    }
+        //    xx::CoutN("b->bar::Write(om, d)        ", xx::NowEpochSeconds() - s, d);
+        //}
+        //{
+        //    auto s = xx::NowEpochSeconds();
+        //    for (int i = 0; i < 10000000; ++i) {
+        //        d.Clear();
+        //        om.Write(d, f->id, f->name);
+        //    }
+        //    xx::CoutN("om.Write(d, f->id, f->name) ", xx::NowEpochSeconds() - s, d);
+        //}
     }
 }
 
