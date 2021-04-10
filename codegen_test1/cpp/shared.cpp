@@ -5,10 +5,11 @@ void CodeGen_shared::Register() {
 	::xx::ObjManager::Register<::B>();
 }
 namespace xx {
+    template<bool needReserve>
 	void ObjFuncs<::C, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::C const& in) {
-        om.Write(d, in.x);
-        om.Write(d, in.y);
-        om.Write(d, in.targets);
+        om.Write<needReserve>(d, in.x);
+        om.Write<needReserve>(d, in.y);
+        om.Write<needReserve>(d, in.targets);
     }
 	int ObjFuncs<::C, void>::Read(::xx::ObjManager& om, ::xx::Data& d, ::C& out) {
         if (int r = om.Read(d, out.x)) return r;

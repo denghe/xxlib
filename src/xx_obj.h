@@ -15,6 +15,7 @@ namespace xx {
 	// 接口函数适配模板. 特化 以扩展类型支持
 	template<typename T, typename ENABLED = void>
 	struct ObjFuncs {
+		template<bool needReserve = true>
 		static inline void Write(ObjManager& om, Data& d, T const& in) {
 			std::string s(TypeName_v<T>);
 			assert(false);
@@ -227,7 +228,7 @@ namespace xx {
 						return;
 					}
 					else {
-						Write_<T, true>(d, v);
+						Write_<true, T, true>(d, v);
 					}
 				}
 			}
@@ -242,14 +243,14 @@ namespace xx {
 
 	protected:
 		// 内部函数
-		template<typename T, bool isFirst = false>
+		template<bool needReserve = true, typename T, bool isFirst = false>
 		XX_INLINE void Write_(Data& d, T const& v) {
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_base_of_v<ObjBase, U> || TypeId_v<U> > 0) {
 					if (!v) {
 						// 如果是 空指针， offset 值写 0
-						d.WriteFixed((uint8_t)0);
+						d.WriteFixed<needReserve>((uint8_t)0);
 					}
 					else {
 						// 写入格式： idx + typeId + content ( idx 临时存入 h->offset )
@@ -258,33 +259,33 @@ namespace xx {
 							ptrs.push_back(&h->offset);
 							h->offset = (uint32_t)ptrs.size();
 							if constexpr (!isFirst) {
-								d.WriteVarInteger(h->offset);
+								d.WriteVarInteger<needReserve>(h->offset);
 							}
-							d.WriteVarInteger(h->typeId);
-							Write_(d, *v.pointer);
+							d.WriteVarInteger<needReserve>(h->typeId);
+							Write_<needReserve>(d, *v.pointer);
 						}
 						else {
-							d.WriteVarInteger(h->offset);
+							d.WriteVarInteger<needReserve>(h->offset);
 						}
 					}
 				}
 				else {
 					if (v) {
-						d.WriteFixed((uint8_t)1);
-						Write_(d, *v);
+						d.WriteFixed<needReserve>((uint8_t)1);
+						Write_<needReserve>(d, *v);
 					}
 					else {
-						d.WriteFixed((uint8_t)0);
+						d.WriteFixed<needReserve>((uint8_t)0);
 					}
 				}
 			}
 			else if constexpr (IsXxWeak_v<T>) {
 				if (v) {
 					auto p = v.h + 1;
-					Write_(d, *(Shared<typename T::ElementType>*) & p);
+					Write_<needReserve>(d, *(Shared<typename T::ElementType>*) & p);
 				}
 				else {
-					d.WriteFixed((uint8_t)0);
+					d.WriteFixed<needReserve>((uint8_t)0);
 				}
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
@@ -292,87 +293,83 @@ namespace xx {
 			}
 			else if constexpr (IsOptional_v<T>) {
 				if (v.has_value()) {
-					d.WriteFixed((uint8_t)1);
-					Write_(d, *v);
+					d.WriteFixed<needReserve>((uint8_t)1);
+					Write_<needReserve>(d, *v);
 				}
 				else {
-					d.WriteFixed((uint8_t)0);
+					d.WriteFixed<needReserve>((uint8_t)0);
 				}
 			}
-			else if constexpr (IsVector_v<T>) {
-				d.WriteVarInteger(v.size());
+			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+				d.WriteVarInteger<needReserve>(v.size());
 				if (v.empty()) return;
-				if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
-					d.WriteFixedArray(v.data(), v.size());
+				if constexpr (IsVector_v < T> && (sizeof(T) == 1 || std::is_floating_point_v<T>)) {
+					d.WriteFixedArray<needReserve>(v.data(), v.size());
 				}
 				else if constexpr (std::is_integral_v<typename T::value_type>) {
-					auto cap = v.size() * (sizeof(T) + 1);
-					if (d.cap < cap) {
-						d.Reserve<false>(cap);
+					if constexpr (needReserve) {
+						auto cap = v.size() * (sizeof(T) + 1);
+						if (d.cap < cap) {
+							d.Reserve<false>(cap);
+						}
 					}
 					for (auto&& o : v) {
-						d.WriteVarInteger<typename T::value_type, false>(o);
+						d.WriteVarInteger<false>(o);
 					}
 				}
 				else {
 					for (auto&& o : v) {
-						Write_(d, o);
+						Write_<needReserve>(d, o);
 					}
-				}
-			}
-			else if constexpr (IsUnorderedSet_v<T>) {
-				d.WriteVarInteger(v.size());
-				for (auto&& o : v) {
-					Write_(d, o);
 				}
 			}
 			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
-				d.WriteVarInteger(v.size());
-				d.WriteBuf(v.data(), v.size());
+				d.WriteVarInteger<needReserve>(v.size());
+				d.WriteBuf<needReserve>(v.data(), v.size());
 			}
 			else if constexpr (std::is_base_of_v<Span, T>) {
-				d.WriteVarInteger(v.len);
-				d.WriteBuf(v.buf, v.len);
+				d.WriteVarInteger<needReserve>(v.len);
+				d.WriteBuf<needReserve>(v.buf, v.len);
 			}
 			else if constexpr (std::is_integral_v<T>) {
 				if constexpr (sizeof(T) == 1) {
-					d.WriteFixed(v);
+					d.WriteFixed<needReserve>(v);
 				}
 				else {
-					d.WriteVarInteger(v);
+					d.WriteVarInteger<needReserve>(v);
 				}
 			}
 			else if constexpr (std::is_enum_v<T>) {
-				Write_(d, *(std::underlying_type_t<T>*) & v);
+				Write_<needReserve>(d, *(std::underlying_type_t<T>*) & v);
 			}
 			else if constexpr (std::is_floating_point_v<T>) {
-				d.WriteFixed(v);
+				d.WriteFixed<needReserve>(v);
 			}
 			else if constexpr (IsTuple_v<T>) {
 				std::apply([&](auto const &... args) {
-					(Write_(d, args), ...);
+					(Write_<needReserve>(d, args), ...);
 					}, v);
 			}
 			else if constexpr (IsPair_v<T>) {
-				Write(v.first, v.second);
+				Write<needReserve>(v.first, v.second);
 			}
 			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
-				d.WriteVarInteger(v.size());
+				d.WriteVarInteger<needReserve>(v.size());
 				for (auto&& kv : v) {
-					Write(kv.first, kv.second);
+					Write<needReserve>(kv.first, kv.second);
 				}
 			}
 			else {
-				ObjFuncs<T>::Write(*this, d, v);
+				ObjFuncs<T>::Write<needReserve>(*this, d, v);
 			}
 		}
 
 	public:
 		// 转发到 Write_
-		template<typename...Args>
+		template<bool needReserve = true, typename...Args>
 		XX_INLINE void Write(Data& d, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
-			(Write_(d, args), ...);
+			(Write_<needReserve>(d, args), ...);
 		}
 
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
@@ -1110,6 +1107,7 @@ T& operator=(T&& o) noexcept = default;
 #define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \
 struct ObjFuncs<T, void> { \
+template<bool needReserve> \
 static void Write(ObjManager & om, xx::Data& d, T const& in); \
 static int Read(ObjManager & om, xx::Data& d, T & out); \
 static void Append(ObjManager & om, T const& in); \

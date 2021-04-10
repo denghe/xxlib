@@ -244,7 +244,8 @@ namespace xx {
                 u |= UT((b & 0x7Fu) << shift);
                 if ((b & 0x80) == 0) {
                     if constexpr (std::is_signed_v<T>) {
-                        v = ZigZagDecode(u);
+                        if constexpr (sizeof(T) <= 4) v = ZigZagDecode(uint32_t(u));
+                        else v = ZigZagDecode(uint64_t(u));
                     } else {
                         v = u;
                     }
@@ -421,7 +422,7 @@ namespace xx {
 
 
         // 追加写入 float / double / integer ( 定长 Little Endian )
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
+        template<bool needReserve = true, typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_INLINE void WriteFixed(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
@@ -448,7 +449,7 @@ namespace xx {
         }
 
         // 追加写入 float / double / integer ( 定长 Big Endian )
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
+        template<bool needReserve = true, typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_INLINE void WriteFixedBE(T v) {
             if constexpr (needReserve) {
                 if (len + sizeof(T) > cap) {
@@ -475,7 +476,7 @@ namespace xx {
         }
 
         // 追加写入 float / double / integer ( 定长 Little Endian ) 数组
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
+        template<bool needReserve = true, typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
         [[maybe_unused]] XX_INLINE void WriteFixedArray(T const* const& ptr, size_t const& siz) {
             assert(ptr);
             if constexpr (needReserve) {
@@ -497,12 +498,13 @@ namespace xx {
         }
 
         // 追加写入整数( 7bit 变长格式 )
-        template<typename T, bool needReserve = true, typename = std::enable_if_t<std::is_integral_v<T>>>
+        template<bool needReserve = true, typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
         [[maybe_unused]] XX_INLINE void WriteVarInteger(T const &v) {
             using UT = std::make_unsigned_t<T>;
             UT u(v);
             if constexpr (std::is_signed_v<T>) {
-                u = ZigZagEncode(v);
+                if constexpr (sizeof(T) <= 4) u = ZigZagEncode(int32_t(v));
+                else u = ZigZagEncode(int64_t(v));
             }
             if constexpr (needReserve) {
                 if (len + sizeof(T) + 2 > cap) {

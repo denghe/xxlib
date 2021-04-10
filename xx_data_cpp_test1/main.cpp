@@ -200,7 +200,7 @@ void Test1() {
 	assert(d2[7] == 255);
 	assert(d2[8] == 127);
 	d2.Clear();
-	d2.WriteFixedArray<char>("12345", 5);
+	d2.WriteFixedArray<true, char>("12345", 5);
 	assert(d2.len == 5);
 	assert(d2[0] == '1');
 	assert(d2[1] == '2');
