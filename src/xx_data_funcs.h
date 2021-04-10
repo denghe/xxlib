@@ -122,25 +122,27 @@ namespace xx {
 	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsMapSeries_v<T>&& IsBaseDataType_v<typename T::key_type>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
 	
 	// tuple 得遍历每个类型来判断
-	template<std::size_t index, typename Tuple>
-	constexpr bool TupleIsBaseDataType__() {
-		if constexpr (index == std::tuple_size_v<Tuple>) {
-			return true;
+	template<typename Tuple, typename = std::enable_if_t<IsTuple_v<Tuple>>>
+	struct TupleIsBaseDataType {
+		template<std::size_t index>
+		static constexpr bool Check__() {
+			if constexpr (index == std::tuple_size_v<Tuple>) {
+				return true;
+			}
+			else {
+				return IsBaseDataType_v<std::tuple_element_t<index, Tuple>> ? Check__<index + 1>() : false;
+			}
 		}
-		else {
-			return IsBaseDataType_v<std::tuple_element_t<index, Tuple>> ? TupleIsBaseDataType__<index + 1, Tuple>() : false;
+		static constexpr bool Check() {
+			return Check__<0>();
 		}
-	}
-	template<typename Tuple>
-	constexpr bool TupleIsBaseDataType() {
-		return TupleIsBaseDataType__<0, Tuple>();
-	}
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsTuple_v<T>&& TupleIsBaseDataType<T>() >> : std::true_type {};
+	};
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsTuple_v<T>&& TupleIsBaseDataType<T>::Check() >> : std::true_type {};
 
 
 	// 适配 std::optional<T>
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t<IsBaseDataType_v<T>&& IsOptional_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t<IsOptional_v<T> && IsBaseDataType_v<T>>> {
 		static inline void Write(Data& dw, T const& in) {
 			if (in.has_value()) {
 				dw.Write((char)1, in.value());
@@ -162,7 +164,7 @@ namespace xx {
 
 	// 适配 std::pair<K, V>
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t<IsBaseDataType_v<T>&& IsPair_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t<IsPair_v<T> && IsBaseDataType_v<T>>> {
 		static inline void Write(Data& dw, T const& in) {
 			dw.Write(in.first, in.second);
 		}
