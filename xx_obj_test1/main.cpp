@@ -135,11 +135,11 @@ void Test3() {
 			xx::Data dd;
 			//foo2 f3;
 			for (int i = 0; i < 10000000; ++i) {
-				//if (int r = om.ReadFrom(d, f2)) break;
+				if (int r = om.ReadFrom(d, f2)) break;
 				//if (int r = om.Read(d, f2)) break;
 				//if (int r = d.Read(f2.id, f2.d)) break;
-				//if (int r = xx::ObjFuncs<foo2>::Read(om, d, f3)) break;
-				if (int r = d.Read(id, dd)) break;
+				//if (int r = xx::ObjFuncs<foo2>::Read(om, d, f2)) break;
+				//if (int r = d.Read(id, dd)) break;
 
 			}
 			xx::CoutN("om.ReadFrom(d, f2)             secs = ", xx::NowEpochSeconds() - s, " d.len = ", d.len, " d.cap = ", d.cap, " d.offset = ", d.offset);
