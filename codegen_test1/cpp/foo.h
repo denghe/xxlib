@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "foo.h.inc"
 struct CodeGen_foo {
-	inline static const ::std::string md5 = "#*MD5<7a578c9d53f63f4d9aec554d5688774f>*#";
+	inline static const ::std::string md5 = "#*MD5<e1cc02ac460368f1c716bf7bbd9a2f23>*#";
     static void Register();
     CodeGen_foo() { Register(); }
 };
@@ -22,7 +22,7 @@ struct foo2 {
     XX_OBJ_STRUCT_H(foo2)
     using IsSimpleType_v = foo2;
     int32_t id = 0;
-    ::std::string name;
+    ::xx::Data d;
 };
 struct foo : ::xx::ObjBase {
     XX_OBJ_OBJECT_H(foo, ::xx::ObjBase)

@@ -9,15 +9,15 @@ void CodeGen_foo::Register() {
 namespace xx {
 	void ObjFuncs<::foo2, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::foo2 const& in) {
         om.Write(d, in.id);
-        om.Write(d, in.name);
+        om.Write(d, in.d);
     }
 	void ObjFuncs<::foo2, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::foo2 const& in) {
         om.Write<false>(d, in.id);
-        om.Write<false>(d, in.name);
+        om.Write<false>(d, in.d);
     }
 	int ObjFuncs<::foo2, void>::Read(::xx::ObjManager& om, ::xx::Data& d, ::foo2& out) {
         if (int r = om.Read(d, out.id)) return r;
-        if (int r = om.Read(d, out.name)) return r;
+        if (int r = om.Read(d, out.d)) return r;
         return 0;
     }
 	void ObjFuncs<::foo2, void>::Append(ObjManager &om, ::foo2 const& in) {
@@ -30,25 +30,25 @@ namespace xx {
 	void ObjFuncs<::foo2, void>::AppendCore(ObjManager &om, ::foo2 const& in) {
 #ifndef XX_DISABLE_APPEND
         om.Append("\"id\":", in.id); 
-        om.Append(",\"name\":", in.name);
+        om.Append(",\"d\":", in.d);
 #endif
     }
     void ObjFuncs<::foo2>::Clone(::xx::ObjManager& om, ::foo2 const& in, ::foo2 &out) {
         om.Clone_(in.id, out.id);
-        om.Clone_(in.name, out.name);
+        om.Clone_(in.d, out.d);
     }
     int ObjFuncs<::foo2>::RecursiveCheck(::xx::ObjManager& om, ::foo2 const& in) {
         if (int r = om.RecursiveCheck(in.id)) return r;
-        if (int r = om.RecursiveCheck(in.name)) return r;
+        if (int r = om.RecursiveCheck(in.d)) return r;
         return 0;
     }
     void ObjFuncs<::foo2>::RecursiveReset(::xx::ObjManager& om, ::foo2& in) {
         om.RecursiveReset(in.id);
-        om.RecursiveReset(in.name);
+        om.RecursiveReset(in.d);
     }
     void ObjFuncs<::foo2>::SetDefaultValue(::xx::ObjManager& om, ::foo2& in) {
         in.id = 0;
-        om.SetDefaultValue(in.name);
+        om.SetDefaultValue(in.d);
     }
 }
 void foo::Write(::xx::ObjManager& om, ::xx::Data& d) const {

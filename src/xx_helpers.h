@@ -6,11 +6,13 @@
 #include <chrono>
 #include <optional>
 #include <array>
+#include <tuple>
 #include <vector>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <unordered_map>
+#include <set>
 #include <map>
 #include <memory>
 #include <functional>
@@ -203,6 +205,26 @@ namespace xx {
 
 
 	template<typename T>
+	struct IsSet : std::false_type {
+	};
+	template<typename T>
+	struct IsSet<std::set<T>> : std::true_type {
+	};
+	template<typename T>
+	struct IsSet<std::set<T>&> : std::true_type {
+	};
+	template<typename T>
+	struct IsSet<std::set<T> const&> : std::true_type {
+	};
+	template<typename T>
+	constexpr bool IsSet_v = IsSet<T>::value;
+
+
+	template<typename T>
+	constexpr bool IsSetSeries_v = IsSet_v<T> || IsUnorderedSet_v<T>;
+
+
+	template<typename T>
 	struct IsUnorderedMap : std::false_type {
 	};
 	template<typename K, typename V>
@@ -313,6 +335,50 @@ namespace xx {
 	constexpr bool IsFunction_v = IsFunction<T>::value;
 	template<typename T>
 	using FunctionType_t = typename IsFunction<T>::FT;
+
+
+
+
+	// 判断 tuple 里是否存在某种数据类型
+
+	template <typename T, typename Tuple>
+	struct HasType;
+
+	template <typename T>
+	struct HasType<T, std::tuple<>> : std::false_type {};
+
+	template <typename T, typename U, typename... Ts>
+	struct HasType<T, std::tuple<U, Ts...>> : HasType<T, std::tuple<Ts...>> {};
+
+	template <typename T, typename... Ts>
+	struct HasType<T, std::tuple<T, Ts...>> : std::true_type {};
+
+	template <typename T, typename Tuple>
+	using TupleContainsType = typename HasType<T, Tuple>::type;
+
+	template <typename T, typename Tuple>
+	constexpr bool TupleContainsType_v = TupleContainsType<T, Tuple>::value;
+
+
+	// 计算某类型在 tuple 里是第几个
+
+	template <class T, class Tuple>
+	struct TupleTypeIndex;
+
+	template <class T, class...TS>
+	struct TupleTypeIndex<T, std::tuple<T, TS...>> {
+		static const size_t value = 0;
+	};
+
+	template <class T, class U, class... TS>
+	struct TupleTypeIndex<T, std::tuple<U, TS...>> {
+		static const size_t value = 1 + TupleTypeIndex<T, std::tuple<TS...>>::value;
+	};
+
+	template <typename T, typename Tuple>
+	constexpr size_t TupleTypeIndex_v = TupleTypeIndex<T, Tuple>::value;
+
+
 
 
 	/************************************************************************************/

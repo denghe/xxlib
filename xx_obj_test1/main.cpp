@@ -107,7 +107,7 @@ void Test3() {
 
 	foo2 f2;
 	f2.id = 100;
-	f2.name = "111111";
+	f2.d.Fill({ 1,1,1,1,1,1 });
 	xx::CoutN(om.ToString(f2));
 
 	d.Reserve(10000000 * 5 * 3);
@@ -132,7 +132,9 @@ void Test3() {
 		{
 			auto s = xx::NowEpochSeconds();
 			for (int i = 0; i < 10000000; ++i) {
-				if (int r = om.ReadFrom(d, f2)) break;
+				//if (int r = om.ReadFrom(d, f2)) break;
+				//if (int r = om.Read(d, f2.id, f2.d)) break;
+				if (int r = d.Read(f2.id, f2.d)) break;
 			}
 			xx::CoutN("om.ReadFrom(d, f2)             secs = ", xx::NowEpochSeconds() - s, " d.len = ", d.len, " d.cap = ", d.cap, " d.offset = ", d.offset);
 		}

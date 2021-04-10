@@ -9,7 +9,7 @@ class foo {
 [Struct]
 class foo2 {
     int id;
-    string name;
+    byte[] d;
 };
 
 [TypeId(22)]

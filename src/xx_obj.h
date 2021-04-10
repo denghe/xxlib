@@ -209,7 +209,7 @@ namespace xx {
 			return fs[typeId]();
 		}
 
-		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
+		// 向 data 写入数据( 支持 Shared<T> 或 T 结构体 ). 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		// 如果 v 是 Shared<T> 类型 且 v 的类型 和 T 完全一致( 并非基类 ), 则可 令 direct = true 以加速写入操作
 		// 如果有预分配 data 的内存，可设置 needReserve 为 false. 主要针对结构体嵌套的简单类型. 遇到 "类" 会阻断 ( 需有充分把握，最好在结束后 assert( d.len <= d.cap ) )
 		template<bool needReserve = true, bool direct = false, typename T>
@@ -384,8 +384,8 @@ namespace xx {
 			(Write_<needReserve>(d, args), ...);
 		}
 
-		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
-		// 可传入开始读取的位置
+		// 从 data 读入 / 反序列化, 填充到 v. ( 支持 Shared<T> 或 T 结构体 )( 主要入口 )
+		// 原则: 尽量值覆盖, 不新建对象
 		template<typename T>
 		XX_INLINE int ReadFrom(Data& d, T& v) {
 			auto r = Read_<T, IsXxShared_v<T>>(d, v);
