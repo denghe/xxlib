@@ -2,8 +2,6 @@
 #include "foo.h"
 #include <iostream>
 
-// todo: 针对 “简单类型”， 似乎可以批量 Reserve。生成的代码可提前来一发，中途的写入就跳过
-
 void Test1() {
 	auto a = xx::MakeShared<A>();
 	a->id = 11;
@@ -110,13 +108,7 @@ void Test3() {
 	foo2 f2;
 	f2.id = 100;
 	f2.name = "111111";
-
-
-	//auto fb = xx::MakeShared<FishBase>();
-
-	//auto fwc = xx::MakeShared<FishWithChilds>();
-	//fwc->childs.push_back(fwc);
-	//auto sg_fwc = xx::MakeScopeGuard([&] { om.KillRecursive(fwc); });
+	xx::CoutN(om.ToString(f2));
 
 	d.Reserve(10000000 * 5 * 3);
 
@@ -125,142 +117,27 @@ void Test3() {
 			d.Clear();
 			auto s = xx::NowEpochSeconds();
 			for (int i = 0; i < 10000000; ++i) {
-				om.Write(d, f2);
+				om.WriteTo(d, f2);
 			}
-			xx::CoutN("om.Write(d, f2);      ", xx::NowEpochSeconds() - s, " ", d.len);
+			xx::CoutN("om.WriteTo(d, f2);             secs = ", xx::NowEpochSeconds() - s, " d.len = ", d.len, " d.cap = ", d.cap);
 		}
-		//{
-		//	auto s = xx::NowEpochSeconds();
-		//	for (int i = 0; i < 10000000; ++i) {
-		//		int n;
-		//		d.ReadVarInteger(n);
-		//	}
-		//	xx::CoutN("d.ReadVarInteger(n);              ", xx::NowEpochSeconds() - s, " ", d.offset);
-		//}
-		//uint64_t crc = 0;
-		//for (size_t i = 0; i < d.len; ++i) {
-		//	crc += (uint64_t)d[i];
-		//}
-		//xx::CoutN("d.crc = ", crc);
-		//        {
-		//            auto s = xx::NowEpochSeconds();
-		//            for (int i = 0; i < 10000000; ++i) {
-		//                d.Clear();
-		//                om.WriteTo(d, b);
-		//            }
-		//            xx::CoutN("om.WriteTo(d, b)            ", xx::NowEpochSeconds() - s, d);
-		//        }
-		//        {
-		//            auto s = xx::NowEpochSeconds();
-		//            for (int i = 0; i < 10000000; ++i) {
-		//                d.Clear();
-		//                om.WriteTo<true>(d, b);
-		//            }
-		//            xx::CoutN("om.WriteTo<true>(d, b)      ", xx::NowEpochSeconds() - s, d);
-		//        }
-		//        {
-		//            auto s = xx::NowEpochSeconds();
-		//            for (int i = 0; i < 10000000; ++i) {
-		//                d.Clear();
-		//                om.WriteTo(d, f2);
-		//            }
-		//            xx::CoutN("om.WriteTo(d, f2)           ", xx::NowEpochSeconds() - s, d);
-		//        }
-		//
-		//        {
-		//            auto s = xx::NowEpochSeconds();
-		//            for (int i = 0; i < 10000000; ++i) {
-		//                d.Clear();
-		//                om.WriteTo(d, fb);
-		//            }
-		//            xx::CoutN("om.WriteTo(d, fb)           ", xx::NowEpochSeconds() - s, d);
-		//        }
-		//        {
-		//            auto s = xx::NowEpochSeconds();
-		//            for (int i = 0; i < 10000000; ++i) {
-		//                d.Clear();
-		//                om.WriteTo<true>(d, fb);
-		//            }
-		//            xx::CoutN("om.WriteTo<true>(d, fb)     ", xx::NowEpochSeconds() - s, d);
-		//        }
-		//
-		//        {
-		//            auto s = xx::NowEpochSeconds();
-		//            for (int i = 0; i < 10000000; ++i) {
-		//                d.Clear();
-		//                om.WriteTo(d, fwc);
-		//            }
-		//            xx::CoutN("om.WriteTo(d, fwc)          ", xx::NowEpochSeconds() - s, d);
-		//        }
-		//        {
-		//            auto s = xx::NowEpochSeconds();
-		//            for (int i = 0; i < 10000000; ++i) {
-		//                d.Clear();
-		//                om.WriteTo<true>(d, fwc);
-		//            }
-		//            xx::CoutN("om.WriteTo<true>(d, fwc)    ", xx::NowEpochSeconds() - s, d);
-		//        }
-
-
-				//{
-				//    auto s = xx::NowEpochSeconds();
-				//    for (int i = 0; i < 10000000; ++i) {
-				//        d.Clear();
-				//        om.Write(d, f2);
-				//    }
-				//    xx::CoutN("om.Write(d, f2)             ", xx::NowEpochSeconds() - s, d);
-				//}
-				//{
-				//    auto s = xx::NowEpochSeconds();
-				//    for (int i = 0; i < 10000000; ++i) {
-				//        d.Clear();
-				//        om.Write(d, *f);
-				//    }
-				//    xx::CoutN("om.Write(d, *f)             ", xx::NowEpochSeconds() - s, d);
-				//}
-				//{
-				//    auto s = xx::NowEpochSeconds();
-				//    for (int i = 0; i < 10000000; ++i) {
-				//        d.Clear();
-				//        f->Write(om, d);
-				//    }
-				//    xx::CoutN("f->Write(om, d)             ", xx::NowEpochSeconds() - s, d);
-				//}
-				//{
-				//    auto s = xx::NowEpochSeconds();
-				//    for (int i = 0; i < 10000000; ++i) {
-				//        d.Clear();
-				//        f->foo::Write(om, d);
-				//    }
-				//    xx::CoutN("f->foo::Write(om, d)        ", xx::NowEpochSeconds() - s, d);
-				//}
-				//{
-				//    auto s = xx::NowEpochSeconds();
-				//    for (int i = 0; i < 10000000; ++i) {
-				//        d.Clear();
-				//        b->Write(om, d);
-				//    }
-				//    xx::CoutN("b->Write(om, d)             ", xx::NowEpochSeconds() - s, d);
-				//}
-				//{
-				//    auto s = xx::NowEpochSeconds();
-				//    for (int i = 0; i < 10000000; ++i) {
-				//        d.Clear();
-				//        b->bar::Write(om, d);
-				//    }
-				//    xx::CoutN("b->bar::Write(om, d)        ", xx::NowEpochSeconds() - s, d);
-				//}
-				//{
-				//    auto s = xx::NowEpochSeconds();
-				//    for (int i = 0; i < 10000000; ++i) {
-				//        d.Clear();
-				//        om.Write(d, f->id, f->name);
-				//    }
-				//    xx::CoutN("om.Write(d, f->id, f->name) ", xx::NowEpochSeconds() - s, d);
-				//}
+		{
+			d.Clear();
+			auto s = xx::NowEpochSeconds();
+			for (int i = 0; i < 10000000; ++i) {
+				om.WriteTo<false>(d, f2);
+			}
+			xx::CoutN("om.WriteTo<false>(d, f2);      secs = ", xx::NowEpochSeconds() - s, " d.len = ", d.len, " d.cap = ", d.cap);
+		}
+		{
+			auto s = xx::NowEpochSeconds();
+			for (int i = 0; i < 10000000; ++i) {
+				if (int r = om.ReadFrom(d, f2)) break;
+			}
+			xx::CoutN("om.ReadFrom(d, f2)             secs = ", xx::NowEpochSeconds() - s, " d.len = ", d.len, " d.cap = ", d.cap, " d.offset = ", d.offset);
+		}
+		xx::CoutN(om.ToString(f2));
 	}
-
-	//xx::CoutN(om.ToString(f));
 }
 
 int main() {

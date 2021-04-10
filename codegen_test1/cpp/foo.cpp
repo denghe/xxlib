@@ -7,10 +7,13 @@ void CodeGen_foo::Register() {
 	::xx::ObjManager::Register<::FishWithChilds>();
 }
 namespace xx {
-    template<bool needReserve>
 	void ObjFuncs<::foo2, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::foo2 const& in) {
-        om.Write<needReserve>(d, in.id);
-        om.Write<needReserve>(d, in.name);
+        om.Write(d, in.id);
+        om.Write(d, in.name);
+    }
+	void ObjFuncs<::foo2, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::foo2 const& in) {
+        om.Write<false>(d, in.id);
+        om.Write<false>(d, in.name);
     }
 	int ObjFuncs<::foo2, void>::Read(::xx::ObjManager& om, ::xx::Data& d, ::foo2& out) {
         if (int r = om.Read(d, out.id)) return r;

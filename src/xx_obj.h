@@ -15,8 +15,11 @@ namespace xx {
 	// 接口函数适配模板. 特化 以扩展类型支持
 	template<typename T, typename ENABLED = void>
 	struct ObjFuncs {
-		template<bool needReserve = true>
 		static inline void Write(ObjManager& om, Data& d, T const& in) {
+			std::string s(TypeName_v<T>);
+			assert(false);
+		}
+		static inline void WriteFast(ObjManager& om, Data& d, T const& in) {
 			std::string s(TypeName_v<T>);
 			assert(false);
 		}
@@ -46,6 +49,7 @@ namespace xx {
 	// 方便复制
 	/*
 	inline void Write(xx::ObjManager& o, xx::Data& d) const override { }
+	inline void WriteFast(xx::ObjManager& o, xx::Data& d) const override { }
 	inline int Read(xx::ObjManager& o, xx::Data& d) override { }
 	inline void Append(xx::ObjManager& o) const override { }
 	inline void AppendCore(xx::ObjManager& o) const override { }
@@ -206,8 +210,9 @@ namespace xx {
 		}
 
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
-		// 如果 v 就是 T 本体( 并非基类 ), 则可 令 direct = true 以加速写入操作
-		template<bool direct = false, typename T>
+		// 如果 v 是 Shared<T> 类型 且 v 的类型 和 T 完全一致( 并非基类 ), 则可 令 direct = true 以加速写入操作
+		// 如果有预分配 data 的内存，可设置 needReserve 为 false. 主要针对结构体嵌套的简单类型. 遇到 "类" 会阻断 ( 需有充分把握，最好在结束后 assert( d.len <= d.cap ) )
+		template<bool needReserve = true, bool direct = false, typename T>
 		XX_INLINE void WriteTo(Data& d, T const& v) {
 			if constexpr (IsXxShared_v<T>) {
 				assert(v);
@@ -216,34 +221,36 @@ namespace xx {
 					assert(((PtrHeader*)v.pointer - 1)->typeId == TypeId_v<U>);
 				}
 				if constexpr (direct && IsSimpleType_v<U>) {
-					d.WriteVarInteger(TypeId_v<U>);
+					d.WriteVarInteger<needReserve>(TypeId_v<U>);
 					v.pointer->U::Write(*this, d);
 					return;
 				}
 				else {
 					auto tid = ((PtrHeader*)v.pointer - 1)->typeId;
 					if (simples[tid]) {
-						d.WriteVarInteger(tid);
-						Write_(d, *v.pointer);
+						d.WriteVarInteger<needReserve>(tid);
+						Write_<needReserve>(d, *v.pointer);
 						return;
 					}
 					else {
-						Write_<true, T, true>(d, v);
+						Write_<needReserve, true>(d, v);
 					}
 				}
 			}
 			else {
-				Write_<T>(d, v);
+				Write_<needReserve>(d, v);
 			}
-            for (auto&& p : ptrs) {
-                *(uint32_t*)p = 0;
-            }
-            ptrs.clear();
+			if constexpr (!IsSimpleType_v<T>) {
+				for (auto&& p : ptrs) {
+					*(uint32_t*)p = 0;
+				}
+				ptrs.clear();
+			}
         }
 
 	protected:
 		// 内部函数
-		template<bool needReserve = true, typename T, bool isFirst = false>
+		template<bool needReserve = true, bool isFirst = false, typename T>
 		XX_INLINE void Write_(Data& d, T const& v) {
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
@@ -360,7 +367,12 @@ namespace xx {
 				}
 			}
 			else {
-				ObjFuncs<T>::Write<needReserve>(*this, d, v);
+				if constexpr (needReserve) {
+					ObjFuncs<T>::Write(*this, d, v);
+				}
+				else {
+					ObjFuncs<T>::WriteFast(*this, d, v);
+				}
 			}
 		}
 
@@ -377,13 +389,15 @@ namespace xx {
 		template<typename T>
 		XX_INLINE int ReadFrom(Data& d, T& v) {
 			auto r = Read_<T, IsXxShared_v<T>>(d, v);
-            ptrs.clear();
-            for (auto& p : ptrs2) {
-                if (--((PtrHeader*)p - 1)->useCount == 0) {
-                    ((ObjBase*)p)->~ObjBase();
-                }
-            }
-            ptrs2.clear();
+			if constexpr (!IsSimpleType_v<T>) {
+				ptrs.clear();
+				for (auto& p : ptrs2) {
+					if (--((PtrHeader*)p - 1)->useCount == 0) {
+						((ObjBase*)p)->~ObjBase();
+					}
+				}
+				ptrs2.clear();
+			}
 			return r;
 		}
 
@@ -1107,8 +1121,8 @@ T& operator=(T&& o) noexcept = default;
 #define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \
 struct ObjFuncs<T, void> { \
-template<bool needReserve> \
 static void Write(ObjManager & om, xx::Data& d, T const& in); \
+static void WriteFast(ObjManager & om, xx::Data& d, T const& in); \
 static int Read(ObjManager & om, xx::Data& d, T & out); \
 static void Append(ObjManager & om, T const& in); \
 static void AppendCore(ObjManager & om, T const& in); \
