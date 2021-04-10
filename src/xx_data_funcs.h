@@ -10,40 +10,43 @@ namespace xx {
 	// 适配 Data
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_base_of_v<Data, T>>> {
-		static inline void Write(Data& dw, T const& in) {
-			dw.WriteVarInteger(in.len);
-			dw.WriteBuf(in.buf, in.len);
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.WriteVarInteger<needReserve>(in.len);
+			d.WriteBuf<needReserve>(in.buf, in.len);
 		}
-		static inline int Read(Data_r& dr, T& out) {
+		static inline int Read(Data_r& d, T& out) {
 			size_t siz = 0;
-			if (int r = dr.ReadVarInteger(siz)) return r;
-			if (dr.offset + siz > dr.len) return __LINE__;
+			if (int r = d.ReadVarInteger(siz)) return r;
+			if (d.offset + siz > d.len) return __LINE__;
 			out.Clear();
-			out.WriteBuf(dr.buf + dr.offset, siz);
-			dr.offset += siz;
+			out.WriteBuf(d.buf + d.offset, siz);
+			d.offset += siz;
 			return 0;
 		}
 	};
 
-	// 适配 1 字节长度的 数值 或 float/double( 这些类型直接 memcpy )
+	// 适配 1 字节长度的 数值( 含 double ) 或 float/double( 这些类型直接 memcpy )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t< (std::is_arithmetic_v<T> && sizeof(T) == 1) || std::is_floating_point_v<T> >> {
-		static inline void Write(Data& dw, T const& in) {
-			dw.WriteFixed(in);
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.WriteFixed<needReserve>(in);
 		}
-		static inline int Read(Data_r& dr, T& out) {
-			return dr.ReadFixed(out);
+		static inline int Read(Data_r& d, T& out) {
+			return d.ReadFixed(out);
 		}
 	};
 
 	// 适配 2+ 字节整数( 变长读写 )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_integral_v<T> && sizeof(T) >= 2>> {
-		static inline void Write(Data& dw, T const& in) {
-			dw.WriteVarInteger(in);
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.WriteVarInteger<needReserve>(in);
 		}
-		static inline int Read(Data_r& dr, T& out) {
-			return dr.ReadVarInteger(out);
+		static inline int Read(Data_r& d, T& out) {
+			return d.ReadVarInteger(out);
 		}
 	};
 
@@ -51,25 +54,27 @@ namespace xx {
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_enum_v<T>>> {
 		typedef std::underlying_type_t<T> UT;
-		static inline void Write(Data& dw, T const& in) {
-			dw.Write((UT const&)in);
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.Write((UT const&)in);
 		}
-		static inline int Read(Data_r& dr, T& out) {
-			return dr.Read((UT&)out);
+		static inline int Read(Data_r& d, T& out) {
+			return d.Read((UT&)out);
 		}
 	};
 
 	// 适配 std::string_view ( 写入 变长长度 + 内容 )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
-		static inline void Write(Data& dw, T const& in) {
-			dw.WriteVarInteger(in.size());
-			dw.WriteBuf((char*)in.data(), in.size());
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.WriteVarInteger(in.size());
+			d.WriteBuf((char*)in.data(), in.size());
 		}
-		static inline int Read(Data_r& dr, T& out) {
+		static inline int Read(Data_r& d, T& out) {
 			size_t siz = 0;
-			if (auto r = dr.ReadVarInteger(siz)) return r;
-			if (auto buf = dr.ReadBuf(siz)) {
+			if (auto r = d.ReadVarInteger(siz)) return r;
+			if (auto buf = d.ReadBuf(siz)) {
 				out = std::string_view((char*)buf, siz);
 				return 0;
 			}
@@ -80,96 +85,170 @@ namespace xx {
 	// 适配 literal char[len] string  ( 写入 变长长度-1 + 内容. 不写入末尾 0 )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<IsLiteral_v<T>>> {
-		static inline void Write(Data& dw, T const& v) {
-			DataFuncs<std::string_view, void>::Write(dw, std::string_view(v));
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			DataFuncs<std::string_view, void>::Write(d, std::string_view(in));
 		}
 	};
 
 	// 适配 std::string ( 写入 变长长度 + 内容 )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::string, std::decay_t<T>>>> {
-		static inline void Write(Data& dw, T const& in) {
-			DataFuncs<std::string_view, void>::Write(dw, std::string_view(in));
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			DataFuncs<std::string_view, void>::Write(d, std::string_view(in));
 		}
-		static inline int Read(Data_r& dr, T& out) {
+		static inline int Read(Data_r& d, T& out) {
 			size_t siz = 0;
-			if (auto r = dr.ReadVarInteger(siz)) return r;
-			if (dr.offset + siz > dr.len) return __LINE__;
-			out.assign((char*)dr.buf + dr.offset, siz);
-			dr.offset += siz;
+			if (auto r = d.ReadVarInteger(siz)) return r;
+			if (d.offset + siz > d.len) return __LINE__;
+			out.assign((char*)d.buf + d.offset, siz);
+			d.offset += siz;
 			return 0;
 		}
 	};
 
 
-	// 上面就是所谓 基础类型 的所有适配. 下面针对常用容器，做 只含有 简单类型 的容器 的适配. 这样一来, xx_obj 那边 就可以用排除法 写扩展，这边的适配模板，可继续沿用
-
-	template<typename T, typename ENABLED = void> struct IsBaseDataType : std::false_type {};
-	template<typename T> constexpr bool IsBaseDataType_v = IsBaseDataType<T>::value;
-
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< std::is_base_of_v<Data, T> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< (std::is_arithmetic_v<T> && sizeof(T) == 1) || std::is_floating_point_v<T> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< std::is_integral_v<T> && sizeof(T) >= 2 >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< std::is_enum_v<T> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< std::is_same_v<std::string_view, std::decay_t<T>> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsLiteral_v<T> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< std::is_same_v<std::string, std::decay_t<T>> >> : std::true_type {};
-
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsOptional_v<T>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsVector_v<T>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsSetSeries_v<T>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsPair_v<T>&& IsBaseDataType_v<typename T::first_type>&& IsBaseDataType_v<typename T::second_type> >> : std::true_type {};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsMapSeries_v<T>&& IsBaseDataType_v<typename T::key_type>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
-	
-	// tuple 得遍历每个类型来判断
-	template<typename Tuple, typename = std::enable_if_t<IsTuple_v<Tuple>>>
-	struct TupleIsBaseDataType {
-		template<std::size_t index>
-		static constexpr bool Check__() {
-			if constexpr (index == std::tuple_size_v<Tuple>) {
-				return true;
-			}
-			else {
-				return IsBaseDataType_v<std::tuple_element_t<index, Tuple>> ? Check__<index + 1>() : false;
-			}
-		}
-		static constexpr bool Check() {
-			return Check__<0>();
-		}
-	};
-	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsTuple_v<T>&& TupleIsBaseDataType<T>::Check() >> : std::true_type {};
-
-
 	// 适配 std::optional<T>
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<IsOptional_v<T> && IsBaseDataType_v<T>>> {
-		static inline void Write(Data& dw, T const& in) {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
 			if (in.has_value()) {
-				dw.Write((char)1, in.value());
+				d.Write((uint8_t)1, in.value());
 			}
 			else {
-				dw.Write((char)0);
+				d.Write((uint8_t)0);
 			}
 		}
-		static inline int Read(Data_r& dr, T& out) {
+		static inline int Read(Data_r& d, T& out) {
 			char hasValue = 0;
-			if (int r = dr.Read(hasValue)) return r;
+			if (int r = d.Read(hasValue)) return r;
 			if (!hasValue) return 0;
 			if (!out.has_value()) {
 				out.emplace();
 			}
-			return dr.Read(out.value());
+			return d.Read(out.value());
 		}
 	};
 
 	// 适配 std::pair<K, V>
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<IsPair_v<T> && IsBaseDataType_v<T>>> {
-		static inline void Write(Data& dw, T const& in) {
-			dw.Write(in.first, in.second);
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.Write(in.first, in.second);
 		}
-		static inline int Read(Data_r& dr, T& out) {
-			return dr.Read(out.first, out.second);
+		static inline int Read(Data_r& d, T& out) {
+			return d.Read(out.first, out.second);
 		}
 	};
+
+	// 适配 std::vector
+	template<typename T>
+	struct DataFuncs<T, std::enable_if_t< IsVector_v<T> && IsBaseDataType_v<T>>> {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.WriteVarInteger<needReserve>(in.size());
+			if (in.empty()) return;
+			if constexpr (IsVector_v<T> && (sizeof(T) == 1 || std::is_floating_point_v<T>)) {
+				d.WriteFixedArray<needReserve>(in.data(), in.size());
+			}
+			else if constexpr (std::is_integral_v<typename T::value_type>) {
+				if constexpr (needReserve) {
+					auto cap = in.size() * (sizeof(T) + 1);
+					if (d.cap < cap) {
+						d.Reserve<false>(cap);
+					}
+				}
+				for (auto&& o : in) {
+					d.WriteVarInteger<false>(o);
+				}
+			}
+			else {
+				for (auto&& o : in) {
+					d.Write<needReserve>(o);
+				}
+			}
+		}
+		static inline int Read(Data_r& d, T& out) {
+			size_t siz = 0;
+			if (int r = d.ReadVarInteger(siz)) return r;
+			if (d.offset + siz > d.len) return __LINE__;
+			out.resize(siz);
+			if (siz == 0) return 0;
+			auto buf = out.data();
+			if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
+				if (int r = d.ReadFixedArray(buf, siz)) return r;
+			}
+			else {
+				for (size_t i = 0; i < siz; ++i) {
+					if (int r = d.Read(buf[i])) return r;
+				}
+			}
+			return 0;
+		}
+	};
+
+	// 适配 std::set, unordered_set
+	template<typename T>
+	struct DataFuncs<T, std::enable_if_t< IsSetSeries_v<T> && IsBaseDataType_v<T>>> {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.WriteVarInteger<needReserve>(in.size());
+			if (in.empty()) return;
+			if constexpr (std::is_integral_v<typename T::value_type>) {
+				if constexpr (needReserve) {
+					auto cap = in.size() * (sizeof(T) + 1);
+					if (d.cap < cap) {
+						d.Reserve<false>(cap);
+					}
+				}
+				for (auto&& o : in) {
+					d.WriteVarInteger<false>(o);
+				}
+			}
+			else {
+				for (auto&& o : in) {
+					d.Write<needReserve>(o);
+				}
+			}
+		}
+		static inline int Read(Data_r& d, T& out) {
+			size_t siz = 0;
+			if (int r = d.Read(siz)) return r;
+			if (d.offset + siz > d.len) return __LINE__;
+			out.clear();
+			if (siz == 0) return 0;
+			for (size_t i = 0; i < siz; ++i) {
+				if (int r = Read_(d, out.emplace())) return r;
+			}
+			return 0;
+		}
+	};
+
+	// 适配 std::map unordered_map
+	template<typename T>
+	struct DataFuncs<T, std::enable_if_t< IsMapSeries_v<T>&& IsBaseDataType_v<T>>> {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			d.WriteVarInteger<needReserve>(in.size());
+			for (auto&& kv : in) {
+				Write<needReserve>(kv.first, kv.second);
+			}
+		}
+		static inline int Read(Data_r& d, T& out) {
+			size_t siz;
+			if (int r = d.Read(siz)) return r;
+			if (siz == 0) return 0;
+			if (d.offset + siz * 2 > d.len) return __LINE__;
+			for (size_t i = 0; i < siz; ++i) {
+				MapSeries_Pair_t<T> kv;
+				if (int r = d.Read(kv.first, kv.second)) return r;
+				out.insert(std::move(kv));
+			}
+			return 0;
+		}
+	};
+
 }

@@ -1,7 +1,10 @@
 ﻿#pragma once
 
 #include "xx_ptr.h"
-#include "xx_data.h"
+#include "xx_data_funcs.h"
+#include "xx_string.h"
+
+
 
 // 辅助宏在最下面
 
@@ -26,11 +29,11 @@ namespace xx {
 		static inline int Read(ObjManager& om, Data& d, T& out) {
 			return 0;
 		}
-		static inline void Append(ObjManager& om, T const& in) {
+		static inline void Append(ObjManager& om, std::string& s, T const& in) {
 			std::string s(TypeName_v<T>);
 			assert(false);
 		}
-		static inline void AppendCore(ObjManager& om, T const& in) {
+		static inline void AppendCore(ObjManager& om, std::string& s, T const& in) {
 		}
 		static inline void Clone(ObjManager& om, T const& in, T& out) {
 			out = in;
@@ -65,7 +68,7 @@ namespace xx {
 		using BaseType = void;
 
 		// 用于标识当前类型是基于 ObjBase 为基类，用 has typedef 替代 is_base_of 检测 以绕开函数内自引用时 类不完整的尴尬
-        using IsBaseofObjBase_v = void;
+		using IsBaseofObjBase_v = void;
 
 		// 派生类都需要有默认构造。
 		ObjBase() = default;
@@ -79,10 +82,10 @@ namespace xx {
 		virtual int Read(ObjManager& om, xx::Data& d) = 0;
 
 		// 输出 json 长相时用于输出外包围 {  } 部分
-		virtual void Append(ObjManager& om) const = 0;
+		virtual void Append(ObjManager& om, std::string& s) const = 0;
 
 		// 输出 json 长相时用于输出花括号内部的成员拼接
-		virtual void AppendCore(ObjManager& om) const = 0;
+		virtual void AppendCore(ObjManager& om, std::string& s) const = 0;
 
 		// 克隆( 效果类似 Write + Read ), 遇到 引用到 野Shared 的 Weak 将保留原值
 		virtual void Clone(ObjManager& om, void* const& tar) const = 0;
@@ -135,7 +138,6 @@ namespace xx {
 		std::vector<void*> ptrs;								// for write, append, clone
 		std::vector<void*> ptrs2;								// for read, clone
 		std::vector<std::pair<PtrHeader*, PtrHeader**>> weaks;	// for clone
-		std::string* str = nullptr;
 
 		inline static ObjBase_s null;
 
@@ -246,7 +248,7 @@ namespace xx {
 				}
 				ptrs.clear();
 			}
-        }
+		}
 
 	protected:
 		// 内部函数
@@ -307,7 +309,7 @@ namespace xx {
 					d.WriteFixed<needReserve>((uint8_t)0);
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
 				d.WriteVarInteger<needReserve>(v.size());
 				if (v.empty()) return;
 				if constexpr (IsVector_v < T> && (sizeof(T) == 1 || std::is_floating_point_v<T>)) {
@@ -360,7 +362,7 @@ namespace xx {
 			else if constexpr (IsPair_v<T>) {
 				Write<needReserve>(v.first, v.second);
 			}
-			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+			else if constexpr (IsMapSeries_v<T>) {
 				d.WriteVarInteger<needReserve>(v.size());
 				for (auto&& kv : v) {
 					Write<needReserve>(kv.first, kv.second);
@@ -450,6 +452,7 @@ namespace xx {
 						if (!IsBaseOf<U>(o.typeId())) return __LINE__;
 						v = o.template ReinterpretCast<U>();
 					}
+					return 0;
 				}
 				else {
 					uint8_t hasValue;
@@ -472,6 +475,7 @@ namespace xx {
 					++o.header()->useCount;
 				}
 				v = o;
+				return 0;
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				return v.Read(*this, d);
@@ -503,16 +507,20 @@ namespace xx {
 						if (int r = Read_(d, buf[i])) return r;
 					}
 				}
+				return 0;
 			}
-			else if constexpr (IsUnorderedSet_v<T>) {
+			else if constexpr (IsSetSeries_v<T>) {
 				size_t siz = 0;
 				if (int r = Read_(d, siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.clear();
 				if (siz == 0) return 0;
+				typename T::value_type o;
 				for (size_t i = 0; i < siz; ++i) {
-					if (int r = Read_(d, v.emplace())) return r;
+					if (int r = Read_(d, o)) return r;
+					v.emplace(std::move(o));
 				}
+				return 0;
 			}
 			else if constexpr (std::is_same_v<T, std::string>) {
 				size_t siz;
@@ -520,6 +528,7 @@ namespace xx {
 				if (d.offset + siz > d.len) return __LINE__;
 				v.assign((char*)d.buf + d.offset, siz);
 				d.offset += siz;
+				return 0;
 			}
 			else if constexpr (std::is_same_v<T, Data>) {
 				size_t siz;
@@ -528,6 +537,7 @@ namespace xx {
 				v.Clear();
 				v.WriteBuf(d.buf + d.offset, siz);
 				d.offset += siz;
+				return 0;
 			}
 			else if constexpr (std::is_integral_v<T>) {
 				if constexpr (sizeof(T) == 1) {
@@ -536,12 +546,14 @@ namespace xx {
 				else {
 					if (int r = d.ReadVarInteger(v)) return __LINE__ * 1000000 + r;
 				}
+				return 0;
 			}
 			else if constexpr (std::is_enum_v<T>) {
 				return Read_(d, *(std::underlying_type_t<T>*) & v);
 			}
 			else if constexpr (std::is_floating_point_v<T>) {
-				if (int r = d.ReadFixed(v))  return __LINE__ * 1000000 + r;
+				if (int r = d.ReadFixed(v)) return __LINE__ * 1000000 + r;
+				return 0;
 			}
 			else if constexpr (IsTuple_v<T>) {
 				return ReadTuple(v);
@@ -549,13 +561,13 @@ namespace xx {
 			else if constexpr (IsPair_v<T>) {
 				return Read(v.first, v.second);
 			}
-			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+			else if constexpr (IsMapSeries_v<T>) {
 				size_t siz;
 				if (int r = Read_(d, siz)) return r;
 				if (siz == 0) return 0;
 				if (d.offset + siz * 2 > d.len) return __LINE__;
 				for (size_t i = 0; i < siz; ++i) {
-					UnorderedMap_Pair_t<T> kv;
+					MapSeries_Pair_t<T> kv;
 					if (int r = Read_(d, kv.first, kv.second)) return r;
 					v.insert(std::move(kv));
 				}
@@ -586,19 +598,20 @@ namespace xx {
 		template<typename...Args>
 		XX_INLINE void AppendTo(std::string& s, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
-			str = &s;
-			(Append_(args), ...);
-            for (auto&& p : ptrs) {
-                *(uint32_t*)p = 0;
-            }
-            ptrs.clear();
+			(Append_(s, args), ...);
+			for (auto&& p : ptrs) {
+				*(uint32_t*)p = 0;
+			}
+			ptrs.clear();
 		}
 
 		// 内部函数
 		template<typename T>
-		XX_INLINE void Append_(T const& v) {
-			auto& s = *str;
-			if constexpr (IsXxShared_v<T>) {
+		XX_INLINE void Append_(std::string& s, T const& v) {
+			if constexpr (IsBaseDataType_v<T>) {
+				xx::Append(s, v);
+			}
+			else if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if (v) {
 					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
@@ -606,14 +619,14 @@ namespace xx {
 						if (h->offset == 0) {
 							ptrs.push_back(&h->offset);
 							h->offset = (uint32_t)ptrs.size();
-							Append_(*v);
+							Append_(s, *v);
 						}
 						else {
 							s.append(std::to_string(h->offset));
 						}
 					}
 					else {
-						Append_(*v);
+						Append_(s, *v);
 					}
 				}
 				else {
@@ -621,51 +634,24 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsXxWeak_v<T>) {
-				Append_(v.Lock());
+				Append_(s, v.Lock());
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				v.Append(*this);
-			}
-			else if constexpr (std::is_arithmetic_v<T>) {
-				if constexpr (std::is_same_v<bool, T>) {
-					s.append(v ? "true" : "false");
-				}
-				else if constexpr (std::is_same_v<char, T>) {
-					s.push_back(v);
-				}
-				else if constexpr (std::is_floating_point_v<T>) {
-					char buf[32];
-					snprintf(buf, 32, "%.16lf", (double)v);
-					s.append(buf);
-				}
-				else {
-					s.append(std::to_string(v));
-				}
-			}
-			else if constexpr (IsLiteral_v<T> || std::is_same_v<T, char*> || std::is_same_v<T, char const*>) {
-				s.append(v);
-			}
-			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
-				s.push_back('\"');
-				s.append(v);
-				s.push_back('\"');
-			}
-			else if constexpr (std::is_enum_v<T>) {
-				Append_(*(std::underlying_type_t<T>*) & v);
+				v.Append(*this, s);
 			}
 			else if constexpr (IsOptional_v<T>) {
 				if (v.has_value()) {
-					Append_(*v);
+					Append_(s, *v);
 				}
 				else {
 					s.append("null");
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
 				s.push_back('[');
 				if (!v.empty()) {
 					for (auto&& o : v) {
-						Append_(o);
+						Append_(s, o);
 						s.push_back(',');
 					}
 					s[s.size() - 1] = ']';
@@ -674,13 +660,13 @@ namespace xx {
 					s.push_back(']');
 				}
 			}
-			else if constexpr (IsUnorderedMap_v<T> || IsMap_v<T>) {
+			else if constexpr (IsMapSeries_v<T>) {
 				s.push_back('[');
 				if (!v.empty()) {
 					for (auto& kv : v) {
-						Append_(kv.first);
+						Append_(s, kv.first);
 						s.push_back(',');
-						Append_(kv.second);
+						Append_(s, kv.second);
 						s.push_back(',');
 					}
 					s[s.size() - 1] = ']';
@@ -691,9 +677,9 @@ namespace xx {
 			}
 			else if constexpr (IsPair_v<T>) {
 				s.push_back('[');
-				Append_(v.first);
+				Append_(s, v.first);
 				s.push_back(',');
-				Append_(v.second);
+				Append_(s, v.second);
 				s.push_back(']');
 			}
 			else if constexpr (IsTuple_v<T>) {
@@ -706,37 +692,16 @@ namespace xx {
 					}, v);
 				s.push_back(']');
 			}
-			else if constexpr (IsTimePoint_v<T>) {
-				AppendTimePoint_Local(s, v);
-			}
-			else if constexpr (std::is_base_of_v<Span, T>) {
-				s.push_back('[');
-				if (auto inLen = v.len) {
-					for (size_t i = 0; i < inLen; ++i) {
-						Append_((uint8_t)v[i]);
-						s.push_back(',');
-					}
-					s[s.size() - 1] = ']';
-				}
-				else {
-					s.push_back(']');
-				}
-			}
-			else if constexpr (std::is_same_v<T, std::type_info>) {
-				s.push_back('\"');
-				s.append(v.name());
-				s.push_back('\"');
-			}
 			else {
-				ObjFuncs<T>::Append(*this, v);
+				ObjFuncs<T>::Append(*this, s, v);
 			}
 		}
 
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		XX_INLINE void Append(Args const&...args) {
+		XX_INLINE void Append(std::string& s, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
-			(Append_(args), ...);
+			(Append_(s, args), ...);
 		}
 
 
@@ -746,7 +711,6 @@ namespace xx {
 			static_assert(sizeof...(args) > 0);
 			std::string s;
 			AppendTo(s, args...);
-			str = nullptr;
 			return s;
 		}
 
@@ -766,13 +730,13 @@ namespace xx {
 					++kv.first->refCount;
 				}
 			}
-            for (auto&& p : ptrs) {
-                *(uint32_t*)p = 0;
-            }
-            ptrs.clear();
-            ptrs2.clear();
-            weaks.clear();
-        }
+			for (auto&& p : ptrs) {
+				*(uint32_t*)p = 0;
+			}
+			ptrs.clear();
+			ptrs2.clear();
+			weaks.clear();
+		}
 
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
@@ -851,7 +815,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsUnorderedSet_v<T>) {
+			else if constexpr (IsSetSeries_v<T>) {
 				out.clear();
 				for (auto&& o : in) {
 					Clone_(o, out.emplace());
@@ -864,7 +828,7 @@ namespace xx {
 				Clone_(out.first, in.first);
 				Clone_(out.second, in.second);
 			}
-			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+			else if constexpr (IsMapSeries_v<T>) {
 				out.clear();
 				for (auto&& kv : in) {
 					std::pair<typename T::key_type, typename T::value_type> tar;
@@ -887,10 +851,10 @@ namespace xx {
 		XX_INLINE void KillRecursive(Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			(RecursiveReset_(args), ...);
-            for (auto&& p : ptrs) {
-                *(uint32_t*)p = 0;
-            }
-            ptrs.clear();
+			for (auto&& p : ptrs) {
+				*(uint32_t*)p = 0;
+			}
+			ptrs.clear();
 		}
 
 	protected:
@@ -920,7 +884,7 @@ namespace xx {
 					RecursiveReset_(*v);
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
 				for (auto& o : v) {
 					RecursiveReset_(o);
 				}
@@ -933,7 +897,7 @@ namespace xx {
 			else if constexpr (IsPair_v<T>) {
 				RecursiveReset(v.first, v.second);
 			}
-			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+			else if constexpr (IsMapSeries_v<T>) {
 				for (auto& kv : v) {
 					RecursiveReset_(kv.second);
 				}
@@ -963,11 +927,11 @@ namespace xx {
 		XX_INLINE int HasRecursive(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			auto r = RecursiveCheck_(args...);
-            for (auto&& p : ptrs) {
-                *(uint32_t*)p = 0;
-            }
-            ptrs.clear();
-            return r;
+			for (auto&& p : ptrs) {
+				*(uint32_t*)p = 0;
+			}
+			ptrs.clear();
+			return r;
 		}
 
 	protected:
@@ -1005,7 +969,7 @@ namespace xx {
 					return RecursiveCheck_(*v);
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
 				for (auto& o : v) {
 					if (int r = RecursiveCheck_(o)) return r;
 				}
@@ -1016,7 +980,7 @@ namespace xx {
 			else if constexpr (IsPair_v<T>) {
 				return RecursiveCheck(v.first, v.second);
 			}
-			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+			else if constexpr (IsMapSeries_v<T>) {
 				for (auto& kv : v) {
 					if (int r = RecursiveCheck_(kv.second)) return r;
 				}
@@ -1072,13 +1036,13 @@ namespace xx {
 			else if constexpr (IsOptional_v<T>) {
 				v.reset();
 			}
-			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T> || IsMap_v<T> || IsUnorderedMap_v<T> || std::is_same_v<T, std::string>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T> || IsMapSeries_v<T> || std::is_same_v<T, std::string>) {
 				v.clear();
 			}
 			else if constexpr (IsTuple_v<T>) {
 				std::apply([&](auto const &... args) {
 					(SetDefaultValue_(args), ...);
-				}, v);
+					}, v);
 			}
 			else if constexpr (IsPair_v<T>) {
 				SetDefaultValue(v.first, v.second);
@@ -1089,6 +1053,41 @@ namespace xx {
 			else {
 				ObjFuncs<T>::SetDefaultValue(*this, v);
 			}
+		}
+
+
+		/************************************************************************************/
+		// 各种 Cout
+		/************************************************************************************/
+	public:
+
+		// 替代 std::cout. 支持实现了 StringFuncs 模板适配的类型
+		template<typename...Args>
+		inline void Cout(Args const& ...args) {
+			std::string s;
+			Append(s, args...);
+			for (auto&& c : s) {
+				if (!c) c = '^';
+			}
+			std::cout << s;
+		}
+
+		// 在 Cout 基础上添加了换行
+		template<typename...Args>
+		inline void CoutN(Args const& ...args) {
+			Cout(args...);
+			std::cout << std::endl;
+		}
+
+		// 在 CoutN 基础上于头部添加了时间
+		template<typename...Args>
+		inline void CoutTN(Args const& ...args) {
+			CoutN("[", std::chrono::system_clock::now(), "] ", args...);
+		}
+
+		// 立刻输出
+		inline void CoutFlush() {
+			std::cout.flush();
 		}
 	};
 }
@@ -1104,8 +1103,8 @@ T(T&& o) noexcept = default; \
 T& operator=(T&& o) noexcept = default; \
 void Write(xx::ObjManager& o, xx::Data& d) const override; \
 int Read(xx::ObjManager& o, xx::Data& d) override; \
-void Append(xx::ObjManager& o) const override; \
-void AppendCore(xx::ObjManager& o) const override; \
+void Append(xx::ObjManager& o, std::string& s) const override; \
+void AppendCore(xx::ObjManager& o, std::string& s) const override; \
 void Clone(xx::ObjManager& o, void* const& tar) const override; \
 int RecursiveCheck(xx::ObjManager& o) const override; \
 void RecursiveReset(xx::ObjManager& o) override; \
@@ -1124,8 +1123,8 @@ struct ObjFuncs<T, void> { \
 static void Write(ObjManager & om, xx::Data& d, T const& in); \
 static void WriteFast(ObjManager & om, xx::Data& d, T const& in); \
 static int Read(ObjManager & om, xx::Data& d, T & out); \
-static void Append(ObjManager & om, T const& in); \
-static void AppendCore(ObjManager & om, T const& in); \
+static void Append(ObjManager & om, std::string& s, T const& in); \
+static void AppendCore(ObjManager & om, std::string& s, T const& in); \
 static void Clone(ObjManager & om, T const& in, T & out); \
 static int RecursiveCheck(ObjManager & om, T const& in); \
 static void RecursiveReset(ObjManager & om, T & in); \

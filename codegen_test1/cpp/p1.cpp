@@ -11,16 +11,16 @@ namespace p1{
         if (int r = om.Read(d, this->a)) return r;
         return 0;
     }
-    void p1c1::Append(::xx::ObjManager& om) const {
+    void p1c1::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        om.Append("{\"__typeId__\":10");
-        this->AppendCore(om);
-        om.str->push_back('}');
+        ::xx::Append(s, "{\"__typeId__\":10");
+        this->AppendCore(om, s);
+        s.push_back('}');
 #endif
     }
-    void p1c1::AppendCore(::xx::ObjManager& om) const {
+    void p1c1::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        om.Append(",\"a\":", this->a);
+        ::xx::Append(s, ",\"a\":", this->a);
 #endif
     }
     void p1c1::Clone(::xx::ObjManager& om, void* const &tar) const {

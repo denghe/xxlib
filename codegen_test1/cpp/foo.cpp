@@ -16,21 +16,22 @@ namespace xx {
         om.Write<false>(d, in.d);
     }
 	int ObjFuncs<::foo2, void>::Read(::xx::ObjManager& om, ::xx::Data& d, ::foo2& out) {
-        if (int r = om.Read(d, out.id)) return r;
-        if (int r = om.Read(d, out.d)) return r;
-        return 0;
+        //if (int r = om.Read(d, out.id)) return r;
+        //if (int r = om.Read(d, out.d)) return r;
+        //return 0;
+        return d.Read(out.id, out.d);
     }
-	void ObjFuncs<::foo2, void>::Append(ObjManager &om, ::foo2 const& in) {
+	void ObjFuncs<::foo2, void>::Append(ObjManager &om, std::string& s, ::foo2 const& in) {
 #ifndef XX_DISABLE_APPEND
-        om.str->push_back('{');
-        AppendCore(om, in);
-        om.str->push_back('}');
+        s.push_back('{');
+        AppendCore(om, s, in);
+        s.push_back('}');
 #endif
     }
-	void ObjFuncs<::foo2, void>::AppendCore(ObjManager &om, ::foo2 const& in) {
+	void ObjFuncs<::foo2, void>::AppendCore(ObjManager &om, std::string& s, ::foo2 const& in) {
 #ifndef XX_DISABLE_APPEND
-        om.Append("\"id\":", in.id); 
-        om.Append(",\"d\":", in.d);
+        om.Append(s, "\"id\":", in.id); 
+        om.Append(s, ",\"d\":", in.d);
 #endif
     }
     void ObjFuncs<::foo2>::Clone(::xx::ObjManager& om, ::foo2 const& in, ::foo2 &out) {
@@ -60,17 +61,17 @@ int foo::Read(::xx::ObjManager& om, ::xx::Data& d) {
     if (int r = om.Read(d, this->name)) return r;
     return 0;
 }
-void foo::Append(::xx::ObjManager& om) const {
+void foo::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append("{\"__typeId__\":16");
-    this->AppendCore(om);
-    om.str->push_back('}');
+    ::xx::Append(s, "{\"__typeId__\":16");
+    this->AppendCore(om, s);
+    s.push_back('}');
 #endif
 }
-void foo::AppendCore(::xx::ObjManager& om) const {
+void foo::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append(",\"id\":", this->id);
-    om.Append(",\"name\":", this->name);
+    ::xx::Append(s, ",\"id\":", this->id);
+    ::xx::Append(s, ",\"name\":", this->name);
 #endif
 }
 void foo::Clone(::xx::ObjManager& om, void* const &tar) const {
@@ -110,22 +111,22 @@ int FishBase::Read(::xx::ObjManager& om, ::xx::Data& d) {
     if (int r = om.Read(d, this->coin)) return r;
     return 0;
 }
-void FishBase::Append(::xx::ObjManager& om) const {
+void FishBase::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append("{\"__typeId__\":30");
-    this->AppendCore(om);
-    om.str->push_back('}');
+    ::xx::Append(s, "{\"__typeId__\":30");
+    this->AppendCore(om, s);
+    s.push_back('}');
 #endif
 }
-void FishBase::AppendCore(::xx::ObjManager& om) const {
+void FishBase::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append(",\"cfgId\":", this->cfgId);
-    om.Append(",\"id\":", this->id);
-    om.Append(",\"x\":", this->x);
-    om.Append(",\"y\":", this->y);
-    om.Append(",\"a\":", this->a);
-    om.Append(",\"r\":", this->r);
-    om.Append(",\"coin\":", this->coin);
+    ::xx::Append(s, ",\"cfgId\":", this->cfgId);
+    ::xx::Append(s, ",\"id\":", this->id);
+    ::xx::Append(s, ",\"x\":", this->x);
+    ::xx::Append(s, ",\"y\":", this->y);
+    ::xx::Append(s, ",\"a\":", this->a);
+    ::xx::Append(s, ",\"r\":", this->r);
+    ::xx::Append(s, ",\"coin\":", this->coin);
 #endif
 }
 void FishBase::Clone(::xx::ObjManager& om, void* const &tar) const {
@@ -173,16 +174,16 @@ int bar::Read(::xx::ObjManager& om, ::xx::Data& d) {
     if (int r = this->BaseType::Read(om, d)) return r;
     return 0;
 }
-void bar::Append(::xx::ObjManager& om) const {
+void bar::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append("{\"__typeId__\":22");
-    this->AppendCore(om);
-    om.str->push_back('}');
+    ::xx::Append(s, "{\"__typeId__\":22");
+    this->AppendCore(om, s);
+    s.push_back('}');
 #endif
 }
-void bar::AppendCore(::xx::ObjManager& om) const {
+void bar::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    this->BaseType::AppendCore(om);
+    this->BaseType::AppendCore(om, s);
 #endif
 }
 void bar::Clone(::xx::ObjManager& om, void* const &tar) const {
@@ -207,17 +208,17 @@ int FishWithChilds::Read(::xx::ObjManager& om, ::xx::Data& d) {
     if (int r = om.Read(d, this->childs)) return r;
     return 0;
 }
-void FishWithChilds::Append(::xx::ObjManager& om) const {
+void FishWithChilds::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    om.Append("{\"__typeId__\":31");
-    this->AppendCore(om);
-    om.str->push_back('}');
+    ::xx::Append(s, "{\"__typeId__\":31");
+    this->AppendCore(om, s);
+    s.push_back('}');
 #endif
 }
-void FishWithChilds::AppendCore(::xx::ObjManager& om) const {
+void FishWithChilds::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    this->BaseType::AppendCore(om);
-    om.Append(",\"childs\":", this->childs);
+    this->BaseType::AppendCore(om, s);
+    ::xx::Append(s, ",\"childs\":", this->childs);
 #endif
 }
 void FishWithChilds::Clone(::xx::ObjManager& om, void* const &tar) const {

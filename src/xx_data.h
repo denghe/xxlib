@@ -533,7 +533,7 @@ namespace xx {
         }
 
         // 支持同时写入多个值
-        template<typename ...TS>
+        template<bool needReserve = true, typename ...TS>
         void Write(TS const& ...vs);
 
         /***************************************************************************************************************************/
@@ -562,6 +562,7 @@ namespace xx {
     template<typename T, typename ENABLED = void>
     struct DataFuncs {
         // 整数变长写( 1字节除外 ), double 看情况, float 拷贝内存, 容器先变长写长度
+        template<bool needReserve = true>
         static inline void Write(Data& dw, T const& in) {
             assert(false);
         }
@@ -583,8 +584,8 @@ namespace xx {
     }
 
     template<size_t reserveLen>
-    template<typename ...TS>
+    template<bool needReserve, typename ...TS>
     void Data_rw<reserveLen>::Write(TS const& ...vs) {
-        (DataFuncs<TS>::Write(*this, vs), ...);
+        (DataFuncs<TS>::template Write<needReserve>(*this, vs), ...);
     }
 }

@@ -96,6 +96,36 @@
   <ItemGroup>
     <None Include="..\codegen_test1\foo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\xx_bits.h" />
+    <ClInclude Include="..\src\xx_data.h" />
+    <ClInclude Include="..\src\xx_data_funcs.h" />
+    <ClInclude Include="..\src\xx_data_queue.h" />
+    <ClInclude Include="..\src\xx_dict.h" />
+    <ClInclude Include="..\src\xx_epoll.h" />
+    <ClInclude Include="..\src\xx_epoll_http.h" />
+    <ClInclude Include="..\src\xx_epoll_kcp.h" />
+    <ClInclude Include="..\src\xx_file.h" />
+    <ClInclude Include="..\src\xx_helpers.h" />
+    <ClInclude Include="..\src\xx_logger.h" />
+    <ClInclude Include="..\src\xx_lua.h" />
+    <ClInclude Include="..\src\xx_lua_bind.h" />
+    <ClInclude Include="..\src\xx_lua_bind_samples.h" />
+    <ClInclude Include="..\src\xx_lua_data.h" />
+    <ClInclude Include="..\src\xx_lua_data_funcs.h" />
+    <ClInclude Include="..\src\xx_lua_uv_client.h" />
+    <ClInclude Include="..\src\xx_macro.h" />
+    <ClInclude Include="..\src\xx_macro_ext.h" />
+    <ClInclude Include="..\src\xx_mysql.h" />
+    <ClInclude Include="..\src\xx_obj.h" />
+    <ClInclude Include="..\src\xx_ptr.h" />
+    <ClInclude Include="..\src\xx_queue.h" />
+    <ClInclude Include="..\src\xx_signal.h" />
+    <ClInclude Include="..\src\xx_string.h" />
+    <ClInclude Include="..\src\xx_threadpool.h" />
+    <ClInclude Include="..\src\xx_uv.h" />
+    <ClInclude Include="..\src\xx_uv_ext2.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -24,6 +24,7 @@
 
 #include "xx_bits.h"
 #include "xx_macro.h"
+#include "xx_data.h"
 
 #ifdef _WIN32
 #	define NOMINMAX
@@ -268,6 +269,8 @@ namespace xx {
 
 	template<typename T>
 	constexpr bool IsMapSeries_v = IsUnorderedMap_v<T> || IsMap_v<T>;
+	template<typename T>
+	using MapSeries_Pair_t = std::conditional_t<IsUnorderedMap_v<T>, UnorderedMap_Pair_t<T>, Map_Pair_t<T>>;
 
 
 	template<typename T>
@@ -377,6 +380,46 @@ namespace xx {
 
 	template <typename T, typename Tuple>
 	constexpr size_t TupleTypeIndex_v = TupleTypeIndex<T, Tuple>::value;
+
+
+
+
+	// 基础类型 检查( 数值, enum, string, Data, 以及包裹容器的这些类型 )
+
+	template<typename T, typename ENABLED = void> struct IsBaseDataType : std::false_type {};
+	template<typename T> constexpr bool IsBaseDataType_v = IsBaseDataType<T>::value;
+
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< std::is_arithmetic_v<T> 
+																	|| std::is_enum_v<T> 
+																	|| IsLiteral_v<T>
+																	|| std::is_same_v<std::string, std::decay_t<T>>
+																	|| std::is_same_v<std::string_view, std::decay_t<T>>
+																	|| std::is_base_of_v<Span, T>
+																	>> : std::true_type {};
+
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsOptional_v<T>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsVector_v<T>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsSetSeries_v<T>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsPair_v<T>&& IsBaseDataType_v<typename T::first_type>&& IsBaseDataType_v<typename T::second_type> >> : std::true_type {};
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsMapSeries_v<T>&& IsBaseDataType_v<typename T::key_type>&& IsBaseDataType_v<typename T::value_type> >> : std::true_type {};
+
+	// tuple 得遍历每个类型来判断
+	template<typename Tuple, typename = std::enable_if_t<IsTuple_v<Tuple>>>
+	struct TupleIsBaseDataType {
+		template<std::size_t index>
+		static constexpr bool Check__() {
+			if constexpr (index == std::tuple_size_v<Tuple>) {
+				return true;
+			}
+			else {
+				return IsBaseDataType_v<std::tuple_element_t<index, Tuple>> ? Check__<index + 1>() : false;
+			}
+		}
+		static constexpr bool Check() {
+			return Check__<0>();
+		}
+	};
+	template<typename T> struct IsBaseDataType<T, std::enable_if_t< IsTuple_v<T>&& TupleIsBaseDataType<T>::Check() >> : std::true_type {};
 
 
 
