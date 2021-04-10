@@ -30,7 +30,7 @@ namespace xx {
 			return 0;
 		}
 		static inline void Append(ObjManager& om, std::string& s, T const& in) {
-			std::string s(TypeName_v<T>);
+			std::string ss(TypeName_v<T>);
 			assert(false);
 		}
 		static inline void AppendCore(ObjManager& om, std::string& s, T const& in) {
