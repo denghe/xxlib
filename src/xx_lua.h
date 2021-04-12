@@ -358,8 +358,16 @@ namespace xx::Lua {
 				lua_pushboolean(L, in ? 1 : 0);
 			}
 			else {
-				// todo: 兼容 int64 的处理
-				lua_pushinteger(L, in);
+#if LUA_VERSION_NUM == 501
+			    if constexpr (sizeof(T) == 8) {
+                    *(T*)lua_newuserdata(L, 8) = in;
+			    }
+			    else
+#else
+                {
+                    lua_pushinteger(L, in);
+                }
+#endif
 			}
 			return 1;
 		}
@@ -369,10 +377,19 @@ namespace xx::Lua {
 				out = (bool)lua_toboolean(L, idx);
 			}
 			else {
-				// todo: 兼容 int64 的处理
-				int isnum = 0;
-				out = (T)lua_tointegerx(L, idx, &isnum);
-				if (!isnum) Error(L, "error! args[", std::to_string(idx), "] is not number");
+#if LUA_VERSION_NUM == 501
+                if constexpr (sizeof(T) == 8) {
+                    if (!lua_isuserdata(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not number(int64 userdata)");
+                    out = *(T*)lua_touserdata(L, idx);
+			    }
+			    else
+#else
+                {
+                    int isnum = 0;
+                    out = (T) lua_tointegerx(L, idx, &isnum);
+                    if (!isnum) Error(L, "error! args[", std::to_string(idx), "] is not number");
+                }
+#endif
 			}
 		}
 	};

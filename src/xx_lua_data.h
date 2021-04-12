@@ -457,6 +457,12 @@ namespace xx::Lua::Data {
 
 		{"Wvi",        W<int64_t, false>},
 		{"Wvu",        W<uint64_t, false>},
+		{"Wvi64",      W<int64_t, false>},
+		{"Wvu64",      W<uint64_t, false>},
+		{"Wvi32",      W<int32_t, false>},
+		{"Wvu32",      W<uint32_t, false>},
+		{"Wvi16",      W<int16_t, false>},
+		{"Wvu16",      W<uint16_t, false>},
 
 		{"Wb",         W<bool>},
 		{"Wi8",        W<int8_t>},
@@ -527,6 +533,12 @@ namespace xx::Lua::Data {
 
 		{"Rvi",        R<int64_t, false>},
 		{"Rvu",        R<uint64_t, false>},
+		{"Rvi64",      R<int64_t, false>},
+		{"Rvu64",      R<uint64_t, false>},
+		{"Rvi32",      R<int32_t, false>},
+		{"Rvu32",      R<uint32_t, false>},
+		{"Rvi16",      R<int16_t, false>},
+		{"Rvu16",      R<uint16_t, false>},
 
 		{"Rb",         R<bool>},
 		{"Ri8",        R<int8_t>},
