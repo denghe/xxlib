@@ -455,8 +455,8 @@ namespace xx::Lua::Data {
 		{"Wdata",      Wdata},
 		{"Wndata",     Wdata<true>},
 
-		{"Wvi",        W<ptrdiff_t, false>},
-		{"Wvu",        W<size_t, false>},
+		{"Wvi",        W<int64_t, false>},
+		{"Wvu",        W<uint64_t, false>},
 
 		{"Wb",         W<bool>},
 		{"Wi8",        W<int8_t>},
@@ -470,8 +470,8 @@ namespace xx::Lua::Data {
 		{"Wf",         W<float>},
 		{"Wd",         W<double>},
 
-		{"Wnvi",       W<ptrdiff_t, false, false, false, true>},
-		{"Wnvu",       W<size_t, false, false, false, true>},
+		{"Wnvi",       W<int64_t, false, false, false, true>},
+		{"Wnvu",       W<uint64_t, false, false, false, true>},
 
 		{"Wnb",        W<bool, true, false, false, true>},
 		{"Wni8",       W<int8_t, true, false, false, true>},
@@ -525,8 +525,8 @@ namespace xx::Lua::Data {
 		{"RdataTo",    RdataTo},
 		{"Rndata",     Rdata<true>},
 
-		{"Rvi",        R<ptrdiff_t, false>},
-		{"Rvu",        R<size_t, false>},
+		{"Rvi",        R<int64_t, false>},
+		{"Rvu",        R<uint64_t, false>},
 
 		{"Rb",         R<bool>},
 		{"Ri8",        R<int8_t>},
@@ -541,8 +541,8 @@ namespace xx::Lua::Data {
 		{"Rd",         R<double>},
 
 
-		{"Rnvi",       R<ptrdiff_t, false, false, false, true>},
-		{"Rnvu",       R<size_t, false, false, false, true>},
+		{"Rnvi",       R<int64_t, false, false, false, true>},
+		{"Rnvu",       R<uint64_t, false, false, false, true>},
 
 		{"Rnb",        R<bool, true, false, false, true>},
 		{"Rni8",       R<int8_t, true, false, false, true>},

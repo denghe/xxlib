@@ -100,7 +100,7 @@ end
 gReadRoot = function(bb)
 	if bb ~= nil then
 		local success, pkg = gOM:ReadFrom(bb)
-		if success then
+		if success == 0 then
 			return pkg
 		--else
 			--print(pkg)

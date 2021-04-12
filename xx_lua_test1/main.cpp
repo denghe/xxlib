@@ -2,7 +2,6 @@
 #include "xx_lua_bind.h"
 #include "xx_lua_data.h"
 #include "xx_string.h"
-//#include "xx_lua_uv_client.h"
 
 #ifdef _WIN32
 #pragma comment(lib, "libuv.lib")
@@ -168,33 +167,36 @@ print(os.clock() - starttime)
 
     assert(lua_gettop(L) == 0);
 }
-//
-//void TestUv() {
-//    xx::Lua::State L;
-//    SetGlobalCClosure(L, "Nows", [](auto L) -> int { return xx::Lua::Push(L, xx::NowEpochSeconds()); });
-//    SetGlobalCClosure(L, "NowSteadyEpochMS", [](auto L) -> int { return xx::Lua::Push(L, xx::NowSteadyEpochMilliseconds()); });
-//    xx::Lua::UvClient::Register(L);
-//    xx::Lua::Data::Register(L);
-//
-//    auto r = xx::Lua::Try(L, [&] {
-//        xx::Lua::DoFile(L, "test_uv.lua");
-//        auto cb = xx::Lua::GetGlobalFunc(L, "gUpdate");
-//        while (true) {
-//            cb.Call();
-//            Sleep(16);
-//        }
-//    });
-//    if (r) {
-//        xx::CoutN(r.m);
-//    }
-//}
+
+
+#include "xx_lua_uv_client.h"
+
+void TestUv() {
+    xx::Lua::State L;
+    SetGlobalCClosure(L, "Nows", [](auto L) -> int { return xx::Lua::Push(L, xx::NowEpochSeconds()); });
+    SetGlobalCClosure(L, "NowSteadyEpochMS", [](auto L) -> int { return xx::Lua::Push(L, xx::NowSteadyEpochMilliseconds()); });
+    xx::Lua::UvClient::Register(L);
+    xx::Lua::Data::Register(L);
+
+    auto r = xx::Lua::Try(L, [&] {
+        xx::Lua::DoFile(L, "test_uv.lua");
+        auto cb = xx::Lua::GetGlobalFunc(L, "gUpdate");
+        while (true) {
+            cb.Call();
+            Sleep(16);
+        }
+    });
+    if (r) {
+        xx::CoutN(r.m);
+    }
+}
 
 #include "xx_lua_bind_samples.h"
 
 int main() {
     //Test1();
-    Test2();
-    //TestUv();
+    //Test2();
+    TestUv();
     //TestLuaBind1();
     //TestLuaBind2();
     std::cout << "end." << std::endl;
