@@ -478,6 +478,12 @@ namespace xx::Lua::Data {
 
 		{"Wnvi",       W<int64_t, false, false, false, true>},
 		{"Wnvu",       W<uint64_t, false, false, false, true>},
+		{"Wnvi64",     W<int64_t, false, false, false, true>},
+		{"Wnvu64",     W<uint64_t, false, false, false, true>},
+		{"Wnvi32",     W<int32_t, false, false, false, true>},
+		{"Wnvu32",     W<uint32_t, false, false, false, true>},
+		{"Wnvi16",     W<int16_t, false, false, false, true>},
+		{"Wnvu16",     W<uint16_t, false, false, false, true>},
 
 		{"Wnb",        W<bool, true, false, false, true>},
 		{"Wni8",       W<int8_t, true, false, false, true>},
@@ -555,6 +561,12 @@ namespace xx::Lua::Data {
 
 		{"Rnvi",       R<int64_t, false, false, false, true>},
 		{"Rnvu",       R<uint64_t, false, false, false, true>},
+		{"Rnvi64",       R<int64_t, false, false, false, true>},
+		{"Rnvu64",       R<uint64_t, false, false, false, true>},
+		{"Rnvi32",       R<int32_t, false, false, false, true>},
+		{"Rnvu32",       R<uint32_t, false, false, false, true>},
+		{"Rnvi16",       R<int16_t, false, false, false, true>},
+		{"Rnvu16",       R<uint16_t, false, false, false, true>},
 
 		{"Rnb",        R<bool, true, false, false, true>},
 		{"Rni8",       R<int8_t, true, false, false, true>},
