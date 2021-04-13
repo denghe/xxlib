@@ -77,7 +77,8 @@ ObjMgr = {
             return 0, null
         end
         local m = self.m
-        local len = #m, typeId
+        local len = #m
+        local typeId
         if n == len + 1 then
             r, typeId = d:Rvu16()
             if r ~= 0 then
