@@ -102,12 +102,12 @@ namespace xx::Epoll {
 
     struct Item {
         // 指向总容器
-        Shared<Context> ec;
+        Context* ec;
         // linux 系统文件描述符
         int fd;
 
         // 初始化依赖上下文
-        explicit Item(Shared<Context> const &ec, int const &fd = -1);
+        explicit Item(Context* const &ec, int const &fd = -1);
 
         // 注意：析构中调用虚函数，不会 call 到派生类的 override 版本
         virtual ~Item() { Close(0, " Item ~Item"); }
@@ -207,7 +207,7 @@ namespace xx::Epoll {
     template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
     struct TcpListener : Item {
         // 特化构造函数. 不需要传入 fd
-        explicit TcpListener(Shared<Context> const &ec) : Item(ec, -1) {};
+        explicit TcpListener(Context* const &ec) : Item(ec, -1) {};
 
         // 开始监听. 失败返回非 0
         virtual int Listen(int const &port);
@@ -251,7 +251,7 @@ namespace xx::Epoll {
         std::vector<sockaddr_in6> addrs;
 
         // 特化构造函数. 不需要传递 fd
-        explicit TcpDialer(Shared<Context> const &ec) : Timer(ec, -1) {}
+        explicit TcpDialer(Context* const &ec) : Timer(ec, -1) {}
 
         // 向 addrs 追加地址. 如果地址转换错误将返回非 0
         int AddAddress(std::string const &ip, int const &port);
@@ -308,7 +308,7 @@ namespace xx::Epoll {
         inline static Shared<CommandHandler> self;
         std::vector<std::string> args;
 
-        CommandHandler(Shared<Context> const &ec);
+        CommandHandler(Context* const &ec);
 
         static void ReadLineCallback(char *line);
 
@@ -438,7 +438,7 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // Item
-    inline Item::Item(Shared<Context> const &ec, int const &fd)
+    inline Item::Item(Context* const &ec, int const &fd)
             : ec(ec), fd(fd) {
         if (fd != -1) {
             if (ec->fdMappings[fd]) throw std::runtime_error(" Item Item if (ec->fdMappings[fd])");
@@ -847,7 +847,7 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // CommandHandler
-    inline CommandHandler::CommandHandler(Shared<Context> const &ec) : Item(ec, STDIN_FILENO) {
+    inline CommandHandler::CommandHandler(Context* const &ec) : Item(ec, STDIN_FILENO) {
         rl_attempted_completion_function = (rl_completion_func_t *) &CompleteCallback;
         rl_callback_handler_install("# ", (rl_vcpfunc_t *) &ReadLineCallback);
     }

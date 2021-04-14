@@ -6,40 +6,39 @@
 #include "tasktimer.h"
 #include "xx_logger.h"
 
-int Server::Run() {
-    // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
-    auto sg1 = xx::MakeScopeGuard([&]{
-        DisableCommandLine();
-        listener.Reset();
-        pingTimer.Reset();
-        taskTimer.Reset();
+Server::~Server() {
+    DisableCommandLine();
+    listener.Reset();
+    pingTimer.Reset();
+    taskTimer.Reset();
 
-        for(auto&& dp : dps) {
-            dp.second.first->Stop();
-            if (dp.second.second) {
-                dp.second.second->Close(-__LINE__, " Server Run sg1");
-            }
+    for(auto&& dp : dps) {
+        dp.second.first->Stop();
+        if (dp.second.second) {
+            dp.second.second->Close(-__LINE__, " Server Run sg1");
         }
-        dps.clear();
+    }
+    dps.clear();
 
-        std::vector<uint32_t> keys;
-        for(auto&& cp : cps) {
-            keys.push_back(cp.first);
-        }
-        for(auto&& key : keys) {
-            cps[key]->Close(-__LINE__, " Server Run sg1");
-        }
-        cps.clear();
+    std::vector<uint32_t> keys;
+    for(auto&& cp : cps) {
+        keys.push_back(cp.first);
+    }
+    for(auto&& key : keys) {
+        cps[key]->Close(-__LINE__, " Server Run sg1");
+    }
+    cps.clear();
 
-        holdItems.clear();
+    holdItems.clear();
 
-        assert(shared_from_this().use_count() == 2);
-    });
+    assert(xx::SharedFromThis(this).useCount() == 2);
+}
 
+int Server::Init() {
     // 初始化监听器和回收sg
     xx::MakeTo(listener, xx::SharedFromThis(this));
     // 如果监听失败则输出错误提示并退出
-    if (int r = listener->Listen(config.listenPort)) {
+    if (int r = listener->Listen((int)config.listenPort)) {
         LOG_ERROR("listen to port ", config.listenPort, "failed.");
         return r;
     }
@@ -62,8 +61,8 @@ int Server::Run() {
             return __LINE__;
         }
         // 填充数据，为开始拨号作准备（会在帧回调逻辑中开始拨号）
-        dialer->serverId = si.serverId;
-        dialer->AddAddress(si.ip, si.port);
+        dialer->serverId = (int)si.serverId;
+        dialer->AddAddress(si.ip, (int)si.port);
     }
 
     // 核查是否存在 0 号服务的 dialer. 没有就报错
@@ -75,6 +74,9 @@ int Server::Run() {
     // 注册交互指令
     EnableCommandLine();
 
+    cmds["?"] = [this](auto args) {
+        std::cout << "cmds: cfg, info, quit / exit" << std::endl;
+    };
     cmds["cfg"] = [this](auto args) {
         std::cout << "cfg = " << config << std::endl;
     };
@@ -86,8 +88,7 @@ int Server::Run() {
     };
     cmds["exit"] = this->cmds["quit"];
 
-    // 正式进入 epoll wait 循环
-    return this->EP::Context::Run();
+    return 0;
 }
 
 int Server::FrameUpdate() {

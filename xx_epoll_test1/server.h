@@ -16,6 +16,12 @@ struct Server : EP::Context {
     // 继承构造函数
     using EP::Context::Context;
 
+    // clean up
+    ~Server() override;
+
+    // 根据 config 进一步初始化各种成员
+    int Init();
+
     // 客户端连接id 自增量, 产生 peer 时++填充
     uint32_t cpeerAutoId = 0;
 
@@ -34,15 +40,9 @@ struct Server : EP::Context {
     // dialer + peer s
     std::unordered_map<uint32_t, std::pair<xx::Shared<Dialer>, xx::Shared<SPeer>>> dps;
 
-    // 根据 config 进一步初始化各种成员. 并于退出时清理
-    int Run() override;
-
     // 帧逻辑：遍历 dialerPeers 检查 Peer 状态并自动拨号
     int FrameUpdate() override;
 
     // 得到执行情况的快照
     std::string GetInfo();
-
-    // 令日志输出到文件？
-//    void LogN(int const& n, std::string&& txt) override;
 };

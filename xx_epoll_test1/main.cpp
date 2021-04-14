@@ -72,8 +72,8 @@ int main() {
     std::cout << ::config << std::endl;
 
 	// 创建类实例
-	auto&& s = xx::MakeShared<Server>();
+	Server s;
 
 	// 开始运行
-	return s->Run();
+	return s.Run();
 }
