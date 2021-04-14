@@ -197,7 +197,7 @@ namespace xx {
 		XX_INLINE static void Register() {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			pids[TypeId_v<T>] = TypeId_v<typename T::BaseType>;
-			fs[TypeId_v<T>] = []() -> ObjBase_s { return MakeShared<T>(); };
+			fs[TypeId_v<T>] = []() -> ObjBase_s { return Make<T>(); };
 			if constexpr (IsSimpleType_v<T>) {
 				if constexpr (std::is_same_v<typename T::IsSimpleType_v, T>) {
 					simples[TypeId_v<T>] = true;
@@ -216,7 +216,7 @@ namespace xx {
 		// 如果有预分配 data 的内存，可设置 needReserve 为 false. 主要针对结构体嵌套的简单类型. 遇到 "类" 会阻断 ( 需有充分把握，最好在结束后 assert( d.len <= d.cap ) )
 		template<bool needReserve = true, bool direct = false, typename T>
 		XX_INLINE void WriteTo(Data& d, T const& v) {
-			if constexpr (IsXxShared_v<T>) {
+			if constexpr (IsShared_v<T>) {
 				assert(v);
 				using U = typename T::ElementType;
 				if constexpr (direct) {
@@ -254,7 +254,7 @@ namespace xx {
 		// 内部函数
 		template<bool needReserve = true, bool isFirst = false, typename T>
 		XX_INLINE void Write_(Data& d, T const& v) {
-			if constexpr (IsXxShared_v<T>) {
+			if constexpr (IsShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_base_of_v<ObjBase, U> || TypeId_v<U> > 0) {
 					if (!v) {
@@ -288,7 +288,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsXxWeak_v<T>) {
+			else if constexpr (IsWeak_v<T>) {
 				if (v) {
 					auto p = v.h + 1;
 					Write_<needReserve>(d, *(Shared<typename T::ElementType>*) & p);
@@ -390,7 +390,7 @@ namespace xx {
 		// 原则: 尽量值覆盖, 不新建对象
 		template<typename T>
 		XX_INLINE int ReadFrom(Data_r& d, T& v) {
-			auto r = Read_<T, IsXxShared_v<T>>(d, v);
+			auto r = Read_<T, IsShared_v<T>>(d, v);
 			if constexpr (!IsSimpleType_v<T>) {
 				ptrs.clear();
 				for (auto& p : ptrs2) {
@@ -418,7 +418,7 @@ namespace xx {
 		// 内部函数
 		template<typename T, bool isFirst = false>
 		XX_INLINE int Read_(Data_r& d, T& v) {
-			if constexpr (IsXxShared_v<T>) {
+			if constexpr (IsShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 					uint32_t idx;
@@ -462,12 +462,12 @@ namespace xx {
 						return 0;
 					}
 					if (v.Empty()) {
-						v = MakeShared<U>();
+						v = Make<U>();
 					}
 					return Read_(d, v.Value());
 				}
 			}
-			else if constexpr (IsXxWeak_v<T>) {
+			else if constexpr (IsWeak_v<T>) {
 				Shared<typename T::ElementType> o;
 				if (int r = Read_(d, o)) return r;
 				if (o.pointer) {
@@ -611,7 +611,7 @@ namespace xx {
 			if constexpr (IsBaseDataType_v<T>) {
 				xx::Append(s, v);
 			}
-			else if constexpr (IsXxShared_v<T>) {
+			else if constexpr (IsShared_v<T>) {
 				using U = typename T::ElementType;
 				if (v) {
 					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
@@ -633,7 +633,7 @@ namespace xx {
 					s.append("null");
 				}
 			}
-			else if constexpr (IsXxWeak_v<T>) {
+			else if constexpr (IsWeak_v<T>) {
 				Append_(s, v.Lock());
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
@@ -761,7 +761,7 @@ namespace xx {
 
 		template<typename T>
 		XX_INLINE void Clone_(T const& in, T& out) {
-			if constexpr (IsXxShared_v<T>) {
+			if constexpr (IsShared_v<T>) {
 				if (!in) {
 					out.Reset();
 				}
@@ -783,7 +783,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsXxWeak_v<T>) {
+			else if constexpr (IsWeak_v<T>) {
 				out.Reset();
 				if (in.h && in.h->useCount) {
 					weaks.emplace_back(in.h, &out.h);
@@ -860,7 +860,7 @@ namespace xx {
 	protected:
 		template<typename T>
 		XX_INLINE void RecursiveReset_(T& v) {
-			if constexpr (IsXxShared_v<T>) {
+			if constexpr (IsShared_v<T>) {
 				if (v) {
 					auto h = ((PtrHeader*)v.pointer - 1);
 					if (h->offset == 0) {
@@ -874,7 +874,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsXxWeak_v<T>) {
+			else if constexpr (IsWeak_v<T>) {
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				v.RecursiveReset(*this);
@@ -948,7 +948,7 @@ namespace xx {
 
 		template<typename T>
 		XX_INLINE int RecursiveCheck_(T const& v) {
-			if constexpr (IsXxShared_v<T>) {
+			if constexpr (IsShared_v<T>) {
 				if (v) {
 					auto h = ((PtrHeader*)v.pointer - 1);
 					if (h->offset == 0) {
@@ -959,7 +959,7 @@ namespace xx {
 					else return h->offset;
 				}
 			}
-			else if constexpr (IsXxWeak_v<T>) {
+			else if constexpr (IsWeak_v<T>) {
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				return v.RecursiveCheck(*this);
@@ -1024,7 +1024,7 @@ namespace xx {
 	protected:
 		template<typename T>
 		XX_INLINE void SetDefaultValue_(T& v) {
-			if constexpr (IsXxShared_v<T> || IsXxWeak_v<T>) {
+			if constexpr (IsShared_v<T> || IsWeak_v<T>) {
 				v.Reset();
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {

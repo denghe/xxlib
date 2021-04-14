@@ -243,28 +243,29 @@ namespace xx::Lua {
 		return 1;
 	}
 
-	// 适配 lambda
-	template<typename T>
-	struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
-		static inline int Push(lua_State* const& L, T&& in) {
-			using U = std::decay_t<T>;
-			PushUserdata<U>(L, std::forward<T>(in));						// ..., ud
-			lua_pushcclosure(L, [](auto L) {								// ..., cc
-				auto f = (U*)lua_touserdata(L, lua_upvalueindex(1));
-				FuncA_t<U> tuple;
-				To(L, 1, tuple);
-				int rtv = 0;
-				std::apply([&](auto &&... args) {
-					if constexpr (std::is_void_v<FuncR_t<U>>) {
-						(*f)(args...);
-					}
-					else {
-						rtv = ::xx::Lua::Push(L, (*f)(args...));
-					}
-					}, tuple);
-				return rtv;
-				}, 1);
-			return 1;
-		}
-	};
+//	// 适配 lambda
+//	template<typename T>
+//	struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
+//		static inline int Push(lua_State* const& L, T&& in) {
+//			using U = std::decay_t<T>;
+//			PushUserdata<U>(L, std::forward<T>(in));						// ..., ud
+//			lua_pushcclosure(L, [](auto L) {								// ..., cc
+//				auto f = (U*)lua_touserdata(L, lua_upvalueindex(1));
+//				FuncA2_t<U> tuple;
+//				To(L, 1, tuple);
+//				int rtv = 0;
+//				std::apply([&](auto &&... args) {
+//					if constexpr (std::is_void_v<FuncR_t<U>>) {
+//						(*f)(args...);
+//					}
+//					else {
+//						rtv = ::xx::Lua::Push(L, (*f)(args...));
+//					}
+//					}, tuple);
+//				return rtv;
+//				}, 1);
+//			return 1;
+//		}
+//	};
+
 }

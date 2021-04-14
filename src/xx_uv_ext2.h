@@ -119,7 +119,7 @@ namespace xx {
 		std::vector<std::pair<std::string, int>> addrs;
 
 		inline virtual UvPeer_s CreatePeer() noexcept override {
-			return TryMakeShared<UvToGatewayPeer>(uv);
+			return TryMake<UvToGatewayPeer>(uv);
 		}
 
 		inline virtual void Accept(UvPeer_s peer_) noexcept override {

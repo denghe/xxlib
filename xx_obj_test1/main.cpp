@@ -3,13 +3,13 @@
 #include <iostream>
 
 void Test1() {
-	auto a = xx::MakeShared<A>();
+	auto a = xx::Make<A>();
 	a->id = 11;
 	a->nick = "aaa";
 	a->parent = a;
 	a->children.push_back(a);
 
-	auto b = xx::MakeShared<B>();
+	auto b = xx::Make<B>();
 	b->id = 22;
 	b->nick = "bbbbb";
 	b->parent = a;
@@ -67,7 +67,7 @@ void Test1() {
 }
 
 void Test2() {
-	auto a = xx::MakeShared<B>();
+	auto a = xx::Make<B>();
 	a->id = 1;
 	a->nick = "asdf";
 	a->parent = a;
@@ -97,11 +97,11 @@ void Test3() {
 
 	//d.Reserve(100);
 	// 
-	//auto f = xx::MakeShared<foo>();
+	//auto f = xx::Make<foo>();
 	//f->id = 100;
 	//f->name = "111111";
 
-	//auto b = xx::MakeShared<bar>();
+	//auto b = xx::Make<bar>();
 	//b->id = 100;
 	//b->name = "111111";
 

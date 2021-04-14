@@ -272,7 +272,7 @@ namespace xx {
 
 	template<typename Func>
 	void Uv::DelayExec(uint64_t ms, Func&& func) {
-		auto&& t = xx::MakeShared<UvTimer>(*this);
+		auto&& t = xx::Make<UvTimer>(*this);
 		t->Start(ms, 0, [t, func = std::forward<Func>(func)]{
 			func();
 			t->Dispose();
@@ -619,7 +619,7 @@ namespace xx {
 	};
 
 	inline UvPeer_s UvCreateAcceptBase::CreatePeer() noexcept {
-		return onCreatePeer ? onCreatePeer(uv) : TryMakeShared<UvPeer>(uv);
+		return onCreatePeer ? onCreatePeer(uv) : TryMake<UvPeer>(uv);
 	}
 
 	inline void UvCreateAcceptBase::Accept(UvPeer_s peer) noexcept {
@@ -1041,7 +1041,7 @@ namespace xx {
 				auto&& idx = shakes.Find(ipAndPort);			// find by addr
 				if (idx == -1 || shakes.ValueAt(idx).first != conv) return 0;	// not found or bad conv: ignore
 				shakes.RemoveAt(idx);							// remove from shakes
-				peer = xx::TryMakeShared<UvKcpPeerBase>(uv);			// create kcp peer
+				peer = xx::TryMake<UvKcpPeerBase>(uv);			// create kcp peer
 				if (!peer) return 0;
 				peer->udp = SharedFromThis(this);
 				peer->conv = conv;
@@ -1118,7 +1118,7 @@ namespace xx {
 			// ensure hand shake result data
 			if (recvLen == 8 && owner) {						// 4 bytes serial + 4 bytes conv
 				if (memcmp(recvBuf, &port, 4)) return 0;		// bad serial: ignore
-				auto&& p = xx::TryMakeShared<UvKcpPeerBase>(uv);
+				auto&& p = xx::TryMake<UvKcpPeerBase>(uv);
 				if (!p) return -1;								// not enough memory
 				peer_w = p;										// bind
 				auto&& self = As<UvKcp>(SharedFromThis(this));
@@ -1216,7 +1216,7 @@ namespace xx {
 			if (uv_listen((uv_stream_t*)uvTcp, backlog, [](uv_stream_t* server, int status) {
 				if (status) return;
 				auto&& self = Uv::GetSelf<UvTcpListener>(server);
-				auto&& peer = xx::TryMakeShared<UvTcpPeerBase>(self->uv);
+				auto&& peer = xx::TryMake<UvTcpPeerBase>(self->uv);
 				if (!peer) return;
 				if (uv_accept(server, (uv_stream_t*)peer->uvTcp)) return;
 				if (peer->ReadStart()) return;
@@ -1354,7 +1354,7 @@ namespace xx {
 			if (cleanup) {
 				Cancel();
 			}
-			auto&& req = TryMakeShared<UvDialerKcp>(uv, ip, port, false);
+			auto&& req = TryMake<UvDialerKcp>(uv, ip, port, false);
 			if (!req) return -2;
 			req->owner = this;
 			req->port = --uv.autoId;
@@ -1410,7 +1410,7 @@ namespace xx {
 			if (!req) return -1;
 			auto sgReq = xx::MakeScopeGuard([&req] { delete req; });
 
-			req->peer = xx::TryMakeShared<UvTcpPeerBase>(uv);
+			req->peer = xx::TryMake<UvTcpPeerBase>(uv);
 			if (!req->peer) return -2;
 
 			req->dialer_w = As<UvTcpDialer>(SharedFromThis(this));
@@ -1470,11 +1470,11 @@ namespace xx {
 		, onConnect(this->onAccept) {
 		if (tcpKcpOpt < 0 || tcpKcpOpt>2) throw - 1;
 		if (tcpKcpOpt == 0 || tcpKcpOpt == 2) {
-			tcpDialer = xx::MakeShared<UvTcpDialer>(uv);
+			tcpDialer = xx::Make<UvTcpDialer>(uv);
 			tcpDialer->dialer = this;
 		}
 		if (tcpKcpOpt == 1 || tcpKcpOpt == 2) {
-			kcpDialer = xx::MakeShared<UvKcpDialer>(uv);
+			kcpDialer = xx::Make<UvKcpDialer>(uv);
 			kcpDialer->dialer = this;
 		}
 	}
