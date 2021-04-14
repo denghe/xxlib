@@ -516,17 +516,10 @@ namespace xx {
 		return !v.template As<T>().Empty();
 	}
 
-
 	// unsafe
     template<typename T>
-    Shared<T> SharedFromThis2(void* const& thiz) {
-        auto h = (typename Shared<T>::HeaderType*)thiz - 1;
-        return (*((Weak<T>*) & h)).Lock();
-    }
-    template<typename T>
     Shared<T> SharedFromThis(T* const& thiz) {
-        auto h = (typename Shared<T>::HeaderType*)thiz - 1;
-        return (*((Weak<T>*) & h)).Lock();
+		return *(Shared<T> *)thiz;
     }
 }
 

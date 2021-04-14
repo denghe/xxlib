@@ -31,12 +31,12 @@ void CPeer::DelayClose(double const& delaySeconds) {
 void CPeer::PartialClose() {
     // 群发断开通知
     for (auto &&sid : serverIds) {
-        if (auto&& sp = GetServer().dps[sid].second) {
+        if (auto&& sp = ((Server *)ec)->dps[sid].second) {
             sp->SendCommand("disconnect", clientId);
         }
     }
     // 从容器移除( 减持 )
-    GetServer().cps.erase(clientId);
+    ((Server *)ec)->cps.erase(clientId);
 }
 
 void CPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
@@ -50,12 +50,14 @@ void CPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
     }
 
     // 指向目标服务 peer
-    auto&& sp = GetServer().dps[sid].second;
+    auto&& sp = ((Server *)ec)->dps[sid].second;
     // 如果服务 peer 当前无效，则忽略
     if (!sp) {
         LOG_INFO("CPeer ReceivePackage !sp || !sp->Alive(). ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
         return;
     }
+
+    LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
 
     // 续命. 每次收到合法数据续一下
     SetTimeoutSeconds(config.clientTimeoutSeconds);
@@ -65,8 +67,6 @@ void CPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
 
     // 用 serverId 对应的 peer 转发完整数据包
     sp->Send({buf - 4, len + 4});
-
-    LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
 }
 
 void CPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {

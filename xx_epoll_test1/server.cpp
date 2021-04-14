@@ -6,36 +6,28 @@
 #include "tasktimer.h"
 #include "xx_logger.h"
 
-Server::~Server() {
-    DisableCommandLine();
-    listener.Reset();
-    pingTimer.Reset();
-    taskTimer.Reset();
-
-    for(auto&& dp : dps) {
-        dp.second.first->Stop();
-        if (dp.second.second) {
-            dp.second.second->Close(-__LINE__, " Server Run sg1");
-        }
-    }
-    dps.clear();
-
-    std::vector<uint32_t> keys;
-    for(auto&& cp : cps) {
-        keys.push_back(cp.first);
-    }
-    for(auto&& key : keys) {
-        cps[key]->Close(-__LINE__, " Server Run sg1");
-    }
-    cps.clear();
-
-    holdItems.clear();
-
-    assert(xx::SharedFromThis(this).useCount() == 2);
-}
-
 int Server::Init() {
-    // 初始化监听器和回收sg
+    // 遍历配置并生成相应的 dialer
+    for (auto &&si : config.serverInfos) {
+        // 创建拨号器
+        auto&& dialer = xx::MakeShared<Dialer>(xx::SharedFromThis(this));
+        // 放入字典。如果 server id 重复就报错
+        if (!dps.insert({si.serverId, std::make_pair(dialer, nullptr)}).second) {
+            LOG_ERROR("duplicate serverId: ", si.serverId);
+            return __LINE__;
+        }
+        // 填充数据，为开始拨号作准备（会在帧回调逻辑中开始拨号）
+        dialer->serverId = si.serverId;
+        dialer->AddAddress(si.ip, (int)si.port);
+    }
+
+    // 核查是否存在 0 号服务的 dialer. 没有就报错
+    if (dps.find(0) == dps.end()) {
+        LOG_ERROR("can't find base server ( serverId = 0 )'s dialer.");
+        return __LINE__;
+    }
+
+    // 初始化监听器
     xx::MakeTo(listener, xx::SharedFromThis(this));
     // 如果监听失败则输出错误提示并退出
     if (int r = listener->Listen((int)config.listenPort)) {
@@ -50,26 +42,6 @@ int Server::Init() {
     // 初始化间隔时间为 1 秒的处理服务器之间断线重拨的 timer
     xx::MakeTo(taskTimer, xx::SharedFromThis(this));
     taskTimer->Start();
-
-    // 遍历配置并生成相应的 dialer
-    for (auto &&si : config.serverInfos) {
-        // 创建拨号器
-        auto&& dialer = xx::MakeShared<Dialer>(xx::SharedFromThis(this));
-        // 放入字典。如果 server id 重复就报错
-        if (!dps.insert({si.serverId, std::make_pair(dialer, nullptr)}).second) {
-            LOG_ERROR("duplicate serverId: ", si.serverId);
-            return __LINE__;
-        }
-        // 填充数据，为开始拨号作准备（会在帧回调逻辑中开始拨号）
-        dialer->serverId = (int)si.serverId;
-        dialer->AddAddress(si.ip, (int)si.port);
-    }
-
-    // 核查是否存在 0 号服务的 dialer. 没有就报错
-    if (dps.find(0) == dps.end()) {
-        LOG_ERROR("can't find base server ( serverId = 0 )'s dialer.");
-        return __LINE__;
-    }
 
     // 注册交互指令
     EnableCommandLine();
@@ -88,10 +60,6 @@ int Server::Init() {
     };
     cmds["exit"] = this->cmds["quit"];
 
-    return 0;
-}
-
-int Server::FrameUpdate() {
     return 0;
 }
 

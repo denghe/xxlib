@@ -37,6 +37,7 @@
 #include "xx_data_queue.h"
 #include "xx_data_funcs.h"
 #include <function2.hpp>    // replace std::function for resolve some bug
+#include "tsl/hopscotch_map.h"
 
 namespace xx {
     // 适配 sockaddr const*
@@ -397,7 +398,7 @@ namespace xx::Epoll {
         Shared<PipeWriter> pipeWriter;
 
         // item 的智能指针的保持容器
-        std::unordered_map<Item *, Shared<Item>> holdItems;
+        tsl::hopscotch_map<Item *, Shared<Item>> holdItems;
         // 要删除一个 peer 就把它的 指针 压到这个队列. 会在 稍后 从 items 删除
         std::vector<Item *> deadItems;
 
@@ -828,7 +829,7 @@ namespace xx::Epoll {
         if (int r = ec->Ctl(fd, EPOLLIN | EPOLLOUT)) return r;
         // 撤销 自动close
         sg.Cancel();
-        // 试创建目标类实例
+        // 创建目标类实例
         auto &&o = xx::MakeShared<TcpConn<PeerType>>(ec, fd);
         // 继续初始化并放入容器
         o->dialer = SharedFromThis(this);
@@ -978,7 +979,7 @@ namespace xx::Epoll {
         // 试将 fd 纳入 epoll 管理
         if (-1 == Ctl(STDIN_FILENO, EPOLLIN)) return -2;
         // 创建单例
-        CommandHandler::self.Emplace(SharedFromThis(this));
+        CommandHandler::self.Emplace(this);
         return 0;
     }
 
@@ -1133,8 +1134,8 @@ namespace xx::Epoll {
         // 将 pipe fd 纳入 epoll 管理
         Ctl(actionsPipes[0], EPOLLIN);
         // 为 pipe fd[0] 创建容器
-        pipeReader.Emplace(SharedFromThis(this), actionsPipes[0]);
-        pipeWriter.Emplace(SharedFromThis(this), actionsPipes[1]);
+        pipeReader.Emplace(this, actionsPipes[0]);
+        pipeWriter.Emplace(this, actionsPipes[1]);
 
         // 函数退出时自动删掉 pipe 容器, 以避免 Context 的引用计数无法清 0
         auto sg = xx::MakeScopeGuard([&] {

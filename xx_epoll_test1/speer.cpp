@@ -9,7 +9,7 @@ bool SPeer::Close(int const& reason, char const* const& desc) {
     if (!this->Peer::Close(reason, desc)) return false;
     LOG_INFO("SPeer Close. serverId = ", serverId, ", reason = ", reason, ", desc = ", desc);
     // 从所有 client peers 里的白名单中移除
-    for (auto &&kv : GetServer().cps) {
+    for (auto &&kv : ((Server*)ec)->cps) {
         // 不管有没有, 试着 从 client peer 的 已open id列表 擦除该 服务id
         kv.second->serverIds.erase(serverId);
         // 下发 close( 如果全都没了, 则会导致 client 无法发送任何数据过来，自然超时断掉 )
@@ -17,7 +17,7 @@ bool SPeer::Close(int const& reason, char const* const& desc) {
         kv.second->Flush();
     }
     // 从 dps 移除以减持
-    GetServer().dps[serverId].second.Reset();
+    ((Server*)ec)->dps[serverId].second.Reset();
     // 延迟减持
     DelayUnhold();
     return true;
@@ -132,7 +132,7 @@ void SPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
 }
 
 CPeer *SPeer::TryGetCPeer(uint32_t const &clientId) {
-    auto &&cps = GetServer().cps;
+    auto &&cps = ((Server*)ec)->cps;
     // 根据 client id 找。找不到就返回空指针
     auto &&iter = cps.find(clientId);
     if (iter == cps.end()) return nullptr;
