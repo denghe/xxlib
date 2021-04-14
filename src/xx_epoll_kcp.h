@@ -63,12 +63,12 @@ namespace xx::Epoll {
         // 自增生成连接id
         uint32_t convId = 0;
         // kcp conv 值与 peer 的映射。KcpPeer Close 时从该字典移除 key
-        std::unordered_map<uint32_t, KcpPeer *> cps;
+        tsl::hopscotch_map<uint32_t, KcpPeer *> cps;
         // 带超时的握手信息字典 key: ip:port   value: conv, nowMS
-        std::unordered_map<std::string, std::pair<uint32_t, int64_t>> shakes;
+        tsl::hopscotch_map<std::string, std::pair<uint32_t, int64_t>> shakes;
 
         // 构造函数( 启动 timer 用作每帧驱动 update )
-        explicit KcpBase(std::shared_ptr<Context> const &ec);
+        explicit KcpBase(Context* const &ec);
 
         // 方便派生类覆盖 Close 函数:
         // if ... return false;
@@ -87,7 +87,7 @@ namespace xx::Epoll {
 
     struct KcpPeer : Timer {
         // 用于收发数据的物理 udp peer( 后面根据标识来硬转为 Listener 或 Dialer )
-        std::shared_ptr<KcpBase> owner;
+        Shared<KcpBase> owner;
         // 对方的 addr( owner 收到数据时会填充. SendTo 时用到 )
         sockaddr_in6 addr{};
         // 收数据用堆积容器( Receive 里访问它来处理收到的数据 )
@@ -100,7 +100,7 @@ namespace xx::Epoll {
         uint32_t nextUpdateMS = 0;
 
         // 初始化 kcp 相关上下文
-        KcpPeer(std::shared_ptr<KcpBase> const &owner, uint32_t const &conv);
+        KcpPeer(Shared<KcpBase> const &owner, uint32_t const &conv);
 
         // 回收 kcp 相关上下文
         ~KcpPeer() override;
@@ -136,14 +136,14 @@ namespace xx::Epoll {
         int64_t shakeTimeoutMS = 3000;
 
         // 在构造里改点默认参数以令 udp peer 更适合做服务器端
-        explicit KcpListener(std::shared_ptr<Context> const &ec);
+        explicit KcpListener(Context* const &ec);
 
         // 1. 判断收到的数据内容, 模拟握手， 最后产生 KcpPeer
         // 2. 定位到 KcpPeer, Input 数据
         void Receive(char const *const &buf, size_t const &len) override;
 
         // 连接创建成功后会触发
-        virtual void Accept(std::shared_ptr<PeerType> const &peer) = 0;
+        virtual void Accept(Shared<PeerType> const &peer) = 0;
 
         // 调用 CloseChilds
         bool Close(int const &reason, char const *const &desc) override;
@@ -185,7 +185,7 @@ namespace xx::Epoll {
         return kcp != nullptr && owner;
     }
 
-    inline KcpPeer::KcpPeer(std::shared_ptr<KcpBase> const &owner, uint32_t const &conv) : Timer(owner->ec, -1) {
+    inline KcpPeer::KcpPeer(Shared<KcpBase> const &owner, uint32_t const &conv) : Timer(owner->ec, -1) {
         // 创建并设置 kcp 的一些参数. 按照 每秒 100 帧来设置的. 即精度 10 ms
         kcp = ikcp_create(conv, this);
         (void) ikcp_wndsize(kcp, 1024, 1024);
@@ -297,7 +297,7 @@ namespace xx::Epoll {
         return true;
     }
 
-    inline KcpBase::KcpBase(std::shared_ptr<Context> const &ec) : UdpPeer(ec, -1) {
+    inline KcpBase::KcpBase(Context* const &ec) : UdpPeer(ec, -1) {
         // 注册下一帧帧发起的回调( 回调中继续调用这句代码以实现每帧都产生回调 )
         SetTimeout(1);
     }
@@ -306,7 +306,7 @@ namespace xx::Epoll {
 
     ;
     template<typename PeerType, class ENABLED>
-    inline KcpListener<PeerType, ENABLED>::KcpListener(std::shared_ptr<Context> const &ec) : KcpBase(ec) {
+    inline KcpListener<PeerType, ENABLED>::KcpListener(Context* const &ec) : KcpBase(ec) {
         readCountAtOnce = 500;
     }
 
@@ -473,7 +473,7 @@ namespace xx::Epoll {
     // 这东西用起来要非常小心：闭包上下文可能加持指针，可能引用到野指针，可能析构对象导致 this 失效
     struct GenericTimer : Timer {
         using Timer::Timer;
-        std::function<void()> onTimeout;
+        fu2::function<void()> onTimeout;
 
         inline void Timeout() override {
             onTimeout();
@@ -488,10 +488,10 @@ namespace xx::Epoll {
         bool needSendFirstPackage = true;
 
         // 初始化 timer
-        explicit KcpDialer(std::shared_ptr<Context> const &ec, int const& port = 0);
+        explicit KcpDialer(Context* const &ec, int const& port = 0);
 
         // 连接成功或失败(peer==nullptr)都会触发. 失败通常属于超时
-        virtual void Connect(std::shared_ptr<PeerType> const &peer) = 0;
+        virtual void Connect(Shared<PeerType> const &peer) = 0;
 
         // 向 addrs 追加地址. 如果地址转换错误将返回非 0
         int AddAddress(std::string const &ip, int const &port);
@@ -513,7 +513,7 @@ namespace xx::Epoll {
 
     protected:
         // 存个空值备用 以方便返回引用
-        std::shared_ptr<PeerType> emptyPeer;
+        Shared<PeerType> emptyPeer;
 
         // 1. 判断收到的数据内容, 模拟握手，最后产生 KcpPeer
         // 2. 定位到 KcpPeer, Input 数据( 已连接状态 )
@@ -581,7 +581,7 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    KcpDialer<PeerType, ENABLED>::KcpDialer(std::shared_ptr<Context> const &ec, int const& port)
+    KcpDialer<PeerType, ENABLED>::KcpDialer(Context* const &ec, int const& port)
             : KcpBase(ec)
             , timerForShake(ec)
             , timerForTimeout(ec) {

@@ -3,7 +3,7 @@
 #include "xx_epoll.h"
 #include "xx_string.h"
 #include "http_parser.h"
-#include <map>
+#include "tsl/hopscotch_map.h"
 
 namespace xx::Epoll {
     struct HttpPeer : TcpPeer {
@@ -19,14 +19,14 @@ namespace xx::Epoll {
         /** PUBLIC **/
         // 下面这些是在 ReceiveHttp 中可以随便访问的东西。已经由 parser 填充完毕。
         std::string url;
-        std::map<std::string, std::string> header;
+        tsl::hopscotch_map<std::string, std::string> header;
         std::string body;
         std::string method;
         std::string status;
         int keepAlive = 0;
 
         // 初始化 http parser 相关
-        HttpPeer(std::shared_ptr<Context> const &ec, int const &fd);
+        HttpPeer(Context* const &ec, int const &fd);
 
         // 实现收数据逻辑
         void Receive() override;
@@ -42,7 +42,7 @@ namespace xx::Epoll {
     };
 
 
-    inline HttpPeer::HttpPeer(std::shared_ptr<Context> const& ec, int const& fd)
+    inline HttpPeer::HttpPeer(Context* const& ec, int const& fd)
             : TcpPeer(ec, fd) {
         // 初始化 parser. 绑定各种回调。通过 data 来传递 this
         http_parser_init(&httpParser, HTTP_BOTH);

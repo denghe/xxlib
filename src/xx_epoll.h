@@ -708,7 +708,7 @@ namespace xx::Epoll {
         // 撤销 退出确保
         sg.Cancel();
         // 创建类容器
-        auto &&p = xx::MakeShared<PeerType>(ec, fd);
+        auto &&p = xx::Make<PeerType>(ec, fd);
         // 填充 ip
         memcpy(&p->addr, &addr, len);
         // 触发事件
@@ -749,7 +749,7 @@ namespace xx::Epoll {
         // 这之后只能用 栈变量
 
         // 创建具体 peer
-        auto &&p = xx::MakeShared<PeerType>(ec, fd);
+        auto &&p = xx::Make<PeerType>(ec, fd);
         // fill address
         result_len = sizeof(p->addr);
         getpeername(fd, (sockaddr *) &p->addr, &result_len);
@@ -830,7 +830,7 @@ namespace xx::Epoll {
         // 撤销 自动close
         sg.Cancel();
         // 创建目标类实例
-        auto &&o = xx::MakeShared<TcpConn<PeerType>>(ec, fd);
+        auto &&o = xx::Make<TcpConn<PeerType>>(ec, fd);
         // 继续初始化并放入容器
         o->dialer = SharedFromThis(this);
         conns.emplace_back(o);

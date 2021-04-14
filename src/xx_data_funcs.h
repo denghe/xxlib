@@ -144,14 +144,16 @@ namespace xx {
 		}
 	};
 
-	// 适配 std::vector
+	// 适配 std::vector, std::array
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t< IsVector_v<T> && IsBaseDataType_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t< (IsVector_v<T> || IsArray_v<T>) && IsBaseDataType_v<T>>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
-			d.WriteVarInteger<needReserve>(in.size());
-			if (in.empty()) return;
-			if constexpr (IsVector_v<T> && (sizeof(T) == 1 || std::is_floating_point_v<T>)) {
+		    if constexpr(IsVector_v<T>) {
+                d.WriteVarInteger<needReserve>(in.size());
+                if (in.empty()) return;
+            }
+			if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
 				d.WriteFixedArray<needReserve>(in.data(), in.size());
 			}
 			else if constexpr (std::is_integral_v<typename T::value_type>) {
@@ -173,10 +175,15 @@ namespace xx {
 		}
 		static inline int Read(Data_r& d, T& out) {
 			size_t siz = 0;
-			if (int r = d.ReadVarInteger(siz)) return r;
-			if (d.offset + siz > d.len) return __LINE__;
-			out.resize(siz);
-			if (siz == 0) return 0;
+            if constexpr(IsVector_v<T>) {
+                if (int r = d.ReadVarInteger(siz)) return r;
+                if (d.offset + siz > d.len) return __LINE__;
+                out.resize(siz);
+                if (siz == 0) return 0;
+            }
+            else {
+                siz = out.size();
+            }
 			auto buf = out.data();
 			if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
 				if (int r = d.ReadFixedArray(buf, siz)) return r;

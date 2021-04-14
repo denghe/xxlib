@@ -143,18 +143,6 @@ namespace xx {
         }
     };
 
-    // 适配 std::shared_ptr<T>
-    template<typename T>
-    struct StringFuncs<std::shared_ptr<T>, void> {
-        static inline void Append(std::string &s, std::shared_ptr<T> const &in) {
-            if (in) {
-                ::xx::Append(s, *in);
-            } else {
-                s.append("null");
-            }
-        }
-    };
-
     // 适配 std::vector<T>
     template<typename T>
     struct StringFuncs<std::vector<T>, void> {
@@ -497,3 +485,16 @@ namespace xx {
     }
 
 }
+
+
+//    // 适配 std::shared_ptr<T>
+//    template<typename T>
+//    struct StringFuncs<std::shared_ptr<T>, void> {
+//        static inline void Append(std::string &s, std::shared_ptr<T> const &in) {
+//            if (in) {
+//                ::xx::Append(s, *in);
+//            } else {
+//                s.append("null");
+//            }
+//        }
+//    };

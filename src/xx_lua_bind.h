@@ -211,7 +211,7 @@ namespace xx::Lua {
 			}
 
 			// 如果类型不是可执行的
-			if constexpr (!IsLambda_v<T> && !IsFunction_v<T>) {
+			if constexpr (!IsLambda_v<T>) {
 				lua_pushstring(L, "__index");                               // ..., mt, "__index"
 				lua_pushvalue(L, -2);                                       // ..., mt, "__index", mt
 				lua_rawset(L, -3);                                          // ..., mt

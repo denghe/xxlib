@@ -10,7 +10,7 @@ int Server::Init() {
     // 遍历配置并生成相应的 dialer
     for (auto &&si : config.serverInfos) {
         // 创建拨号器
-        auto&& dialer = xx::MakeShared<Dialer>(xx::SharedFromThis(this));
+        auto&& dialer = xx::Make<Dialer>(xx::SharedFromThis(this));
         // 放入字典。如果 server id 重复就报错
         if (!dps.insert({si.serverId, std::make_pair(dialer, nullptr)}).second) {
             LOG_ERROR("duplicate serverId: ", si.serverId);

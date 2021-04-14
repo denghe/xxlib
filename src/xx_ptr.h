@@ -427,67 +427,52 @@ namespace xx {
 	}
 
 
-	/************************************************************************************/
-	// type traits
+    /************************************************************************************/
+    // helpers
 
 	template<typename T>
-	struct IsXxShared : std::false_type {
+	struct IsShared : std::false_type {
 	};
 	template<typename T>
-	struct IsXxShared<Shared<T>> : std::true_type {
+	struct IsShared<Shared<T>> : std::true_type {
 	};
 	template<typename T>
-	struct IsXxShared<Shared<T>&> : std::true_type {
+	struct IsShared<Shared<T>&> : std::true_type {
 	};
 	template<typename T>
-	struct IsXxShared<Shared<T> const&> : std::true_type {
+	struct IsShared<Shared<T> const&> : std::true_type {
 	};
 	template<typename T>
-	constexpr bool IsXxShared_v = IsXxShared<T>::value;
-
-
-	template<typename T>
-	struct IsXxWeak : std::false_type {
-	};
-	template<typename T>
-	struct IsXxWeak<Weak<T>> : std::true_type {
-	};
-	template<typename T>
-	struct IsXxWeak<Weak<T>&> : std::true_type {
-	};
-	template<typename T>
-	struct IsXxWeak<Weak<T> const&> : std::true_type {
-	};
-	template<typename T>
-	constexpr bool IsXxWeak_v = IsXxWeak<T>::value;
+	constexpr bool IsShared_v = IsShared<T>::value;
 
 
 	template<typename T>
-	struct IsPointerClass<T, std::enable_if_t<IsXxShared_v<T> || IsXxWeak_v<T>>>
-		: std::true_type {
+	struct IsWeak : std::false_type {
 	};
-
 	template<typename T>
-	struct ToPointerFuncs<T, std::enable_if_t<IsXxWeak_v<T>>> {
-		static inline auto Convert(T&& v) {
-			return v.Lock();
-		}
+	struct IsWeak<Weak<T>> : std::true_type {
 	};
+	template<typename T>
+	struct IsWeak<Weak<T>&> : std::true_type {
+	};
+	template<typename T>
+	struct IsWeak<Weak<T> const&> : std::true_type {
+	};
+	template<typename T>
+	constexpr bool IsWeak_v = IsWeak<T>::value;
 
-	/************************************************************************************/
-	// helpers
 
 	template<typename T, typename...Args>
-	[[maybe_unused]] [[nodiscard]] Shared<T> MakeShared(Args &&...args) {
+	[[maybe_unused]] [[nodiscard]] Shared<T> Make(Args &&...args) {
         Shared<T> rtv;
         rtv.Emplace(std::forward<Args>(args)...);
         return rtv;
 	}
 
 	template<typename T, typename ...Args>
-	Shared<T> TryMakeShared(Args &&...args) noexcept {
+	Shared<T> TryMake(Args &&...args) noexcept {
 		try {
-			return MakeShared<T>(std::forward<Args>(args)...);
+			return Make<T>(std::forward<Args>(args)...);
 		}
 		catch (...) {
 			return Shared<T>();
@@ -496,13 +481,13 @@ namespace xx {
 
 	template<typename T, typename ...Args>
 	Shared<T>& MakeTo(Shared<T>& v, Args &&...args) {
-		v = MakeShared<T>(std::forward<Args>(args)...);
+		v = Make<T>(std::forward<Args>(args)...);
 		return v;
 	}
 
 	template<typename T, typename ...Args>
 	Shared<T>& TryMakeTo(Shared<T>& v, Args &&...args) noexcept {
-		v = TryMakeShared<T>(std::forward<Args>(args)...);
+		v = TryMake<T>(std::forward<Args>(args)...);
 		return v;
 	}
 
