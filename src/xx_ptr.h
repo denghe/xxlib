@@ -115,7 +115,7 @@ namespace xx {
 				assert(h->useCount);
 				// 不能在这里 -1, 这将导致成员 weak 指向自己时触发 free
 				if (h->useCount == 1) {
-					pointer->~T();
+                    pointer->~T();
 					pointer = nullptr;
 					if (h->refCount == 0) {
 						free(h);
@@ -150,20 +150,21 @@ namespace xx {
 		template<typename U>
 		XX_INLINE Shared(U* const& ptr) {
 			static_assert(std::is_base_of_v<T, U>);
-			Reset(ptr);
-		}
+            pointer = ptr;
+            if (ptr) {
+                ++((HeaderType *) ptr - 1)->useCount;
+            }
+        }
 		XX_INLINE Shared(T* const& ptr) {
-			Reset(ptr);
-		}
+            pointer = ptr;
+            if (ptr) {
+                ++((HeaderType *) ptr - 1)->useCount;
+            }
+        }
 
 		template<typename U>
-		XX_INLINE Shared(Shared<U> const& o) {
-			static_assert(std::is_base_of_v<T, U>);
-			Reset(o.pointer);
-		}
-		XX_INLINE Shared(Shared const& o) {
-			Reset(o.pointer);
-		}
+		XX_INLINE Shared(Shared<U> const& o) : Shared(o.pointer) {}
+		XX_INLINE Shared(Shared const& o) : Shared(o.pointer) {}
 
 		template<typename U>
 		XX_INLINE Shared(Shared<U>&& o) noexcept {
@@ -478,14 +479,9 @@ namespace xx {
 
 	template<typename T, typename...Args>
 	[[maybe_unused]] [[nodiscard]] Shared<T> MakeShared(Args &&...args) {
-		auto h = (typename Shared<T>::HeaderType*)malloc(sizeof(typename Shared<T>::HeaderType) + sizeof(T));
-		h->useCount = 0;
-		h->refCount = 0;
-        if constexpr (std::is_base_of_v<PtrHeader, typename Shared<T>::HeaderType>) {
-            h->typeId = TypeId_v<T>;
-            h->offset = 0;
-        }
-		return new(h + 1) T(std::forward<Args>(args)...);
+        Shared<T> rtv;
+        rtv.template Emplace(std::forward<Args>(args)...);
+        return rtv;
 	}
 
 	template<typename T, typename ...Args>

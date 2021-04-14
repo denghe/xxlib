@@ -35,6 +35,7 @@
 #include "xx_ptr.h"
 #include "xx_logger.h"
 #include "xx_data_queue.h"
+#include "xx_data_funcs.h"
 #include <function2.hpp>    // replace std::function for resolve some bug
 
 namespace xx {

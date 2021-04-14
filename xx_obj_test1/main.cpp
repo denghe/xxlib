@@ -148,10 +148,22 @@ void Test3() {
 	}
 }
 
+struct Foo2;
+struct Foo {
+    xx::Shared<Foo2> ff;
+    virtual ~Foo() {}
+};
+struct Foo2 {
+    xx::Shared<Foo> ff;
+    virtual ~Foo2() {}
+};
+
 int main() {
 	//Test1();
 	//Test2();
-	Test3();
+	//Test3();
+    auto f = xx::MakeShared<Foo>();
+
 
 	std::cout << "end." << std::endl;
 	return 0;
