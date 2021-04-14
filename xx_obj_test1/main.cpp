@@ -22,12 +22,12 @@ void Test1() {
 	b->c2 = b->c;
 
 	xx::ObjManager om;
-	std::cout << om.ToString(a) << std::endl;
-	std::cout << om.ToString(b) << std::endl;
+	om.CoutN(a);
+	om.CoutN(b);
 
 	xx::Data d;
 	om.WriteTo(d, b);
-	std::cout << om.ToString(d) << std::endl;
+    om.CoutN(d);
 
 	xx::ObjBase_s c;
 	int r = om.ReadFrom(d, c);
@@ -131,8 +131,8 @@ void Test3() {
 		}
 		{
 			auto s = xx::NowEpochSeconds();
-			int id;
-			xx::Data dd;
+			//int id;
+			//xx::Data dd;
 			//foo2 f3;
 			for (int i = 0; i < 10000000; ++i) {
 				if (int r = om.ReadFrom(d, f2)) break;
@@ -148,22 +148,10 @@ void Test3() {
 	}
 }
 
-struct Foo2;
-struct Foo {
-    xx::Shared<Foo2> ff;
-    virtual ~Foo() {}
-};
-struct Foo2 {
-    xx::Shared<Foo> ff;
-    virtual ~Foo2() {}
-};
-
 int main() {
-	//Test1();
+	Test1();
 	//Test2();
 	//Test3();
-    auto f = xx::MakeShared<Foo>();
-
 
 	std::cout << "end." << std::endl;
 	return 0;

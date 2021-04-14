@@ -26,7 +26,7 @@ namespace xx {
 			std::string s(TypeName_v<T>);
 			assert(false);
 		}
-		static inline int Read(ObjManager& om, Data& d, T& out) {
+		static inline int Read(ObjManager& om, Data_r& d, T& out) {
 			return 0;
 		}
 		static inline void Append(ObjManager& om, std::string& s, T const& in) {
@@ -53,7 +53,7 @@ namespace xx {
 	/*
 	inline void Write(xx::ObjManager& o, xx::Data& d) const override { }
 	inline void WriteFast(xx::ObjManager& o, xx::Data& d) const override { }
-	inline int Read(xx::ObjManager& o, xx::Data& d) override { }
+	inline int Read(xx::ObjManager& o, xx::Data_r& d) override { }
 	inline void Append(xx::ObjManager& o) const override { }
 	inline void AppendCore(xx::ObjManager& o) const override { }
 	inline void Clone(xx::ObjManager& o, void* const& tar) const override { }
@@ -79,7 +79,7 @@ namespace xx {
 		virtual void Write(ObjManager& om, xx::Data& d) const = 0;
 
 		// 反序列化
-		virtual int Read(ObjManager& om, xx::Data& d) = 0;
+		virtual int Read(ObjManager& om, xx::Data_r& d) = 0;
 
 		// 输出 json 长相时用于输出外包围 {  } 部分
 		virtual void Append(ObjManager& om, std::string& s) const = 0;
@@ -389,7 +389,7 @@ namespace xx {
 		// 从 data 读入 / 反序列化, 填充到 v. ( 支持 Shared<T> 或 T 结构体 )( 主要入口 )
 		// 原则: 尽量值覆盖, 不新建对象
 		template<typename T>
-		XX_INLINE int ReadFrom(Data& d, T& v) {
+		XX_INLINE int ReadFrom(Data_r& d, T& v) {
 			auto r = Read_<T, IsXxShared_v<T>>(d, v);
 			if constexpr (!IsSimpleType_v<T>) {
 				ptrs.clear();
@@ -405,19 +405,19 @@ namespace xx {
 
 	protected:
 		template<std::size_t I = 0, typename... Tp>
-		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(Data& d, std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(Data_r& d, std::tuple<Tp...>& t) {
 			return Read_(d, std::get<I>(t));
 		}
 
 		template<std::size_t I = 0, typename... Tp>
-		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(Data& d, std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(Data_r& d, std::tuple<Tp...>& t) {
 			if (int r = Read_(d, std::get<I>(t))) return r;
 			return ReadTuple<I + 1, Tp...>(d, t);
 		}
 
 		// 内部函数
 		template<typename T, bool isFirst = false>
-		XX_INLINE int Read_(Data& d, T& v) {
+		XX_INLINE int Read_(Data_r& d, T& v) {
 			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
@@ -580,7 +580,7 @@ namespace xx {
 		}
 
 		template<typename T, typename ...TS>
-		XX_INLINE int Read_(Data& d, T& v, TS &...vs) {
+		XX_INLINE int Read_(Data_r& d, T& v, TS &...vs) {
 			if (auto r = Read_(d, v)) return r;
 			return Read_(d, vs...);
 		}
@@ -588,7 +588,7 @@ namespace xx {
 	public:
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		XX_INLINE int Read(Data& d, Args&...args) {
+		XX_INLINE int Read(Data_r& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			return Read_(d, args...);
 		}
@@ -1065,7 +1065,7 @@ namespace xx {
 		template<typename...Args>
 		inline void Cout(Args const& ...args) {
 			std::string s;
-			Append(s, args...);
+			AppendTo(s, args...);
 			for (auto&& c : s) {
 				if (!c) c = '^';
 			}
@@ -1102,7 +1102,7 @@ T& operator=(T const&) = default; \
 T(T&& o) noexcept = default; \
 T& operator=(T&& o) noexcept = default; \
 void Write(xx::ObjManager& o, xx::Data& d) const override; \
-int Read(xx::ObjManager& o, xx::Data& d) override; \
+int Read(xx::ObjManager& o, xx::Data_r& d) override; \
 void Append(xx::ObjManager& o, std::string& s) const override; \
 void AppendCore(xx::ObjManager& o, std::string& s) const override; \
 void Clone(xx::ObjManager& o, void* const& tar) const override; \
@@ -1122,7 +1122,7 @@ template<> \
 struct ObjFuncs<T, void> { \
 static void Write(ObjManager & om, xx::Data& d, T const& in); \
 static void WriteFast(ObjManager & om, xx::Data& d, T const& in); \
-static int Read(ObjManager & om, xx::Data& d, T & out); \
+static int Read(ObjManager & om, xx::Data_r& d, T & out); \
 static void Append(ObjManager & om, std::string& s, T const& in); \
 static void AppendCore(ObjManager & om, std::string& s, T const& in); \
 static void Clone(ObjManager & om, T const& in, T & out); \

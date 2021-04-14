@@ -15,7 +15,7 @@ namespace xx {
         om.Write<false>(d, in.y);
         om.Write<false>(d, in.targets);
     }
-	int ObjFuncs<::C, void>::Read(::xx::ObjManager& om, ::xx::Data& d, ::C& out) {
+	int ObjFuncs<::C, void>::Read(::xx::ObjManager& om, ::xx::Data_r& d, ::C& out) {
         if (int r = om.Read(d, out.x)) return r;
         if (int r = om.Read(d, out.y)) return r;
         if (int r = om.Read(d, out.targets)) return r;
@@ -65,22 +65,24 @@ void A::Write(::xx::ObjManager& om, ::xx::Data& d) const {
     om.Write(d, this->children);
     d.WriteFixedAt(bak, (uint32_t)(d.len - bak));
 }
-int A::Read(::xx::ObjManager& om, ::xx::Data& d) {
+int A::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
     uint32_t siz;
     if (int r = d.ReadFixed(siz)) return r;
-    auto endOffset = siz - sizeof(siz) + d.offset;
+    if (siz < sizeof(siz)) return __LINE__;
+    siz -= sizeof(siz);
+    if (siz > d.len - d.offset) return __LINE__;
+    xx::Data_r dr(d.buf + d.offset, siz);
 
-    if (d.offset >= endOffset) this->id = 0;
-    else if (int r = om.Read(d, this->id)) return r;
-    if (d.offset >= endOffset) om.SetDefaultValue(this->nick);
-    else if (int r = om.Read(d, this->nick)) return r;
-    if (d.offset >= endOffset) om.SetDefaultValue(this->parent);
-    else if (int r = om.Read(d, this->parent)) return r;
-    if (d.offset >= endOffset) om.SetDefaultValue(this->children);
-    else if (int r = om.Read(d, this->children)) return r;
+    if (dr.offset == siz) this->id = 0;
+    else if (int r = om.Read(dr, this->id)) return r;
+    if (dr.offset == siz) om.SetDefaultValue(this->nick);
+    else if (int r = om.Read(dr, this->nick)) return r;
+    if (dr.offset == siz) om.SetDefaultValue(this->parent);
+    else if (int r = om.Read(dr, this->parent)) return r;
+    if (dr.offset == siz) om.SetDefaultValue(this->children);
+    else if (int r = om.Read(dr, this->children)) return r;
 
-    if (d.offset > endOffset) return __LINE__;
-    else d.offset = endOffset;
+    d.offset += siz;
     return 0;
 }
 void A::Append(::xx::ObjManager& om, std::string& s) const {
@@ -92,10 +94,10 @@ void A::Append(::xx::ObjManager& om, std::string& s) const {
 }
 void A::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-    ::xx::Append(s, ",\"id\":", this->id);
-    ::xx::Append(s, ",\"nick\":", this->nick);
-    ::xx::Append(s, ",\"parent\":", this->parent);
-    ::xx::Append(s, ",\"children\":", this->children);
+    om.Append(s, ",\"id\":", this->id);
+    om.Append(s, ",\"nick\":", this->nick);
+    om.Append(s, ",\"parent\":", this->parent);
+    om.Append(s, ",\"children\":", this->children);
 #endif
 }
 void A::Clone(::xx::ObjManager& om, void* const &tar) const {
@@ -131,7 +133,7 @@ void B::Write(::xx::ObjManager& om, ::xx::Data& d) const {
     om.Write(d, this->c2);
     om.Write(d, this->c3);
 }
-int B::Read(::xx::ObjManager& om, ::xx::Data& d) {
+int B::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
     if (int r = this->BaseType::Read(om, d)) return r;
     if (int r = om.Read(d, this->data)) return r;
     if (int r = om.Read(d, this->c)) return r;
@@ -149,10 +151,10 @@ void B::Append(::xx::ObjManager& om, std::string& s) const {
 void B::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
     this->BaseType::AppendCore(om, s);
-    ::xx::Append(s, ",\"data\":", this->data);
-    ::xx::Append(s, ",\"c\":", this->c);
-    ::xx::Append(s, ",\"c2\":", this->c2);
-    ::xx::Append(s, ",\"c3\":", this->c3);
+    om.Append(s, ",\"data\":", this->data);
+    om.Append(s, ",\"c\":", this->c);
+    om.Append(s, ",\"c2\":", this->c2);
+    om.Append(s, ",\"c3\":", this->c3);
 #endif
 }
 void B::Clone(::xx::ObjManager& om, void* const &tar) const {

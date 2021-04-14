@@ -7,7 +7,7 @@ namespace p1{
     void p1c1::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         om.Write(d, this->a);
     }
-    int p1c1::Read(::xx::ObjManager& om, ::xx::Data& d) {
+    int p1c1::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = om.Read(d, this->a)) return r;
         return 0;
     }
@@ -20,7 +20,7 @@ namespace p1{
     }
     void p1c1::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, ",\"a\":", this->a);
+        om.Append(s, ",\"a\":", this->a);
 #endif
     }
     void p1c1::Clone(::xx::ObjManager& om, void* const &tar) const {

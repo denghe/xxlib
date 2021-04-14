@@ -480,7 +480,7 @@ namespace xx {
 	template<typename T, typename...Args>
 	[[maybe_unused]] [[nodiscard]] Shared<T> MakeShared(Args &&...args) {
         Shared<T> rtv;
-        rtv.template Emplace(std::forward<Args>(args)...);
+        rtv.Emplace(std::forward<Args>(args)...);
         return rtv;
 	}
 
