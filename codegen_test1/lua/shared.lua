@@ -1,6 +1,6 @@
 ﻿
 require('g_net')
-CodeGen_shared_md5 ="#*MD5<5d630eeaf0b302cbb628d5c5299a74bb>*#"
+CodeGen_shared_md5 ="#*MD5<16afeeda2fb9aa655296645b60c2dd98>*#"
 
 A = {
     typeName = "A",
@@ -17,7 +17,8 @@ A = {
         return o
     end,
     Read = function(self, om)
-        local d = om.d, r, n, o, len, e
+        local d = om.d
+        local r, n, o, len, e
         -- compatible handle
         r, len = d:Ru32()
         if r ~= 0 then return r end
@@ -26,7 +27,7 @@ A = {
         if d:GetOffset() >= e then
             self.id = 0
         else
-            r, self.id = d:Rvi()
+            r, self.id = d:Rvi32()
             if r ~= 0 then return r end
         end
         -- nick
@@ -47,7 +48,7 @@ A = {
         if d:GetOffset() >= e then
             self.children = {}
         else
-            r, len = d:Rvu()
+            r, len = d:Rvu32()
             if len > d:GetLeft() then return -1 end
             o = {}
             self.children = o
@@ -63,11 +64,12 @@ A = {
         return 0
     end,
     Write = function(self, om)
-        local d = om.d, o, len
+        local d = om.d
+        local o, len
         -- compatible handle
         local bak = d:Wj(4)
         -- id
-        d:Wvi(self.id)
+        d:Wvi32(self.id)
         -- nick
         d:Wnstr(self.nick)
         -- parent
@@ -75,7 +77,7 @@ A = {
         -- children
         o = self.children
         len = #o
-        d:Wvu(len)
+        d:Wvu32(len)
         for i = 1, len do
             om:Write(o[i])
         end
@@ -101,7 +103,8 @@ B = {
         return o
     end,
     Read = function(self, om)
-        local d = om.d, r, n, o
+        local d = om.d
+        local r, n, o
         -- base read
         r = A.Read(self, om)
         if r ~= 0 then return r end
@@ -115,7 +118,7 @@ B = {
         r, n = d:Ru8(); if r ~= 0 then return r end; if n == 0 then self.c2 = null else self.c2 = C.Create(); r = self.c2:Read(om) end
         if r ~= 0 then return r end
         -- c3
-        r, len = d:Rvu()
+        r, len = d:Rvu32()
         if len > d:GetLeft() then return -1 end
         o = {}
         self.c3 = o
@@ -127,7 +130,8 @@ B = {
         return 0
     end,
     Write = function(self, om)
-        local d = om.d, o, len
+        local d = om.d
+        local o, len
         -- base read
         A.Write(self, om)
         -- data
@@ -139,7 +143,7 @@ B = {
         -- c3
         o = self.c3
         len = #o
-        d:Wvu(len)
+        d:Wvu32(len)
         for i = 1, len do
             if o[i] == null then d:Wu8(0) else d:Wu8(1); o[i]:Write(om) end
         end
@@ -163,7 +167,8 @@ C = {
         return o
     end,
     Read = function(self, om)
-        local d = om.d, r, n, o
+        local d = om.d
+        local r, n, o
         -- x
         r, self.x = d:Rf()
         if r ~= 0 then return r end
@@ -171,7 +176,7 @@ C = {
         r, self.y = d:Rf()
         if r ~= 0 then return r end
         -- targets
-        r, len = d:Rvu()
+        r, len = d:Rvu32()
         if len > d:GetLeft() then return -1 end
         o = {}
         self.targets = o
@@ -183,7 +188,8 @@ C = {
         return 0
     end,
     Write = function(self, om)
-        local d = om.d, o, len
+        local d = om.d
+        local o, len
         -- x
         d:Wf(self.x)
         -- y
@@ -191,7 +197,7 @@ C = {
         -- targets
         o = self.targets
         len = #o
-        d:Wvu(len)
+        d:Wvu32(len)
         for i = 1, len do
             om:Write(o[i])
         end

@@ -68,7 +68,7 @@ void A::Write(::xx::ObjManager& om, ::xx::Data& d) const {
 int A::Read(::xx::ObjManager& om, ::xx::Data& d) {
     uint32_t siz;
     if (int r = d.ReadFixed(siz)) return r;
-    auto endOffset = d.offset - sizeof(siz) + siz;
+    auto endOffset = siz - sizeof(siz) + d.offset;
 
     if (d.offset >= endOffset) this->id = 0;
     else if (int r = om.Read(d, this->id)) return r;

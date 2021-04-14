@@ -16,10 +16,9 @@ namespace xx {
         om.Write<false>(d, in.d);
     }
 	int ObjFuncs<::foo2, void>::Read(::xx::ObjManager& om, ::xx::Data& d, ::foo2& out) {
-        //if (int r = om.Read(d, out.id)) return r;
-        //if (int r = om.Read(d, out.d)) return r;
-        //return 0;
-        return d.Read(out.id, out.d);
+        if (int r = om.Read(d, out.id)) return r;
+        if (int r = om.Read(d, out.d)) return r;
+        return 0;
     }
 	void ObjFuncs<::foo2, void>::Append(ObjManager &om, std::string& s, ::foo2 const& in) {
 #ifndef XX_DISABLE_APPEND
