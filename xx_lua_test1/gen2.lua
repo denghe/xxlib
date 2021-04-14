@@ -24,7 +24,8 @@ A = {
         return o
     end,
     Read = function(self, om)
-        local d = om.d, r, n, o, len, e
+        local d = om.d
+        local r, n, o, len, e
         -- compatible handle
         r, len = d:Ru32()
         if r ~= 0 then return r end
@@ -70,7 +71,8 @@ A = {
         return 0
     end,
     Write = function(self, om)
-        local d = om.d, o, len
+        local d = om.d
+        local o, len
         -- compatible handle
         local bak = d:Wj(4)
         -- id
@@ -108,7 +110,8 @@ B = {
         return o
     end,
     Read = function(self, om)
-        local d = om.d, r, n, o
+        local d = om.d
+        local r, n, o, len
         -- base read
         r = A.Read(self, om)
         if r ~= 0 then return r end
@@ -134,7 +137,8 @@ B = {
         return 0
     end,
     Write = function(self, om)
-        local d = om.d, o, len
+        local d = om.d
+        local o, len
         -- base read
         A.Write(self, om)
         -- data
@@ -170,7 +174,8 @@ C = {
         return o
     end,
     Read = function(self, om)
-        local d = om.d, r, n, o
+        local d = om.d
+        local r, n, o, len
         -- x
         r, self.x = d:Rf()
         if r ~= 0 then return r end
@@ -190,7 +195,8 @@ C = {
         return 0
     end,
     Write = function(self, om)
-        local d = om.d, o, len
+        local d = om.d
+        local o, len
         -- x
         d:Wf(self.x)
         -- y

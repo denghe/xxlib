@@ -4,7 +4,8 @@ local gCoros = {}
 -- 压入一个协程函数. 有参数就跟在后面. 有延迟执行的效果. 报错时带 name 显示
 go_ = function(name, func, ...)
 	local f = function(msg) print("coro ".. name .." error: " .. tostring(msg) .. "\n")  end
-	local args = {...}, p
+	local args = {...}
+	local p
 	if #args == 0 then
 		p = function() xpcall(func, f) end
 	else

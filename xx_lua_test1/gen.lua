@@ -123,7 +123,8 @@ Bar = {
         om:WriteArray(self.ints, "Wvi")
     end
 , Read = function(self, om)
-        local d = om.d, r
+        local d = om.d
+        local r
 
         r, self.foos = om:ReadArray()
         if r ~= 0 then

@@ -520,12 +520,12 @@ namespace xx {
 	// unsafe
     template<typename T>
     Shared<T> SharedFromThis2(void* const& thiz) {
-        auto h = (PtrHeader*)thiz - 1;
+        auto h = (typename Shared<T>::HeaderType*)thiz - 1;
         return (*((Weak<T>*) & h)).Lock();
     }
     template<typename T>
     Shared<T> SharedFromThis(T* const& thiz) {
-        auto h = (PtrHeader*)thiz - 1;
+        auto h = (typename Shared<T>::HeaderType*)thiz - 1;
         return (*((Weak<T>*) & h)).Lock();
     }
 }

@@ -15,7 +15,7 @@ ObjMgr = {
         assert(o)
         self.d = d
         self.m = { len = 1, [o] = 1 }
-        d:Wvu(getmetatable(o).typeId)
+        d:Wvu16(getmetatable(o).typeId)
         o:Write(self)
     end
     -- 入口函数: 开始从 d 读出一个 "类" 并返回 r, o    ( r == 0 表示成功 )
@@ -36,11 +36,11 @@ ObjMgr = {
                 n = m.len + 1
                 m.len = n
                 m[o] = n
-                d:Wvu(n)
-                d:Wvu(getmetatable(o).typeId)
+                d:Wvu32(n)
+                d:Wvu16(getmetatable(o).typeId)
                 o:Write(self)
             else
-                d:Wvu(n)
+                d:Wvu32(n)
             end
         end
     end
@@ -48,7 +48,7 @@ ObjMgr = {
 , ReadFirst = function(self)
         local d = self.d
         local m = self.m
-        local r, typeId = d:Rvu()
+        local r, typeId = d:Rvu16()
         if r ~= 0 then
             return r
         end
@@ -69,7 +69,7 @@ ObjMgr = {
     end
 , Read = function(self)
         local d = self.d
-        local r, n = d:Rvu()
+        local r, n = d:Rvu32()
         if r ~= 0 then
             return r
         end
@@ -77,9 +77,10 @@ ObjMgr = {
             return 0, null
         end
         local m = self.m
-        local len = #m, typeId
+        local len = #m
+        local typeId
         if n == len + 1 then
-            r, typeId = d:Rvu()
+            r, typeId = d:Rvu16()
             if r ~= 0 then
                 return r
             end
@@ -110,7 +111,7 @@ ObjMgr.__index = ObjMgr
 --    -- 内部函数: 向 d 写入一个 "类"数组 或 子集合( 可能嵌套 ). fn 为最后一级的操作函数名, level 为级数
 --, WriteArray = function(self, a, fn, level)
 --        local d = self.d
---        d:Wvu(#a)
+--        d:Wvu32(#a)
 --        if #a == 0 then
 --            return
 --        end
@@ -134,7 +135,7 @@ ObjMgr.__index = ObjMgr
 --    -- 内部函数: 从 d 读出一个 "类"数组 或 子集合( 可能递归 ). fn 为最后一级的操作函数名, level 为级数
 --, ReadArray = function(self, fn, level)
 --        local d = self.d
---        local r, len = d:Rvu()
+--        local r, len = d:Rvu32()
 --        if r ~= 0 then
 --            return r
 --        end
