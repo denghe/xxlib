@@ -17,6 +17,12 @@ LUA 全局函数:
 
 namespace xx::Lua::Data {
 	using D = xx::Data;
+	using SIZ_t =
+#if LUA_VERSION_NUM == 501
+        uint32_t;
+#else
+	    size_t;
+#endif
 
 	// 在 lua 中注册 全局的 Data 创建函数
 	inline void Register(lua_State* const& L) {
@@ -40,7 +46,7 @@ namespace xx::Lua::Data {
 	inline int Ensure(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto siz = To<size_t>(L, 2);
+		auto siz = To<SIZ_t>(L, 2);
 		d->Reserve(d->len + siz);
 		return 0;
 	}
@@ -48,7 +54,7 @@ namespace xx::Lua::Data {
 	inline int Reserve(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto cap = To<size_t>(L, 2);
+		auto cap = To<SIZ_t>(L, 2);
 		d->Reserve(cap);
 		return 0;
 	}
@@ -56,7 +62,7 @@ namespace xx::Lua::Data {
 	inline int Resize(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto len = To<size_t>(L, 2);
+		auto len = To<SIZ_t>(L, 2);
 		auto r = d->Resize(len);
 		return Push(L, r);
 	}
@@ -90,7 +96,7 @@ namespace xx::Lua::Data {
 	inline int SetLen(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto len = To<size_t>(L, 2);
+		auto len = To<SIZ_t>(L, 2);
 		d->len = len;
 		return 0;
 	}
@@ -104,7 +110,7 @@ namespace xx::Lua::Data {
 	inline int SetOffset(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto offset = To<size_t>(L, 2);
+		auto offset = To<SIZ_t>(L, 2);
 		d->offset = offset;
 		return 0;
 	}
@@ -118,7 +124,7 @@ namespace xx::Lua::Data {
 	inline int At(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto idx = To<size_t>(L, 2);
+		auto idx = To<SIZ_t>(L, 2);
 		return Push(L, (*d)[idx]);
 	}
 
@@ -141,13 +147,13 @@ namespace xx::Lua::Data {
 			d->Reset(To<uint8_t*>(L, 2));
 			break;
 		case 3:
-			d->Reset(To<uint8_t*>(L, 2), To<size_t>(L, 3));
+			d->Reset(To<uint8_t*>(L, 2), To<SIZ_t>(L, 3));
 			break;
 		case 4:
-			d->Reset(To<uint8_t*>(L, 2), To<size_t>(L, 3), To<size_t>(L, 4));
+			d->Reset(To<uint8_t*>(L, 2), To<SIZ_t>(L, 3), To<SIZ_t>(L, 4));
 			break;
 		case 5:
-			d->Reset(To<uint8_t*>(L, 2), To<size_t>(L, 3), To<size_t>(L, 4), To<size_t>(L, 5));
+			d->Reset(To<uint8_t*>(L, 2), To<SIZ_t>(L, 3), To<SIZ_t>(L, 4), To<SIZ_t>(L, 5));
 			break;
 		default:
 			throw std::runtime_error("too many args");
@@ -186,7 +192,7 @@ namespace xx::Lua::Data {
 	inline int Wj(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto siz = To<size_t>(L, 2);
+		auto siz = To<SIZ_t>(L, 2);
 		return Push(L, d->WriteJump(siz));
 	}
 
@@ -201,7 +207,7 @@ namespace xx::Lua::Data {
 	inline int Wbuf_at(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto idx = To<size_t>(L, 2);
+		auto idx = To<SIZ_t>(L, 2);
 		auto s = To<std::string_view>(L, 3);
 		d->WriteBufAt(idx, s.data(), s.size());
 		return 0;
@@ -254,7 +260,7 @@ namespace xx::Lua::Data {
 	inline int Rbuf(lua_State* L) {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
-		auto len = To<size_t>(L, 2);
+		auto len = To<SIZ_t>(L, 2);
 		if (auto ptr = (char const*)d->ReadBuf(len)) {
 			return Push(L, 0, std::string_view(ptr, len));
 		}
@@ -264,8 +270,8 @@ namespace xx::Lua::Data {
 	inline int Rbuf_at(lua_State* L) {
 		assert(lua_gettop(L) == 3);
 		auto d = To<D*>(L);
-		auto idx = To<size_t>(L, 2);
-		auto siz = To<size_t>(L, 3);
+		auto idx = To<SIZ_t>(L, 2);
+		auto siz = To<SIZ_t>(L, 3);
 		if (auto ptr = (char const*)d->ReadBufAt(idx, siz)) {
 			return Push(L, 0, std::string_view(ptr, siz));
 		}
@@ -358,7 +364,7 @@ namespace xx::Lua::Data {
 		if (f == 1) {
 			if constexpr (isFixed) {
 				if constexpr (isAt) {
-					auto idx = To<size_t>(L, 2);
+					auto idx = To<SIZ_t>(L, 2);
 					auto v = To<T>(L, 3);
 					if constexpr (isBE) {
 						d->WriteFixedBEAt(idx, v);
@@ -401,7 +407,7 @@ namespace xx::Lua::Data {
 			T v;
 			if constexpr (isFixed) {
 				if constexpr (isAt) {
-					auto idx = To<size_t>(L, 2);
+					auto idx = To<SIZ_t>(L, 2);
 					if constexpr (isBE) {
 						r = d->ReadFixedBEAt(idx, v);
 					}
