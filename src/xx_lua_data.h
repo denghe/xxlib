@@ -64,7 +64,7 @@ namespace xx::Lua::Data {
 		auto d = To<D*>(L);
 		auto len = To<SIZ_t>(L, 2);
 		auto r = d->Resize(len);
-		return Push(L, r);
+		return Push(L, (SIZ_t)r);
 	}
 
 	inline int Clear(lua_State* L) {
@@ -84,13 +84,13 @@ namespace xx::Lua::Data {
 	inline int GetCap(lua_State* L) {
 		assert(lua_gettop(L) == 1);
 		auto d = To<D*>(L);
-		return Push(L, d->cap);
+		return Push(L, (SIZ_t)d->cap);
 	}
 
 	inline int GetLen(lua_State* L) {
 		assert(lua_gettop(L) == 1);
 		auto d = To<D*>(L);
-		return Push(L, d->len);
+		return Push(L, (SIZ_t)d->len);
 	}
 
 	inline int SetLen(lua_State* L) {
@@ -104,7 +104,7 @@ namespace xx::Lua::Data {
 	inline int GetOffset(lua_State* L) {
 		assert(lua_gettop(L) == 1);
 		auto d = To<D*>(L);
-		return Push(L, d->offset);
+		return Push(L, (SIZ_t)d->offset);
 	}
 
 	inline int SetOffset(lua_State* L) {
@@ -118,7 +118,7 @@ namespace xx::Lua::Data {
 	inline int GetLeft(lua_State* L) {
 		assert(lua_gettop(L) == 1);
 		auto d = To<D*>(L);
-		return Push(L, d->len - d->offset);
+		return Push(L, (SIZ_t)(d->len - d->offset));
 	}
 
 	inline int At(lua_State* L) {
@@ -132,7 +132,7 @@ namespace xx::Lua::Data {
 	inline int GetAll(lua_State* L) {
 		assert(lua_gettop(L) == 1);
 		auto d = To<D*>(L);
-		return Push(L, d->buf, d->len, d->offset, d->cap);
+		return Push(L, d->buf, (SIZ_t)d->len, (SIZ_t)d->offset, (SIZ_t)d->cap);
 	}
 
 	inline int Reset(lua_State* L) {
@@ -193,7 +193,7 @@ namespace xx::Lua::Data {
 		assert(lua_gettop(L) == 2);
 		auto d = To<D*>(L);
 		auto siz = To<SIZ_t>(L, 2);
-		return Push(L, d->WriteJump(siz));
+		return Push(L, (SIZ_t)d->WriteJump(siz));
 	}
 
 	inline int Wbuf(lua_State* L) {

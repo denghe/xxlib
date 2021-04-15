@@ -10,21 +10,27 @@
 
 // 为 cocos / unity 之类客户端 实现一个带 域名解析, kcp拨号 与 通信 的 网关拨号版本。功能函数和用法，与 xx::UvClient 封装的 lua 接口类似
 
-// void Update())
-// void SetPort(int port)
-// int Dial(int timeoutMS = 5000)
+// void SetDomainPort(string domainName, int port)              -- 设置 域名/ip 和 端口
+
+// void Update())                                               -- 每帧来一发
+
+// int Resolve()                                                -- 开始域名解析
+// bool IPListIsEmpty()                                         -- 判断解析后的域名列表是否为空( 空则解析失败 )
+// string[] GetIPList()                                         -- 获取解析后的域名列表 for dump
+
+// int Dial()                                                   -- 拨号
 // bool Busy())                                                 -- 是否正在解析或拨号
 // void Cancel())                                               -- 取消解析或拨号
+
 // void Disconnect())                                           -- 断开连接( 清除连接 )
 // bool Alive()                                                 -- 连接是否存在( 因为是 udp, 故不知道是否断开 )
 // bool IsOpened(int serviceId)                                 -- 服务开启检查
+
 // int SendTo(int serviceId, int serial, xx::Data data)         -- 主要的数据发送指令
 // int SendEcho(xx::Data data);                                 -- 向网关直发 echo 数据（ 通常拿来做 ping )
+
 // void SetGroup(int serviceId, int groupId)                    -- 为服务id分组. 不设置默认为 0
 // [serviceId, serial, data] TryGetPackage(int groupId = 0)     -- 获取分组数据包
-// int Resolve(string domainName)                               -- 开始域名解析
-// int AddrsIsEmpty()                                           -- 获取解析后的域名列表长度. 如果长度为 0 表示解析失败
-// string[] GetIPList()                                         -- 获取解析后的域名列表 for dump
 
 namespace xx {
     // 适配 asio::ip::address
