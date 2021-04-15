@@ -171,8 +171,25 @@ print(os.clock() - starttime)
 
 #include "xx_lua_uv_client.h"
 
+#include "xx_lua_bind_samples.h"
+
+//#include "luasocket.h"
+//#include "mime.h"
+
 void TestUv() {
     xx::Lua::State L;
+
+//    lua_getglobal(L, "package");                    // ..., t
+//    lua_pushstring(L, "preload");                   // ..., t, ""
+//    lua_rawget(L, -2);                              // ..., t, t
+//    lua_pushstring(L, "socket.core");               // ..., t, t, ""
+//    lua_pushcclosure(L, luaopen_socket_core, 0);    // ..., t, t, "", f
+//    lua_rawset(L, -3);                              // ..., t, t
+//    lua_pushstring(L, "mime.core");                 // ..., t, t, ""
+//    lua_pushcclosure(L, luaopen_mime_core, 0);      // ..., t, t, "", f
+//    lua_rawset(L, -3);                              // ..., t, t
+//    lua_pop(L, 2);                                  // ...,
+
     SetGlobalCClosure(L, "Nows", [](auto L) -> int { return xx::Lua::Push(L, xx::NowEpochSeconds()); });
     SetGlobalCClosure(L, "NowSteadyEpochMS", [](auto L) -> int { return xx::Lua::Push(L, xx::NowSteadyEpochMilliseconds()); });
     xx::Lua::UvClient::Register(L);
@@ -190,8 +207,6 @@ void TestUv() {
         xx::CoutN(r.m);
     }
 }
-
-#include "xx_lua_bind_samples.h"
 
 int main() {
     //Test1();

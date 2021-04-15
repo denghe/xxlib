@@ -3,54 +3,74 @@ project(xx_lua_test1)
 
 set(CMAKE_CXX_STANDARD 20)
 
-if(UNIX)
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
-
-#	target_link_libraries(xx_lua_test1
-#        dl
-#        pthread
-#        luajit-5.1
-#    )
-#add_definitions("-DUSING_LUAJIT")
-
-## lua 5.4
-#include_directories(
-#        ../xxlib
-#        ../lua-5.4.x/src
-#)
-#set(LUA_SRC ${PROJECT_SOURCE_DIR}/../lua-5.4.x/src/onelua.c)
-#set_source_files_properties(${LUA_SRC} PROPERTIES LANGUAGE CXX)
-#add_definitions("-DMAKE_LIB -DLUA_USE_LINUX")
-#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -fuse-ld=gold")
-#add_executable(gateway_client_lua
-#        main.cpp
-#        FileExts_class_lite.cpp
-#        Objs_class_lite.cpp
-#        ${LUA_SRC}
-#        )
-#target_link_libraries(gateway_client_lua
-#        dl
-#        pthread
-#        readline
-#        )
-endif()
-
-
 add_definitions("-DMAKE_LIB")
 
+set(srcs)
+set(dirs)
+set(libdirs)
+
+# global
+list(APPEND dirs
+        ../src
+        ../3rd
+        "../libuv/include"
+        ../lua-5.4.x/src
+        )
+list(APPEND libdirs
+        ../libuv/lib/win64
+        )
+list(APPEND srcs
+        main.cpp
+        ../3rd/ikcp.c
+        ../lua-5.4.x/src/onelua.cpp
+        )
+
+##lua socket
+#set(luasocket_srcs)
+#list(APPEND dirs
+#        ../luasocket-2.0.2/src
+#        )
+#list(APPEND luasocket_srcs
+#        ../luasocket-2.0.2/src/buffer.c
+#        ../luasocket-2.0.2/src/io.c
+#        ../luasocket-2.0.2/src/timeout.c
+#        ../luasocket-2.0.2/src/select.c
+#        ../luasocket-2.0.2/src/udp.c
+#        ../luasocket-2.0.2/src/mime.c
+#        ../luasocket-2.0.2/src/tcp.c
+#        ../luasocket-2.0.2/src/auxiliar.c
+#        ../luasocket-2.0.2/src/inet.c
+#        ../luasocket-2.0.2/src/luasocket.c
+#        ../luasocket-2.0.2/src/except.c
+#        ../luasocket-2.0.2/src/options.c
+#        )
+#if (UNIX)
+#    list(APPEND luasocket_srcs
+#            ../luasocket-2.0.2/src/unix.c
+#            ../luasocket-2.0.2/src/usocket.c
+#            ../luasocket-2.0.2/src/serial.c
+#            )
+#else ()
+#    list(APPEND luasocket_srcs
+#            ../luasocket-2.0.2/src/wsocket.c
+#            )
+#endif ()
+#set_source_files_properties(${luasocket_srcs} PROPERTIES LANGUAGE CXX)
+#list(APPEND srcs
+#		${luasocket_srcs}
+#		)
+
+# global
+if (UNIX)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
+endif ()
+
 link_directories(
-		../libuv/lib/win64
+        ${libdirs}
 )
-
 include_directories(
-	../src
-    ../3rd
-	"../libuv/include"
-    ../lua-5.4.x/src
+        ${dirs}
 )
-
 add_executable(xx_lua_test1
-    main.cpp
-    ../3rd/ikcp.c
-    ../lua-5.4.x/src/onelua.cpp
-)
+        ${srcs}
+        )
