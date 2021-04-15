@@ -504,8 +504,7 @@ namespace xx {
 	// unsafe
     template<typename T>
     Shared<T> SharedFromThis(T* const& thiz) {
-        auto h = (typename Shared<T>::HeaderType*)thiz - 1;
-        return (*((Weak<T>*) & h)).Lock();
+		return *(Shared<T> *)&thiz;
     }
 }
 
