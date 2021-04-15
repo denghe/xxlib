@@ -11,30 +11,34 @@ struct ABC {
     int lineNumber = 0;
     int Update() {
         COR_BEGIN;
-    LabBegin:
-        //c.Cancel();
 
+        // 配置参数
+        c.SetDomainPort("www.baidu.com", 10000);
+
+    LabBegin:
+        // 无脑重置一发
+        c.Reset();
+
+        // 睡 1 秒，等别的协程事件互动, 避免频繁拨号
         s = xx::NowSteadyEpochSeconds() + 1;
         do {
             COR_YIELD
         }
         while(xx::NowSteadyEpochSeconds() > s);
 
-        c.Resolve("www.baidu.com");
+        // 开始域名解析
+        c.Resolve();
         while(c.Busy()) {
             COR_YIELD
         }
 
-        if (c.addrs.empty()) goto LabBegin;
+        // 如果解析失败就重试
+        if (c.IPListIsEmpty()) goto LabBegin;
 
-        {
-            auto ips = c.GetIPList();
-            for (auto& ip : ips) {
-                std::cout << ip << std::endl;
-            }
+        // 成功：打印下 ip 列表
+        for (auto& ip : c.GetIPList()) {
+            std::cout << ip << std::endl;
         }
-
-        c.SetPort(10000);
 
         // todo Dial
 
