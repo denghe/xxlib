@@ -360,14 +360,13 @@ namespace xx::Lua {
 			else {
 #if LUA_VERSION_NUM == 501
 			    if constexpr (sizeof(T) == 8) {
-                    *(T*)lua_newuserdata(L, 8) = in;
+                   *(std::decay_t<T>*)lua_newuserdata(L, 8) = in;
 			    }
 			    else
-#else
+#endif
                 {
                     lua_pushinteger(L, in);
                 }
-#endif
 			}
 			return 1;
 		}
@@ -380,16 +379,16 @@ namespace xx::Lua {
 #if LUA_VERSION_NUM == 501
                 if constexpr (sizeof(T) == 8) {
                     if (!lua_isuserdata(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not number(int64 userdata)");
-                    out = *(T*)lua_touserdata(L, idx);
+                    out = *(std::decay_t<T>*)lua_touserdata(L, idx);
 			    }
 			    else
-#else
+#endif
                 {
                     int isnum = 0;
                     out = (T) lua_tointegerx(L, idx, &isnum);
                     if (!isnum) Error(L, "error! args[", std::to_string(idx), "] is not number");
                 }
-#endif
+
 			}
 		}
 	};
