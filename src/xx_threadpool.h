@@ -40,14 +40,20 @@ namespace xx {
             }
         }
 
-        int Add(JT&& job) {
+        template<typename Func>
+        int Add(Func&& job) {
             {
                 std::unique_lock<std::mutex> lock(mtx);
                 if (stop) return -1;
-                jobs.emplace(std::move(job));
+                jobs.emplace(std::forward<Func>(job));
             }
             cond.notify_one();
             return 0;
+        }
+
+        operator bool() {
+            std::unique_lock<std::mutex> lock(mtx);
+            return !jobs.empty();
         }
 
         ~ThreadPool() {
@@ -98,14 +104,20 @@ namespace xx {
             }
         }
 
+        template<typename Func>
         int Add(JT&& job) {
             {
                 std::unique_lock<std::mutex> lock(mtx);
                 if (stop) return -1;
-                jobs.emplace(std::move(job));
+                jobs.emplace(std::forward<Func>(job));
             }
             cond.notify_one();
             return 0;
+        }
+
+        operator bool() {
+            std::unique_lock<std::mutex> lock(mtx);
+            return !jobs.empty();
         }
 
         ~ThreadPool2() {

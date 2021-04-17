@@ -1,10 +1,8 @@
 ﻿#pragma once
 
-#include "xx_helpers.h"
-#include "xx_string.h"
+#include "xx_obj.h"
 #include <asio.hpp>
 #include "ikcp.h"
-#include "xx_ptr.h"
 #include <sstream>
 #include <deque>
 
@@ -81,12 +79,10 @@ namespace xx::Asio {
         std::vector<Shared<KcpPeer>> dials;
         Shared<KcpPeer> peer;
         inline static uint32_t shakeSerial = 0;
-        std::unordered_map<uint32_t, int> groups;
-        std::unordered_map<int, std::deque<Package>> recvs;
-        std::unordered_set<uint32_t> openServerIds;
 
         Client() : ioc(1), resolver(ioc) {}
 
+        // 每帧来一发, 以驱动底层收发，消息放入综合队列 ( for lua / cpp )
         void Update();
 
         inline void SetDomainPort(std::string_view const &domain_, int const &port_) {
@@ -116,9 +112,6 @@ namespace xx::Asio {
             resolving = false;
             dials.clear();
             peer.Reset();
-            groups.clear();
-            recvs.clear();
-            openServerIds.clear();
         }
 
         [[nodiscard]] inline bool Busy() const {
@@ -149,18 +142,9 @@ namespace xx::Asio {
         }
 
         // 尝试 move 出一条最前面的消息( lua 那边则将 Package 变为 table, 以成员方式压栈. 之后分发 )
-        inline bool TryGetPackage(Package& pkg, int const& groupId = 0) {
-            if (!Alive()) return false;
-            auto&& ps = recvs[groupId];
-            if (ps.empty()) return false;
-            pkg = std::move(ps.front());
-            ps.pop_front();
-            return true;
-        }
+        [[nodiscard]] bool TryGetPackage(Package& pkg, int const& groupId = 0);
 
-        inline bool IsOpened(uint32_t const& serviceId) const {
-            return std::find(openServerIds.begin(), openServerIds.end(), serviceId) != openServerIds.end();
-        }
+        [[nodiscard]] bool IsOpened(uint32_t const& serviceId) const;
     };
 
     struct KcpPeer {
@@ -172,8 +156,16 @@ namespace xx::Asio {
         uint32_t shakeSerial = 0;
         int64_t kcpCreateMS = 0;    // 兼做 shake 握手延迟计数
 
+        // 已 open 服务id表
+        std::unordered_set<uint32_t> openServerIds;
+        // cpp 服务id表( 当 TryGetPackage 发生时,
+        std::unordered_set<uint32_t> cppServerIds;
+        std::deque<Package> receivedPackages;
+        std::deque<Package> receivedCppPackages;
+
         // todo: 收发符合网关协议
 
+        Data tmp;
         Data recv;
         char udpRecvBuf[1024 * 64];
 
@@ -264,16 +256,16 @@ namespace xx::Asio {
                                     if (bb.Read(cmd)) return __LINE__;
                                     if (cmd == "open") {
                                         if (bb.Read(serviceId)) return __LINE__;
-                                        client->openServerIds.insert(serviceId);
+                                        openServerIds.insert(serviceId);
                                     }
                                     else if (cmd == "close") {
                                         if (bb.Read(serviceId)) return __LINE__;
-                                        client->openServerIds.erase(serviceId);
+                                        openServerIds.erase(serviceId);
                                     }
                                     else if (cmd == "echo") {
                                         Data data;
                                         data.WriteBuf(buf + bb.offset, len - bb.offset);
-                                        client->recvs[client->groups[serviceId]].emplace_back(serviceId, 0, std::move(data));
+                                        receivedPackages.emplace_back(serviceId, 0, std::move(data));
                                     }
                                     else {
                                         return __LINE__;
@@ -286,7 +278,7 @@ namespace xx::Asio {
                                     // 剩余数据打包为 Data 塞到收包队列
                                     Data data;
                                     data.WriteBuf(buf + bb.offset, len - bb.offset);
-                                    client->recvs[client->groups[serviceId]].emplace_back(serviceId, serial, std::move(data));
+                                    receivedPackages.emplace_back(serviceId, serial, std::move(data));
                                 }
                                 return 0;
                             }
@@ -323,7 +315,7 @@ namespace xx::Asio {
                         ikcp_update(kcp, 0);
 
                         // 通过 kcp 发 accept 触发包
-                        Send("\1\0\0\0\0", 5);
+                        Send((uint8_t*)"\1\0\0\0\0", 5);
 
                         // 返回拨号成功
                         return 1;
@@ -333,32 +325,60 @@ namespace xx::Asio {
             return 0;
         }
 
-        inline int Send(char const *const &buf, size_t const &len) {
-            int r = ikcp_send(kcp, buf, (int) len);
+        // 基础函数
+        inline int Send(uint8_t const *const &buf, size_t const &len) {
+            if (int r = ikcp_send(kcp, (char*)buf, (int)len)) return r;
             ikcp_flush(kcp);
-            return r;
+            return 0;
         }
 
-        // 向某 serviceId 发数据( for lua )
-        inline int SendTo(uint32_t const& id, int32_t const& serial, Data const& data) {
-//            xx::Data d(16 + data.len);
-//            peerBase->SendPrepare(bb, data.len + 1024);
-//            bb.WriteFixed(id);
-//            bb.WriteVarInteger(serial);
-//            bb.WriteBuf(data.buf, data.len);
-//            return peerBase->SendAfterPrepare(bb);
+        // 向某 service 发包( 结构：4字节len, 4字节serviceId, 变长serial, 不带长度data内容 )
+        inline int SendTo(uint32_t const& serviceId, int32_t const& serial, Data const& data) {
+            tmp.Clear();
+            tmp.Reserve(13 + data.len);
+            auto bak = tmp.WriteJump<false>(sizeof(uint32_t));
+            tmp.WriteFixed<false>(serviceId);
+            tmp.WriteVarInteger<false>(serial);
+            tmp.WriteBuf<false>(data.buf, data.len);
+            tmp.WriteFixedAt(bak, (uint32_t)tmp.len);
+            return Send(tmp.buf, tmp.len);
         }
 
-        // 向网关发 echo 指令( serviceId = 0xFFFFFFFF )( for lua & c++ )
+        // 向网关发 echo 指令( 结构：4字节len, 4字节0xFFFFFFFFu, 不带长度data内容 )
         inline int SendEcho(Data const& data) {
-//            auto&& bb = uv.sendBB;
-//            peerBase->SendPrepare(bb, 1024);
-//            bb.WriteFixed((uint32_t)0xFFFFFFFFu);
-//            bb.Write("echo");
-//            bb.WriteBuf(data.buf, data.len);
-//            return peerBase->SendAfterPrepare(bb);
+            tmp.Clear();
+            tmp.Reserve(13 + data.len);
+            auto bak = tmp.WriteJump<false>(sizeof(uint32_t));
+            tmp.WriteFixed<false>((uint32_t)0xFFFFFFFFu);
+            tmp.Write<false>("echo");
+            tmp.WriteBuf<false>(data.buf, data.len);
+            tmp.WriteFixedAt(bak, (uint32_t)tmp.len);
+            return Send(tmp.buf, tmp.len);
         }
     };
+
+    [[nodiscard]] inline bool Client::TryGetPackage(Package& pkg, int const& groupId) {
+        if (!Alive()) return false;
+        auto&& ps = peer->receivedPackages;
+        LabLoop:
+        if (ps.empty()) return false;
+        // 遇到需要在 cpp 中处理的包就移走继续判断下一个
+        if (ps.front().serviceId == cppServiceId) {
+            peer->receivedCppPackages.emplace_back(std::move(ps.front()));
+            ps.pop_front();
+            goto LabLoop;
+        }
+        pkg = std::move(ps.front());
+        ps.pop_front();
+        return true;
+    }
+
+
+    [[nodiscard]] inline bool Client::IsOpened(uint32_t const& serviceId) const {
+        if (!peer) return false;
+        auto& ids = peer->openServerIds;
+        return std::find(ids.begin(), ids.end(), serviceId) != ids.end();
+    }
 
     inline void Client::Update() {
         if (ioc.stopped()) {
@@ -396,214 +416,3 @@ namespace xx::Asio {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-//namespace xx::Asio {
-//	using namespace std::placeholders;
-//
-//	struct KcpPeer;
-//
-//	// 可域名解析，可拨号，最后访问其 peer 成员通信
-//	struct Client {
-//        Client() = default;
-//		Client(Client const&) = delete;
-//		Client& operator=(Client const&) = delete;
-//
-//		// 被 cocos Update( delta ) 调用 以处理网络事件
-//		int RunOnce(double const& delta);
-//
-//		// 可临时存点啥
-//		void* userData = nullptr;
-//		size_t userSize = 0;
-//		int userInt = 0;
-//
-//		// asio 上下文
-//		asio::io_context ioc;
-//
-//		// 域名 -- 地址列表 映射
-//		std::unordered_map<std::string, std::vector<asio::ip::address>> domainAddrs;
-//
-//		// 域名 -- 解析器 映射. 如果不空, 就是有正在解析的
-//		std::unordered_map<std::string, asio::ip::udp::resolver> domainResolvers;
-//
-//		// 域名解析
-//		inline int ResolveDomain(std::string const& domain) {
-//			auto&& r = domainResolvers.emplace(domain, asio::ip::udp::resolver(ioc));
-//			if (r.second) {
-//				r.first->second.async_resolve(domain, "", [this, domain](const asio::error_code& error, asio::ip::udp::resolver::results_type results) {
-//					if (!error.value()) {
-//						auto&& as = domainAddrs[domain];
-//						as.clear();
-//						for (auto&& r : results) {
-//							as.push_back(r.endpoint().address());
-//						}
-//					}
-//					domainResolvers.erase(domain);
-//					});
-//				return 0;
-//			}
-//			// 域名正在解析中
-//			return -1;
-//		}
-//
-//		// 打印解析出来的域名
-//		inline void DumpDomainAddrs() {
-//			for (auto&& kv : domainAddrs) {
-//				std::cout << "domain = \"" << kv.first << "\", ip list = {" << std::endl;
-//				for (auto&& a : kv.second) {
-//					std::cout << "    " << a << std::endl;
-//				}
-//				std::cout << "}" << std::endl;
-//			}
-//		}
-//
-//		// 要 dial 的目标地址列表( 带端口 )
-//		std::unordered_map<asio::ip::address, std::vector<uint16_t>> dialAddrs;
-//
-//		// 添加拨号地址. 端口合并去重
-//		inline void AddDialAddress(asio::ip::address const& a, std::initializer_list<uint16_t> ports_) {
-//			auto&& ps = dialAddrs[a];
-//			ps.insert(ps.end(), ports_);
-//			ps.erase(std::unique(ps.begin(), ps.end()), ps.end());
-//		}
-//
-//		// 从 domainAddrs 拿域名对应的 ip 列表, 附加多个端口后放入拨号地址集合
-//		inline int AddDialDomain(std::string const& domain, std::initializer_list<uint16_t> ports_) {
-//			auto&& iter = domainAddrs.find(domain);
-//			if (iter == domainAddrs.end()) return -2;
-//			for (auto&& a : iter->second) {
-//				AddDialAddress(a, ports_);
-//			}
-//			return 0;
-//		}
-//
-//		// 添加拨号地址( string 版 ). 端口合并去重
-//		inline void AddDialIP(std::string const& ip, std::initializer_list<uint16_t> ports_) {
-//			AddDialAddress(asio::ip::address::from_string(ip), ports_);
-//		}
-//
-//		// 正在拨号的 peers 队列. 如果正在拨号，则该队列不空. 每 FrameUpdate 将驱动其逻辑
-//		std::vector<std::shared_ptr<KcpPeer>> dialPeers;
-//
-//		// 握手用 timer
-//		xx::Looper::TimerEx shakeTimer;
-//
-//		// 拨号超时检测用 timer
-//		xx::Looper::TimerEx dialTimer;
-//
-//		// 自增以产生握手用序列号
-//		uint32_t shakeSerial = 0;
-//
-//		// 根据 dialAddrs 的配置，对这些 ip:port 同时发起拨号( 带超时 ), 最先连上的存到 peer 并停止所有拨号
-//		void Dial(float const& timeoutSeconds);
-//
-//		// 停止拨号
-//		void Stop();
-//
-//		// 返回是否正在拨号
-//		inline bool Busy() { return !dialPeers.empty(); }
-//
-//		// 当前 peer( 拨号成功将赋值 )
-//		std::shared_ptr<KcpPeer> peer;
-//
-//		bool PeerAlive();
-//	};
-//
-
-//
-//	inline void Client::Dial(float const& timeoutSeconds) {
-//		Stop();
-//		for (auto&& kv : dialAddrs) {
-//			for (auto&& port : kv.second) {
-//				dialPeers.emplace_back(Make<KcpPeer>(this, asio::ip::udp::endpoint(kv.first, port), ++shakeSerial));
-//			}
-//		}
-//		// 启动拨号超时检测 timer
-//		dialTimer.SetTimeout(timeoutSeconds);
-//
-//		// 启动握手 timer 并立刻发送握手包
-//		shakeTimer.onTimeout(&shakeTimer);
-//	}
-//
-//	inline void Client::Stop() {
-//		dialPeers.clear();
-//		shakeTimer.ClearTimeout();
-//		dialTimer.ClearTimeout();
-//	}
-//
-//	inline int Client::FrameUpdate() {
-//		if (peer) {
-//			peer->Update();
-//		}
-//		return this->BaseType::FrameUpdate();
-//	}
-//
-//	inline Client::Client(size_t const& wheelLen, double const& frameRate_)
-//		: BaseType(wheelLen, frameRate_)
-//		, shakeTimer(this)
-//		, dialTimer(this)
-//	{
-//		// 设置握手回调: 不停的发送握手包
-//		shakeTimer.onTimeout = [this](auto t) {
-//			for (auto&& p : dialPeers) {
-//				try {
-//					p->socket.send_to(asio::buffer(&p->shakeSerial, sizeof(p->shakeSerial)), p->ep);
-//				}
-//				catch (...) {
-//
-//				}
-//			}
-//			t->SetTimeout(0.2);
-//		};
-//
-//		// 设置拨号回调: 到时就 Stop
-//		dialTimer.onTimeout = [this](auto t) {
-//			Stop();
-//		};
-//	}
-//
-//	inline bool Client::PeerAlive() {
-//		return peer && !peer->closed;
-//	}
-//
-//	inline int Client::RunOnce(double const& elapsedSeconds) {
-//		ioc.poll();
-//		if (Busy()) {
-//			for (auto&& dp : dialPeers) {
-//				dp->Update();
-//			}
-//		}
-//		if (PeerAlive()) {
-//			peer->Update();
-//		}
-//		secondsPool += elapsedSeconds;
-//		auto rtv = this->BaseType::RunOnce();
-//		ioc.poll();
-//		return rtv;
-//	}
-//}
-
-
-
-//// 适配 ip 地址做 map key
-//namespace std {
-//	template <>
-//	struct hash<asio::ip::address> {
-//		inline size_t operator()(asio::ip::address const& v) const {
-//			if (v.is_v4()) return v.to_v4().to_ulong();
-//			else if (v.is_v6()) {
-//				auto bytes = v.to_v6().to_bytes();
-//				auto&& p = (uint64_t*)&bytes;
-//				return p[0] ^ p[1] ^ p[2] ^ p[3];
-//			}
-//			else return 0;
-//		}
-//	};
-//}
