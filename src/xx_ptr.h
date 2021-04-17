@@ -253,13 +253,6 @@ namespace xx {
         // 填充式 make
         template<typename...Args>
         Shared &Emplace(Args &&...args);
-
-        // 针对跨线程安全访问需求，将 pointer 持有+1 并塞入 std::shared_ptr，参数为安全删除 lambda
-        // 令 std::shared_ptr 在最终销毁时，将指针( xx::Shared 的原始形态 ) 封送到安全线程操作
-        // 最终利用 o 的析构来安全删除 pointer ( 可能还有别的持有 )
-        // 参数示例： [??](T** p) { ??->Dispatch([p]{ xx::Shared<T> o; o.pointer = *p; }); }
-        template<typename F>
-        Ptr<T> ToPtr(F &&f);
     };
 
     /************************************************************************************/
@@ -443,42 +436,6 @@ namespace xx {
         return *this;
     }
 
-    // 令 std::shared_ptr<T*> 用起来更友善
-    template<typename T>
-    struct Ptr {
-        Ptr(Ptr const&) = default;
-        Ptr(Ptr &&) = default;
-        Ptr& operator=(Ptr const&) = default;
-        Ptr& operator=(Ptr &&) = default;
-
-        std::shared_ptr<T*> ptr;
-
-        template<typename F>
-        Ptr(Shared<T>& s, F &&f) {
-            assert(s);
-            ++((typename Shared<T>::HeaderType *) s.pointer - 1)->useCount;
-            ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
-        }
-
-        XX_INLINE operator T *const &() const noexcept {
-            return *ptr;
-        }
-
-        XX_INLINE operator T *&() noexcept {
-            return *ptr;
-        }
-
-        XX_INLINE T *const &operator->() const noexcept {
-            return *ptr;
-        }
-    };
-
-    template<typename T>
-    template<typename F>
-    Ptr<T> Shared<T>::ToPtr(F &&f) {
-        return Ptr(*this, std::forward<F>(f));
-    }
-
 
     /************************************************************************************/
     // helpers
@@ -559,6 +516,65 @@ namespace xx {
     Shared<T> SharedFromThis(T *const &thiz) {
         return *(Shared<T> *) &thiz;
     }
+
+
+
+    // 针对跨线程安全访问需求，将 pointer 持有+1 并塞入 std::shared_ptr，参数为安全删除 lambda
+    // 令 std::shared_ptr 在最终销毁时，将指针( xx::Shared 的原始形态 ) 封送到安全线程操作
+    // 最终利用 o 的析构来安全删除 pointer ( 可能还有别的持有 )
+    // 下面的封装 令 std::shared_ptr<T*> 用起来更友善
+    /* 示例：下列代码可能存在于主线程环境类中
+
+        // 共享：加持 & 封送
+        template<typename T>
+        xx::Ptr<T> ToPtr(xx::Shared<T> const& s) {
+            return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+        }
+
+        // 如果独占：不加持 不封送 就地删除
+        template<typename T>
+        xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
+            if (s.header()->useCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
+            else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+        }
+
+    */
+    template<typename T>
+    struct Ptr {
+        Ptr(Ptr const&) = default;
+        Ptr(Ptr &&) = default;
+        Ptr& operator=(Ptr const&) = default;
+        Ptr& operator=(Ptr &&) = default;
+
+        std::shared_ptr<T*> ptr;
+
+        template<typename F>
+        Ptr(Shared<T> const& s, F &&f) {
+            assert(s);
+            ++s.header()->useCount;
+            ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
+        }
+
+        template<typename F>
+        Ptr(Shared<T> && s, F &&f) {
+            assert(s);
+            ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
+            s.pointer = nullptr;
+        }
+
+        XX_INLINE operator T *const &() const noexcept {
+            return *ptr;
+        }
+
+        XX_INLINE operator T *&() noexcept {
+            return *ptr;
+        }
+
+        XX_INLINE T *const &operator->() const noexcept {
+            return *ptr;
+        }
+    };
+
 }
 
 // 令 Shared Weak 支持放入 hash 容器

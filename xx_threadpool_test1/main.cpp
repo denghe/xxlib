@@ -30,48 +30,54 @@ struct Env {
         return 0;
     }
 
+    bool running = true;
+    inline void Run() {
+        while (running) {
+            HandleActions();
+            Sleep(100);
+        }
+    }
+
+    // 共享：加持 & 封送
     template<typename T>
-    xx::Ptr<T> ToPtr(xx::Shared<T> &s) {
-        return s.ToPtr([this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+    xx::Ptr<T> ToPtr(xx::Shared<T> const& s) {
+        return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+    }
+    // 如果独占：不加持 不封送 就地删除
+    template<typename T>
+    xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
+        if (s.header()->useCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
+        else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
     }
 };
 
+// 模拟主线上下文 & 线程池 实例
+inline Env env;
+inline xx::ThreadPool<> tp;
+
+// 模拟业务逻辑
 struct Foo {
     int id = 0;
-    std::string name = "asdf";
-
-    Foo() {
-        std::cout << "new foo at " << std::this_thread::get_id() << std::endl;
-    }
-
-    ~Foo() {
-        std::cout << "delete foo at " << std::this_thread::get_id() << std::endl;
-    }
+    explicit Foo(int id) : id(id) {        std::cout << id << " new foo at " << std::this_thread::get_id() << std::endl;    }
+    ~Foo() {        std::cout << id << " delete foo at " << std::this_thread::get_id() << std::endl;    }
 };
 
 int main() {
-    Env env;
-    xx::ThreadPool<> tp;
-
     // 模拟主线逻辑 得到数据, 压到线程池搞事情
     {
-        auto foo = xx::Make<Foo>();
-
+        auto foo = xx::Make<Foo>(1);
         tp.Add([foo = env.ToPtr(foo)] {
-            std::cout << foo->id << " " << foo->name << std::endl;
+            std::cout << foo->id << std::endl;
         });
     }
-
-    // 模拟主线循环
-    while (true) {
-        env.HandleActions();
-        Sleep(100);
+    {
+        auto foo = xx::Make<Foo>(2);
+        tp.Add([foo = env.ToPtr(std::move(foo))] {
+            std::cout << foo->id << std::endl;
+        });
     }
+    env.Run();
 
-//	for (size_t i = 0; i < 100; i++)
-//	{
-//		tp.Add([] {std::cout << std::this_thread::get_id() << std::endl; });
-//	}
     std::cout << "end." << std::endl;
     return 0;
 }
