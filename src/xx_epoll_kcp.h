@@ -118,7 +118,7 @@ namespace xx::Epoll {
         void Timeout() override;
 
         // 传进发送队列( 如果 !kcp 则忽略 )
-        virtual int Send(char const *const &buf, size_t const &len);
+        virtual int Send(uint8_t const *const &buf, size_t const &len);
 
         // 立刻开始发送
         virtual int Flush();
@@ -219,11 +219,11 @@ namespace xx::Epoll {
         Close(-11, " KcpPeer Timeout");
     }
 
-    inline int KcpPeer::Send(char const *const &buf, size_t const &len) {
+    inline int KcpPeer::Send(uint8_t const *const &buf, size_t const &len) {
         if (!kcp) return -1;
         // 据kcp文档讲, 只要在等待期间发生了 ikcp_send, ikcp_input 就要重新 update
         nextUpdateMS = 0;
-        return ikcp_send(kcp, buf, len);
+        return ikcp_send(kcp, (char*)buf, len);
     }
 
     inline int KcpPeer::Flush() {
@@ -267,7 +267,7 @@ namespace xx::Epoll {
             }
 
             // 从 kcp 提取数据. 追加填充到 recv 后面区域. 返回填充长度. <= 0 则下次再说
-            auto &&len = ikcp_recv(kcp, recv.buf + recv.len, (int) (recv.cap - recv.len));
+            auto &&len = ikcp_recv(kcp, (char*)recv.buf + recv.len, (int) (recv.cap - recv.len));
             if (len <= 0) break;
             recv.len += len;
 
@@ -339,7 +339,8 @@ namespace xx::Epoll {
                 iter = shakes.emplace(ip_port, std::make_pair(++convId, ec->nowMS + shakeTimeoutMS)).first;
             }
             else {
-                iter->second.second = ec->nowMS + shakeTimeoutMS;
+                //iter->second.second = ec->nowMS + shakeTimeoutMS;
+                iter.value().second = ec->nowMS + shakeTimeoutMS;
             }
             // 回发 serial + convId。客户端在收到回发数据后，会通过 kcp 发送 01 00 00 00 00 这样的 5 字节数据，以触发服务器 accept
             char tmp[8];
@@ -374,7 +375,7 @@ namespace xx::Epoll {
             // 从握手信息移除
             shakes.erase(iter);
             // 创建 peer
-            auto &&peer = xx::Make<PeerType>(xx::As<KcpBase>(shared_from_this()), conv);
+            auto &&peer = xx::Make<PeerType>(SharedFromThis(this), conv);
             // 放入容器( 这个容器不会加持 )
             cps[conv] = &*peer;
             // 更新地址信息
@@ -382,7 +383,7 @@ namespace xx::Epoll {
             // 触发事件回调
             Accept(peer);
             // 如果 已Close 或 未持有 就短路出去
-            if (!peer->Alive() || peer.use_count() == 1) return;
+            if (!peer->Alive() || peer.useCount() == 1) return;
             // 将数据灌入 kcp ( 可能继续触发 Receive 啥的 )
             peer->Input(buf, len, true);
         }
@@ -408,7 +409,7 @@ namespace xx::Epoll {
     inline void KcpBase::CloseChilds(int const &reason, char const *const &desc) {
         for (auto &&kv : cps) {
             // 先清掉 owner 避免 Close 函数内部到 cps 来移除自己, 同时减持父容器
-            kv.second->owner.reset();
+            kv.second->owner.Reset();
             // 关掉 虚拟peer
             kv.second->Close(reason, desc);
         }
@@ -549,7 +550,7 @@ namespace xx::Epoll {
             // 停止拨号
             Stop();
             // 创建 peer
-            auto &&peer = xx::Make<PeerType>(xx::As<KcpBase>(shared_from_this()), convId);
+            auto &&peer = xx::Make<PeerType>(SharedFromThis(this), convId);
             // 放入容器( 这个容器不会加持 )
             cps[convId] = &*peer;
             // 填充地址( 就填充拨号用的，不必理会收到的 )
