@@ -8,7 +8,7 @@
 
 // 为 cocos / unity 之类客户端 实现一个带 域名解析, kcp拨号 与 通信 的 网关拨号版本。功能函数和用法，与 xx::UvClient 封装的 lua 接口类似
 
-// void Update())                                               -- 每帧来一发
+// void Update())                                               -- 独立执行, 每帧开头来一发
 
 // void SetDomainPort(string domainName, int port)              -- 设置 域名/ip 和 端口
 
@@ -134,11 +134,13 @@ namespace xx::Asio {
             return r;
         }
 
-        inline void Dial() {
-            assert(!Busy() && !Alive());
+        inline int Dial() {
+            if (Busy() || Alive()) return __LINE__;
+            dials.clear();
             for (auto &&a : addrs) {
                 dials.emplace_back(Make<KcpPeer>(this, asio::ip::udp::endpoint(a, port), ++shakeSerial));
             }
+            return 0;
         }
 
         // 尝试 move 出一条最前面的消息( lua 那边则将 Package 变为 table, 以成员方式压栈. 之后分发 )
@@ -173,6 +175,9 @@ namespace xx::Asio {
         // 初始化 sokcet
         explicit KcpPeer(Client *const &c, asio::ip::udp::endpoint const &ep, uint32_t const &shakeSerial)
                 : client(c), socket(c->ioc, asio::ip::udp::endpoint(ep.protocol(), 0)), ep(ep), shakeSerial(shakeSerial) {
+//            auto lp = socket.local_endpoint();
+//            assert(ep.protocol() == lp.protocol());
+//            xx::CoutN(lp.address(), ":", lp.port(), " to ", ep.address(), ":", ep.port());
             socket.non_blocking(true);
             recv.Reserve(1024 * 256);
         }
@@ -186,8 +191,7 @@ namespace xx::Asio {
         }
 
         // 返回 0 表示正常, 返回 1 表示连接成功( 拨号状态 ). 别的值为错误码
-        inline int Update() {
-            auto ms = NowSteadyEpochMilliseconds();
+        inline int Update(int64_t const& ms) {
             if (!kcp) {
                 // 时间到就发送握手包
                 if (ms > kcpCreateMS) {
@@ -471,10 +475,12 @@ namespace xx::Asio {
         }
         ioc.poll();
 
+        auto ms = NowSteadyEpochMilliseconds();
+
         // 已连接( 和拨号互斥 )
         if (peer) {
             // 更新。连接出错则 Reset
-            if (int r = peer->Update()) {
+            if (int r = peer->Update(ms)) {
                 // todo: log?
                 Reset();
             }
@@ -484,7 +490,7 @@ namespace xx::Asio {
             // 倒序 for 方便交换删除
             for (auto i = (int) dials.size() - 1; i >= 0; --i) {
                 assert(dials[i]);
-                if (int r = dials[i]->Update()) {
+                if (int r = dials[i]->Update(ms)) {
                     if (r == 1) {
                         // 拨号成功：挪到 peer 并清除别的拨号, 退出 for
                         peer = std::move(dials[i]);
@@ -493,7 +499,7 @@ namespace xx::Asio {
                     }
                     else {
                         // 逻辑交换删除
-                        dials[i] = dials[dials.size()-1];
+                        dials[i] = std::move(dials.back());
                         dials.pop_back();
                     }
                 }

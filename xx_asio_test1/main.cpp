@@ -7,13 +7,15 @@ struct ABC {
     ABC(ABC&) = delete;
     ABC operator=(ABC&) = delete;
 
+    int r = 0;
     double s = 0;
     int lineNumber = 0;
     int Update() {
         COR_BEGIN;
 
         // 配置参数
-        c.SetDomainPort("www.baidu.com", 10000);
+        //c.SetDomainPort("192.168.1.53", 20000);
+        c.SetDomainPort("192.168.1.135", 10001);
 
     LabBegin:
         // 无脑重置一发
@@ -27,9 +29,20 @@ struct ABC {
         while(xx::NowSteadyEpochSeconds() > s);
 
         // 开始域名解析
-        c.Resolve();
+        r = c.Resolve();
+        if (r) {
+            xx::CoutN("c.Resolve() = ", r);
+            goto LabBegin;
+        }
+
+        // 等解析
+        s = xx::NowSteadyEpochSeconds() + 3;
         while(c.Busy()) {
             COR_YIELD
+            if (xx::NowSteadyEpochSeconds() > s) {
+                xx::CoutN("c.Resolve() Timeout");
+                goto LabBegin;
+            }
         }
 
         // 如果解析失败就重试
@@ -40,7 +53,52 @@ struct ABC {
             std::cout << ip << std::endl;
         }
 
-        // todo Dial
+        {
+            asio::ip::udp::endpoint ep(c.addrs[0], 10001);
+            asio::ip::udp::socket socket(c.ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
+            socket.send_to(asio::buffer("asdf", 4), ep);
+
+            char udpRecvBuf[1024 * 64];
+            asio::error_code e;
+            asio::ip::udp::endpoint p;
+            auto recvLen = socket.receive_from(asio::buffer(udpRecvBuf), p, 0, e);
+            xx::CoutN(recvLen);
+        }
+
+
+        // 开始拨号
+        r = c.Dial();
+        if (r) {
+            xx::CoutN("c.Dial() = ", r);
+            goto LabBegin;
+        }
+
+        // 等拨号
+        s = xx::NowSteadyEpochSeconds() + 5;
+        while(c.Busy()) {
+            COR_YIELD
+            if (xx::NowSteadyEpochSeconds() > s) {
+                xx::CoutN("c.Dial() Timeout");
+                goto LabBegin;
+            }
+        }
+
+        // 等 0 号服务
+        s = xx::NowSteadyEpochSeconds() + 5;
+        while(true) {
+            COR_YIELD
+            if (!c.Alive()) {
+                xx::CoutN("!c.Alive()");
+                goto LabBegin;
+            }
+            if (c.IsOpened(0)) break;
+            if (xx::NowSteadyEpochSeconds() > s) {
+                xx::CoutN("c.IsOpened(0) Timeout");
+                goto LabBegin;
+            }
+        }
+
+        // todo: 发包
 
         COR_END
     }
