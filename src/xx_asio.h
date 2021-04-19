@@ -8,6 +8,8 @@
 
 // 为 cocos / unity 之类客户端 实现一个带 域名解析, kcp拨号 与 通信 的 网关拨号版本。功能函数和用法，与 xx::UvClient 封装的 lua 接口类似
 
+// Lua:
+
 // void Update())                                               -- 独立执行, 每帧开头来一发
 
 // void SetDomainPort(string domainName, int port)              -- 设置 域名/ip 和 端口
@@ -26,8 +28,12 @@
 // int SendTo(int serviceId, int serial, xx::Data data)         -- 主要的数据发送指令
 // int SendEcho(xx::Data data);                                 -- 向网关直发 echo 数据（ 通常拿来做 ping )
 
-// void SetGroup(int serviceId, int groupId)                    -- 为服务id分组. 不设置默认为 0
-// [serviceId, serial, data] TryGetPackage(int groupId = 0)     -- 获取分组数据包
+// void SetCppServiceId(int serviceId)                          -- 为 C++ 代码处理的服务设置id
+// [serviceId, serial, data] TryGetPackage()                    -- Lua 拉取数据包
+
+// C++:
+
+// HandleReceivedCppPackages 为主线驱动. 走事件模式
 
 namespace xx {
     // 适配 asio::ip::address
@@ -144,7 +150,7 @@ namespace xx::Asio {
         }
 
         // 尝试 move 出一条最前面的消息( lua 那边则将 Package 变为 table, 以成员方式压栈. 之后分发 )
-        [[nodiscard]] bool TryGetPackage(Package& pkg, int const& groupId = 0);
+        [[nodiscard]] bool TryGetPackage(Package& pkg);
 
         [[nodiscard]] bool IsOpened(uint32_t const& serviceId) const;
     };
@@ -175,9 +181,18 @@ namespace xx::Asio {
         // 初始化 sokcet
         explicit KcpPeer(Client *const &c, asio::ip::udp::endpoint const &ep, uint32_t const &shakeSerial)
                 : client(c), socket(c->ioc, asio::ip::udp::endpoint(ep.protocol(), 0)), ep(ep), shakeSerial(shakeSerial) {
+
+//            socket.send_to(asio::buffer("asdf", 4), ep);
+//            char udpRecvBuf[1024 * 64];
+//            asio::error_code e;
+//            asio::ip::udp::endpoint p;
+//            auto recvLen = socket.receive_from(asio::buffer(udpRecvBuf), p, 0, e);
+//            xx::CoutN(recvLen);
+
 //            auto lp = socket.local_endpoint();
 //            assert(ep.protocol() == lp.protocol());
 //            xx::CoutN(lp.address(), ":", lp.port(), " to ", ep.address(), ":", ep.port());
+
             socket.non_blocking(true);
             recv.Reserve(1024 * 256);
         }
@@ -190,25 +205,32 @@ namespace xx::Asio {
             }
         }
 
+        inline int UdpSend(void const* const& buf, size_t const& len) {
+            //xx::CoutN("udp send = ", xx::Span(buf, len));
+            try {
+                auto sentLen = socket.send_to(asio::buffer(buf, len), ep);
+                return sentLen == len ? 0 : __LINE__;
+            }
+            catch (asio::system_error const &e) {
+                // todo: log?
+                return __LINE__;
+            }
+        }
+
         // 返回 0 表示正常, 返回 1 表示连接成功( 拨号状态 ). 别的值为错误码
         inline int Update(int64_t const& ms) {
             if (!kcp) {
                 // 时间到就发送握手包
                 if (ms > kcpCreateMS) {
-                    try {
-                        socket.send_to(asio::buffer(&shakeSerial, sizeof(shakeSerial)), ep);
-                        // 下次发送在 0.2 秒后
-                        kcpCreateMS = ms + 200;
-                    }
-                    catch (asio::system_error const &e) {
-                        // todo: log?
-                        return __LINE__;
-                    }
+                    if (int r = UdpSend(&shakeSerial, sizeof(shakeSerial))) return r;
+                    // 下次发送在 0.2 秒后
+                    kcpCreateMS = ms + 200;
                 }
             }
             else {
                 ikcp_update(kcp, (IUINT32) (ms - kcpCreateMS));
             }
+
             asio::error_code e;
             asio::ip::udp::endpoint p;
             // 如果有 udp 数据收到
@@ -235,6 +257,7 @@ namespace xx::Asio {
                         // 取出指针备用
                         auto buf = (uint8_t *) recv.buf;
                         auto end = (uint8_t *) recv.buf + recv.len;
+                        //xx::CoutN("recv = ", recv);
 
                         // 包头
                         uint32_t dataLen = 0;
@@ -251,7 +274,7 @@ namespace xx::Asio {
                             if (buf + totalLen > end) break;
 
                             {
-                                auto bb = xx::Data_r(buf, len);
+                                auto bb = xx::Data_r(buf + sizeof(dataLen), dataLen);
                                 // 最上层结构：4字节长度 + 4字节服务id + 其他
                                 uint32_t serviceId = 0;
                                 if (bb.ReadFixed(serviceId)) return __LINE__;
@@ -269,8 +292,9 @@ namespace xx::Asio {
                                     }
                                     else if (cmd == "echo") {
                                         Data data;
-                                        data.WriteBuf(buf + bb.offset, len - bb.offset);
+                                        data.WriteBuf(bb.buf + bb.offset, bb.len - bb.offset);
                                         receivedPackages.emplace_back(serviceId, 0, std::move(data));
+                                        //xx::CoutN("recv echo");
                                     }
                                     else {
                                         return __LINE__;
@@ -282,10 +306,9 @@ namespace xx::Asio {
                                     if(bb.Read(serial)) return __LINE__;
                                     // 剩余数据打包为 Data 塞到收包队列
                                     Data data;
-                                    data.WriteBuf(buf + bb.offset, len - bb.offset);
+                                    data.WriteBuf(bb.buf + bb.offset, bb.len - bb.offset);
                                     receivedPackages.emplace_back(serviceId, serial, std::move(data));
                                 }
-                                return 0;
                             }
 
                             // 跳到下一个包的开头
@@ -313,7 +336,7 @@ namespace xx::Asio {
 
                         // 给 kcp 绑定 output 功能函数
                         ikcp_setoutput(kcp, [](const char *buf, int len, ikcpcb *_, void *user) -> int {
-                            return (int) ((KcpPeer *) user)->socket.send_to(asio::buffer(buf, len), ((KcpPeer *) user)->ep);
+                            return ((KcpPeer *) user)->UdpSend(buf, len);
                         });
 
                         // 先 update 来一发 确保 Flush 生效( 和 kcp 内部实现的一个标志位有关 )
@@ -332,6 +355,7 @@ namespace xx::Asio {
 
         // 基础函数
         inline int Send(uint8_t const *const &buf, size_t const &len) {
+            //xx::CoutN("Send data = ", xx::Span(buf, len));
             if (int r = ikcp_send(kcp, (char*)buf, (int)len)) return r;
             ikcp_flush(kcp);
             return 0;
@@ -351,8 +375,14 @@ namespace xx::Asio {
                 tmp.Write<false>("echo");
             }
             tmp.WriteBuf<false>(data.buf, data.len);
-            tmp.WriteFixedAt(bak, (uint32_t)tmp.len);
+            tmp.WriteFixedAt(bak, (uint32_t)(tmp.len - 4));
+            //xx::CoutN("tmp = ", tmp);
             return Send(tmp.buf, tmp.len);
+        }
+
+        // 向网关发 echo 指令
+        inline int SendEcho(Data const& data) {
+            return SendTo(0xFFFFFFFFu, 0, data);
         }
 
         /********************************************************************************************/
@@ -371,6 +401,7 @@ namespace xx::Asio {
         // events
         std::function<int(ObjBase_s&& msg)> onReceivePush = [](auto&& msg){ return 0; };
         std::function<int(int const& serial, ObjBase_s&& msg)> onReceiveRequest = [](int const& serial, ObjBase_s&& msg){ return 0; };
+        std::function<int(Data const& d)> onReceiveEcho = [](Data const& d){ return 0; };
 
 
         inline void SetCppServiceId(uint32_t const& cppServiceId_) {
@@ -389,7 +420,7 @@ namespace xx::Asio {
             tmp.WriteFixed<false>(cppServiceId);
             tmp.WriteVarInteger<false>(serial);
             om.WriteTo(tmp, msg);
-            tmp.WriteFixedAt(bak, (uint32_t)tmp.len);
+            tmp.WriteFixedAt(bak, (uint32_t)(tmp.len - 4));
             return Send(tmp.buf, tmp.len);
         }
 
@@ -405,27 +436,31 @@ namespace xx::Asio {
             while (!receivedCppPackages.empty()) {
                 auto& p = receivedCppPackages.front();
 
-                ObjBase_s msg;
-                if (int r = om.ReadFrom(p.data, msg)) return r;
-
-                if (p.serial == 0) {
-                    if (int r = onReceivePush(std::move(msg))) return r;
-                }
-                else if (p.serial < 0) {
-                    if (int r = onReceiveRequest(-p.serial, std::move(msg))) return r;
+                if (p.serviceId == 0xFFFFFFFFu) {
+                    assert(p.serial == 0);
+                    if (int r = onReceiveEcho(p.data)) return r;
                 }
                 else {
-                    for (int i = (int)callbacks.size() - 1; i >= 0; --i) {
-                        // 找到：交换删除并执行( 参数传msg ), break
-                        if (std::get<0>(callbacks[i]) == p.serial) {
-                            auto a = std::move(std::get<2>(callbacks[i]));
-                            callbacks[i] = std::move(callbacks.back());
-                            callbacks.pop_back();
-                            if (int r = a(std::move(msg))) return r;
-                            break;
+                    ObjBase_s msg;
+                    if (int r = om.ReadFrom(p.data, msg)) return r;
+
+                    if (p.serial == 0) {
+                        if (int r = onReceivePush(std::move(msg))) return r;
+                    } else if (p.serial < 0) {
+                        if (int r = onReceiveRequest(-p.serial, std::move(msg))) return r;
+                    } else {
+                        for (int i = (int) callbacks.size() - 1; i >= 0; --i) {
+                            // 找到：交换删除并执行( 参数传msg ), break
+                            if (std::get<0>(callbacks[i]) == p.serial) {
+                                auto a = std::move(std::get<2>(callbacks[i]));
+                                callbacks[i] = std::move(callbacks.back());
+                                callbacks.pop_back();
+                                if (int r = a(std::move(msg))) return r;
+                                break;
+                            }
                         }
+                        // 如果没找到，可能已超时，不需要处理
                     }
-                    // 如果没找到，可能已超时，不需要处理
                 }
 
                 receivedCppPackages.pop_front();
@@ -448,7 +483,7 @@ namespace xx::Asio {
         }
     };
 
-    [[nodiscard]] inline bool Client::TryGetPackage(Package& pkg, int const& groupId) {
+    [[nodiscard]] inline bool Client::TryGetPackage(Package& pkg) {
         if (!Alive()) return false;
         auto&& ps = peer->receivedPackages;
         LabLoop:

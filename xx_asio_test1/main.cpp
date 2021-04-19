@@ -7,15 +7,19 @@ struct ABC {
     ABC(ABC&) = delete;
     ABC operator=(ABC&) = delete;
 
+    bool recvEcho = false;
     int r = 0;
     double s = 0;
+    double ping = 0;
+    xx::Data d;
+
     int lineNumber = 0;
     int Update() {
         COR_BEGIN;
 
         // 配置参数
-        //c.SetDomainPort("192.168.1.53", 20000);
-        c.SetDomainPort("192.168.1.135", 10001);
+        c.SetDomainPort("192.168.1.53", 20000);
+        //c.SetDomainPort("192.168.1.135", 10001);
 
     LabBegin:
         // 无脑重置一发
@@ -26,7 +30,7 @@ struct ABC {
         do {
             COR_YIELD
         }
-        while(xx::NowSteadyEpochSeconds() > s);
+        while(xx::NowSteadyEpochSeconds() < s);
 
         // 开始域名解析
         r = c.Resolve();
@@ -52,19 +56,6 @@ struct ABC {
         for (auto& ip : c.GetIPList()) {
             std::cout << ip << std::endl;
         }
-
-        {
-            asio::ip::udp::endpoint ep(c.addrs[0], 10001);
-            asio::ip::udp::socket socket(c.ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
-            socket.send_to(asio::buffer("asdf", 4), ep);
-
-            char udpRecvBuf[1024 * 64];
-            asio::error_code e;
-            asio::ip::udp::endpoint p;
-            auto recvLen = socket.receive_from(asio::buffer(udpRecvBuf), p, 0, e);
-            xx::CoutN(recvLen);
-        }
-
 
         // 开始拨号
         r = c.Dial();
@@ -98,7 +89,56 @@ struct ABC {
             }
         }
 
-        // todo: 发包
+        // 设置收到 echo 包的回调: 算 ping 并清除 flag
+        c.peer->onReceiveEcho = [this](xx::Data const& d)->int {
+            //xx::CoutN("reccv echo: ", d);
+            assert(d.len == 8);
+            xx::Data_r dr(d.buf, d.len);
+            double v;
+            if (int rtv = dr.ReadFixed(v)) return rtv;
+            ping = xx::NowSteadyEpochSeconds() - v;
+            recvEcho = true;
+            return 0;
+        };
+
+        // 简单实现一个 ping 逻辑. loop: 发送当前 secs, 在收到回包后间隔 1 秒再发
+    LabKeepAlive:
+        recvEcho = false;
+        d.Clear();
+        d.WriteFixed(xx::NowSteadyEpochSeconds());
+        c.peer->SendEcho(d);
+
+        // 10 秒没收到 echo 回包就掐
+        s = xx::NowSteadyEpochSeconds() + 10;
+        do {
+            COR_YIELD
+            if (!c.Alive()) {
+                xx::CoutN("!c.Alive()");
+                goto LabBegin;
+            }
+            if (recvEcho) break;
+        }
+        while(xx::NowSteadyEpochSeconds() < s);
+
+        if (!recvEcho) {
+            xx::CoutN("recv ping timeout");
+            goto LabBegin;
+        }
+        else {
+            xx::CoutN("ping = ", ping);
+        }
+
+        // 等 1 秒
+        s = xx::NowSteadyEpochSeconds() + 1;
+        do {
+            COR_YIELD
+            if (!c.Alive()) {
+                xx::CoutN("!c.Alive()");
+                goto LabBegin;
+            }
+        }
+        while(xx::NowSteadyEpochSeconds() < s);
+        goto LabKeepAlive;
 
         COR_END
     }
@@ -106,10 +146,20 @@ struct ABC {
 
 int main() {
     xx::Asio::Client c;
+
     ABC abc(c);
     do {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         c.Update();
+        {
+            // 模拟 lua 收包
+            xx::Asio::Package p;
+            (void)c.TryGetPackage(p);
+        }
+        {
+            // 产生 C++ 回调
+            if (c.peer) c.peer->HandleReceivedCppPackages();
+        }
         abc.lineNumber = abc.Update();
     }
     while(abc.lineNumber);
