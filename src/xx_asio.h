@@ -13,7 +13,7 @@
 // void SetDomainPort(string domainName, int port)              -- 设置 域名/ip 和 端口
 
 // int Resolve()                                                -- 开始域名解析
-// bool IPListIsEmpty()                                         -- 判断解析后的域名列表是否为空( 空则解析失败 )
+// bool IsResolved()                                            -- 判断解析后的域名列表是否为空( 空则解析失败 )
 // string[] GetIPList()                                         -- 获取解析后的域名列表 for dump
 
 // void Reset())                                                -- 停止解析 或 拨号 或 连接设空, 清除所有数据
@@ -122,8 +122,8 @@ namespace xx::Asio {
             return (bool)peer;
         }
 
-        [[nodiscard]] inline bool IPListIsEmpty() const {
-            return addrs.empty();
+        [[nodiscard]] inline bool IsResolved() const {
+            return !addrs.empty();
         }
 
         [[nodiscard]] inline std::vector<std::string> GetIPList() const {
@@ -156,18 +156,19 @@ namespace xx::Asio {
         uint32_t shakeSerial = 0;
         int64_t kcpCreateMS = 0;    // 兼做 shake 握手延迟计数
 
+        // for send
+        Data tmp;
+        // for recv from kcp
+        Data recv;
+        // for recv from udp
+        char udpRecvBuf[1024 * 64];
+
         // 已 open 服务id表
         std::unordered_set<uint32_t> openServerIds;
-        // cpp 服务id表( 当 TryGetPackage 发生时,
-        std::unordered_set<uint32_t> cppServerIds;
+        // 所有已收到的数据队列
         std::deque<Package> receivedPackages;
-        std::deque<Package> receivedCppPackages;
 
-        // todo: 收发符合网关协议
 
-        Data tmp;
-        Data recv;
-        char udpRecvBuf[1024 * 64];
 
         // 初始化 sokcet
         explicit KcpPeer(Client *const &c, asio::ip::udp::endpoint const &ep, uint32_t const &shakeSerial)
@@ -333,27 +334,113 @@ namespace xx::Asio {
         }
 
         // 向某 service 发包( 结构：4字节len, 4字节serviceId, 变长serial, 不带长度data内容 )
+        // 如果 serviceId == 0xFFFFFFFFu 则向网关发 echo 指令 ( 不写变长serial, 写 "echo" )
         inline int SendTo(uint32_t const& serviceId, int32_t const& serial, Data const& data) {
             tmp.Clear();
             tmp.Reserve(13 + data.len);
             auto bak = tmp.WriteJump<false>(sizeof(uint32_t));
             tmp.WriteFixed<false>(serviceId);
-            tmp.WriteVarInteger<false>(serial);
+            if (serviceId != 0xFFFFFFFFu) {
+                tmp.WriteVarInteger<false>(serial);
+            }
+            else {
+                tmp.Write<false>("echo");
+            }
             tmp.WriteBuf<false>(data.buf, data.len);
             tmp.WriteFixedAt(bak, (uint32_t)tmp.len);
             return Send(tmp.buf, tmp.len);
         }
 
-        // 向网关发 echo 指令( 结构：4字节len, 4字节0xFFFFFFFFu, 不带长度data内容 )
-        inline int SendEcho(Data const& data) {
+        /********************************************************************************************/
+        // 下面代码 for CPP 处理消息
+
+        // C++ 服务id( 同时也是 C++ 调用 SendXxxxxx 时的 默认 serviceId
+        uint32_t cppServiceId = 0xFFFFFFFFu;
+        // C++ 代码处理的包之专用容器。 TryGetPackage 过程中检测到 serviceId 等于 cppServiceId 中则从 receivedPackages 挪过来
+        std::deque<Package> receivedCppPackages;
+        // for cpp s/de erial
+        ObjManager om;
+        // for RPC
+        int rpcSerial = 0;
+        // for SendRequest. int: serial   int64_t: timeoutMS
+        std::vector<std::tuple<int, int64_t, std::function<int(ObjBase_s&& msg)>>> callbacks;
+        // events
+        std::function<int(ObjBase_s&& msg)> onReceivePush = [](auto&& msg){ return 0; };
+        std::function<int(int const& serial, ObjBase_s&& msg)> onReceiveRequest = [](int const& serial, ObjBase_s&& msg){ return 0; };
+
+
+        inline void SetCppServiceId(uint32_t const& cppServiceId_) {
+            assert(cppServiceId_ != 0xFFFFFFFFu);
+            this->cppServiceId = cppServiceId_;
+        }
+
+        inline int SendPush(ObjBase_s const& msg) {
+            return SendResponse(0, msg);
+        }
+
+        inline int SendResponse(int32_t const& serial, ObjBase_s const& msg) {
             tmp.Clear();
-            tmp.Reserve(13 + data.len);
+            tmp.Reserve(8192);
             auto bak = tmp.WriteJump<false>(sizeof(uint32_t));
-            tmp.WriteFixed<false>((uint32_t)0xFFFFFFFFu);
-            tmp.Write<false>("echo");
-            tmp.WriteBuf<false>(data.buf, data.len);
+            tmp.WriteFixed<false>(cppServiceId);
+            tmp.WriteVarInteger<false>(serial);
+            om.WriteTo(tmp, msg);
             tmp.WriteFixedAt(bak, (uint32_t)tmp.len);
             return Send(tmp.buf, tmp.len);
+        }
+
+        inline int SendRequest(ObjBase_s const& msg, std::function<int(ObjBase_s&& msg)>&& cb, uint64_t const& timeoutMS) {
+            rpcSerial = (rpcSerial + 1) & 0x7FFFFFFF;
+            if (int r = SendResponse(-rpcSerial, msg)) return r;
+            callbacks.emplace_back(rpcSerial, NowSteadyEpochMilliseconds() + (int64_t)timeoutMS, std::move(cb));
+            return 0;
+        }
+
+        inline virtual int HandleReceivedCppPackages() noexcept {
+            // 处理所有消息
+            while (!receivedCppPackages.empty()) {
+                auto& p = receivedCppPackages.front();
+
+                ObjBase_s msg;
+                if (int r = om.ReadFrom(p.data, msg)) return r;
+
+                if (p.serial == 0) {
+                    if (int r = onReceivePush(std::move(msg))) return r;
+                }
+                else if (p.serial < 0) {
+                    if (int r = onReceiveRequest(-p.serial, std::move(msg))) return r;
+                }
+                else {
+                    for (int i = (int)callbacks.size() - 1; i >= 0; --i) {
+                        // 找到：交换删除并执行( 参数传msg ), break
+                        if (std::get<0>(callbacks[i]) == p.serial) {
+                            auto a = std::move(std::get<2>(callbacks[i]));
+                            callbacks[i] = std::move(callbacks.back());
+                            callbacks.pop_back();
+                            if (int r = a(std::move(msg))) return r;
+                            break;
+                        }
+                    }
+                    // 如果没找到，可能已超时，不需要处理
+                }
+
+                receivedCppPackages.pop_front();
+            }
+
+            // 处理回调超时
+            if (!callbacks.empty()) {
+                auto nowMS = NowSteadyEpochMilliseconds();
+                for (int i = (int)callbacks.size() - 1; i >= 0; --i) {
+                    // 超时：交换删除并执行( 空指针参数 )
+                    if (std::get<1>(callbacks[i]) < nowMS) {
+                        auto a = std::move(std::get<2>(callbacks[i]));
+                        callbacks[i] = std::move(callbacks.back());
+                        callbacks.pop_back();
+                        a(nullptr);
+                    }
+                }
+            }
+            return 0;
         }
     };
 
@@ -363,7 +450,7 @@ namespace xx::Asio {
         LabLoop:
         if (ps.empty()) return false;
         // 遇到需要在 cpp 中处理的包就移走继续判断下一个
-        if (ps.front().serviceId == cppServiceId) {
+        if ( peer->cppServiceId == ps.front().serviceId) {
             peer->receivedCppPackages.emplace_back(std::move(ps.front()));
             ps.pop_front();
             goto LabLoop;
@@ -373,11 +460,9 @@ namespace xx::Asio {
         return true;
     }
 
-
     [[nodiscard]] inline bool Client::IsOpened(uint32_t const& serviceId) const {
         if (!peer) return false;
-        auto& ids = peer->openServerIds;
-        return std::find(ids.begin(), ids.end(), serviceId) != ids.end();
+        return peer->openServerIds.contains(serviceId);
     }
 
     inline void Client::Update() {

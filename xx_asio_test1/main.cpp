@@ -33,7 +33,7 @@ struct ABC {
         }
 
         // 如果解析失败就重试
-        if (c.IPListIsEmpty()) goto LabBegin;
+        if (!c.IsResolved()) goto LabBegin;
 
         // 成功：打印下 ip 列表
         for (auto& ip : c.GetIPList()) {
