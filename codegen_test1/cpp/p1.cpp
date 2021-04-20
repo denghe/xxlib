@@ -1,7 +1,7 @@
 ﻿#include "p1.h"
 #include "p1.cpp.inc"
 void CodeGen_p1::Register() {
-	::xx::ObjManager::Register<p1::p1c1>();
+	::xx::ObjManager::Register<::p1::p1c1>();
 }
 namespace p1{
     void p1c1::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -24,7 +24,7 @@ namespace p1{
 #endif
     }
     void p1c1::Clone(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (p1::p1c1*)tar;
+        auto out = (::p1::p1c1*)tar;
         om.Clone_(this->a, out->a);
     }
     int p1c1::RecursiveCheck(::xx::ObjManager& om) const {

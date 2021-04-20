@@ -105,7 +105,7 @@ namespace xx {
         }
 
         template<typename Func>
-        int Add(JT&& job) {
+        int Add(Func&& job) {
             {
                 std::unique_lock<std::mutex> lock(mtx);
                 if (stop) return -1;
