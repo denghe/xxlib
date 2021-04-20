@@ -51,7 +51,7 @@ namespace xx {
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay<T>>
             && std::is_same_v<char, std::decay_t<std::remove_pointer_t<std::decay<T>>>> >> {
-        static inline void Append(std::string& s, char const* const& in) {
+        static inline void Append(std::string& s, T const& in) {
             s.append(in ? in : "null");
         }
     };
