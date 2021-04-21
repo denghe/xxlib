@@ -502,17 +502,17 @@ namespace xx {
 
 
 
-	template<int keyIndex, typename V, typename ...KS>
-	using KeyType_t = typename std::tuple_element<keyIndex, std::tuple<KS...>>::type;
+	template<int keyIndex, typename ...KS>
+	using KeyType_t = std::tuple_element_t<keyIndex, std::tuple<KS...>>;
 
 	template<int keyIndex, typename V, typename ...KS>
 	struct DictType {
-		using type = Dict<KeyType_t<keyIndex, V, KS...>, int>;
+		using type = Dict<KeyType_t<keyIndex, KS...>, int>;
 	};
 
 	template<typename V, typename ...KS>
 	struct DictType<(int)0, V, KS...> {
-		using type = Dict<KeyType_t<0, V, KS...>, V>;
+		using type = Dict<KeyType_t<0, KS...>, V>;
 	};
 
 	template<int keyIndex, typename V, typename ...KS>
@@ -559,12 +559,12 @@ namespace xx {
 		}
 
 		template<int keyIndex>
-		bool Exists(KeyType_t<keyIndex, V, KS...> const& key) const noexcept {
+		bool Exists(KeyType_t<keyIndex, KS...> const& key) const noexcept {
 			return DictAt<keyIndex>()->Find(key) != -1;
 		}
 
 		template<int keyIndex>
-		bool TryGetValue(KeyType_t<keyIndex, V, KS...> const& key, V& value) const noexcept {
+		bool TryGetValue(KeyType_t<keyIndex, KS...> const& key, V& value) const noexcept {
 			auto& dict = *DictAt<keyIndex>();
 			auto index = dict.Find(key);
 			if (index == -1) return false;
@@ -607,12 +607,12 @@ namespace xx {
 
 	public:
 		template<int keyIndex>
-		int Find(KeyType_t<keyIndex, V, KS...> const& key) const noexcept {
+		int Find(KeyType_t<keyIndex, KS...> const& key) const noexcept {
 			return DictAt<keyIndex>()->Find(key);
 		}
 
 		template<int keyIndex>
-		bool Remove(KeyType_t<keyIndex, V, KS...> const& key) noexcept {
+		bool Remove(KeyType_t<keyIndex, KS...> const& key) noexcept {
 			auto index = DictAt<keyIndex>()->Find(key);
 			if (index == -1) return false;
 			DictForEach<numKeys - 1, V, KS...>::RemoveAt(*this, index);
@@ -624,7 +624,7 @@ namespace xx {
 		}
 
 		template<int keyIndex, typename TK>
-		bool Update(KeyType_t<keyIndex, V, KS...> const& oldKey, TK&& newKey) noexcept {
+		bool Update(KeyType_t<keyIndex, KS...> const& oldKey, TK&& newKey) noexcept {
 			return DictAt<keyIndex>()->Update(oldKey, std::forward<TK>(newKey));
 		}
 
@@ -634,7 +634,7 @@ namespace xx {
 		}
 
 		template<int keyIndex>
-		KeyType_t<keyIndex, V, KS...> const& KeyAt(int const& index) const noexcept {
+		KeyType_t<keyIndex, KS...> const& KeyAt(int const& index) const noexcept {
 			return DictAt<keyIndex>()->KeyAt(index);
 		}
 

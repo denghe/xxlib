@@ -11,6 +11,9 @@ set(libs)
 # global
 if (UNIX)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
+	list(APPEND libs
+			pthread
+			)
 else()
 	add_definitions("-D_WIN32_WINNT=0x0601")	# for asio
 endif ()
@@ -23,9 +26,6 @@ list(APPEND dirs
 list(APPEND srcs
 		main.cpp
 		../3rd/ikcp.c
-		)
-list(APPEND libs
-		pthread
 		)
 
 
