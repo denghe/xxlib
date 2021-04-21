@@ -74,6 +74,8 @@ int main() {
 	// 创建类实例
 	Server s;
 
+	if (int r = s.Init()) return r;
+
 	// 开始运行
 	return s.Run();
 }

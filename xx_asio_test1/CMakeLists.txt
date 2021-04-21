@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(srcs)
 set(dirs)
 set(libdirs)
+set(libs)
 
 # global
 if (UNIX)
@@ -23,6 +24,9 @@ list(APPEND srcs
 		main.cpp
 		../3rd/ikcp.c
 		)
+list(APPEND libs
+		pthread
+		)
 
 
 link_directories(
@@ -33,4 +37,7 @@ include_directories(
 )
 add_executable(xx_asio_test1
 		${srcs}
+		)
+target_link_libraries(xx_asio_test1
+		${libs}
 		)

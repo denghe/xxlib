@@ -74,8 +74,7 @@ int main() {
 	// 创建类实例
 	Server s;
 
-    // kcp 需要更高帧率运行以提供及时的响应
-	s.SetFrameRate(100);
+    if (int r = s.Init()) return r;
 
 	// 开始运行
 	return s.Run();

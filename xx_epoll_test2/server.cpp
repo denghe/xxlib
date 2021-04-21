@@ -7,10 +7,13 @@
 #include "xx_logger.h"
 
 int Server::Init() {
+    // kcp 需要更高帧率运行以提供及时的响应
+    SetFrameRate(100);
+
     // 遍历配置并生成相应的 dialer
     for (auto &&si : config.serverInfos) {
         // 创建拨号器
-        auto&& dialer = xx::Make<Dialer>(xx::SharedFromThis(this));
+        auto&& dialer = xx::Make<Dialer>(this);
         // 放入字典。如果 server id 重复就报错
         if (!dps.insert({si.serverId, std::make_pair(dialer, nullptr)}).second) {
             LOG_ERROR("duplicate serverId: ", si.serverId);
@@ -28,7 +31,7 @@ int Server::Init() {
     }
 
     // 初始化监听器
-    xx::MakeTo(listener, xx::SharedFromThis(this));
+    xx::MakeTo(listener, this);
     // 如果监听失败则输出错误提示并退出
     if (int r = listener->Listen((int)config.listenPort)) {
         LOG_ERROR("listen to port ", config.listenPort, "failed.");
@@ -36,11 +39,11 @@ int Server::Init() {
     }
 
     // 初始化间隔时间为 ? 秒的处理服务器之间 ping 防止连接僵死的 timer
-    xx::MakeTo(pingTimer, xx::SharedFromThis(this));
+    xx::MakeTo(pingTimer, this);
     pingTimer->Start();
 
     // 初始化间隔时间为 1 秒的处理服务器之间断线重拨的 timer
-    xx::MakeTo(taskTimer, xx::SharedFromThis(this));
+    xx::MakeTo(taskTimer, this);
     taskTimer->Start();
 
     // 注册交互指令
