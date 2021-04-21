@@ -76,6 +76,6 @@ void CPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
     SetTimeoutSeconds(config.clientTimeoutSeconds);
 
     // echo 发回( buf 指向了 header + 0xffffffff 之后的区域，故 -8 指向 header )
-    Send({buf - 8, len + 8});
+    Send(buf - 8, len + 8);
     Flush();
 }

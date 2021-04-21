@@ -18,8 +18,8 @@ struct ABC {
         COR_BEGIN;
 
         // 配置参数
-        c.SetDomainPort("192.168.1.53", 20000);
-        //c.SetDomainPort("192.168.1.135", 10001);
+        //c.SetDomainPort("192.168.1.53", 20000);
+        c.SetDomainPort("192.168.1.135", 10001);
 
     LabBegin:
         // 无脑重置一发

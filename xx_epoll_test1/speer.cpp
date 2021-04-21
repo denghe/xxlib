@@ -33,7 +33,7 @@ void SPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
         *(uint32_t *) buf = serverId;
 
         // 从 长度包头 处开始，直接转发
-        cp->Send({buf - 4, len + 4});
+        cp->Send(buf - 4, len + 4);
     }
     else {
         // 没找到：输出点日志
