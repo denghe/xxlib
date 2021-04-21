@@ -176,7 +176,7 @@ namespace xx::Epoll {
         int Send(Data &&data);
 
         // 会复制数据
-        inline int Send(char const *const &buf, size_t const &len) { return Send({buf, len}); }
+        inline int Send(uint8_t const *const &buf, size_t const &len) { return Send({buf, len}); }
 
         // 兼容 kcp peer 函数调用需求
         inline int Flush() { return 0; }
@@ -338,7 +338,7 @@ namespace xx::Epoll {
         // 帧时间间隔
         double ticksPerFrame = 10000000.0 / frameRate;
         // 公用 buf( 需要的地方可临时用用 )
-        std::array<char, 256 * 1024> buf;
+        std::array<uint8_t, 256 * 1024> buf;
         // 公用 data( 需要的地方可临时用用 )
         xx::Data data;
         // 映射通过 stdin 进来的指令的处理函数. 去空格 去 tab 后第一个单词作为 key. 剩余部分作为 args
@@ -841,7 +841,7 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // PipeReader
     inline void PipeReader::EpollEvent(uint32_t const &e) {
-        char buf[512];
+        uint8_t buf[512];
         if (read(fd, buf, sizeof(buf)) <= 0) return;
         ec->HandleActions();
     }

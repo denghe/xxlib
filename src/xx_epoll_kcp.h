@@ -33,13 +33,13 @@ namespace xx::Epoll {
         using Timer::Timer;
 
         // 有数据需要接收( 不累积, 直接投递过来 )
-        virtual void Receive(char const *const &buf, size_t const &len) = 0;
+        virtual void Receive(uint8_t const *const &buf, size_t const &len) = 0;
 
         // 直接发送( 如果 fd == -1 则忽略 ), 返回已发送字节数. -1 为出错
-        ssize_t Send(char const *const &buf, size_t const &len);
+        ssize_t Send(uint8_t const *const &buf, size_t const &len);
 
         // 直接向 addr 发送( 如果 fd == -1 则忽略 ), 返回已发送字节数. -1 为出错
-        ssize_t SendTo(sockaddr_in6 const& addr, char const *const &buf, size_t const &len);
+        ssize_t SendTo(sockaddr_in6 const& addr, uint8_t const *const &buf, size_t const &len);
 
         // 判断 fd 的有效性
         inline bool Alive() { return fd != -1; }
@@ -109,7 +109,7 @@ namespace xx::Epoll {
         void UpdateKcpLogic();
 
         // 被 owner 调用. 塞数据到 kcp
-        void Input(char const *const &buf, size_t const &len, bool isFirst = false);
+        void Input(uint8_t const *const &buf, size_t const &len, bool isFirst = false);
 
         // 回收 kcp 对象, 看情况从 ep->kcps 移除
         bool Close(int const &reason, char const *const &desc) override;
@@ -140,7 +140,7 @@ namespace xx::Epoll {
 
         // 1. 判断收到的数据内容, 模拟握手， 最后产生 KcpPeer
         // 2. 定位到 KcpPeer, Input 数据
-        void Receive(char const *const &buf, size_t const &len) override;
+        void Receive(uint8_t const *const &buf, size_t const &len) override;
 
         // 连接创建成功后会触发
         virtual void Accept(Shared<PeerType> const &peer) = 0;
@@ -200,7 +200,7 @@ namespace xx::Epoll {
             // 如果物理 peer 没断, 就通过修改 addr 的方式告知 Send 函数目的地
             if (self->owner) {
                 self->owner->addr = self->addr;
-                return self->owner->Send(inBuf, len);
+                return (int)self->owner->Send((uint8_t*)inBuf, len);
             }
             return -1;
         });
@@ -223,7 +223,7 @@ namespace xx::Epoll {
         if (!kcp) return -1;
         // 据kcp文档讲, 只要在等待期间发生了 ikcp_send, ikcp_input 就要重新 update
         nextUpdateMS = 0;
-        return ikcp_send(kcp, (char*)buf, len);
+        return ikcp_send(kcp, (char*)buf, (int)len);
     }
 
     inline int KcpPeer::Flush() {
@@ -245,9 +245,9 @@ namespace xx::Epoll {
         nextUpdateMS = ikcp_check(kcp, currentMS);
     }
 
-    inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFirst) {
+    inline void KcpPeer::Input(uint8_t const *const &buf, size_t const &len_, bool isFirst) {
         // 将底层数据灌入 kcp
-        if (int r = ikcp_input(kcp, buf, len_)) {
+        if (int r = ikcp_input(kcp, (char*)buf, (long)len_)) {
             Close(-12,
                   xx::ToString(__LINE__, " KcpPeer Input if (int r = ikcp_input(kcp, buf, len_)), r = ", r).c_str());
             return;
@@ -327,7 +327,7 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    inline void KcpListener<PeerType, ENABLED>::Receive(char const *const &buf, size_t const &len) {
+    inline void KcpListener<PeerType, ENABLED>::Receive(uint8_t const *const &buf, size_t const &len) {
         // addr 转为 ip:port 当 key
         auto ip_port = xx::ToString(addr);
 
@@ -343,7 +343,7 @@ namespace xx::Epoll {
                 iter.value().second = ec->nowMS + shakeTimeoutMS;
             }
             // 回发 serial + convId。客户端在收到回发数据后，会通过 kcp 发送 01 00 00 00 00 这样的 5 字节数据，以触发服务器 accept
-            char tmp[8];
+            uint8_t tmp[8];
             memcpy(tmp, buf, 4);
             memcpy(tmp + 4, &iter->second.first, 4);
             Send(tmp, 8);
@@ -417,11 +417,11 @@ namespace xx::Epoll {
         cps.clear();
     }
 
-    inline ssize_t UdpPeer::Send(char const *const &buf, size_t const &len) {
+    inline ssize_t UdpPeer::Send(uint8_t const *const &buf, size_t const &len) {
         return SendTo(addr, buf, len);
     }
 
-    inline ssize_t UdpPeer::SendTo(sockaddr_in6 const& tarAddr, char const *const &buf, size_t const &len) {
+    inline ssize_t UdpPeer::SendTo(sockaddr_in6 const& tarAddr, uint8_t const *const &buf, size_t const &len) {
         // 保底检查
         if (!Alive()) return -1;
         // 底层直发
@@ -518,7 +518,7 @@ namespace xx::Epoll {
 
         // 1. 判断收到的数据内容, 模拟握手，最后产生 KcpPeer
         // 2. 定位到 KcpPeer, Input 数据( 已连接状态 )
-        void Receive(char const *const &buf, size_t const &len) override;
+        void Receive(uint8_t const *const &buf, size_t const &len) override;
 
         // 基于每个目标 addr 生成的 连接上下文对象，里面有 serial, conv 啥的. 拨号完毕后会被清空
         uint32_t serialAutoInc = 0;
@@ -532,7 +532,7 @@ namespace xx::Epoll {
     };
 
     template<typename PeerType, class ENABLED>
-    void KcpDialer<PeerType, ENABLED>::Receive(char const *const &buf, size_t const &len) {
+    void KcpDialer<PeerType, ENABLED>::Receive(uint8_t const *const &buf, size_t const &len) {
         if (len == 8) {
             // 收到 8 字节( serial + convId ) 握手回包
             // 如果没在拨号了，忽略
@@ -590,7 +590,7 @@ namespace xx::Epoll {
         timerForShake.onTimeout = [this] {
             // 如果 serials 不空（ 意味着正在拨号 ), 就每秒数次无脑向目标地址发送 serial
             for (size_t i = 0; i < serials.size(); ++i) {
-                SendTo(addrs[i], (char*)&serials[i], 4);
+                SendTo(addrs[i], (uint8_t*)&serials[i], 4);
             }
             timerForShake.SetTimeoutSeconds(0.2);
         };
