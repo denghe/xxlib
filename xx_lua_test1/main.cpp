@@ -208,6 +208,56 @@ void TestUv() {
     }
 }
 
+
+#include "xx_ptr.h"
+#include <optional>
+#include <variant>
+
+struct LuaValue : std::variant<ptrdiff_t, double, std::string, xx::Shared<std::unordered_map<LuaValue, LuaValue>>> {
+    using BaseType = std::variant<ptrdiff_t, double, std::string, xx::Shared<std::unordered_map<LuaValue, LuaValue>>>;
+    using BaseType::BaseType;
+    std::string ToString() const;
+};
+using LuaTable = std::unordered_map<LuaValue, LuaValue>;
+using LuaTable_s = xx::Shared<LuaTable>;
+using NullableLuaValue = std::optional<LuaValue>;
+
+namespace std {
+    template<>
+    struct hash<LuaValue> {
+        size_t operator()(LuaValue const& v) const {
+            switch (v.index()) {
+                case 0: return (size_t)std::get<ptrdiff_t>(v);
+                case 1: return hash<double>()(std::get<double>(v));
+                case 2: return hash<std::string>()(std::get<std::string>(v));
+                case 3: return (size_t)std::get<LuaTable_s>(v).pointer;
+            }
+            assert(false);
+            return 0;
+        }
+    };
+}
+
+inline std::string LuaValue::ToString() const {
+    switch (index()) {
+        case 0: return std::to_string(std::get<ptrdiff_t>(*this));
+        case 1: return std::to_string(std::get<double>(*this));
+        case 2: return std::get<std::string>(*this);
+        case 3: return std::to_string((size_t)std::get<xx::Shared<std::unordered_map<LuaValue, LuaValue>>>(*this).pointer);
+    }
+    return "";
+}
+
+void Test3() {
+    LuaValue v = xx::Make<LuaTable>();
+    auto& t = *std::get<LuaTable_s>(v);
+    t.emplace((ptrdiff_t)1, "asdf");
+    t.emplace(2.3, "qwer");
+    for(auto& kv : t) {
+        std::cout << kv.first.ToString() << " " << kv.second.ToString() << std::endl;
+    }
+}
+
 int main() {
     //Test1();
     //Test2();

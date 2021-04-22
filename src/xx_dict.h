@@ -1,14 +1,10 @@
 ﻿#pragma once
 #include "xx_bits.h"
-#include "xx_macro.h"
 #include <cassert>
 #include <cstdint>
 #include <memory>
 
 namespace xx {
-	// 多 key 字典
-	template<typename V, typename ...KS>
-	class DictEx;
 
 	// Dict.Add 的操作结果
 	struct DictAddResult {
@@ -489,8 +485,7 @@ namespace xx {
 
 
 
-
-
+    // 多 key 字典
     template<typename V, typename ... KS> struct DictMK {
         using KeyTypes = std::tuple<KS...>;
 
@@ -551,7 +546,7 @@ namespace xx {
 
     protected:
         template<typename TV, typename TK, typename...TKS>
-        XX_INLINE DictAddResult AddCore0(TV&& value, TK&& key, TKS&&...keys) noexcept {
+        DictAddResult AddCore0(TV&& value, TK&& key, TKS&&...keys) noexcept {
             auto r = dict.Add(std::forward<TK>(key), std::forward<TV>(value), false);
             if (!r.success) return r;
             r = AddCore<1, TKS...>(r.index, std::forward<TKS>(keys)...);
