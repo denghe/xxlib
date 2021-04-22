@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "xx_bits.h"
-#include <functional>
+#include "xx_macro.h"
 #include <cassert>
 #include <cstdint>
 #include <memory>
@@ -14,14 +14,13 @@ namespace xx {
 	struct DictAddResult {
 		bool success;
 		int index;
+		operator bool() const { return success; }
 	};
-
-	struct DictBase {};
 
 	// 功能类似 std::unordered_map。抄自 .net 的 Dictionary
 	// 主要特点：iter 是个固定数值下标。故可持有加速 Update & Remove 操作, 遍历时删除当前 iter 指向的数据安全。
 	template <typename TK, typename TV>
-	class Dict : DictBase {
+	class Dict {
 	public:
 		typedef TK KeyType;
 		typedef TV ValueType;
@@ -72,8 +71,8 @@ namespace xx {
 		template<typename K>
 		TV& operator[](K&& key) noexcept;
 
-		// 可传入一个资源回收函数来搞事
-		void Clear(std::function<void(Data&)> killer = nullptr) noexcept;
+		// 清除所有数据
+		void Clear() noexcept;
 
 		// 放入数据. 如果放入失败, 将返回 false 以及已存在的数据的下标
 		template<typename K, typename V>
@@ -317,15 +316,8 @@ namespace xx {
 		items[idx].prev = -2;           // foreach 时的无效标志
 	}
 
-	// 可传入一个资源回收函数来搞事
 	template <typename TK, typename TV>
-	void Dict<TK, TV>::Clear(std::function<void(Data&)> killer) noexcept {
-		if (killer) {
-			for (auto&& data : *this) {
-				killer(data);
-			}
-		}
-
+	void Dict<TK, TV>::Clear() noexcept {
 		assert(buckets);
 		if (!count) return;
 		DeleteKVs();
@@ -499,224 +491,162 @@ namespace xx {
 
 
 
+    template<typename V, typename ... KS> struct DictMK {
+        using KeyTypes = std::tuple<KS...>;
 
+        // dict, dicts 的下标应该是一致的
+        Dict<std::tuple_element_t<0, KeyTypes>, V> dict;    // 主体
+        std::tuple<Dict<KS, int>...> dicts;                 // value 指向主体 节点下标
 
+        void Reserve(int const& cap) {
+            dict.Reserve(cap);
+            Reserve_<1>(cap);
+        }
+    protected:
+        template<size_t i> std::enable_if_t<i == sizeof...(KS)> Reserve_(int const& cap) {}
+        template<size_t i> std::enable_if_t<i  < sizeof...(KS)> Reserve_(int const& cap) {
+            std::get<i>(dicts).Reserve(cap);
+            Reserve_<i + 1>(cap);
+        }
 
-	template<int keyIndex, typename ...KS>
-	using KeyType_t = std::tuple_element_t<keyIndex, std::tuple<KS...>>;
+    public:
 
-	template<int keyIndex, typename V, typename ...KS>
-	struct DictType {
-		using type = Dict<KeyType_t<keyIndex, KS...>, int>;
-	};
+        explicit DictMK(int const& cap = 16) {
+            Reserve(cap);
+        }
 
-	template<typename V, typename ...KS>
-	struct DictType<(int)0, V, KS...> {
-		using type = Dict<KeyType_t<0, KS...>, V>;
-	};
+        template<int keyIndex = 0>
+        int Find(std::tuple_element_t<keyIndex, KeyTypes> const& key) const noexcept {
+            if constexpr (keyIndex == 0) {
+                return dict.Find(key);
+            }
+            else {
+                return std::get<keyIndex>(dicts).Find(key);
+            }
+        }
+        template<int keyIndex = 0>
+        bool Exists(std::tuple_element<keyIndex, KeyTypes> const& key) const noexcept {
+            return Find<keyIndex>(key) != -1;
+        }
 
-	template<int keyIndex, typename V, typename ...KS>
-	using DictType_t = typename DictType<keyIndex, V, KS...>::type;
+        template<int keyIndex = 0>
+        bool TryGetValue(std::tuple_element_t<keyIndex, KeyTypes> const& key, V& value) const noexcept {
+            if constexpr (keyIndex == 0) {
+                return dict.TryGetValue(key, value);
+            }
+            else {
+                auto& d =  std::get<keyIndex>(dicts);
+                auto index = d.Find(key);
+                if (index == -1) return false;
+                value = dict.ValueAt(index);
+                return true;
+            }
+        }
 
-	template<int keyIndex, typename V, typename ...KS>
-	struct DictForEach {
-		static void Init(DictEx<V, KS...>& self);
-		static void RemoveAt(DictEx<V, KS...>& self, int const& idx);
-		static void Clear(DictEx<V, KS...>& self);
-	};
+        template<typename TV, typename...TKS>
+        DictAddResult Add(TV&& value, TKS&&...keys) noexcept {
+            static_assert(sizeof...(keys) == sizeof...(KS));
+            return AddCore0(std::forward<TV>(value), std::forward<TKS>(keys)...);
+        }
 
-	template<typename V, typename ...KS>
-	struct DictForEach<(int)0, V, KS...> {
-		static void Init(DictEx<V, KS...>& self);
-		static void RemoveAt(DictEx<V, KS...>& self, int const& idx);
-		static void Clear(DictEx<V, KS...>& self);
-	};
+    protected:
+        template<typename TV, typename TK, typename...TKS>
+        XX_INLINE DictAddResult AddCore0(TV&& value, TK&& key, TKS&&...keys) noexcept {
+            auto r = dict.Add(std::forward<TK>(key), std::forward<TV>(value), false);
+            if (!r.success) return r;
+            r = AddCore<1, TKS...>(r.index, std::forward<TKS>(keys)...);
+            if (!r.success) {
+                dict.RemoveAt(r.index);
+            }
+            return r;
+        }
+        template<int keyIndex, typename TK, typename...TKS>
+        DictAddResult AddCore(int const& index, TK&& key, TKS&&...keys) noexcept {
+            auto r = std::get<keyIndex>(dicts).Add(std::forward<TK>(key), index);
+            if (r.success) {
+                if constexpr( sizeof...(TKS) > 0) {
+                    r = AddCore<keyIndex + 1, TKS...>(index, std::forward<TKS>(keys)...);
+                }
+                else return r;
+            }
+            if (!r.success) {
+                std::get<keyIndex>(dicts).RemoveAt(index);
+            }
+            return r;
+        }
 
+    public:
+        void RemoveAt(int const& index) noexcept {
+            dict.RemoveAt(index);
+            RemoveAt_<1>(index);
+        }
+    protected:
+        template<size_t i> std::enable_if_t<i == sizeof...(KS)> RemoveAt_(int const& index) {}
+        template<size_t i> std::enable_if_t<i  < sizeof...(KS)> RemoveAt_(int const& index) {
+            std::get<i>(dicts).RemoveAt(index);
+            RemoveAt_<i + 1>(index);
+        }
 
-	template<typename V, typename ...KS>
-	class DictEx : DictBase {
-	protected:
-		static const int numKeys = (int)(sizeof...(KS));
+    public:
+        template<int keyIndex = 0>
+        bool Remove(std::tuple_element_t<keyIndex, KeyTypes> const& key) noexcept {
+            auto index = Find<keyIndex>(key);
+            if (index == -1) return false;
+            RemoveAt(index);
+            return true;
+        }
 
-		// dicts[0] 作为主体存储, 其他 dict 的 value 存 index ( 实际用不到 )
-		std::array<std::unique_ptr<DictBase>, numKeys> dicts;
+        template<int keyIndex = 0, typename TK>
+        bool UpdateAt(int const& index, TK&& newKey) noexcept {
+            if constexpr(keyIndex == 0) {
+                return dict.UpdateAt(index, std::forward<TK>(newKey));
+            }
+            else {
+                return std::get<keyIndex>(dicts).UpdateAt(index, std::forward<TK>(newKey));
+            }
+        }
 
-		template<int keyIndex>
-		auto DictAt() ->std::unique_ptr<DictType_t<keyIndex, V, KS...>>& {
-			return *(std::unique_ptr<DictType_t<keyIndex, V, KS...>>*)&dicts[keyIndex];
-		}
-		template<int keyIndex>
-		auto DictAt() const ->std::unique_ptr<DictType_t<keyIndex, V, KS...>> const& {
-			return *(std::unique_ptr<DictType_t<keyIndex, V, KS...>>*)&dicts[keyIndex];
-		}
+        template<int keyIndex = 0, typename TK>
+        bool Update(std::tuple_element_t<keyIndex, KeyTypes> const& oldKey, TK&& newKey) noexcept {
+            if constexpr(keyIndex == 0) {
+                return dict.Update(oldKey, std::forward<TK>(newKey));
+            }
+            else {
+                return std::get<keyIndex>(dicts).Update(oldKey, std::forward<TK>(newKey));
+            }
+        }
 
-		template<int keyIndex, typename TV, typename ...TKS>
-		friend struct DictForEach;
+        template<int keyIndex = 0>
+        std::tuple_element_t<keyIndex, KeyTypes> const& KeyAt(int const& index) const noexcept {
+            if constexpr(keyIndex == 0) {
+                return dict.KeyAt(index);
+            }
+            else {
+                return std::get<keyIndex>(dicts).KeyAt(index);
+            }
+        }
 
-	public:
-		DictEx(int const& capacity = 16) {
-			DictForEach<numKeys - 1, V, KS...>::Init(*this);
-		}
+        V& ValueAt(int const& index) noexcept {
+            return dict.ValueAt(index);
+        }
+        [[nodiscard]] V const& ValueAt(int const& index) const noexcept {
+            return dict.ValueAt(index);
+        }
 
-		template<int keyIndex>
-		bool Exists(KeyType_t<keyIndex, KS...> const& key) const noexcept {
-			return DictAt<keyIndex>()->Find(key) != -1;
-		}
+        void Clear() noexcept {
+            dict.Clear();
+            Clear_<1>();
+        }
+    protected:
+        template<size_t i> std::enable_if_t<i == sizeof...(KS)> Clear_() {}
+        template<size_t i> std::enable_if_t<i  < sizeof...(KS)> Clear_() {
+            std::get<i>(dicts).Clear();
+            Clear_<i + 1>();
+        }
 
-		template<int keyIndex>
-		bool TryGetValue(KeyType_t<keyIndex, KS...> const& key, V& value) const noexcept {
-			auto& dict = *DictAt<keyIndex>();
-			auto index = dict.Find(key);
-			if (index == -1) return false;
-			value = DictAt<0>()->ValueAt(index);
-			return true;
-		}
-
-		template<typename TV, typename...TKS>
-		DictAddResult Add(TV&& value, TKS&&...keys) noexcept {
-			static_assert(sizeof...(keys) == numKeys);
-			return AddCore0(std::forward<TV>(value), std::forward<TKS>(keys)...);
-		}
-
-	protected:
-		template<typename TV, typename TK, typename...TKS>
-		DictAddResult AddCore0(TV&& value, TK&& key, TKS&&...keys) noexcept {
-			auto& dict = *DictAt<0>();
-			auto r = dict.Add(std::forward<TK>(key), std::forward<TV>(value), false);
-			if (r.success) {
-				return AddCore<1, TKS...>(r.index, std::forward<TKS>(keys)...);
-			}
-			return r;
-		}
-
-		template<int keyIndex, typename TK, typename...TKS>
-		DictAddResult AddCore(int const& index, TK&& key, TKS&&...keys) noexcept {
-			auto r = DictAt<keyIndex>()->Add(std::forward<TK>(key), index);
-			if (r.success) return AddCore<keyIndex + 1, TKS...>(index, std::forward<TKS>(keys)...);
-			DictForEach<keyIndex - 1, V, KS...>::RemoveAt(*this, index);
-			return r;
-		}
-
-		template<int keyIndex, typename TK>
-		DictAddResult AddCore(int const& index, TK&& key) noexcept {
-			auto r = DictAt<keyIndex>()->Add(std::forward<TK>(key), index);
-			if (r.success) return r;
-			DictForEach<keyIndex - 1, V, KS...>::RemoveAt(*this, index);
-			return r;
-		}
-
-	public:
-		template<int keyIndex>
-		int Find(KeyType_t<keyIndex, KS...> const& key) const noexcept {
-			return DictAt<keyIndex>()->Find(key);
-		}
-
-		template<int keyIndex>
-		bool Remove(KeyType_t<keyIndex, KS...> const& key) noexcept {
-			auto index = DictAt<keyIndex>()->Find(key);
-			if (index == -1) return false;
-			DictForEach<numKeys - 1, V, KS...>::RemoveAt(*this, index);
-			return true;
-		}
-
-		void RemoveAt(int const& index) noexcept {
-			DictForEach<numKeys - 1, V, KS...>::RemoveAt(*this, index);
-		}
-
-		template<int keyIndex, typename TK>
-		bool Update(KeyType_t<keyIndex, KS...> const& oldKey, TK&& newKey) noexcept {
-			return DictAt<keyIndex>()->Update(oldKey, std::forward<TK>(newKey));
-		}
-
-		template<int keyIndex, typename TK>
-		bool UpdateAt(int const& index, TK&& newKey) noexcept {
-			return DictAt<keyIndex>()->UpdateAt(index, std::forward<TK>(newKey));
-		}
-
-		template<int keyIndex>
-		KeyType_t<keyIndex, KS...> const& KeyAt(int const& index) const noexcept {
-			return DictAt<keyIndex>()->KeyAt(index);
-		}
-
-		V& ValueAt(int const& index) noexcept {
-			return DictAt<0>()->ValueAt(index);
-		}
-		V const& ValueAt(int const& index) const noexcept {
-			return DictAt<0>()->ValueAt(index);
-		}
-
-		void Clear() noexcept {
-			DictForEach<numKeys - 1, V, KS...>::Clear(*this);
-		}
-
-		uint32_t Count() const noexcept {
-			return DictAt<0>()->Count();
-		}
-
-
-		// 支持 for (auto&& iv : dictex) 遍历
-		// 可用 dictex.KeyAt<?>( iv.index ) 来查 key. 
-		struct IterValue {
-			int index;
-			V& value;
-		};
-
-		struct Iter {
-			DictType_t<0, V, KS...>& dict;
-			int i;
-			bool operator!=(Iter const& other) noexcept {
-				return i != other.i;
-			}
-			Iter& operator++() noexcept {
-				while (++i < dict.count) {
-					if (dict.items[i].prev != -2) break;
-				}
-				return *this;
-			}
-			IterValue operator*() { return IterValue{ i, dict.items[i].value }; }
-		};
-		Iter begin() noexcept {
-			auto& dict = *DictAt<0>();
-			if (dict.Empty()) return end();
-			for (int i = 0; i < dict.count; ++i) {
-				if (dict.items[i].prev != -2) return Iter{ dict, i };
-			}
-			return end();
-		}
-		Iter end() noexcept {
-			return Iter{ *DictAt<0>(), DictAt<0>()->count };
-		}
-	};
-
-
-	template<int keyIndex, typename V, typename ...KS>
-	void DictForEach<keyIndex, V, KS...>::Init(DictEx<V, KS...>& self) {
-		auto&& u = std::make_unique<DictType_t<keyIndex, V, KS...>>();
-		self.dicts[keyIndex] = std::move(*(std::unique_ptr<DictBase>*)&u);
-		DictForEach<keyIndex - 1, V, KS...>::Init(self);
-	}
-	template<int keyIndex, typename V, typename ...KS>
-	void DictForEach<keyIndex, V, KS...>::RemoveAt(DictEx<V, KS...>& self, int const& idx) {
-		self.template DictAt<keyIndex>()->RemoveAt(idx);
-		DictForEach<keyIndex - 1, V, KS...>::RemoveAt(self, idx);
-	}
-	template<int keyIndex, typename V, typename ...KS>
-	void DictForEach<keyIndex, V, KS...>::Clear(DictEx<V, KS...>& self) {
-		self.template DictAt<keyIndex>()->Clear();
-		DictForEach<keyIndex - 1, V, KS...>::Clear(self);
-	}
-
-	template<typename V, typename ...KS>
-	void DictForEach<(int)0, V, KS...>::Init(DictEx<V, KS...>& self) {
-		auto&& u = std::make_unique<DictType_t<0, V, KS...>>();
-		self.dicts[0] = std::move(*(std::unique_ptr<DictBase>*)&u);
-	}
-	template<typename V, typename ...KS>
-	void DictForEach<(int)0, V, KS...>::RemoveAt(DictEx<V, KS...>& self, int const& idx) {
-		self.template DictAt<0>()->RemoveAt(idx);
-	}
-	template<typename V, typename ...KS>
-	void DictForEach<(int)0, V, KS...>::Clear(DictEx<V, KS...>& self) {
-		self.template DictAt<0>()->Clear();
-	}
+    public:
+        [[nodiscard]] uint32_t Count() const noexcept {
+            return dict.Count();
+        }
+    };
 }

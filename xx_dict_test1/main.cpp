@@ -1,61 +1,66 @@
 ﻿#include "xx_dict.h"
 #include <iostream>
-
-namespace xx {
-    template<typename V, typename ... KS> struct DictMK {
-        using KeyTypes = std::tuple<KS...>;
-        Dict<std::tuple_element<0, KeyTypes>, V> dict;      // 主体
-        std::tuple<Dict<KS, int>...> dicts;                 // value 指向主体 节点下标
-
-    protected:
-        template<size_t i = 0>	std::enable_if_t<i == sizeof...(KS)> Reserve_(int const& cap) {}
-        template<size_t i = 0>	std::enable_if_t<i < sizeof...(KS)> Reserve_(int const& cap) {
-            std::get<i>(dicts).Reserve(cap);
-            Reserve_<i + 1>(cap);
-        }
-    public:
-        void Reserve(int const& cap) {
-            dict.Reserve(cap);
-            Reserve_(cap);
-        }
-
-        explicit DictMK(int const& cap = 16) {
-            Reserve(cap);
-        }
-
-        template<int keyIndex>
-        bool Exists(std::tuple_element<keyIndex, KeyTypes> const& key) const noexcept {
-            if constexpr (keyIndex == 0) {
-                return dict.Find(key) != -1;
-            }
-            else {
-                return std::get<keyIndex>(dicts).Find(key) != -1;
-            }
-        }
-
-        template<int keyIndex>
-        bool TryGetValue(KeyType_t<keyIndex, V, KS...> const& key, V& value) const noexcept {
-            if constexpr (keyIndex == 0) {
-                return dict.TryGetValue(key, value);
-            }
-            else {
-                auto& d =  std::get<keyIndex>(dicts);
-                auto index = d.Find(key);
-                if (index == -1) return false;
-                value = dict.ValueAt(index);
-                return true;
-            }
-        }
-
-        // todo: Add
-    };
-}
+#include "xx_ptr.h"
 
 int main() {
     using T = std::tuple<int, std::string>;
-	xx::DictMK<T, int, std::string> d;
-	//d.Add(1, "asdf");
-	//std::cout << d[1] << std::endl;
+    using U = xx::Shared<T>;
+	auto t1 = xx::Make<T>(1, "a");
+	auto t2 = xx::Make<T>(2, "b");
+	auto t3 = xx::Make<T>(3, "c");
+	auto t4 = xx::Make<T>(2, "d");
+	auto t5 = xx::Make<T>(4, "a");
+    xx::DictMK<U, int, std::string> d;
+	auto r = d.Add(t1, std::get<0>(*t1), std::get<1>(*t1));
+	assert(r.success);
+	r = d.Add(t2, std::get<0>(*t2), std::get<1>(*t2));
+    assert(r.success);
+	r = d.Add(t3, std::get<0>(*t3), std::get<1>(*t3));
+    assert(r.success);
+    assert(d.Count() == 3);
+    assert(std::get<1>(d.dicts).Count() == d.dict.Count());
+	r = d.Add(t4, std::get<0>(*t4), std::get<1>(*t4));
+    assert(!r.success);
+    assert(d.Count() == 3);
+    assert(std::get<1>(d.dicts).Count() == d.dict.Count());
+    r = d.Add(t5, std::get<0>(*t4), std::get<1>(*t5));
+    assert(!r.success);
+    assert(d.Count() == 3);
+    assert(std::get<1>(d.dicts).Count() == d.dict.Count());
 
+    auto idx = d.Find<1>(std::get<1>(*t1));
+    assert(idx != -1);
+    assert(idx == d.Find<0>(std::get<0>(*t1)));
+
+    idx = d.Find<0>(std::get<0>(*t2));
+    assert(idx != -1);
+    assert(idx == d.Find<1>(std::get<1>(*t2)));
+
+    idx = d.Find<1>(std::get<1>(*t3));
+    assert(idx != -1);
+    assert(idx == d.Find<0>(std::get<0>(*t3)));
+
+    for(auto& node : d.dict) {
+        std::cout << std::get<0>(*node.value) << " " << std::get<1>(*node.value) << std::endl;
+    }
+    std::cout << "----------------------------" << std::endl;
+
+    auto ok = d.Remove<0>(std::get<0>(*t1));
+    assert(ok);
+    ok = d.Remove<1>(std::get<1>(*t1));
+    assert(!ok);
+
+	for(auto& node : d.dict) {
+	    std::cout << std::get<0>(*node.value) << " " << std::get<1>(*node.value) << std::endl;
+	}
+    std::cout << "----------------------------" << std::endl;
+
+    ok = d.Remove<1>(std::get<1>(*t2));
+    assert(ok);
+
+	for(auto& node : d.dict) {
+	    std::cout << std::get<0>(*node.value) << " " << std::get<1>(*node.value) << std::endl;
+	}
+    std::cout << "----------------------------" << std::endl;
 	return 0;
 }
