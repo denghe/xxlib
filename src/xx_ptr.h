@@ -9,11 +9,19 @@ namespace xx {
     /************************************************************************************/
     // Make 时会在内存块头部附加
 
-    struct PtrHeader {
-        uint32_t useCount;              // 强引用技术
-        uint32_t refCount;              // 弱引用技术
-        uint32_t typeId;                // 序列化 或 类型转换用
-        uint32_t offset;                // 序列化等过程中使用
+    struct PtrHeaderBase {
+        uint32_t useCount;      // 强引用技术
+        uint32_t refCount;      // 弱引用技术
+    };
+
+    struct PtrHeader : PtrHeaderBase {
+        union {
+            struct {
+                uint32_t typeId;        // 序列化 或 类型转换用
+                uint32_t offset;        // 序列化等过程中使用
+            };
+            void *ud;
+        };
     };
 
     /************************************************************************************/
@@ -25,8 +33,11 @@ namespace xx {
     template<typename T>
     struct Ptr;
 
+    struct ObjBase;
+
     template<typename T>
     struct Shared {
+        using HeaderType = std::conditional_t<(std::is_same_v<ObjBase, T> || TypeId_v<T> > 0), PtrHeader, PtrHeaderBase>;
         using ElementType = T;
         T *pointer = nullptr;
 
@@ -79,8 +90,8 @@ namespace xx {
         }
 
         // unsafe
-        [[maybe_unused]] [[nodiscard]] XX_INLINE PtrHeader *header() const noexcept {
-            return ((PtrHeader *) pointer - 1);
+        [[maybe_unused]] [[nodiscard]] XX_INLINE HeaderType *header() const noexcept {
+            return ((HeaderType *) pointer - 1);
         }
 
         // 将 header 内容拼接为 string 返回 以方便显示 & 调试
@@ -92,8 +103,10 @@ namespace xx {
                 auto h = header();
                 s += "{\"useCount\":" + std::to_string(h->useCount);
                 s += ",\"refCount\":" + std::to_string(h->refCount);
-                s += ",\"typeId\":" + std::to_string(h->typeId);
-                s += ",\"offset\":" + std::to_string(h->offset);
+                if constexpr (std::is_base_of_v<PtrHeader, HeaderType>) {
+                    s += ",\"typeId\":" + std::to_string(h->typeId);
+                    s += ",\"offset\":" + std::to_string(h->offset);
+                }
                 s += "}";
             }
             return s;
@@ -126,7 +139,7 @@ namespace xx {
             Reset();
             if (ptr) {
                 pointer = ptr;
-                ++((PtrHeader *) ptr - 1)->useCount;
+                ++((HeaderType *) ptr - 1)->useCount;
             }
         }
 
@@ -141,14 +154,14 @@ namespace xx {
             static_assert(std::is_base_of_v<T, U>);
             pointer = ptr;
             if (ptr) {
-                ++((PtrHeader *) ptr - 1)->useCount;
+                ++((HeaderType *) ptr - 1)->useCount;
             }
         }
 
         XX_INLINE Shared(T *const &ptr) {
             pointer = ptr;
             if (ptr) {
-                ++((PtrHeader *) ptr - 1)->useCount;
+                ++((HeaderType *) ptr - 1)->useCount;
             }
         }
 
@@ -246,6 +259,7 @@ namespace xx {
 
     template<typename T>
     struct Weak {
+        using HeaderType = std::conditional_t<(std::is_same_v<ObjBase, T> || TypeId_v<T> > 0), PtrHeader, PtrHeaderBase>;
         using ElementType = T;
         PtrHeader *h = nullptr;
 
@@ -289,7 +303,7 @@ namespace xx {
             static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             Reset();
             if (s.pointer) {
-                h = ((PtrHeader *) s.pointer - 1);
+                h = ((HeaderType *) s.pointer - 1);
                 ++h->refCount;
             }
         }
@@ -400,7 +414,7 @@ namespace xx {
     template<typename T>
     Weak<T> Shared<T>::ToWeak() const noexcept {
         if (pointer) {
-            auto h = (PtrHeader *) pointer - 1;
+            auto h = (HeaderType *) pointer - 1;
             return *(Weak<T> *) &h;
         }
         return {};
@@ -413,8 +427,10 @@ namespace xx {
         auto h = (PtrHeader *) malloc(sizeof(PtrHeader) + sizeof(T));
         h->useCount = 1;
         h->refCount = 0;
-        h->typeId = TypeId_v<T>;
-        h->offset = 0;
+        if constexpr (std::is_base_of_v<PtrHeader, HeaderType>) {
+            h->typeId = TypeId_v<T>;
+            h->offset = 0;
+        }
         pointer = new(h + 1) T(std::forward<Args>(args)...);
         return *this;
     }

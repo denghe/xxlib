@@ -253,7 +253,8 @@ namespace xx {
 		XX_INLINE void Write_(Data& d, T const& v) {
 			if constexpr (IsShared_v<T>) {
 				using U = typename T::ElementType;
-				if constexpr (std::is_base_of_v<ObjBase, U> || TypeId_v<U> > 0) {
+				if constexpr (std::is_base_of_v<ObjBase, U>) {
+				    static_assert(std::is_same_v<ObjBase, U> || TypeId_v<U> > 0);
 					if (!v) {
 						// 如果是 空指针， offset 值写 0
 						d.WriteFixed<needReserve>((uint8_t)0);
@@ -417,7 +418,8 @@ namespace xx {
 		XX_INLINE int Read_(Data_r& d, T& v) {
 			if constexpr (IsShared_v<T>) {
 				using U = typename T::ElementType;
-				if constexpr (std::is_base_of_v<ObjBase, U> || TypeId_v<U> > 0) {
+				if constexpr (std::is_base_of_v<ObjBase, U>) {
+                    static_assert(std::is_same_v<ObjBase, U> || TypeId_v<U> > 0);
 					uint32_t idx;
 					if constexpr (isFirst) {
 						idx = 1;
@@ -760,7 +762,8 @@ namespace xx {
 		XX_INLINE void Clone_(T const& in, T& out) {
 			if constexpr (IsShared_v<T>) {
                 using U = typename T::ElementType;
-                if constexpr (std::is_base_of_v<ObjBase, U> || TypeId_v<U> > 0) {
+                if constexpr (std::is_base_of_v<ObjBase, U>) {
+                    static_assert(std::is_same_v<ObjBase, U> || TypeId_v<U> > 0);
                     if (!in) {
                         out.Reset();
                     } else {
