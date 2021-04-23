@@ -47,12 +47,19 @@ namespace xx {
     // StringFuncs 继续适配各种常见数据类型
     /************************************************************************************/
 
-    // 适配 char [const]* \0 结尾 字串
-    template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay<T>>
-            && std::is_same_v<char, std::decay_t<std::remove_pointer_t<std::decay<T>>>> >> {
-        static inline void Append(std::string& s, T const& in) {
-            s.append(in ? in : "null");
+    // 适配 char* \0 结尾 字串
+    template<>
+    struct StringFuncs<char*, void> {
+        static inline void Append(std::string& s, char* const& in) {
+            s.append(in ? in: "null");
+        }
+    };
+
+    // 适配 char const* \0 结尾 字串
+    template<>
+    struct StringFuncs<char const*, void> {
+        static inline void Append(std::string& s, char const* const& in) {
+            s.append(in ? in: "null");
         }
     };
 

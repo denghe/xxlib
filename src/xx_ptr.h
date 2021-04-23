@@ -261,7 +261,7 @@ namespace xx {
     struct Weak {
         using HeaderType = std::conditional_t<(std::is_same_v<ObjBase, T> || TypeId_v<T> > 0), PtrHeader, PtrHeaderBase>;
         using ElementType = T;
-        PtrHeader *h = nullptr;
+        HeaderType *h = nullptr;
 
         [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t useCount() const noexcept {
             if (!h) return 0;
@@ -424,7 +424,7 @@ namespace xx {
     template<typename...Args>
     Shared<T> &Shared<T>::Emplace(Args &&...args) {
         Reset();
-        auto h = (PtrHeader *) malloc(sizeof(PtrHeader) + sizeof(T));
+        auto h = (HeaderType *) malloc(sizeof(HeaderType) + sizeof(T));
         h->useCount = 1;
         h->refCount = 0;
         if constexpr (std::is_base_of_v<PtrHeader, HeaderType>) {

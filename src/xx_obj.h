@@ -761,37 +761,37 @@ namespace xx {
 		template<typename T>
 		XX_INLINE void Clone_(T const& in, T& out) {
 			if constexpr (IsShared_v<T>) {
-                using U = typename T::ElementType;
-                if constexpr (std::is_base_of_v<ObjBase, U>) {
+				using U = typename T::ElementType;
+				if constexpr (std::is_base_of_v<ObjBase, U>) {
                     static_assert(std::is_same_v<ObjBase, U> || TypeId_v<U> > 0);
-                    if (!in) {
-                        out.Reset();
-                    } else {
-                        auto h = ((PtrHeader *) in.pointer - 1);
-                        if (h->offset == 0) {
-                            ptrs.push_back(&h->offset);
-                            h->offset = (uint32_t) ptrs.size();
+					if (!in) {
+						out.Reset();
+					}
+					else {
+						auto h = ((PtrHeader*)in.pointer - 1);
+						if (h->offset == 0) {
+							ptrs.push_back(&h->offset);
+							h->offset = (uint32_t)ptrs.size();
 
-                            auto inTypeId = in.typeId();
-                            if (out.typeId() != inTypeId) {
-                                out = std::move(Create(inTypeId).template ReinterpretCast<typename T::ElementType>());
-                            }
-                            ptrs2.push_back(out.pointer);
-                            Clone_(*in, *out);
-                        } else {
-                            out = *(T *) &ptrs2[h->offset - 1];
-                        }
-                    }
-                }
-                else {
-                    if (in) {
-                        out.Emplace();
-                        Clone_(*in, *out);
-                    }
-                    else {
-                        out.Reset();
-                    }
-                }
+							auto inTypeId = in.typeId();
+							if (out.typeId() != inTypeId) {
+								out = std::move(Create(inTypeId).template ReinterpretCast<U>());
+							}
+							ptrs2.push_back(out.pointer);
+							Clone_(*in, *out);
+						}
+						else {
+							out = *(T*)&ptrs2[h->offset - 1];
+						}
+					}
+				}
+				else {
+					if (in) {
+						out.Emplace();
+						Clone_(*in, *out);
+					}
+					else out.Reset();
+				}
 			}
 			else if constexpr (IsWeak_v<T>) {
 				out.Reset();
