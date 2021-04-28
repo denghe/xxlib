@@ -40,11 +40,7 @@ namespace xx {
 		Node               *nodes;                  // 节点数组
 		Data               *items;                  // 数据数组( 与节点数组同步下标 )
 
-		template<typename V, typename ...KS>
-		friend class DictEx;
-
 	public:
-
 		explicit Dict(int const& capacity = 16);
 		~Dict();
 		Dict(Dict const& o) = delete;
@@ -74,7 +70,11 @@ namespace xx {
 		template<typename K, typename V>
 		DictAddResult Add(K&& k, V&& v, bool const& override = false) noexcept;
 
-		// 取数据记录数
+        // 修改 key. 返回 负数 表示修改失败( -1: 旧 key 未找到. -2: 新 key 已存在 ), 0或正数 成功( index )
+        template<typename K>
+        int Update(TK const& oldKey, K&& newKey) noexcept;
+
+        // 取数据记录数
 		uint32_t Count() const noexcept;
 
 		// 是否没有数据
@@ -88,7 +88,7 @@ namespace xx {
 		TV& At(K&& key) noexcept;
 
 
-		// 下标直读系列( unsafe )
+		// 下标直肏系列( unsafe )
 
 		// 读下标所在 key
 		TK const& KeyAt(int const& idx) const noexcept;
@@ -97,21 +97,14 @@ namespace xx {
 		TV& ValueAt(int const& idx) noexcept;
 		TV const& ValueAt(int const& idx) const noexcept;
 
-		//Data const& DataAt(int idx) const noexcept;
-
-		// 简单 check 某下标是否有效.
-		bool IndexExists(int const& idx) const noexcept;
-
-
-		// 修改 key 值系列
+        // 修改 指定下标的 key. 返回 false 表示修改失败( 新 key 已存在 ). idx 不会改变
 		template<typename K>
-		bool Update(TK const& oldKey, K&& newKey) noexcept;
+        bool UpdateAt(int const& idx, K&& newKey) noexcept;
 
-		template<typename K>
-		bool UpdateAt(int const& idx, K&& newKey) noexcept;
+        // 简单 check 某下标是否有效( for debug )
+        bool IndexExists(int const& idx) const noexcept;
 
-
-		// for (auto&& data : dict) {
+        // for (auto&& data : dict) {
 		// for (auto&& iter = dict.begin(); iter != dict.end(); ++iter) {	if (iter->value...... iter.Remove()
 		struct Iter {
 			Dict& hs;
@@ -403,57 +396,55 @@ namespace xx {
 		return const_cast<Dict*>(this)->ValueAt(idx);
 	}
 
-	//	template <typename TK, typename TV>
-	//	Dict<TK, TV>::Data const& Dict<TK, TV>::DataAt(int idx) const noexcept
-	//	{
-	//		return const_cast<Dict*>(this)->At(idx);
-	//	}
-
 	template <typename TK, typename TV>
 	bool Dict<TK, TV>::IndexExists(int const& idx) const noexcept {
 		return idx >= 0 && idx < count && items[idx].prev != -2;
 	}
 
-
 	template <typename TK, typename TV>
 	template<typename K>
-	bool Dict<TK, TV>::Update(TK const& oldKey, K&& newKey) noexcept {
+	int Dict<TK, TV>::Update(TK const& oldKey, K&& newKey) noexcept {
 		int idx = Find(oldKey);
-		if (idx == -1) return false;
-		return UpdateAt(idx, std::forward<K>(newKey));
+		if (idx == -1) return -1;
+		return UpdateAt(idx, std::forward<K>(newKey)) ? idx : -2;
 	}
 
 	template <typename TK, typename TV>
 	template<typename K>
-	bool Dict<TK, TV>::UpdateAt(int const& idx, K&& newKey) noexcept {
+    bool Dict<TK, TV>::UpdateAt(int const& idx, K&& newKey) noexcept {
 		assert(idx >= 0 && idx < count && items[idx].prev != -2);
-		auto& node = nodes[idx];
-		auto& item = items[idx];
 
-		// 如果 hash 相等可以直接改 key 并退出函数
+		// 算 newKey hash, 定位到桶
 		auto newHashCode = std::hash<TK>{}(newKey);
+        auto newBucket = newHashCode % (uint32_t)bucketsLen;
+
+        // 检查 newKey 是否已存在
+        for (int i = buckets[newBucket]; i >= 0; i = nodes[i].next) {
+            if (nodes[i].hashCode == newHashCode && items[i].key == newKey) return false;
+        }
+
+        auto& node = nodes[idx];
+        auto& item = items[idx];
+
+        // 如果 hash 相等可以直接改 key 并退出
 		if (node.hashCode == newHashCode) {
 			item.key = std::forward<K>(newKey);
 			return true;
 		}
 
-		// 位于相同 bucket, 直接改 has & key 并退出函数
-		auto targetBucket = node.hashCode % (uint32_t)bucketsLen;
-		auto newTargetBucket = newHashCode % (uint32_t)bucketsLen;
-		if (targetBucket == newTargetBucket) {
+		// 定位到旧桶
+        auto oldBucket = node.hashCode % (uint32_t)bucketsLen;
+
+		// 位于相同 bucket, 直接改 hash & key 并退出
+		if (oldBucket == newBucket) {
 			node.hashCode = newHashCode;
 			item.key = std::forward<K>(newKey);
 			return true;
 		}
 
-		// 检查 newKey 是否已存在
-		for (int i = buckets[newTargetBucket]; i >= 0; i = nodes[i].next) {
-			if (nodes[i].hashCode == newHashCode && items[i].key == newKey) return false;
-		}
-
 		// 简化的 RemoveAt
 		if (item.prev < 0) {
-			buckets[targetBucket] = node.next;
+			buckets[oldBucket] = node.next;
 		}
 		else {
 			nodes[item.prev].next = node.next;
@@ -464,12 +455,12 @@ namespace xx {
 
 		// 简化的 Add 后半段
 		node.hashCode = newHashCode;
-		node.next = buckets[newTargetBucket];
+		node.next = buckets[newBucket];
 
-		if (buckets[newTargetBucket] >= 0) {
-			items[buckets[newTargetBucket]].prev = idx;
+		if (buckets[newBucket] >= 0) {
+			items[buckets[newBucket]].prev = idx;
 		}
-		buckets[newTargetBucket] = idx;
+		buckets[newBucket] = idx;
 
 		item.key = std::forward<K>(newKey);
 		item.prev = -1;

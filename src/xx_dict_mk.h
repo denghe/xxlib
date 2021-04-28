@@ -120,7 +120,7 @@ namespace xx {
         }
 
         template<int keyIndex = 0, typename TK>
-        bool Update(std::tuple_element_t<keyIndex, KeyTypes> const& oldKey, TK&& newKey) noexcept {
+        int Update(std::tuple_element_t<keyIndex, KeyTypes> const& oldKey, TK&& newKey) noexcept {
             if constexpr(keyIndex == 0) {
                 return dict.Update(oldKey, std::forward<TK>(newKey));
             }
