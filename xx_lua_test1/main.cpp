@@ -258,12 +258,19 @@ void Test3() {
     }
 }
 
+#include "xx_lua_data_funcs.h"
+
+void TestTableToData() {
+    // todo
+}
+
 int main() {
     //Test1();
     //Test2();
-    TestUv();
+    //TestUv();
     //TestLuaBind1();
     //TestLuaBind2();
+    TestTableToData();
     std::cout << "end." << std::endl;
     return 0;
 }

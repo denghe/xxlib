@@ -142,7 +142,7 @@ namespace xx::Lua {
     };
 
 
-    // 判断指定 idx 所在是指定类型的 userdata ( 判断带 mt && mt.Typename == 1 )
+    // 判断指定 idx 所在是指定类型的 userdata ( 判断带 mt && mt[Typename*] == mt )
 	template<typename T>
 	inline bool IsUserdata(lua_State* const& L, int const& idx) {
 		CheckStack(L, 2);
@@ -242,6 +242,16 @@ namespace xx::Lua {
 		lua_setmetatable(L, -2);											// ..., ud
 		return 1;
 	}
+
+    // id 映射
+    template<typename T>
+    struct UserdataId {
+        static const uint16_t value = 0;
+    };
+
+    template<typename T>
+    constexpr uint16_t UserdataId_v = UserdataId<T>::value;
+
 
 //	// 适配 lambda
 //	template<typename T>

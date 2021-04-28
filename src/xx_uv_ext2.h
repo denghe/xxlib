@@ -198,6 +198,16 @@ namespace xx {
 
 		// 存放 cpp 代码处理的 serviceId. 当 lua TryGetPackage 时, 判断如果 serviceId 相符，就移动到 receivedCppPackages
 		uint32_t cppServiceId = 0xFFFFFFFEu;    // 别令其等于 0xFFFFFFFFu, 防止无法识别 cmd
+		Data tmp;
+		ObjManager om;
+		// for RPC
+		int rpcSerial = 0;
+		// for SendRequest. int: serial   int64_t: timeoutMS
+		std::vector<std::tuple<int, int64_t, std::function<int(ObjBase_s&& msg)>>> callbacks;
+		// events
+		std::function<int(ObjBase_s&& msg)> onReceivePush = [](auto&& msg) { return 0; };
+		std::function<int(int const& serial, ObjBase_s&& msg)> onReceiveRequest = [](int const& serial, ObjBase_s&& msg) { return 0; };
+		std::function<int(Data const& d)> onReceiveEcho = [](Data const& d) { return 0; };
 
 		// 设置 cpp 代码处理的 serviceId( 映射到 lua )
 		inline void SetCppServiceId(uint32_t const& cppServiceId) {
@@ -213,6 +223,23 @@ namespace xx {
 			pkg = std::move(ps.front());
 			ps.pop_front();
 			return true;
+		}
+
+		inline int SendPush(ObjBase_s const& msg) {
+			return SendResponse(0, msg);
+		}
+
+		inline int SendResponse(int32_t const& serial, ObjBase_s const& msg) {
+			tmp.Clear();
+			om.WriteTo(tmp, msg);
+			return SendTo(cppServiceId, serial, tmp);
+		}
+
+		inline int SendRequest(ObjBase_s const& msg, std::function<int(ObjBase_s&& msg)>&& cb, uint64_t const& timeoutMS) {
+			rpcSerial = (rpcSerial + 1) & 0x7FFFFFFF;
+			if (int r = SendResponse(-rpcSerial, msg)) return r;
+			callbacks.emplace_back(rpcSerial, NowSteadyEpochMilliseconds() + (int64_t)timeoutMS, std::move(cb));
+			return 0;
 		}
 	};
 

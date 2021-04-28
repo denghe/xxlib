@@ -56,7 +56,7 @@ namespace xx {
 		typedef std::underlying_type_t<T> UT;
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
-			d.Write((UT const&)in);
+			d.Write<needReserve>((UT const&)in);
 		}
 		static inline int Read(Data_r& d, T& out) {
 			return d.Read((UT&)out);
@@ -68,8 +68,8 @@ namespace xx {
 	struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::string_view, std::decay_t<T>>>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
-			d.WriteVarInteger(in.size());
-			d.WriteBuf((char*)in.data(), in.size());
+			d.WriteVarInteger<needReserve>(in.size());
+			d.WriteBuf<needReserve>((char*)in.data(), in.size());
 		}
 		static inline int Read(Data_r& d, T& out) {
 			size_t siz = 0;
@@ -87,7 +87,7 @@ namespace xx {
 	struct DataFuncs<T, std::enable_if_t<IsLiteral_v<T>>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
-			DataFuncs<std::string_view, void>::Write(d, std::string_view(in));
+			DataFuncs<std::string_view, void>::Write<needReserve>(d, std::string_view(in));
 		}
 	};
 
@@ -96,7 +96,7 @@ namespace xx {
 	struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::string, std::decay_t<T>>>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
-			DataFuncs<std::string_view, void>::Write(d, std::string_view(in));
+			DataFuncs<std::string_view, void>::Write<needReserve>(d, std::string_view(in));
 		}
 		static inline int Read(Data_r& d, T& out) {
 			size_t siz = 0;
@@ -115,10 +115,10 @@ namespace xx {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
 			if (in.has_value()) {
-				d.Write((uint8_t)1, in.value());
+				d.Write<needReserve>((uint8_t)1, in.value());
 			}
 			else {
-				d.Write((uint8_t)0);
+				d.Write<needReserve>((uint8_t)0);
 			}
 		}
 		static inline int Read(Data_r& d, T& out) {
@@ -137,7 +137,7 @@ namespace xx {
 	struct DataFuncs<T, std::enable_if_t<IsPair_v<T> && IsBaseDataType_v<T>>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
-			d.Write(in.first, in.second);
+			d.Write<needReserve>(in.first, in.second);
 		}
 		static inline int Read(Data_r& d, T& out) {
 			return d.Read(out.first, out.second);

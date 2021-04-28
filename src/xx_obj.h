@@ -441,6 +441,7 @@ namespace xx {
 
 						if (!v || v.typeId() != typeId) {
 							v = std::move(Create(typeId).template ReinterpretCast<U>());
+							assert(v);
 						}
 						ptrs.emplace_back(v.pointer);
 						if (int r = Read_(d, *v)) return r;
