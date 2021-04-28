@@ -268,10 +268,11 @@ namespace xx::Lua {
 		lua_call(L, Push(L, std::forward<Args>(args)...), LUA_MULTRET);
 	}
 
-	// 不安全调用指定名称的全局函数
+	// 不安全调用指定名称的全局函数( 会留下函数和返回值在栈中 )
 	// [-(nargs + 1), +(nresults|1), e]
 	template<typename T, typename...Args>
 	void CallGlobalFunc(lua_State* const& L, T&& funcName, Args &&...args) {
+        CheckStack(L, 1);
 		if constexpr (std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
 			lua_getglobal(L, funcName.c_str());
 		}
@@ -280,6 +281,24 @@ namespace xx::Lua {
 		}
 		Call(L, std::forward<Args>(args)...);
 	}
+
+    // 不安全调用指定名称的全局函数, 并返回 R( 会还原栈 )
+    // [-(nargs + 1), +(nresults|1), e]
+    template<typename R = void, typename T, typename...Args>
+    R CallGlobalFuncR(lua_State* const& L, T&& funcName, Args &&...args) {
+        auto top = lua_gettop(L);
+        CallGlobalFunc(L, std::forward<T>(funcName), std::forward<Args>(args)...);
+        if constexpr (!std::is_void_v<R>) {
+            R rtv;
+            To(L, top + 1, rtv);
+            lua_settop(L, top);											// ...
+            return rtv;
+        }
+        else {
+            lua_settop(L, top);											// ...
+        }
+    }
+
 
 	template<typename T, typename...Args>
 	void DoFile(lua_State* const& L, T&& fileName, Args &&...args) {
