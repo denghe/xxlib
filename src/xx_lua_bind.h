@@ -243,7 +243,17 @@ namespace xx::Lua {
 		return 1;
 	}
 
-    // id 映射
+
+    /****************************************************************************************/
+    /****************************************************************************************/
+    // 为支持 lua 中的一些简单工具类( 例如 Random? ) 的序列化 而设计一套映射体系
+    // 这种 userdata 的 mt 需携带 UserdataId, 以方便调用相应的 读取函数
+
+    enum class ValueTypes : uint8_t {
+        NilType, True, False, Integer, Double, String, Userdata, Table, TableEnd
+    };
+
+    // userdata -- id 映射
     template<typename T>
     struct UserdataId {
         static const uint16_t value = 0;
@@ -252,8 +262,73 @@ namespace xx::Lua {
     template<typename T>
     constexpr uint16_t UserdataId_v = UserdataId<T>::value;
 
+    // 这些 userdata 的 mt 需要以 (void*)Key_UserdataId.data() 为 key
+    inline static std::string Key_UserdataId("UserdataId");
 
-//	// 适配 lambda
+    // 给栈顶 mt 设置 UserdataId key value
+    template<typename T>
+    void SetUserdataId(lua_State* const& L) {
+        static_assert(UserdataId_v<T> != 0);
+        SetField(L, (void*)Key_UserdataId.data(), UserdataId_v<T>);         // ..., mt
+    }
+
+    // 从指定 idx 的 userdata 读出 UserdataId. 返回 0 表示出错
+    uint16_t GetUserdataId(lua_State* const& L, int const& idx) {
+        CheckStack(L, 2);
+        lua_getmetatable(L, idx);											// ... ud ..., mt
+        if (!lua_istable(L, -1)) {
+            lua_pop(L, 1);
+            return 0;
+        }
+        auto uid = GetField<uint16_t>(L, idx, (void*)Key_UserdataId.data());
+        lua_pop(L, 1);                                                      // ... ud ...
+        return uid;
+    }
+
+    // id 对应的 ReadFrom 函数( 读取 data 并在 L 顶创建相应的 userdata )
+    typedef int(*UserdataReadFromFunc)(lua_State* const& L, xx::Data_r& d);
+
+    // Userdata ReadFrom 函数集
+    inline static std::array<UserdataReadFromFunc, std::numeric_limits<uint16_t>::max()> urffs{};
+
+    // 适配范例:
+    // urffs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data_r& d)->int { ...... }
+
+    // 根据 id 调用相应 ReadFrom
+    inline int UserdataReadFrom(lua_State* const& L, xx::Data_r& d, uint16_t const& uid) {
+        assert(urffs[uid]);
+        return urffs[uid](L, d);
+    }
+
+
+
+    // id 对应的 WriteTo 函数( 将 L 中位于 index 位置的 userdata 写到 data )
+    typedef void(*UserdataWriteToFunc)(lua_State* const& L, xx::Data& d, int const& idx);
+
+    // Userdata WriteTo 函数集
+    inline static std::array<UserdataWriteToFunc, std::numeric_limits<uint16_t>::max()> uwtfs{};
+
+    // 适配范例:
+    // uwtfs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data& d, int const& idx)->void { ...... }
+
+    // 根据 id 调用相应 ReadFrom
+    inline void UserdataWriteTo(lua_State* const& L, xx::Data& d, int const& idx) {
+        // 定位到 ud meta 并提取 UserdataId
+        if (auto uid = GetUserdataId(L, idx)) {
+            d.WriteFixed(ValueTypes::Userdata);
+            d.WriteFixed(uid);
+            uwtfs[uid](L, d, idx);
+        }
+        else {
+            d.WriteFixed(ValueTypes::NilType);
+        }
+    }
+
+
+
+
+
+//	// 适配 lambda   先注释掉，避免滥用
 //	template<typename T>
 //	struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
 //		static inline int Push(lua_State* const& L, T&& in) {

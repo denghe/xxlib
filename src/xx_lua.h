@@ -120,8 +120,15 @@ namespace xx::Lua {
 		To(L, top + 1, v);
 		lua_settop(L, top);									// ..., table at idx, ...
 	}
+    template<typename V, typename K>
+    inline V GetField(lua_State* const& L, int const& idx, K const& k) {
+        V v;
+        GetField(L, idx, k, v);
+        return v;
+    }
 
-	// 写 k, v 到全局
+
+    // 写 k, v 到全局
 	template<typename K, typename V>
 	inline void SetGlobal(lua_State* const& L, K const& k, V&& v) {
 		int n = Push(L, std::forward<V>(v));

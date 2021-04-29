@@ -141,8 +141,8 @@ namespace xx {
     // deserialize maybe slow: rand.discard(count);
 	struct Random4 : RandomBase<Random4> {
 		using SeedType = typename std::mt19937::result_type;
-		uint64_t count;
 		SeedType seed;
+        uint64_t count;
 		std::mt19937 rand;
 
 		inline void Reset(SeedType const& seed = 1234567890, uint64_t const& count = 0) {
@@ -176,12 +176,12 @@ namespace xx {
     template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random4>>> {
         template<bool needReserve = true>
         static inline void Write(Data& d, T const& in) {
-            d.Write<needReserve>(in.count);
             d.WriteFixed<needReserve>(in.seed);
+            d.Write<needReserve>(in.count);
         }
         static inline int Read(Data_r& d, T& out) {
-            if (int r = d.Read(out.count)) return r;
             if (int r = d.ReadFixed(out.seed)) return r;
+            if (int r = d.Read(out.count)) return r;
             out.Reset(out.seed, out.count);
             return 0;
         }

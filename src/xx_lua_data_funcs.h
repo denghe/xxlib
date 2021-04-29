@@ -5,12 +5,6 @@
 
 namespace xx::Lua {
 
-    
-
-    enum class ValueTypes : uint8_t {
-		NilType, True, False, Integer, Double, String, Userdata, Table, TableEnd
-	};
-
     // 将栈顶的数据写入 Data (不支持 table 循环引用, 注意： lua5.1 不支持 int64, 这里并没有走 userdata 规则)
     template<typename T>
     static inline void WriteTo(lua_State* const& L, xx::Data& d, T const& in) {
