@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "xx_lua_bind.h"
 #include "xx_randoms.h"
+#include "xx_lua_bind.h"
 
 namespace xx::Lua {
 
@@ -24,6 +24,7 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             SetType<U>(L);
             SetUserdataId<U>(L);
+            SetFieldCClosure(L, "__tostring", [](auto L)->int { return Push(L, xx::ToString(*To<U*>(L))); });
             SetFieldCClosure(L, "NextInt", [](auto L)->int { return Push(L, To<U*>(L)->NextInt()); });
             SetFieldCClosure(L, "NextDouble", [](auto L)->int { return Push(L, To<U*>(L)->NextDouble()); });
             SetFieldCClosure(L, "Reset", [](auto L)->int {
@@ -44,7 +45,8 @@ namespace xx::Lua {
                         To<U *>(L)->Reset(To<int32_t>(L, 2), To<int64_t>(L, 3));
                     }
                 }
-                return 0; });
+                return 0;
+            });
         }
     };
     // 值方式 push

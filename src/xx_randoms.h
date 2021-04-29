@@ -191,6 +191,29 @@ namespace xx {
     /**************************************************************************************************************/
     /**************************************************************************************************************/
 
+    template<typename T>
+    struct StringFuncs<T, std::enable_if_t<
+            std::is_same_v<std::decay_t<T>, Random1>
+            || std::is_same_v<std::decay_t<T>, Random2>
+            || std::is_same_v<std::decay_t<T>, Random3>
+            || std::is_same_v<std::decay_t<T>, Random4>
+            >> {
+        static inline void Append(std::string& s, T const& in) {
+            s.push_back('{');
+            if constexpr (std::is_same_v < std::decay_t<T>, Random1 >
+                          || std::is_same_v < std::decay_t<T>, Random3 >) {
+                ::xx::Append(s, "\"seed\":", in.seed);
+            }
+            else if constexpr (std::is_same_v < std::decay_t<T>, Random2>) {
+                ::xx::Append(s, "\"x\":", in.x, ",\"w\":", in.w);
+            }
+            else if constexpr (std::is_same_v < std::decay_t<T>, Random4 >) {
+                ::xx::Append(s, "\"seed\":", in.seed, ",\"count\":", in.count);
+            }
+            s.push_back('}');
+        }
+    };
+
 	template<typename T>
 	struct ObjFuncs<T, std::enable_if_t<
 		std::is_same_v<std::decay_t<T>, Random1>
@@ -208,18 +231,7 @@ namespace xx {
 		    return d.Read(out);
 		}
 		static inline void Append(ObjManager& om, std::string& s, T const& in) {
-			s.push_back('{');
-			if constexpr (std::is_same_v < std::decay_t<T>, Random1 >
-				|| std::is_same_v < std::decay_t<T>, Random3 >) {
-				om.Append(s, "\"seed\":", in.seed);
-			}
-			else if constexpr (std::is_same_v < std::decay_t<T>, Random2>) {
-				om.Append(s, "\"x\":", in.x, ",\"w\":", in.w);
-			}
-			else if constexpr (std::is_same_v < std::decay_t<T>, Random4 >) {
-				om.Append(s, "\"seed\":", in.seed, ",\"count\":", in.count);
-			}
-			s.push_back('}');
+            ::xx::Append(s, in);
 		}
 		static inline void AppendCore(ObjManager& om, std::string& s, T const& in) {
 		}

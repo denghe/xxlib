@@ -258,10 +258,36 @@ void Test3() {
     }
 }
 
-#include "xx_lua_data_funcs.h"
+#include "xx_lua_randoms.h"
 
 void TestTableToData() {
-    // todo
+    xx::Lua::State L;
+    xx::Lua::Randoms::Register(L);
+    xx::Lua::DoString(L, R"#(
+rnd = NewXxRandom1(1234567890)
+print(rnd)
+print(rnd:NextDouble())
+print(rnd:NextDouble())
+print(rnd:NextDouble())
+print(rnd:NextDouble())
+)#");
+    auto top = lua_gettop(L);
+    lua_getglobal(L, "rnd");    // ..., rnd
+    xx::Data d;
+    xx::Lua::WriteTo(d, L);
+    lua_pop(L, 1);              // ...
+    assert(top == lua_gettop(L));
+    xx::CoutN(d);
+
+    xx::Lua::ReadFrom(d, L);    // ..., rnd
+    lua_setglobal(L, "rnd2");   // ...
+    xx::Lua::DoString(L, R"#(
+print(rnd2)
+print(rnd2:NextDouble())
+print(rnd2:NextDouble())
+print(rnd2:NextDouble())
+print(rnd2:NextDouble())
+)#");
 }
 
 int main() {

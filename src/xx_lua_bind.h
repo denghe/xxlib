@@ -312,7 +312,153 @@ namespace xx::Lua {
     // uwtfs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data& d, int const& idx)->void { ...... }
 
 
+    // 将栈顶的数据写入 Data (不支持 table 循环引用, 注意： lua5.1 不支持 int64, 这里并没有走 userdata 规则)
+    static inline void WriteTo(xx::Data& d, lua_State* const& L) {
+        switch (auto t = lua_type(L, -1)) {
+            case LUA_TNIL:
+                d.WriteFixed(ValueTypes::NilType);
+                return;
+            case LUA_TBOOLEAN:
+                d.WriteFixed(lua_toboolean(L, -1) ? ValueTypes::True : ValueTypes::False);
+                return;
+            case LUA_TNUMBER: {
+#if LUA_VERSION_NUM == 501
+                auto n = (double)lua_tonumber(L, -1);
+            auto i = (int64_t)n;
+            if ((double)i == n) {
+                d.WriteFixed(ValueTypes::Integer);
+                d.WriteVarInteger(i);
+            }
+            else {
+                d.WriteFixed(ValueTypes::Double);
+                d.WriteFixed(n);
+            }
+#else
+                if (lua_isinteger(L, -1)) {
+                    d.WriteFixed(ValueTypes::Integer);
+                    d.WriteVarInteger((int64_t)lua_tointeger(L, -1));
+                }
+                else {
+                    d.WriteFixed(ValueTypes::Double);
+                    d.WriteFixed((double)lua_tonumber(L, -1));
+                }
+#endif
+                return;
+            }
+            case LUA_TSTRING: {
+                size_t len;
+                auto ptr = lua_tolstring(L, -1, &len);
+                d.WriteFixed(ValueTypes::String);
+                d.WriteVarInteger(len);
+                d.WriteBuf(ptr, len);
+                return;
+            }
+            case LUA_TTABLE: {
+                d.WriteFixed(ValueTypes::Table);
+                int idx = lua_gettop(L);                                   // 存 idx 备用
+                CheckStack(L, 1);
+                lua_pushnil(L);                                            //                      ... t, nil
+                while (lua_next(L, idx) != 0) {                            //                      ... t, k, v
+                    // 先检查下 k, v 是否为不可序列化类型. 如果是就 next
+                    t = lua_type(L, -1);
+                    if (t == LUA_TFUNCTION || t == LUA_TLIGHTUSERDATA || t == LUA_TTHREAD) {
+                        lua_pop(L, 1);                                     //                      ... t, k
+                        continue;
+                    }
+                    t = lua_type(L, -2);
+                    if (t == LUA_TFUNCTION || t == LUA_TLIGHTUSERDATA || t == LUA_TTHREAD) {
+                        lua_pop(L, 1);                                     //                      ... t, k
+                        continue;
+                    }
+                    WriteTo(d, L);											// 先写 v               ... t, k, v
+                    lua_pop(L, 1);                                         //                      ... t, k
+                    WriteTo(d, L);											// 再写 k
+                }
+                d.WriteFixed(ValueTypes::TableEnd);
+                return;
+            }
+            case LUA_TUSERDATA: {
+                if (auto uid = GetUserdataId(L)) {
+                    d.WriteFixed(ValueTypes::Userdata);
+                    d.WriteFixed(uid);
+                    uwtfs[uid](L, d, -1);
+                }
+                else {
+                    d.WriteFixed(ValueTypes::NilType);
+                }
+            }
+            default:
+                d.WriteFixed(ValueTypes::NilType);
+                return;
+        }
+    }
 
+    // 从 Data 读出一个 lua value 压入 L 栈顶
+    // 如果读失败, 可能会有残留数据已经压入，外界需自己做 lua state 的 cleanup
+    static inline int ReadFrom(xx::Data_r& d, lua_State* const& L) {
+        ValueTypes lt;
+        if (int r = d.ReadFixed(lt)) return r;
+        switch (lt) {
+            case ValueTypes::NilType:
+                CheckStack(L, 1);
+                lua_pushnil(L);
+                return 0;
+            case ValueTypes::True:
+                CheckStack(L, 1);
+                lua_pushboolean(L, 1);
+                return 0;
+            case ValueTypes::False:
+                CheckStack(L, 1);
+                lua_pushboolean(L, 0);
+                return 0;
+            case ValueTypes::Integer: {
+                int64_t i;
+                if (int r = d.ReadVarInteger(i)) return r;
+                CheckStack(L, 1);
+                lua_pushinteger(L, (lua_Integer)i);
+                return 0;
+            }
+            case ValueTypes::Double: {
+                lua_Number v;
+                if (int r = d.ReadFixed(v)) return r;
+                CheckStack(L, 1);
+                lua_pushnumber(L, v);
+                return 0;
+            }
+            case ValueTypes::String: {
+                size_t len;
+                if (int r = d.ReadVarInteger(len)) return r;
+                if (d.offset + len >= d.len) return __LINE__;
+                CheckStack(L, 1);
+                lua_pushlstring(L, (char*)d.buf + d.offset, len);
+                d.offset += len;
+                return 0;
+            }
+            case ValueTypes::Userdata: {
+                uint16_t uid;
+                if (int r = d.ReadFixed(uid)) return r;
+                assert(urffs[uid]);
+                return urffs[uid](L, d);
+            }
+            case ValueTypes::Table: {
+                CheckStack(L, 4);
+                lua_newtable(L);                                          // ... t
+                while (d.offset < d.len) {
+                    if (d.buf[d.offset] == (char)ValueTypes::TableEnd) {
+                        ++d.offset;
+                        return 0;
+                    }
+                    if (int r = ReadFrom(d, L)) return r;						// ... t, v
+                    if (int r = ReadFrom(d, L)) return r;						// ... t, v, k
+                    lua_pushvalue(L, -2);                                 // ... t, v, k, v
+                    lua_rawset(L, -4);                                    // ... t, v
+                    lua_pop(L, 1);                                        // ... t
+                }
+            }
+            default:
+                return __LINE__;
+        }
+    }
 
 
 
