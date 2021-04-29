@@ -277,9 +277,14 @@ print(rnd:NextDouble())
     xx::Lua::WriteTo(d, L);
     lua_pop(L, 1);              // ...
     assert(top == lua_gettop(L));
+    assert(d.len = 7);          // 1(6) + 2(1) + 4(seed)
     xx::CoutN(d);
 
-    xx::Lua::ReadFrom(d, L);    // ..., rnd
+    if (int r = xx::Lua::ReadFrom(d, L)) {    // ..., rnd
+        xx::CoutN("read error. r = ", r);
+        return;
+    }
+    assert(d.offset == d.len);
     lua_setglobal(L, "rnd2");   // ...
     xx::Lua::DoString(L, R"#(
 print(rnd2)
