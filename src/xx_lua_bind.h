@@ -273,7 +273,7 @@ namespace xx::Lua {
     }
 
     // 从指定 idx 的 userdata 读出 UserdataId. 返回 0 表示出错
-    uint16_t GetUserdataId(lua_State* const& L, int const& idx) {
+    uint16_t GetUserdataId(lua_State* const& L, int const& idx = -1) {
         CheckStack(L, 2);
         lua_getmetatable(L, idx);											// ... ud ..., mt
         if (!lua_istable(L, -1)) {
@@ -311,18 +311,6 @@ namespace xx::Lua {
     // 适配范例:
     // uwtfs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data& d, int const& idx)->void { ...... }
 
-    // 根据 id 调用相应 ReadFrom
-    inline void UserdataWriteTo(lua_State* const& L, xx::Data& d, int const& idx) {
-        // 定位到 ud meta 并提取 UserdataId
-        if (auto uid = GetUserdataId(L, idx)) {
-            d.WriteFixed(ValueTypes::Userdata);
-            d.WriteFixed(uid);
-            uwtfs[uid](L, d, idx);
-        }
-        else {
-            d.WriteFixed(ValueTypes::NilType);
-        }
-    }
 
 
 

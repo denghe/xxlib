@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "xx_lua_randoms.h"
-#include "xx_data.h"
 
 namespace xx::Lua {
 
@@ -64,7 +63,7 @@ namespace xx::Lua {
                     lua_pop(in, 1);                                     //                      ... t, k
                     continue;
                 }
-                Write(d, in);											// 先写 v
+                Write(d, in);											// 先写 v               ... t, k, v
                 lua_pop(in, 1);                                         //                      ... t, k
                 Write(d, in);											// 再写 k
             }
@@ -72,9 +71,14 @@ namespace xx::Lua {
             return;
         }
         case LUA_TUSERDATA: {
-            // todo: 支持内部结构体 例如 Random*
-            // 拿 mt, 拿 typeId, 再 switch case 写死? 或者走 模板适配?
-
+            if (auto uid = GetUserdataId(L)) {
+                d.WriteFixed(ValueTypes::Userdata);
+                d.WriteFixed(uid);
+                uwtfs[uid](L, d, -1);
+            }
+            else {
+                d.WriteFixed(ValueTypes::NilType);
+            }
         }
         default:
             d.WriteFixed(ValueTypes::NilType);
@@ -125,7 +129,10 @@ namespace xx::Lua {
             return 0;
         }
         case ValueTypes::Userdata: {
-            // todo: 支持内部结构体 例如 Random*
+            uint16_t uid;
+            if (int r = d.ReadFixed(uid)) return r;
+            assert(urffs[uid]);
+            return urffs[uid](L, d);
         }
         case ValueTypes::Table: {
             CheckStack(out, 4);
