@@ -273,7 +273,7 @@ namespace xx::Lua {
     }
 
     // 从指定 idx 的 userdata 读出 UserdataId. 返回 0 表示出错
-    uint16_t GetUserdataId(lua_State* const& L, int const& idx = -1) {
+    inline uint16_t GetUserdataId(lua_State* const& L, int const& idx = -1) {
         CheckStack(L, 2);
         lua_getmetatable(L, idx);											// ... ud ..., mt
         if (!lua_istable(L, -1)) {

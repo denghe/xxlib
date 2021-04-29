@@ -37,10 +37,12 @@
 #	define WIN32_LEAN_AND_MEAN
 #	include <Windows.h>
 #else
-
 #	include <unistd.h>    // for usleep
-
 #endif
+
+using namespace std::string_literals;
+using namespace std::string_view_literals;
+using namespace std::chrono_literals;
 
 namespace xx {
     /************************************************************************************/
