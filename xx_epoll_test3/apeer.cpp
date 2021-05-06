@@ -1,9 +1,11 @@
 ﻿#include "apeer.h"
 #include "server.h"
 #include "xx_logger.h"
+#include "config.h"
+#include "gpeer.h"
 // todo: speer, gpeer
 
-bool APeer::Close(int const& reason, char const* const& desc) {
+bool APeer::Close(int const &reason, char const *const &desc) {
     if (!this->Peer::Close(reason, desc)) return false;
     LOG_INFO("APeer Close, reason = ", reason, ", desc = ", desc);
     DelayUnhold();
@@ -12,46 +14,58 @@ bool APeer::Close(int const& reason, char const* const& desc) {
 
 void APeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
     // should not receive package
-    LOG_INFO("APeer ReceivePackage = ", xx::ToString(xx::Span(buf, len)));
+    Close(__LINE__, xx::ToString(" APeer ReceivePackage = ", xx::Span(buf, len)).c_str());
 }
 
 void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
+    auto &s = *(Server *) ec;
     xx::Data_r dr(buf, len);
-
     std::string_view cmd;
     if (int r = dr.Read(cmd)) {
-        Close(-30, xx::ToString(__LINE__, " APeer ReceiveCommand if (int r = dr.Read(cmd)), r = ", r).c_str());
+        Close(__LINE__, xx::ToString(" APeer ReceiveCommand if (int r = dr.Read(cmd)), r = ", r).c_str());
         return;
     }
-
-    if (cmd == "register") {
-        uint32_t typeId = 0;
-        if (int r = dr.Read(typeId)) {
-            Close(-31, xx::ToString(__LINE__, " APeer ReceiveCommand if (int r = dr.Read(clientId)), r = ", r).c_str());
+    if (cmd == "gatewayId") {
+        uint32_t gatewayId = 0;
+        if (int r = dr.Read(gatewayId)) {
+            Close(__LINE__, xx::ToString(" APeer ReceiveCommand if (int r = dr.Read(gatewayId)), r = ", r).c_str());
             return;
         }
-        auto& s = *(Server*)ec;
-        // todo: swap fd
-        switch(typeId) {
-            case 1: // gpeer
-            {
-                uint32_t gatewayId = 0;
-                if (int r = dr.Read(gatewayId)) {
-                    Close(-32, xx::ToString(__LINE__, " APeer ReceiveCommand if (int r = dr.Read(gatewayId)), r = ", r).c_str());
-                    return;
-                }
-                // todo: swap fd, put gpeer to server.gpeers[gatewayId]
-                break;
-            }
-            case 2: // speer
-            {
-                // todo: swap fd, put speer to server.speers[serverId]
-                break;
-            }
-            default:
-                Close(-34, xx::ToString(__LINE__, " APeer ReceiveCommand register: unhandled typeId = ", typeId).c_str());
+        auto iter = s.gps.find(gatewayId);
+        if (iter == s.gps.end()) {
+            // apeer -> gpeer
+            auto gp = xx::Make<GPeer>(ec);
+            this->SwapFD(gp);
+            gp->Hold();
+            this->DelayUnhold();
+
+            gp->SetTimeoutSeconds(config.peerTimeoutSeconds);
+            gp->gatewayId = gatewayId;
+            s.gps[gatewayId] = gp;
+            LOG_INFO(" APeer ReceiveCommand gatewayId = ", gatewayId, " success");
         }
-    } else {
-        Close(-35, xx::ToString(__LINE__, " APeer ReceiveCommand unhandled cmd = ", cmd).c_str());
+        else {
+            Close(__LINE__, xx::ToString(" APeer ReceiveCommand gatewayId = ", gatewayId, " already exists").c_str());
+        }
+        return;
+    } else if (cmd == "serverId") {
+        uint32_t serverId = 0;
+        if (int r = dr.Read(serverId)) {
+            Close(__LINE__, xx::ToString(" APeer ReceiveCommand if (int r = dr.Read(serverId)), r = ", r).c_str());
+            return;
+        }
+        switch (serverId) {
+            case 1: // game 1
+            {
+                LOG_INFO("APeer ReceiveCommand register serverId = ", serverId);
+                // todo: create game peer, swap fd, put peer to server.sps[serverId]
+                return;
+            }
+                // ....
+            default:;
+        }
+        Close(__LINE__, xx::ToString(" APeer ReceiveCommand unhandled serverId = ", serverId).c_str());
+        return;
     }
+    Close(__LINE__, xx::ToString(" APeer ReceiveCommand unhandled cmd = ", cmd).c_str());
 }

@@ -4,6 +4,7 @@
 #include "listener.h"
 #include "pingtimer.h"
 #include "apeer.h"
+#include "gpeer.h"
 // todo: include speer gpeer vpeer ...
 
 int main() {

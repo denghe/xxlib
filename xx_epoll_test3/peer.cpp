@@ -1,13 +1,6 @@
 ﻿#include "peer.h"
-#include "server.h"
 
 void Peer::Receive() {
-    // 如果属于延迟踢人拒收数据状态，直接清数据短路退出
-    if (closed) {
-        recv.Clear();
-        return;
-    }
-
     // 取出指针备用
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
@@ -21,7 +14,7 @@ void Peer::Receive() {
 
         // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
         if (dataLen < sizeof(addr) || dataLen > 1024 * 256) {
-            Close(-__LINE__, " Peer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
+            Close(__LINE__, " Peer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
             return;
         }
 
@@ -44,7 +37,7 @@ void Peer::Receive() {
             }
 
             // 如果当前类实例 fd 已 close 则退出
-            if (!Alive() || closed) return;
+            if (!Alive()) return;
         }
         // 跳到下一个包的开头
         buf += dataLen;

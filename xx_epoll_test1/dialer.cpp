@@ -10,7 +10,7 @@ void Dialer::Connect(xx::Shared<SPeer> const &peer) {
         return;
     }
 
-    LOG_INFO("Dialer Connect. serverId = ", serverId);
+    LOG_INFO("Dialer Connect success. serverId = ", serverId);
 
     // 加持
     peer->Hold();

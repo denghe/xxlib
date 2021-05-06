@@ -1,12 +1,11 @@
 ﻿#pragma once
 #include "xx_epoll.h"
-#include <tsl/hopscotch_map.h>
 #include "xx_dict_mk.h"
 namespace EP = xx::Epoll;
 
 // 预声明
 struct Listener;
-//struct GPeer;
+struct GPeer;
 //struct SPeer;
 //struct VPeer;
 struct PingTimer;
@@ -24,10 +23,10 @@ struct Server : EP::Context {
     xx::Shared<PingTimer> pingTimer;
 
 //    // server peers. key: server id
-//    tsl::hopscotch_map<uint32_t, xx::Shared<SPeer>> sps;
+//    std::unordered_map<uint32_t, xx::Shared<SPeer>> sps;
 //
 //    // gateway peers. key: gateway id
-//    tsl::hopscotch_map<uint32_t, xx::Shared<GPeer>> gps;
+    std::unordered_map<uint32_t, xx::Shared<GPeer>> gps;
 //
 //    // virtual peers. key1: account id  key2: gateway id + client id
 //    xx::DictMK<xx::Shared<VPeer>, int32_t, uint64_t> vps;

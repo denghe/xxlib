@@ -134,6 +134,18 @@ namespace xx {
             return !this->operator==(o);
         }
 
+        [[nodiscard]] size_t LeftLen() const {
+            return len - offset;
+        }
+
+        [[nodiscard]] Span LeftSpan() const {
+            return Span(buf + offset, len - offset);
+        }
+
+        [[nodiscard]] Data_r LeftData_r(size_t const& offset_ = 0) const {
+            return Data_r(buf + offset, len - offset, offset_);
+        }
+
         /***************************************************************************************************************************/
 
         // 读 定长buf 到 tar. 返回非 0 则读取失败
