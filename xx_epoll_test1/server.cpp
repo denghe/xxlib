@@ -66,7 +66,7 @@ int Server::Init() {
 std::string Server::GetInfo() {
     std::string s;
     xx::Append(s, "dps.size() = ", dps.size()
-            , "  [[\"serverId\",\"ip:port\",\"busy\",\"peer alive\",\"ping\"]");
+            , R"(  [["serverId","ip:port","busy","peer alive","ping"])");
     for (auto &&kv : dps) {
         auto &&dialer = kv.second.first;
         auto &&peer = kv.second.second;
@@ -77,7 +77,7 @@ std::string Server::GetInfo() {
                 , ",", (peer ? peer->pingMS : 0), "]");
     }
     xx::Append(s,"]    ", "cps.size() = ", cps.size()
-            , "  [[\"clientId\",\"ip:port\"]");
+            , R"(  [["clientId","ip:port"])");
     for (auto &&kv : cps) {
         xx::Append(s,",[", kv.first, ",\"", kv.second->addr,"\"]");
     }

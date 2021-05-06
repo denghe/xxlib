@@ -1,5 +1,5 @@
 ﻿{
-  "gatewayId": 1,
+  "gatewayId": 2,
   "clientTimeoutSeconds": 30,
   "listenPort": 10001,
   "serverInfos": [
