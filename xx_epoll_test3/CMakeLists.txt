@@ -17,6 +17,7 @@ add_executable(xx_epoll_test3
 		listener.cpp
 		apeer.cpp
 		gpeer.cpp
+		vpeer.cpp
 		pingtimer.cpp
 		)
 

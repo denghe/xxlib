@@ -78,6 +78,8 @@ namespace xx {
     };
     template<typename T>
     constexpr bool IsLiteral_v = IsLiteral<T>::value;
+    template<typename T>
+    constexpr size_t LiteralLen = IsLiteral<T>::len;
 
 
     template<typename T>

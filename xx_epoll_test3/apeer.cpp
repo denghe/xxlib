@@ -33,7 +33,7 @@ void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
         }
         auto iter = s.gps.find(gatewayId);
         if (iter == s.gps.end()) {
-            // apeer -> gpeer
+            // apeer -> gpeer. known issue: left recv data will be lost. maybe need some shake message
             auto gp = xx::Make<GPeer>(ec);
             this->SwapFD(gp);
             gp->Hold();

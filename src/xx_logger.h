@@ -298,71 +298,44 @@ namespace xx {
         }
     };
 
-    // 适配 pair<char*, len>
-    template<size_t size>
-    struct BufFuncs<size, std::pair<char*, size_t>> {
-        // 1 byte typeId + len + data
-        static inline void Write(FixedData<size>& data, std::pair<char*, size_t> const& in) {
-            data.Ensure(1 + sizeof(in.second) + in.second);
-            data.buf[data.len] = DumpFuncs<char*>::value;
-            memcpy(data.buf + data.len + 1, &in.second, sizeof(in.second));
-            memcpy(data.buf + data.len + 1 + sizeof(in.second), in.first, in.second);
-            data.len += 1 + sizeof(in.second) + in.second;
-        }
-    };
-
-    // 适配 literal char[len] string  ( 通常要去掉最后一个 0 不写 )
-    template<size_t size, size_t len>
-    struct BufFuncs<size, char[len], void> {
-        static inline void Write(FixedData<size>& data, char const(&in)[len]) {
-            BufFuncs<size, std::pair<char*, size_t>>::Write(data, { (char*)in, len - 1 });
-        }
-    };
-
-    // 适配 char const* \0 结尾 字串
-    template<size_t size>
-    struct BufFuncs<size, char const*, void> {
-        static inline void Write(FixedData<size>& data, char const* const& in) {
-            BufFuncs<size, std::pair<char*, size_t>>::Write(data, { (char*)in, strlen(in) });
-        }
-    };
-
-    // 适配 char* \0 结尾 字串
-    template<size_t size>
-    struct BufFuncs<size, char*, void> {
-        static inline void Write(FixedData<size>& data, char* const& in) {
-            BufFuncs<size, std::pair<char*, size_t>>::Write(data, { in, strlen(in) });
-        }
-    };
-
-    // 适配 std::string
-    template<size_t size>
-    struct BufFuncs<size, std::string, void> {
-        static inline void Write(FixedData<size>& data, std::string const& in) {
-            BufFuncs<size, std::pair<char*, size_t>>::Write(data, { (char*)in.data(), in.size() });
-        }
-    };
-
-    // 适配 std::chrono::system_clock::time_point
-    template<size_t size>
-    struct BufFuncs<size, std::chrono::system_clock::time_point, void> {
-        static inline void Write(FixedData<size>& data, std::chrono::system_clock::time_point const& in) {
-            data.Ensure(1 + sizeof(std::chrono::system_clock::time_point));
-            data.buf[data.len] = DumpFuncs<std::chrono::system_clock::time_point>::value;
-            memcpy(data.buf + data.len + 1, &in, sizeof(std::chrono::system_clock::time_point));
-            data.len += 1 + sizeof(std::chrono::system_clock::time_point);
-        }
-    };
-
-    // 适配 xx::Data / xx::DataView
+    // 适配 xx::Span / xx::Data_r / xx::Data_rw
     template<size_t size, typename T>
-    struct BufFuncs<size, T, std::enable_if_t<std::is_same_v<Data, T> || std::is_same_v<DataView, T>>> {
+    struct BufFuncs<size, T, std::enable_if_t<std::is_base_of_v<Span, T>>> {
         static inline void Write(FixedData<size>& data, T const& in) {
             data.Ensure(1 + sizeof(in.len) + in.len);
             data.buf[data.len] = DumpFuncs<DataView>::value;
             memcpy(data.buf + data.len + 1, &in.len, sizeof(in.len));
             memcpy(data.buf + data.len + 1 + sizeof(in.len), in.buf, in.len);
             data.len += 1 + sizeof(in.len) + in.len;
+        }
+    };
+
+    // 适配 std::string, std::string_view
+    template<size_t size, typename T>
+    struct BufFuncs<size, T, std::enable_if_t<std::is_base_of_v<std::string, T> || std::is_base_of_v<std::string_view, T>>> {
+        static inline void Write(FixedData<size>& data, T const& in) {
+            BufFuncs<size, Span>::Write(data, { (char*)in.data(), in.size() });
+        }
+    };
+
+    // 适配 char*, char const*, literal char[len] string \0 结尾 字串
+    template<size_t size, typename T>
+    struct BufFuncs<size, T, std::enable_if_t<std::is_same_v<char*, std::decay<T>>
+                                              || std::is_same_v<char const*, std::decay<T>>
+                                              || xx::IsLiteral_v<T>>> {
+        static inline void Write(FixedData<size>& data, T const& in) {
+            BufFuncs<size, std::string_view>::Write(data, in);
+        }
+    };
+
+    // 适配 std::chrono::system_clock::time_point
+    template<size_t size, typename T>
+    struct BufFuncs<size, T, std::enable_if_t<std::is_base_of_v<std::chrono::system_clock::time_point, T>>> {
+        static inline void Write(FixedData<size>& data, T const& in) {
+            data.Ensure(1 + sizeof(T));
+            data.buf[data.len] = DumpFuncs<T>::value;
+            memcpy(data.buf + data.len + 1, &in, sizeof(T));
+            data.len += 1 + sizeof(T);
         }
     };
 

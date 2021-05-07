@@ -7,7 +7,7 @@ namespace EP = xx::Epoll;
 struct Listener;
 struct GPeer;
 //struct SPeer;
-//struct VPeer;
+struct VPeer;
 struct PingTimer;
 // Lobby? Room?
 
@@ -27,9 +27,9 @@ struct Server : EP::Context {
 //
 //    // gateway peers. key: gateway id
     std::unordered_map<uint32_t, xx::Shared<GPeer>> gps;
-//
-//    // virtual peers. key1: account id  key2: gateway id + client id
-//    xx::DictMK<xx::Shared<VPeer>, int32_t, uint64_t> vps;
+
+    // virtual peers. key1: account id  key2: gateway id + client id
+    xx::DictMK<xx::Shared<VPeer>, int32_t, uint64_t> vps;
 
     // auto decrease account id generator for guest player key1 in the vps
     // after login, update key1 to real account id

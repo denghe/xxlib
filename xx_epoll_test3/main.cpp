@@ -5,7 +5,7 @@
 #include "pingtimer.h"
 #include "apeer.h"
 #include "gpeer.h"
-// todo: include speer gpeer vpeer ...
+#include "vpeer.h"
 
 int main() {
 	// 禁掉 SIGPIPE 信号避免因为连接关闭出错
