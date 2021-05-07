@@ -37,8 +37,11 @@ namespace xx {
             }
         }
         template<int keyIndex = 0>
-
         bool Exists(std::tuple_element_t<keyIndex, KeyTypes> const& key) const noexcept {
+            return Find<keyIndex>(key) != -1;
+        }
+        template<int keyIndex = 0>
+        bool ContainsKey(std::tuple_element_t<keyIndex, KeyTypes> const& key) const noexcept {
             return Find<keyIndex>(key) != -1;
         }
 

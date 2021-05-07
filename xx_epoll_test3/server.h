@@ -28,15 +28,17 @@ struct Server : EP::Context {
 //    // gateway peers. key: gateway id
     std::unordered_map<uint32_t, xx::Shared<GPeer>> gps;
 
-    // virtual peers. key1: account id  key2: gateway id + client id
-    xx::DictMK<xx::Shared<VPeer>, int32_t, uint64_t> vps;
+    // virtual peers. key1: gateway id << 32 | client id   key2: account id
+    xx::DictMK<xx::Shared<VPeer>, uint64_t, int32_t> vps;
 
-    // auto decrease account id generator for guest player key1 in the vps
-    // after login, update key1 to real account id
-    int32_t guestAccountId = -1;
+    // VPeer::Kick  clientId = --server->autoDecClientId;
+    int32_t autoDecClientId = 0;
 
     // 根据 config 进一步初始化各种成员
     int Init();
+
+    // logic here( call vps's update )
+    int FrameUpdate() override;
 
     // 得到执行情况的快照
     std::string GetInfo();

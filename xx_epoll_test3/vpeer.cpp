@@ -1,6 +1,5 @@
 #include "vpeer.h"
 #include "gpeer.h"
-#include "apeer.h"
 
 VPeerCB::VPeerCB(VPeer *vpeer, int serial, std::function<void(uint8_t const *buf, size_t len)> &&cbFunc, double timeoutSeconds)
         : EP::Timer(vpeer->server, -1), vpeer(vpeer), serial(serial), func(std::move(cbFunc)) {
@@ -24,6 +23,8 @@ int VPeer::SendPush(uint8_t const *const &buf, size_t const &len) const {
 }
 
 int VPeer::SendResponse(int32_t const &serial, uint8_t const *const &buf, size_t const &len) const {
+    if (!Alive()) return __LINE__;
+
     // 准备发包填充容器
     xx::Data d(len + 13);
     // 跳过包头
@@ -55,6 +56,8 @@ int VPeer::SendRequest(uint8_t const *const &buf, size_t const &len,
 }
 
 void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
+    if (!Alive()) return;
+
     // 试读出序号. 出错直接断开退出
     int serial = 0;
     xx::Data_r dr(buf, len);
@@ -82,36 +85,6 @@ void VPeer::ReceiveResponse(int const &serial_, uint8_t const *const &buf, size_
     callbacks.erase(iter);
 }
 
-
-void VPeer::ReceivePush(uint8_t const *const &buf, size_t const &len) {
-    xx::CoutN("vpeer: ", clientId, " recv push: ", xx::Span(buf, len));
-//    xx::Data_r dr(buf, len);
-//    xx::ObjBase_s msg;
-//    if (int r = OM.ReadFrom(dr, msg)) {
-//        LOG_ERR("ReceivePush err ", r);
-//        // TODO
-//        return;
-//    }
-//    SP->om.CoutN(msg);
-}
-
-void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t const &len) {
-    xx::CoutN("vpeer: ", clientId, " recv request: ", xx::Span(buf, len));
-//    // todo
-//    xx::Data_r dr(buf, len);
-//    xx::ObjBase_s msg;
-//    if (int r = SP->om.ReadFrom(dr, msg)) {
-//        LOG_ERR("ReceivePush err ", r);
-//        return;
-//    }
-//    switch (msg.typeId()) {
-//        case xx::TypeId_v<ff::CS::Exit>: {
-//            this->RequestExit(serial);
-//        }
-//            break;
-//    }
-}
-
 bool VPeer::Alive() const {
     return gatewayPeer != nullptr;
 }
@@ -131,17 +104,44 @@ void VPeer::Kick(int const &reason, std::string_view const &desc) {
     gatewayPeer->clientIds.erase(clientId);
 
     gatewayPeer = nullptr;
-    clientId = -1;
+    clientId = --server->autoDecClientId;
+
+    server->vps.UpdateAt(serverVpsIndex, clientId);
+}
+
+void VPeer::SwapWith(int const& idx) {
+    auto& a = server->vps.ValueAt(serverVpsIndex);
+    assert(a);
+    assert(a.pointer == this);
+    auto& b = server->vps.ValueAt(idx);
+    assert(b);
+    std::swap(a->serverVpsIndex, b->serverVpsIndex);
+    std::swap(a->gatewayPeer, b->gatewayPeer);
+    std::swap(a->clientId, b->clientId);
+    std::swap(a.pointer, b.pointer);
 }
 
 void VPeer::Dispose() {
-    if (Alive()) {
-        Kick(__LINE__, "Dispose");
-    }
+    Kick(__LINE__, "Dispose");
     // destruct
-    server->vps.Remove<1>(accountId);
+    assert(serverVpsIndex != -1);
+    assert(server->vps.ValueAt(serverVpsIndex).pointer == this);
+    server->vps.RemoveAt(serverVpsIndex);
+    // no more code here
 }
 
-int VPeer::Update(double dt) {
-    return 0;
+void VPeer::ReceivePush(uint8_t const *const &buf, size_t const &len) {
+    xx::Data_r dr(buf, len);
+    LOG_INFO("VPeer ClientId = ", clientId, " ReceivePush ", dr);
+    // todo
+}
+
+void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t const &len) {
+    xx::Data_r dr(buf, len);
+    LOG_INFO("VPeer ClientId = ", clientId, " ReceiveRequest ", dr);
+    // todo
+}
+
+void VPeer::Update(double const& dt) {
+    // todo
 }

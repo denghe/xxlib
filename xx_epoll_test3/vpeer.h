@@ -27,10 +27,15 @@ struct VPeerCB : EP::Timer {
 struct VPeer {
     explicit VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId);
 
+    // index at server->vps( fill after create )
+    int serverVpsIndex = -1;
+
     // 指向 server
     Server *server;
+
     // 指向 gateway peer
     GPeer *gatewayPeer;
+
     // 存放位于 gateway 的 client id
     uint32_t clientId;
 
@@ -75,11 +80,14 @@ struct VPeer {
     // kick client from gateway. let gatewayPeer = nullptr, clientId = 0xFFFFFFFFu
     void Kick(int const &reason, std::string_view const &desc);
 
+    // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
+    void SwapWith(int const& idx);
+
     // try kick, remove from container, release instance
     void Dispose();
 
     // logic update here
-    int Update(double dt);
+    void Update(double const& dt);
 
     /****************************************************************************************/
     // logic ctx here
