@@ -38,6 +38,9 @@ struct VPeer : EP::Timer {
     // 存放位于 gateway 的 client id
     uint32_t clientId;
 
+    // logic data
+    int32_t accountId = -1;
+
     // 循环自增用于生成 serial
     int autoIncSerial = 0;
 
@@ -90,6 +93,4 @@ struct VPeer : EP::Timer {
     bool IsGuest() const;
 
     void Timeout() override;
-
-    int32_t accountId = -1;
 };

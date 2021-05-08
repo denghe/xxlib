@@ -150,6 +150,7 @@ VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &c
     auto r = server->vps.Add(xx::SharedFromThis(this), ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
     assert(r.success);
     serverVpsIndex = r.index;
+    assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
     Hold();
     gatewayPeer->SendOpen(clientId);
 }
