@@ -114,7 +114,7 @@ namespace xx::Epoll {
         virtual ~Item() { Close(0, " Item ~Item"); }
 
         // 会导致 关闭 fd 解除映射, fd = -1. reason 通常为 唯一编号, 具体描述中通常含有 行号，类名，函数名，判断句等
-        virtual bool Close(int const &reason, char const *const &desc);
+        virtual bool Close(int const &reason, std::string_view const &desc);
 
         // 将当前实例的智能指针放入 ec->holdItems( 不能在构造函数或析构中执行 )
         void Hold();
@@ -447,7 +447,7 @@ namespace xx::Epoll {
         }
     }
 
-    inline bool Item::Close(int const &reason, char const *const &desc) {
+    inline bool Item::Close(int const &reason, std::string_view const &desc) {
         if (fd != -1) {
             if (ec->fdMappings[fd] != this)
                 throw std::runtime_error(" Item Close if (ec->fdMappings[fd] != this)");

@@ -15,7 +15,7 @@ void Listener::Accept(xx::Shared<CPeer> const &cp) {
     // 检查是否已经与 0号服务 建立了连接. 如果没有，则直接退出( cp 无加持会直接断开 )
     auto&& s0 = s.dps[0].second;
     if (!s0) {
-        LOG_ERROR("Listener Accept failed. can't find s0 peer. ip = ", cp->addr);
+        LOG_ERROR("failed. can't find s0 peer. ip = ", cp->addr);
         return;
     }
 
@@ -34,5 +34,5 @@ void Listener::Accept(xx::Shared<CPeer> const &cp) {
     // 向默认服务发送 accept 通知
     s0->SendCommand("accept", cp->clientId, xx::ToString(cp->addr));
 
-    LOG_INFO("Listener Accept. ip = ", cp->addr);
+    LOG_INFO("success. ip = ", cp->addr);
 }

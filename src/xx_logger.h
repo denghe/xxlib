@@ -219,7 +219,7 @@ namespace xx {
     };
 
     template<>
-    struct DumpFuncs<DataView> {
+    struct DumpFuncs<Span> {
         static const char value = 13;
 
         inline static void Dump(std::ostream& o, char*& v) {
@@ -248,6 +248,16 @@ namespace xx {
             assert(false);
         }
     };
+
+    // utils func: write char*, span (len + buf)
+    template<bool isSpan, size_t size>
+    inline static void BufFuncs_Write_Buf_Len(FixedData<size>& data, void const* const& buf, size_t const& len) {
+        data.Ensure(1 + sizeof(len) + len);
+        data.buf[data.len] = DumpFuncs<std::conditional_t<isSpan, Span, char*>>::value;
+        memcpy(data.buf + data.len + 1, &len, sizeof(len));
+        memcpy(data.buf + data.len + 1 + sizeof(len), buf, len);
+        data.len += 1 + sizeof(len) + len;
+    }
 
     // 适配所有数字类型
     template<size_t size, typename T>
@@ -298,15 +308,12 @@ namespace xx {
         }
     };
 
+
     // 适配 xx::Span / xx::Data_r / xx::Data_rw
     template<size_t size, typename T>
     struct BufFuncs<size, T, std::enable_if_t<std::is_base_of_v<Span, T>>> {
         static inline void Write(FixedData<size>& data, T const& in) {
-            data.Ensure(1 + sizeof(in.len) + in.len);
-            data.buf[data.len] = DumpFuncs<DataView>::value;
-            memcpy(data.buf + data.len + 1, &in.len, sizeof(in.len));
-            memcpy(data.buf + data.len + 1 + sizeof(in.len), in.buf, in.len);
-            data.len += 1 + sizeof(in.len) + in.len;
+            BufFuncs_Write_Buf_Len<true>(data, in.buf, in.len);
         }
     };
 
@@ -314,7 +321,7 @@ namespace xx {
     template<size_t size, typename T>
     struct BufFuncs<size, T, std::enable_if_t<std::is_base_of_v<std::string, T> || std::is_base_of_v<std::string_view, T>>> {
         static inline void Write(FixedData<size>& data, T const& in) {
-            BufFuncs<size, Span>::Write(data, { (char*)in.data(), in.size() });
+            BufFuncs_Write_Buf_Len<false>(data, in.data(), in.size());
         }
     };
 
@@ -367,7 +374,7 @@ namespace xx {
             DumpFuncs<unsigned int>::Dump,
             DumpFuncs<unsigned long long>::Dump,
             DumpFuncs<std::chrono::system_clock::time_point>::Dump,
-            DumpFuncs<DataView>::Dump,
+            DumpFuncs<Span>::Dump,
             // 占位符. 方便扩展
             nullptr,
             nullptr,

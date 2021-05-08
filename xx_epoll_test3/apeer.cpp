@@ -5,7 +5,7 @@
 #include "gpeer.h"
 // todo: speer, gpeer
 
-bool APeer::Close(int const &reason, char const *const &desc) {
+bool APeer::Close(int const &reason, std::string_view const &desc) {
     if (!this->Peer::Close(reason, desc)) return false;
     LOG_INFO("reason = ", reason, ", desc = ", desc);
     DelayUnhold();
@@ -14,7 +14,7 @@ bool APeer::Close(int const &reason, char const *const &desc) {
 
 void APeer::ReceivePackage(uint32_t const &addr, uint8_t *const &buf, size_t const &len) {
     // should not receive package
-    Close(__LINE__, xx::ToString("APeer ReceivePackage addr = ", addr, " buf = ", xx::Span(buf, len)).c_str());
+    Close(__LINE__, xx::ToString("APeer ReceivePackage addr = ", addr, " buf = ", xx::Span(buf, len)));
 }
 
 void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
@@ -22,13 +22,13 @@ void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
     xx::Data_r dr(buf, len);
     std::string_view cmd;
     if (int r = dr.Read(cmd)) {
-        Close(__LINE__, xx::ToString("APeer ReceiveCommand if (int r = dr.Read(cmd)), r = ", r).c_str());
+        Close(__LINE__, xx::ToString("APeer ReceiveCommand if (int r = dr.Read(cmd)), r = ", r));
         return;
     }
     if (cmd == "gatewayId") {
         uint32_t gatewayId = 0;
         if (int r = dr.Read(gatewayId)) {
-            Close(__LINE__, xx::ToString("APeer ReceiveCommand if (int r = dr.Read(gatewayId)), r = ", r).c_str());
+            Close(__LINE__, xx::ToString("APeer ReceiveCommand if (int r = dr.Read(gatewayId)), r = ", r));
             return;
         }
         auto iter = s.gps.find(gatewayId);
@@ -44,13 +44,13 @@ void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
             s.gps[gatewayId] = gp;
             LOG_INFO("gatewayId = ", gatewayId, " cmd = gatewayId, success");
         } else {
-            Close(__LINE__, xx::ToString("APeer ReceiveCommand gatewayId = ", gatewayId, " already exists").c_str());
+            Close(__LINE__, xx::ToString("APeer ReceiveCommand gatewayId = ", gatewayId, " already exists"));
         }
         return;
     } else if (cmd == "serverId") {
         uint32_t serverId = 0;
         if (int r = dr.Read(serverId)) {
-            Close(__LINE__, xx::ToString("APeer ReceiveCommand if (int r = dr.Read(serverId)), r = ", r).c_str());
+            Close(__LINE__, xx::ToString("APeer ReceiveCommand if (int r = dr.Read(serverId)), r = ", r));
             return;
         }
         switch (serverId) {
@@ -63,8 +63,8 @@ void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
                 // ....
             default:;
         }
-        Close(__LINE__, xx::ToString("APeer ReceiveCommand unhandled serverId = ", serverId).c_str());
+        Close(__LINE__, xx::ToString("APeer ReceiveCommand unhandled serverId = ", serverId));
         return;
     }
-    Close(__LINE__, xx::ToString("APeer ReceiveCommand unhandled cmd = ", cmd).c_str());
+    Close(__LINE__, xx::ToString("APeer ReceiveCommand unhandled cmd = ", cmd));
 }

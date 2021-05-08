@@ -32,9 +32,6 @@ struct VPeer : EP::Timer {
     // index at server->vps( fill after create )
     int serverVpsIndex = -1;
 
-    // 指向 server
-    Server *server;
-
     // 指向 gateway peer
     GPeer *gatewayPeer;
 
@@ -78,7 +75,9 @@ struct VPeer : EP::Timer {
     bool Alive() const;
 
     // do not use this func
-    void Close(int const &reason, std::string_view const &desc) = delete;
+    bool Close(int const &reason, std::string_view const &desc) override {
+        assert(false);
+    }
 
     // kick client from the gateway, cleanup, update key
     void Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose = false);

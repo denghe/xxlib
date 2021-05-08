@@ -4,6 +4,8 @@
 #include "config.h"
 #include "xx_logger.h"
 
+#define S ((Server*)ec)
+
 void GPeer::SendOpen(uint32_t const &clientId) {
     LOG_INFO("clientId = ", clientId);
     SendTo(0xFFFFFFFFu, "open", clientId);
@@ -19,22 +21,22 @@ void GPeer::SendClose(uint32_t const &clientId) {
     SendTo(0xFFFFFFFFu, "close", clientId);
 }
 
-bool GPeer::Close(int const &reason, char const *const &desc) {
+bool GPeer::Close(int const &reason, std::string_view const &desc) {
     // 防重入( 同时关闭 fd )
     if (!this->Item::Close(reason, desc)) return false;
     assert(gatewayId != 0xFFFFFFFFu);
     LOG_INFO("gatewayId = ", gatewayId, ", reason = ", reason, ", desc = ", desc);
 
-    auto &s = *(Server *) ec;
-
     // close all child vpeer
-    for (auto &&vp: vps) {
-        vp->Kick(__LINE__, "GPeer Close");
+    for (auto &&clientId: clientIds) {
+        auto p = GetVPeerByClientId(clientId);
+        assert(p);
+        p->Kick(__LINE__, "GPeer Close", true);
     }
 
     // 从容器移除 this
-    assert(s.gps.find(gatewayId) != s.gps.end());
-    s.gps.erase(gatewayId);
+    assert(S->gps.find(gatewayId) != S->gps.end());
+    S->gps.erase(gatewayId);
 
     // set flag
     gatewayId = 0xFFFFFFFFu;
@@ -57,10 +59,25 @@ void GPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
     xx::Data_r dr(buf, len);
     std::string cmd;
     if (int r = dr.Read(cmd)) {
-        LOG_ERR("gatewayId:", gatewayId, " dr.Read(cmd) r = ", r);
+        LOG_ERR("gatewayId = ", gatewayId, " dr.Read(cmd) r = ", r);
         return;
     }
-    if (cmd == "close") {
+    if (cmd == "accept") {
+        uint32_t clientId;
+        if (int r = dr.Read(clientId)) {
+            LOG_ERR("gatewayId = ", gatewayId, " accept dr.Read(clientId) r = ", r);
+            return;
+        }
+        std::string ip;
+        if (int r = dr.Read(ip)) {
+            LOG_ERR("gatewayId = ", gatewayId, " accept dr.Read(ip) r = ", r);
+            return;
+        }
+        // create peer, fill props, hold & store to server.vps, send open
+        LOG_INFO("gatewayId = ", gatewayId, " accept clientId = ", clientId, " ip = ", ip);
+        // todo: check ip is valid?
+        (void)xx::Make<VPeer>(S, this, clientId);
+    } else if (cmd == "close") {
         uint32_t clientId;
         if (int r = dr.Read(clientId)) {
             LOG_ERR("gatewayId = ", gatewayId, " close dr.Read(clientId) r = ", r);
@@ -79,14 +96,10 @@ void GPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
     }
 }
 
-VPeer* GPeer::GetVPeerByClientId(uint32_t const &clientId) const {
+VPeer *GPeer::GetVPeerByClientId(uint32_t const &clientId) const {
     assert(gatewayId != 0xFFFFFFFFu);
-    auto &s = *(Server *) ec;
-    int idx = s.vps.Find<0>( ((uint64_t)gatewayId << 32) | clientId );
-    if (idx >= 0) {
-        auto p = s.vps.ValueAt(idx).pointer;
-        assert(vps.contains(p));
-        return p;
-    }
+    assert(clientIds.contains(clientId));
+    int idx = S->vps.Find<0>(((uint64_t) gatewayId << 32) | clientId);
+    if (idx >= 0) return S->vps.ValueAt(idx).pointer;
     return nullptr;
 }

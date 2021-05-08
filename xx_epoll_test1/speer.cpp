@@ -4,10 +4,10 @@
 #include "dialer.h"
 #include "xx_logger.h"
 
-bool SPeer::Close(int const& reason, char const* const& desc) {
+bool SPeer::Close(int const& reason, std::string_view const& desc) {
     // 防重入( 同时关闭 fd )
     if (!this->Peer::Close(reason, desc)) return false;
-    LOG_INFO("SPeer Close. serverId = ", serverId, ", reason = ", reason, ", desc = ", desc);
+    LOG_INFO("serverId = ", serverId, ", reason = ", reason, ", desc = ", desc);
     // 从所有 client peers 里的白名单中移除
     for (auto &&kv : ((Server*)ec)->cps) {
         // 不管有没有, 试着 从 client peer 的 已open id列表 擦除该 服务id
@@ -28,7 +28,7 @@ void SPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
     auto&& clientId = *(uint32_t *) buf;
     // 如果找到 client peer, 则转发
     if(auto &&cp = TryGetCPeer(clientId)) {
-        LOG_INFO("SPeer ReceivePackage. serverId = ", serverId, ", clientId = ", clientId, ", buf len = ", len);
+        LOG_INFO("serverId = ", serverId, ", clientId = ", clientId, ", buf len = ", len);
         // 篡改 clientId 为 serverId
         *(uint32_t *) buf = serverId;
 
@@ -37,7 +37,7 @@ void SPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
     }
     else {
         // 没找到：输出点日志
-        LOG_INFO("SPeer ReceivePackage TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId, ", buf len = ", len);
+        LOG_INFO("TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId, ", buf len = ", len);
     }
 }
 
@@ -48,7 +48,7 @@ void SPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
     // 试读取 cmd 字串. 失败直接断开
     std::string cmd;
     if (int r = dr.Read(cmd)) {
-        Close(__LINE__, xx::ToString(" SPeer ReceiveCommand if (int r = dr.Read(cmd)) serverId = ", serverId, ", r = ", r).c_str());
+        Close(__LINE__, xx::ToString("if (int r = dr.Read(cmd)) serverId = ", serverId, ", r = ", r));
         return;
     }
 
@@ -58,12 +58,12 @@ void SPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
     if (cmd == "open") {                        // 向客户端开放 serverId. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
-            Close(__LINE__, xx::ToString(" SPeer ReceiveCommand if (int r = dr.Read(clientId)) serverId = ", serverId, ", r = ", r).c_str());
+            Close(__LINE__, xx::ToString("cmd = open. if (int r = dr.Read(clientId)) serverId = ", serverId, ", r = ", r));
             return;
         }
         // 如果找到 client peer, 则转发
         if (auto &&cp = TryGetCPeer(clientId)) {
-            LOG_INFO("SPeer ReceiveCommand 'open'. serverId = ", serverId, ", clientId = ", clientId);
+            LOG_INFO("cmd = open. serverId = ", serverId, ", clientId = ", clientId);
             // 放入白名单
             cp->serverIds.emplace(serverId);
             // 下发 open
@@ -72,17 +72,17 @@ void SPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
         }
         else {
             // 未找到
-            LOG_INFO("SPeer ReceiveCommand 'open'. TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId);
+            LOG_INFO("cmd = open. TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId);
         }
     } else if (cmd == "close") {                // 关端口. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
-            Close(__LINE__, xx::ToString(" SPeer ReceiveCommand Read 'close' failed. serverId = ", serverId, ", r = ", r).c_str());
+            Close(__LINE__, xx::ToString("cmd = close. if (int r = dr.Read(clientId)) serverId = ", serverId, ", r = ", r));
             return;
         }
         // 如果找到 client peer, 则转发
         if (auto &&cp = TryGetCPeer(clientId)) {
-            LOG_INFO("SPeer ReceiveCommand 'close'. serverId = ", serverId, ", clientId = ", clientId);
+            LOG_INFO("cmd = close. serverId = ", serverId, ", clientId = ", clientId);
             // 从白名单移除
             cp->serverIds.erase(serverId);
             // 下发 close
@@ -91,26 +91,26 @@ void SPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
         }
         else {
             // 未找到
-            LOG_INFO("SPeer ReceiveCommand 'close'. TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId);
+            LOG_INFO("cmd = close. TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId);
         }
     } else if (cmd == "kick") {                 // 踢玩家下线. 参数: clientId, delayMS
         // 试读出参数
         int64_t delayMS = 0;
         if (int r = dr.Read(clientId, delayMS)) {
-            Close(__LINE__, xx::ToString(" SPeer ReceiveCommand Read 'kick' failed. serverId = ", serverId, ", r = ", r).c_str());
+            Close(__LINE__, xx::ToString("cmd = kick. if (int r = dr.Read(clientId, delayMS)) serverId = ", serverId, ", r = ", r));
             return;
         }
         // 如果没找到 或已断开 则返回，忽略错误
         auto &&cp = TryGetCPeer(clientId);
         if (!cp) {
             // 未找到
-            LOG_INFO("SPeer ReceiveCommand 'kick'. TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId);
+            LOG_INFO("cmd = kick. TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId);
             return;
         }
 
         // 延迟踢下线
         if (delayMS) {
-            LOG_INFO("SPeer ReceiveCommand 'kick' DelayClose. serverId = ", serverId, ", clientId = ", clientId, ", delayMS = ", delayMS);
+            LOG_INFO("cmd = kick DelayClose. serverId = ", serverId, ", clientId = ", clientId, ", delayMS = ", delayMS);
             // 下发一个 close 指令以便 client 收到后直接主动断开, 响应会比较快速
             cp->SendCommand("close", (uint32_t)0);
             cp->Flush();
@@ -118,7 +118,7 @@ void SPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
             cp->DelayClose((double) delayMS / 1000);
         } else {
             // 立刻踢下线
-            cp->Close(__LINE__, xx::ToString(" SPeer ReceiveCommand 'kick' Close. serverId = ", serverId, ", clientId = ", clientId).c_str());
+            cp->Close(__LINE__, xx::ToString("SPeer ReceiveCommand kick. serverId = ", serverId, ", clientId = ", clientId));
         }
     } else if (cmd == "ping") {                 // ping 的回包. 不关心内容
         // 清除 等回包 状态. 该状态在 pingtimer 中设置，并同时发送 ping 指令
@@ -127,7 +127,7 @@ void SPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
         pingMS = xx::NowSteadyEpochMilliseconds() - lastSendPingMS;
     } else {
         // 收到没有处理函数对应的指令
-        Close(__LINE__, xx::ToString(" SPeer ReceiveCommand unhandled cmd. serverId = ", serverId, ", cmd = ", cmd).c_str());
+        Close(__LINE__, xx::ToString("SPeer ReceiveCommand unhandled cmd. serverId = ", serverId, ", cmd = ", cmd));
     }
 }
 

@@ -13,5 +13,5 @@ void Listener::Accept(xx::Shared<APeer> const &p) {
     // 设置自动断线超时时间
     p->SetTimeoutSeconds(config.peerTimeoutSeconds);
 
-    LOG_INFO("Listener Accept. ip = ", p->addr);
+    LOG_INFO("ip = ", p->addr);
 }

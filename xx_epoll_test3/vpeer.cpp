@@ -1,10 +1,12 @@
 #include "vpeer.h"
 #include "gpeer.h"
 
+#define S ((Server*)ec)
+
 /****************************************************************************************/
 
 VPeerCB::VPeerCB(VPeer *const &vpeer, int const &serial, Func &&cbFunc, double const &timeoutSeconds)
-        : EP::Timer(vpeer->server, -1), vpeer(vpeer), serial(serial), func(std::move(cbFunc)) {
+        : EP::Timer(vpeer->ec, -1), vpeer(vpeer), serial(serial), func(std::move(cbFunc)) {
     SetTimeoutSeconds(timeoutSeconds);
 }
 
@@ -24,6 +26,7 @@ VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &c
     assert(r.success);
     serverVpsIndex = r.index;
     Hold();
+    gatewayPeer->SendOpen(clientId);
 }
 
 int VPeer::SendPush(uint8_t const *const &buf, size_t const &len) const {
@@ -107,23 +110,22 @@ void VPeer::Kick(int const &reason, std::string_view const &desc, bool const& fr
     }
     callbacks.clear();
 
-    // cmd to gateway: close, sync gateway clientIds
-    gatewayPeer->SendClose(clientId);
     if (!fromGPeerClose) {
-        gatewayPeer->vps.erase(this);
+        // cmd to gateway: close, sync gateway clientIds
+        gatewayPeer->SendClose(clientId);
+        gatewayPeer->clientIds.erase(clientId);
     }
-
     gatewayPeer = nullptr;
-    clientId = --server->autoDecId;
+    clientId = --S->autoDecId;
 
-    server->vps.UpdateAt<0>(serverVpsIndex, clientId);
+    S->vps.UpdateAt<0>(serverVpsIndex, clientId);
 }
 
 void VPeer::SwapWith(int const &idx) {
-    auto &a = server->vps.ValueAt(serverVpsIndex);
+    auto &a = S->vps.ValueAt(serverVpsIndex);
     assert(a);
     assert(a.pointer == this);
-    auto &b = server->vps.ValueAt(idx);
+    auto &b = S->vps.ValueAt(idx);
     assert(b);
     std::swap(a->serverVpsIndex, b->serverVpsIndex);
     std::swap(a->gatewayPeer, b->gatewayPeer);
@@ -137,8 +139,8 @@ void VPeer::Dispose() {
     Kick(__LINE__, "Dispose");
     // destruct
     assert(serverVpsIndex != -1);
-    assert(server->vps.ValueAt(serverVpsIndex).pointer == this);
-    server->vps.RemoveAt(serverVpsIndex);
+    assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
+    S->vps.RemoveAt(serverVpsIndex);
     // no more code here
 }
 
@@ -175,5 +177,6 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
 }
 
 void VPeer::Update(double const &dt) {
+    if (IsGuest()) return;
     // todo: frame logic here
 }

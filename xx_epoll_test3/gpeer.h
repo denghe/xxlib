@@ -10,9 +10,9 @@ struct GPeer : Peer {
     using Peer::Peer;
 
     uint32_t gatewayId = 0xFFFFFFFFu;
-    std::unordered_set<VPeer*> vps;
+    std::unordered_set<uint32_t> clientIds;
 
-    bool Close(int const& reason, char const* const& desc) override;
+    bool Close(int const& reason, std::string_view const& desc) override;
     void ReceivePackage(uint32_t const& clientId, uint8_t* const& buf, size_t const& len) override;
     void ReceiveCommand(uint8_t* const& buf, size_t const& len) override;
 

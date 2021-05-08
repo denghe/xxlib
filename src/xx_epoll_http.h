@@ -32,7 +32,7 @@ namespace xx::Epoll {
         void Receive() override;
 
         // 断线事件( 清除自持有 )
-        bool Close(int const &reason, char const* const& desc) override;
+        bool Close(int const &reason, std::string_view const& desc) override;
 
         // 为开始接收一段 http 做好准备( 各种 cleanup )
         virtual void Clear();
