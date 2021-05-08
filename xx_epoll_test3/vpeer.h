@@ -7,6 +7,8 @@ struct VPeer;
 
 // 带超时的回调
 struct VPeerCB : EP::Timer {
+    using Func = std::function<void(uint8_t const *buf, size_t len)>;
+
     // 所在 vpeer( 移除的时候要用到 )
     VPeer *vpeer;
 
@@ -14,17 +16,17 @@ struct VPeerCB : EP::Timer {
     int serial = 0;
 
     // 回调函数本体
-    std::function<void(uint8_t const *buf, size_t len)> func;
+    Func func;
 
     // 继承构造函数
-    VPeerCB(VPeer *vpeer, int serial, std::function<void(uint8_t const *buf, size_t len)> &&cbFunc, double timeoutSeconds);
+    VPeerCB(VPeer *const &vpeer, int const &serial, Func &&cbFunc, double const &timeoutSeconds);
 
     // 执行 func(0,0) 后 从容器移除, 并延迟 Unhold
     void Timeout() override;
 };
 
 // 虚拟 peer
-struct VPeer {
+struct VPeer : EP::Timer {
     explicit VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId);
 
     // index at server->vps( fill after create )
@@ -54,9 +56,7 @@ struct VPeer {
     int SendResponse(int const &serial, uint8_t const *const &buf, size_t const &len) const;
 
     // 发请求（收到相应回应时会触发 cb 执行。超时或断开也会触发，buf == nullptr）
-    int SendRequest(uint8_t const *const &buf, size_t const &len,
-                    std::function<void(uint8_t const *const &buf, size_t const &len)> &&cb,
-                    double const &timeoutSeconds);
+    int SendRequest(uint8_t const *const &buf, size_t const &len, typename VPeerCB::Func &&cbfunc, double const &timeoutSeconds);
 
     /****************************************************************************************/
 
@@ -77,20 +77,25 @@ struct VPeer {
     // gatewayPeer != nullptr
     bool Alive() const;
 
-    // kick client from gateway. let gatewayPeer = nullptr, clientId = 0xFFFFFFFFu
-    void Kick(int const &reason, std::string_view const &desc);
+    // do not use this func
+    void Close(int const &reason, std::string_view const &desc) = delete;
+
+    // kick client from the gateway, cleanup, update key
+    void Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose = false);
 
     // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
-    void SwapWith(int const& idx);
+    void SwapWith(int const &idx);
 
     // try kick, remove from container, release instance
     void Dispose();
 
     // logic update here
-    void Update(double const& dt);
+    void Update(double const &dt);
 
-    /****************************************************************************************/
-    // logic ctx here
+    // accountId < 0
+    bool IsGuest() const;
+
+    void Timeout() override;
 
     int32_t accountId = -1;
 };

@@ -1,7 +1,9 @@
 #include "vpeer.h"
 #include "gpeer.h"
 
-VPeerCB::VPeerCB(VPeer *vpeer, int serial, std::function<void(uint8_t const *buf, size_t len)> &&cbFunc, double timeoutSeconds)
+/****************************************************************************************/
+
+VPeerCB::VPeerCB(VPeer *const &vpeer, int const &serial, Func &&cbFunc, double const &timeoutSeconds)
         : EP::Timer(vpeer->server, -1), vpeer(vpeer), serial(serial), func(std::move(cbFunc)) {
     SetTimeoutSeconds(timeoutSeconds);
 }
@@ -13,8 +15,15 @@ void VPeerCB::Timeout() {
     vpeer->callbacks.erase(serial);
 }
 
+/****************************************************************************************/
+
 VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId)
-        : server(server), gatewayPeer(gatewayPeer), clientId(clientId) {
+    : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId) {
+    accountId = --server->autoDecId;
+    auto r = server->vps.Add(xx::SharedFromThis(this), ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
+    assert(r.success);
+    serverVpsIndex = r.index;
+    Hold();
 }
 
 int VPeer::SendPush(uint8_t const *const &buf, size_t const &len) const {
@@ -41,9 +50,7 @@ int VPeer::SendResponse(int32_t const &serial, uint8_t const *const &buf, size_t
     return gatewayPeer->Send(std::move(d));
 }
 
-int VPeer::SendRequest(uint8_t const *const &buf, size_t const &len,
-                       std::function<void(uint8_t const *const &buf, size_t const &len)> &&cbfunc,
-                       double const &timeoutSeconds) {
+int VPeer::SendRequest(uint8_t const *const &buf, size_t const &len, typename VPeerCB::Func &&cbfunc, double const &timeoutSeconds) {
     // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
     autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
     // 创建一个 带超时的回调
@@ -56,6 +63,7 @@ int VPeer::SendRequest(uint8_t const *const &buf, size_t const &len,
 }
 
 void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
+    // drop data when offline
     if (!Alive()) return;
 
     // 试读出序号. 出错直接断开退出
@@ -89,9 +97,9 @@ bool VPeer::Alive() const {
     return gatewayPeer != nullptr;
 }
 
-void VPeer::Kick(int const &reason, std::string_view const &desc) {
+void VPeer::Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose) {
     if (!Alive()) return;
-    LOG_INFO("VPeer Kick, reason = ", reason, ", desc = ", desc);
+    LOG_INFO("reason = ", reason, ", desc = ", desc);
 
     // 触发所有已存在回调（ 模拟超时回调 ）
     for (auto &&iter : callbacks) {
@@ -101,23 +109,27 @@ void VPeer::Kick(int const &reason, std::string_view const &desc) {
 
     // cmd to gateway: close, sync gateway clientIds
     gatewayPeer->SendClose(clientId);
-    gatewayPeer->clientIds.erase(clientId);
+    if (!fromGPeerClose) {
+        gatewayPeer->vps.erase(this);
+    }
 
     gatewayPeer = nullptr;
-    clientId = --server->autoDecClientId;
+    clientId = --server->autoDecId;
 
-    server->vps.UpdateAt(serverVpsIndex, clientId);
+    server->vps.UpdateAt<0>(serverVpsIndex, clientId);
 }
 
-void VPeer::SwapWith(int const& idx) {
-    auto& a = server->vps.ValueAt(serverVpsIndex);
+void VPeer::SwapWith(int const &idx) {
+    auto &a = server->vps.ValueAt(serverVpsIndex);
     assert(a);
     assert(a.pointer == this);
-    auto& b = server->vps.ValueAt(idx);
+    auto &b = server->vps.ValueAt(idx);
     assert(b);
     std::swap(a->serverVpsIndex, b->serverVpsIndex);
     std::swap(a->gatewayPeer, b->gatewayPeer);
     std::swap(a->clientId, b->clientId);
+    std::swap(a->autoIncSerial, b->autoIncSerial);
+    // do not swap accountId
     std::swap(a.pointer, b.pointer);
 }
 
@@ -130,18 +142,38 @@ void VPeer::Dispose() {
     // no more code here
 }
 
+bool VPeer::IsGuest() const {
+    return accountId < 0;
+}
+
+void VPeer::Timeout() {
+    // todo: logic here ?
+    Kick(__LINE__, "Timeout");
+}
+
 void VPeer::ReceivePush(uint8_t const *const &buf, size_t const &len) {
     xx::Data_r dr(buf, len);
-    LOG_INFO("VPeer ClientId = ", clientId, " ReceivePush ", dr);
-    // todo
+    if (IsGuest()) {
+        LOG_ERR("clientId = ", clientId, " (Guest) ReceivePush ", dr);
+    }
+    else {
+        LOG_INFO("clientId = ", clientId, ", accountId = ",accountId ," ReceivePush ", dr);
+        // todo: logic here
+    }
 }
 
 void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t const &len) {
     xx::Data_r dr(buf, len);
-    LOG_INFO("VPeer ClientId = ", clientId, " ReceiveRequest ", dr);
-    // todo
+    if (IsGuest()) {
+        LOG_ERR("clientId = ", clientId, " Guest ReceiveRequest ", dr);
+    }
+    else {
+        LOG_INFO("clientId = ", clientId, ", accountId = ",accountId ," ReceiveRequest ", dr);
+        // todo: logic here
+        // todo: auth? get accountId? update key? SwapWith?
+    }
 }
 
-void VPeer::Update(double const& dt) {
-    // todo
+void VPeer::Update(double const &dt) {
+    // todo: frame logic here
 }

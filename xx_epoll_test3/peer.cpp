@@ -14,7 +14,7 @@ void Peer::Receive() {
 
         // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
         if (dataLen < sizeof(addr) || dataLen > 1024 * 256) {
-            Close(__LINE__, " Peer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
+            Close(__LINE__, "Peer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
             return;
         }
 
@@ -33,7 +33,7 @@ void Peer::Receive() {
                 ReceiveCommand(buf + sizeof(addr), dataLen - sizeof(addr));
             } else {
                 // 普通包. id 打头
-                ReceivePackage(buf, dataLen);
+                ReceivePackage(addr, buf, dataLen);
             }
 
             // 如果当前类实例 fd 已 close 则退出

@@ -31,8 +31,9 @@ struct Server : EP::Context {
     // virtual peers. key1: gateway id << 32 | client id   key2: account id
     xx::DictMK<xx::Shared<VPeer>, uint64_t, int32_t> vps;
 
-    // VPeer::Kick  clientId = --server->autoDecClientId;
-    int32_t autoDecClientId = 0;
+    // Make: accountId = --server->autoDecId
+    // Kick: clientId = --server->autoDecId
+    int32_t autoDecId = 0;
 
     // 根据 config 进一步初始化各种成员
     int Init();

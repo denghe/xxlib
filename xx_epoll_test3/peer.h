@@ -14,7 +14,7 @@ struct Peer : EP::TcpPeer {
     void Receive() override;
 
     // 收到正常包
-    virtual void ReceivePackage(uint8_t* const& buf, size_t const& len) = 0;
+    virtual void ReceivePackage(uint32_t const& addr, uint8_t* const& buf, size_t const& len) = 0;
 
     // 收到内部指令
     virtual void ReceiveCommand(uint8_t* const& buf, size_t const& len) = 0;

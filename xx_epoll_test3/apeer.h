@@ -6,6 +6,6 @@ namespace EP = xx::Epoll;
 struct APeer : Peer {
     using Peer::Peer;
     bool Close(int const& reason, char const* const& desc) override;
-    void ReceivePackage(uint8_t* const& buf, size_t const& len) override;
+    void ReceivePackage(uint32_t const& addr, uint8_t* const& buf, size_t const& len) override;
     void ReceiveCommand(uint8_t* const& buf, size_t const& len) override;
 };
