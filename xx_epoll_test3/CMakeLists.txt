@@ -19,9 +19,11 @@ add_executable(xx_epoll_test3
 		gpeer.cpp
 		vpeer.cpp
 		pingtimer.cpp
+		db.cpp
 		)
 
 target_link_libraries(xx_epoll_test3
 		pthread
 		readline
+		sqlite3
 		)

@@ -10,6 +10,7 @@ struct GPeer;
 struct VPeer;
 struct PingTimer;
 // Lobby? Room?
+struct DB;
 
 // 服务本体
 struct Server : EP::Context {
@@ -21,6 +22,9 @@ struct Server : EP::Context {
 
     // 用于 ping 内部服务的 timer
     xx::Shared<PingTimer> pingTimer;
+
+    // sqlite database for store game / player data
+    xx::Shared<DB> db;
 
 //    // server peers. key: server id
 //    std::unordered_map<uint32_t, xx::Shared<SPeer>> sps;

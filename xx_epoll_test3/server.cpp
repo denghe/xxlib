@@ -6,6 +6,7 @@
 #include "apeer.h"
 #include "gpeer.h"
 #include "vpeer.h"
+#include "db.h"
 
 int Server::Init() {
     // 初始化监听器
@@ -16,6 +17,9 @@ int Server::Init() {
         LOG_ERROR("listen to port ", config.listenPort, "failed.");
         return r;
     }
+
+    // init db
+    xx::MakeTo(db, this);
 
     // 初始化间隔时间为 ? 秒的处理服务器之间 ping 防止连接僵死的 timer
     xx::MakeTo(pingTimer, this);
