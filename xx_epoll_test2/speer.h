@@ -22,7 +22,7 @@ struct SPeer : Peer {
     using Peer::Peer;
 
     // 关闭 fd, 从所有 client peers 里的白名单中移除 并下发相应 close. 注册延迟自杀函数( 直接析构并不会触发这个 Close )
-    bool Close(int const& reason, char const* const& desc) override;
+    bool Close(int const& reason, std::string_view const& desc) override;
 
     // 收到正常包
     void ReceivePackage(uint8_t* const& buf, size_t const& len) override;

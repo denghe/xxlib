@@ -5,10 +5,10 @@
 #include "dialer.h"
 #include "xx_logger.h"
 
-bool CPeer::Close(int const& reason, char const* const& desc) {
+bool CPeer::Close(int const& reason, std::string_view const& desc) {
     // 防重入( 同时关闭 fd )
     if (!this->BaseType::Close(reason, desc)) return false;
-    LOG_INFO("CPeer Close. ip = ", addr," reason = ", reason, ", desc = ", desc);
+    LOG_INFO("ip = ", addr," reason = ", reason, ", desc = ", desc);
     // 群发断开通知 并从容器移除
     PartialClose();
     // 延迟减持
@@ -45,7 +45,7 @@ void CPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
 
     // 判断该服务编号是否在白名单中. 找不到就忽略
     if (serverIds.find(sid) == serverIds.end()) {
-        LOG_INFO("CPeer ReceivePackage serverIds.find(sid) == serverIds.end(). ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
+        LOG_INFO("serverIds.find(sid) == serverIds.end(). ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
         return;
     }
 
@@ -53,11 +53,11 @@ void CPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
     auto&& sp = ((Server *)ec)->dps[sid].second;
     // 如果服务 peer 当前无效，则忽略
     if (!sp) {
-        LOG_INFO("CPeer ReceivePackage !sp || !sp->Alive(). ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
+        LOG_INFO("!sp || !sp->Alive(). ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
         return;
     }
 
-    LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
+    LOG_INFO("ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
 
     // 续命. 每次收到合法数据续一下
     SetTimeoutSeconds(config.clientTimeoutSeconds);
@@ -70,7 +70,7 @@ void CPeer::ReceivePackage(uint8_t *const &buf, size_t const &len) {
 }
 
 void CPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
-    LOG_INFO("CPeer ReceiveCommand. ip = ", addr, ", len = ", len, ", buf = ", xx::DataView{ buf, len });
+    LOG_INFO("ip = ", addr, ", len = ", len, ", buf = ", xx::DataView{ buf, len });
 
     // 续命
     SetTimeoutSeconds(config.clientTimeoutSeconds);

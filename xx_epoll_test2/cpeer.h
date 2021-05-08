@@ -15,7 +15,7 @@ struct CPeer : KPeer {
     using BaseType::BaseType;
 
     // 群发断开指令, 从容器移除变野,  DelayUnhold 自杀
-    bool Close(int const& reason, char const* const& desc) override;
+    bool Close(int const& reason, std::string_view const& desc) override;
 
     // 延迟关闭( 设置 closed = true, 群发断开指令, 从容器移除变野, 靠超时自杀 )
     void DelayClose(double const& delaySeconds);

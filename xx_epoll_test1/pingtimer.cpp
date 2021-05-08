@@ -16,9 +16,9 @@ void PingTimer::Timeout() {
             // 如果正在等
             if (sp->waitingPingBack) {
                 // 如果已经等了好些时候了( 该值可配？）
-                if(now - sp->lastSendPingMS > 5000) {
+                if (now - sp->lastSendPingMS > 5000) {
                     // 掐线
-                    sp->Close(-__LINE__, "if(now - sp->lastSendPingMS > 5000)");
+                    sp->Close(-__LINE__, "if (now - sp->lastSendPingMS > 5000)");
                 }
             }
             else {

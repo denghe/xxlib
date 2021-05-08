@@ -2,6 +2,10 @@
 #include "xx_lua.h"
 #include "xx_ptr.h"
 
+#if LUA_VERSION_NUM == 501
+extern int LUA_RIDX_MAINTHREAD;
+#endif
+
 namespace xx::Lua {
 
 	/****************************************************************************************/
