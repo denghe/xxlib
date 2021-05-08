@@ -8,6 +8,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 include_directories(
 	../src
 	../3rd
+	../codegen_test2/cpp
 )
 
 add_executable(xx_epoll_test3
@@ -20,6 +21,7 @@ add_executable(xx_epoll_test3
 		vpeer.cpp
 		pingtimer.cpp
 		db.cpp
+		../codegen_test2/cpp/pkg.cpp
 		)
 
 target_link_libraries(xx_epoll_test3

@@ -74,6 +74,9 @@ struct VPeer : EP::Timer {
 
     /****************************************************************************************/
 
+    // return xx::SharedFromThis(this).ToWeak();
+    xx::Weak<VPeer> Weak();
+
     // gatewayPeer != nullptr
     bool Alive() const;
 
@@ -86,11 +89,14 @@ struct VPeer : EP::Timer {
     // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
     void SwapWith(int const &idx);
 
+    /****************************************************************************************/
+
+    // logic here
+    void Timeout() override;
+
     // logic update here
     void Update(double const &dt);
 
     // accountId < 0
     bool IsGuest() const;
-
-    void Timeout() override;
 };

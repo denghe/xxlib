@@ -123,6 +123,9 @@ namespace xx::SQLite {
         void SetParameter(int const &parmIdx, std::string const &str, bool const &makeCopy = false);
         void SetParameter(int const &parmIdx, std::string &&str, bool const &makeCopy = true);
 
+        void SetParameter(int const &parmIdx, std::string_view const &str);
+        void SetParameter(int const &parmIdx, std::string_view &&str);
+
         // 二进制类
         void SetParameter(int const &parmIdx, Data const &d, bool const &makeCopy = false);
 
@@ -605,6 +608,14 @@ namespace xx::SQLite {
 
     inline void Query::SetParameter(int const &parmIdx, std::string &&str, bool const &makeCopy) {
         SetParameter(parmIdx, (char *) str.c_str(), str.size(), makeCopy);
+    }
+
+    inline void Query::SetParameter(int const &parmIdx, std::string_view const &str) {
+        SetParameter(parmIdx, (char *) str.data(), str.size(), true);
+    }
+
+    inline void Query::SetParameter(int const &parmIdx, std::string_view &&str) {
+        SetParameter(parmIdx, (char *) str.data(), str.size(), true);
     }
 
     inline void Query::SetParameter(int const &parmIdx, Data const &d, bool const &makeCopy) {

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "xx_epoll.h"
 #include "xx_dict_mk.h"
+#include "xx_obj.h"
 namespace EP = xx::Epoll;
 
 // 预声明
@@ -23,8 +24,13 @@ struct Server : EP::Context {
     // 用于 ping 内部服务的 timer
     xx::Shared<PingTimer> pingTimer;
 
-    // sqlite database for store game / player data
+    // shared database handler
     xx::Shared<DB> db;
+
+    // shared obj manager
+    xx::ObjManager om;
+    // shared data
+    xx::Data d;
 
 //    // server peers. key: server id
 //    std::unordered_map<uint32_t, xx::Shared<SPeer>> sps;

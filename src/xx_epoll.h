@@ -428,6 +428,19 @@ namespace xx::Epoll {
 
         // 将秒转为帧数
         inline int SecondsToFrames(double const &sec) const { return (int) (frameRate * sec); }
+
+        // 共享：加持 & 封送
+        template<typename T>
+        xx::Ptr<T> ToPtr(xx::Shared<T> const& s) {
+            return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+        }
+
+        // 如果独占：不加持 不封送 就地删除
+        template<typename T>
+        xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
+            if (s.header()->useCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
+            else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+        }
     };
 
 

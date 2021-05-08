@@ -1,5 +1,7 @@
 #include "vpeer.h"
 #include "gpeer.h"
+#include "pkg.h"
+#include "db.h"
 
 #define S ((Server*)ec)
 
@@ -90,7 +92,6 @@ bool VPeer::Alive() const {
     return gatewayPeer != nullptr;
 }
 
-// try kick, remove from container, release instance
 bool VPeer::Close(int const &reason, std::string_view const &desc) {
     if (serverVpsIndex == -1) return false;
     Kick(__LINE__, "Dispose");
@@ -101,7 +102,7 @@ bool VPeer::Close(int const &reason, std::string_view const &desc) {
     return true;
 }
 
-void VPeer::Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose) {
+void VPeer::Kick(int const &reason, std::string_view const &desc, bool const &fromGPeerClose) {
     if (!Alive()) return;
     LOG_INFO("reason = ", reason, ", desc = ", desc);
 
@@ -141,6 +142,10 @@ void VPeer::SwapWith(int const &idx) {
 }
 
 
+xx::Weak<VPeer> VPeer::Weak() {
+    return xx::SharedFromThis(this).ToWeak();
+}
+
 /****************************************************************************************/
 // accountId? logic code here
 
@@ -168,22 +173,55 @@ void VPeer::ReceivePush(uint8_t const *const &buf, size_t const &len) {
     xx::Data_r dr(buf, len);
     if (IsGuest()) {
         LOG_ERR("clientId = ", clientId, " (Guest) ReceivePush ", dr);
-    }
-    else {
-        LOG_INFO("clientId = ", clientId, ", accountId = ",accountId ," ReceivePush ", dr);
+    } else {
+        LOG_INFO("clientId = ", clientId, ", accountId = ", accountId, " ReceivePush ", dr);
         // todo: logic here
     }
 }
 
 void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t const &len) {
     xx::Data_r dr(buf, len);
+    LOG_INFO("clientId = ", clientId, " accountId = ", accountId, " buf = ", dr);
     if (IsGuest()) {
-        LOG_ERR("clientId = ", clientId, " Guest ReceiveRequest ", dr);
-    }
-    else {
-        LOG_INFO("clientId = ", clientId, ", accountId = ",accountId ," ReceiveRequest ", dr);
-        // todo: logic here
-        // todo: auth? get accountId? update key? SwapWith?
+        // logic here
+        xx::ObjBase_s pkg;
+        if (int r = S->om.ReadFrom(dr, pkg)) {
+            Close(__LINE__, xx::ToString("VPeer ReceiveRequest clientId = ", clientId, " accountId = ", accountId, " if (int r = S->om.ReadFrom(dr, pkg)) r = ", r, " buf = ", dr));
+            return;
+        }
+        switch (pkg.typeId()) {
+            case xx::TypeId_v<Client_Lobby::Auth>: {
+                auto &&o = S->om.As<Client_Lobby::Auth>(pkg);
+                // todo: set busy flag?
+                // o -> shared_ptr thread safe
+                S->db->AddJob([o = S->ToPtr(std::move(o)), serial, w = Weak()](DB::Env &env) mutable {
+                    int aid = env.GetAccountIdByUsernamePassword(o->username, o->password);
+                    env.server->Dispatch([serial, aid, w = std::move(w)] {
+                        if (auto vp = w.Lock()) {
+                            // todo: clear busy flag?
+                            auto msg = xx::Make<Lobby_Client::AuthResult>();
+                            msg->accountId = aid;
+                            auto s = ((Server*)vp->ec);
+                            s->d.Clear();
+                            s->om.WriteTo(s->d, msg);
+                            vp->SendResponse(serial, s->d.buf, s->d.len);
+                            if (aid != -1) {
+                                // vp->accountId = aid;
+                                // todo: update key?
+                            }
+                            // todo: xx::ObjBase_s version SendXxxxxx
+                        }
+                    });
+                });
+
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+    } else {
+        // todo: game logic here
     }
 }
 
