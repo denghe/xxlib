@@ -8,16 +8,19 @@
 
 void GPeer::SendOpen(uint32_t const &clientId) {
     LOG_INFO("clientId = ", clientId);
+    assert(clientIds.contains(clientId));
     SendTo(0xFFFFFFFFu, "open", clientId);
 }
 
 void GPeer::SendKick(uint32_t const &clientId, int64_t const &delayMS) {
     LOG_INFO("clientId = ", clientId, " delayMS = ", delayMS);
+    assert(clientIds.contains(clientId));
     SendTo(0xFFFFFFFFu, "kick", clientId, delayMS);
 }
 
 void GPeer::SendClose(uint32_t const &clientId) {
     LOG_INFO("clientId = ", clientId);
+    assert(clientIds.contains(clientId));
     SendTo(0xFFFFFFFFu, "close", clientId);
 }
 

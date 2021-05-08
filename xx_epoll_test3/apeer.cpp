@@ -42,15 +42,15 @@ void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
             gp->SetTimeoutSeconds(config.peerTimeoutSeconds);
             gp->gatewayId = gatewayId;
             s.gps[gatewayId] = gp;
-            LOG_INFO("gatewayId = ", gatewayId, " cmd = gatewayId, success");
+            LOG_INFO("cmd gatewayId = ", gatewayId, " cmd = gatewayId, success");
         } else {
-            Close(__LINE__, xx::ToString("APeer ReceiveCommand gatewayId = ", gatewayId, " already exists"));
+            Close(__LINE__, xx::ToString("APeer ReceiveCommand cmd gatewayId = ", gatewayId, " already exists"));
         }
         return;
     } else if (cmd == "serverId") {
         uint32_t serverId = 0;
         if (int r = dr.Read(serverId)) {
-            Close(__LINE__, xx::ToString("APeer ReceiveCommand if (int r = dr.Read(serverId)), r = ", r));
+            Close(__LINE__, xx::ToString("APeer ReceiveCommand cmd serverId if (int r = dr.Read(serverId)), r = ", r));
             return;
         }
         switch (serverId) {
@@ -63,7 +63,7 @@ void APeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
                 // ....
             default:;
         }
-        Close(__LINE__, xx::ToString("APeer ReceiveCommand unhandled serverId = ", serverId));
+        Close(__LINE__, xx::ToString("APeer ReceiveCommand unhandled cmd serverId = ", serverId));
         return;
     }
     Close(__LINE__, xx::ToString("APeer ReceiveCommand unhandled cmd = ", cmd));

@@ -19,16 +19,6 @@ void VPeerCB::Timeout() {
 
 /****************************************************************************************/
 
-VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId)
-    : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId) {
-    accountId = --server->autoDecId;
-    auto r = server->vps.Add(xx::SharedFromThis(this), ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
-    assert(r.success);
-    serverVpsIndex = r.index;
-    Hold();
-    gatewayPeer->SendOpen(clientId);
-}
-
 int VPeer::SendPush(uint8_t const *const &buf, size_t const &len) const {
     // 推送性质的包, serial == 0
     return SendResponse(0, buf, len);
@@ -100,6 +90,17 @@ bool VPeer::Alive() const {
     return gatewayPeer != nullptr;
 }
 
+// try kick, remove from container, release instance
+bool VPeer::Close(int const &reason, std::string_view const &desc) {
+    if (serverVpsIndex == -1) return false;
+    Kick(__LINE__, "Dispose");
+    assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
+    S->vps.RemoveAt(serverVpsIndex);
+    serverVpsIndex = -1;
+    DelayUnhold();
+    return true;
+}
+
 void VPeer::Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose) {
     if (!Alive()) return;
     LOG_INFO("reason = ", reason, ", desc = ", desc);
@@ -118,6 +119,7 @@ void VPeer::Kick(int const &reason, std::string_view const &desc, bool const& fr
     gatewayPeer = nullptr;
     clientId = --S->autoDecId;
 
+    assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
     S->vps.UpdateAt<0>(serverVpsIndex, clientId);
 }
 
@@ -125,23 +127,31 @@ void VPeer::SwapWith(int const &idx) {
     auto &a = S->vps.ValueAt(serverVpsIndex);
     assert(a);
     assert(a.pointer == this);
+
     auto &b = S->vps.ValueAt(idx);
     assert(b);
+    assert(a.pointer != b.pointer);
+
     std::swap(a->serverVpsIndex, b->serverVpsIndex);
     std::swap(a->gatewayPeer, b->gatewayPeer);
     std::swap(a->clientId, b->clientId);
     std::swap(a->autoIncSerial, b->autoIncSerial);
-    // do not swap accountId
+
     std::swap(a.pointer, b.pointer);
 }
 
-void VPeer::Dispose() {
-    Kick(__LINE__, "Dispose");
-    // destruct
-    assert(serverVpsIndex != -1);
-    assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
-    S->vps.RemoveAt(serverVpsIndex);
-    // no more code here
+
+/****************************************************************************************/
+// accountId? logic code here
+
+VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId)
+        : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId) {
+    accountId = --server->autoDecId;
+    auto r = server->vps.Add(xx::SharedFromThis(this), ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
+    assert(r.success);
+    serverVpsIndex = r.index;
+    Hold();
+    gatewayPeer->SendOpen(clientId);
 }
 
 bool VPeer::IsGuest() const {
@@ -150,7 +160,7 @@ bool VPeer::IsGuest() const {
 
 void VPeer::Timeout() {
     // todo: logic here ?
-    Kick(__LINE__, "Timeout");
+    // Kick(__LINE__, "Timeout");
 }
 
 void VPeer::ReceivePush(uint8_t const *const &buf, size_t const &len) {

@@ -74,19 +74,14 @@ struct VPeer : EP::Timer {
     // gatewayPeer != nullptr
     bool Alive() const;
 
-    // do not use this func
-    bool Close(int const &reason, std::string_view const &desc) override {
-        assert(false);
-    }
+    // kick, remove from server.vps, DelayUnhold
+    bool Close(int const &reason, std::string_view const &desc) override;
 
-    // kick client from the gateway, cleanup, update key
+    // kick, cleanup, update key at server.vps, remove from gpeer.clientIds
     void Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose = false);
 
     // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
     void SwapWith(int const &idx);
-
-    // try kick, remove from container, release instance
-    void Dispose();
 
     // logic update here
     void Update(double const &dt);
