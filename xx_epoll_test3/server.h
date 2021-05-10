@@ -38,7 +38,7 @@ struct Server : EP::Context {
     // gateway peers. key: gateway id
     std::unordered_map<uint32_t, xx::Shared<GPeer>> gps;
 
-    // virtual peers. key1: gateway id << 32 | client id   key2: account id (logic data)
+    // virtual peers. key0: gateway id << 32 | client id   key1: account id (logic data)
     xx::DictMK<xx::Shared<VPeer>, uint64_t, int32_t> vps;
 
     // Make: accountId = --server->autoDecId

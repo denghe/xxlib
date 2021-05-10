@@ -38,14 +38,64 @@ struct VPeer : EP::Timer {
     // 存放位于 gateway 的 client id
     uint32_t clientId;
 
-    // logic data
-    int32_t accountId = -1;
-
     // 循环自增用于生成 serial
     int autoIncSerial = 0;
 
     // 所有 带超时的回调. key: serial
     std::unordered_map<int, xx::Shared<VPeerCB>> callbacks;
+
+    /****************************************************************************************/
+    // receive helpers
+
+    // when receive a package, let typeCounters[typeId]++
+    // when handled, typeCounters[typeId]--
+    std::array<int8_t, std::numeric_limits<uint16_t>::max()> typeCounters{};
+    // return count value
+    template<typename T>
+    int8_t typeCount() const {
+        return typeCounters[xx::TypeId_v<T>];
+    }
+    int8_t typeCount(uint16_t const& typeId) const {
+        return typeCounters[typeId];
+    }
+    // return old count value, count += 1
+    template<typename T>
+    int8_t typeRef() {
+        assert(typeCounters[xx::TypeId_v<T>] >= 0);
+        return typeCounters[xx::TypeId_v<T>]++;
+    }
+    int8_t typeRef(uint16_t const& typeId) {
+        assert(typeCounters[typeId] >= 0);
+        return typeCounters[typeId]++;
+    }
+    // --count
+    template<typename T>
+    int8_t typeDeref() {
+        assert(typeCounters[xx::TypeId_v<T>] > 0);
+        return --typeCounters[xx::TypeId_v<T>];
+    }
+    uint8_t typeDeref(uint16_t const& typeId) {
+        assert(typeCounters[typeId] > 0);
+        return --typeCounters[typeId];
+    }
+
+    /****************************************************************************************/
+    // send helpers
+
+    // 发推送 package
+    int SendPushPackage(xx::ObjBase_s const &o) const;
+
+    // 发回应 package
+    int SendResponsePackage(int const &serial, xx::ObjBase_s const &o) const;
+
+    // 发请求 package（收到相应回应时会触发 cb 执行。超时或断开也会触发，buf == nullptr）
+    int SendRequestPackage(xx::ObjBase_s const &o, std::function<void(xx::ObjBase_s&& o)> &&cbfunc, double const &timeoutSeconds);
+
+
+    /****************************************************************************************/
+    // logic data
+
+    int32_t accountId = -1;
 
     /****************************************************************************************/
 
@@ -74,6 +124,9 @@ struct VPeer : EP::Timer {
 
     /****************************************************************************************/
 
+    // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
+    [[maybe_unused]] void SwapWith(int const &idx);
+
     // return xx::SharedFromThis(this).ToWeak();
     xx::Weak<VPeer> Weak();
 
@@ -86,8 +139,6 @@ struct VPeer : EP::Timer {
     // kick, cleanup, update key at server.vps, remove from gpeer.clientIds
     void Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose = false);
 
-    // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
-    void SwapWith(int const &idx);
 
     /****************************************************************************************/
 
@@ -99,4 +150,7 @@ struct VPeer : EP::Timer {
 
     // accountId < 0
     bool IsGuest() const;
+
+    // guest: set accountId, update key. if failed, return false (duplicate key? accountId != -1?)
+    bool SetAccountId(int const& accountId);
 };

@@ -7,6 +7,31 @@ struct DB {
     Server* server;
     explicit DB(Server* server);
 
+    // generic query func return value
+    template<typename T>
+    struct Rtv {
+        T value {};
+
+        bool success = true;
+        operator bool() {
+            return success;
+        }
+
+        int errCode = 0;
+        std::string errMsg;
+
+        template<typename U>
+        explicit Rtv(U&& v){
+            value = std::forward<U>(v);
+        }
+
+        Rtv() = default;
+        Rtv(Rtv const&) = default;
+        Rtv(Rtv&&) noexcept = default;
+        Rtv& operator=(Rtv const&) = default;
+        Rtv& operator=(Rtv&&) noexcept = default;
+    };
+
     struct Env {
         Env();
         void operator()(std::function<void(Env&)>& job);
@@ -17,10 +42,9 @@ struct DB {
         xx::ThreadPool2<Env, 1>* tp = nullptr;
         xx::Shared<xx::SQLite::Connection> conn;
 
-
-        // get account id by username & password. cb( accountId == -1: not found
-        xx::Shared<xx::SQLite::Query> qGetAccountIdByUsernamePassword;
-        int GetAccountIdByUsernamePassword(std::string_view const& username, std::string_view const& password);
+        // try get account id by username & password. value == -1: not found
+        xx::Shared<xx::SQLite::Query> qTryGetAccountIdByUsernamePassword;
+        Rtv<int> TryGetAccountIdByUsernamePassword(std::string_view const& username, std::string_view const& password);
 
         // todo: more logic func here
     };

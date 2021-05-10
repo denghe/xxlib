@@ -22,6 +22,8 @@ void DB::Env::operator()(std::function<void(DB::Env &)> &job) {
     }
 }
 
+/****************************************************************************************/
+
 DB::Env::Env() {
     conn.Emplace("data.db3");
     if (!*conn) {
@@ -46,28 +48,29 @@ insert into acc(id, username, password) values (2, "b", "b")
     }
 }
 
-int DB::Env::GetAccountIdByUsernamePassword(std::string_view const &username, std::string_view const &password) {
-    auto &q = qGetAccountIdByUsernamePassword;
-    if (!q) {
-        q.Emplace(*conn, "select id from acc where username = ? and password = ?");
-    }
-    q->SetParameters(username, password);
-    int aid;
-    if (!q->ExecuteTo(aid)) return -1;
-    return aid;
-}
+DB::Rtv<int> DB::Env::TryGetAccountIdByUsernamePassword(std::string_view const &username, std::string_view const &password) {
+    DB::Rtv<int> rtv;
+    try {
+        // create query
+        auto &q = qTryGetAccountIdByUsernamePassword;
+        if (!q) {
+            q.Emplace(*conn, "select id from acc where username = ? and password = ?");
+        }
 
-//    tp->Add([this, u = std::string(username), p = std::string(password), cb = std::move(cb)](Env &env) mutable {
-//        auto &q = env.qGetAccountIdByUsernamePassword;
-//        if (!q) {
-//            q.Emplace(*env.conn, "select id from acc where username = ? and password = ?");
-//        }
-//        q->SetParameters(u, p);
-//        int aid;
-//        if (!q->ExecuteTo(aid)) {
-//            aid = -1;
-//        }
-//        server->Dispatch([aid, cb = std::move(cb)] {
-//            cb(aid);
-//        });
-//    });
+        // set args
+        q->SetParameters(username, password);
+
+        // execute, fill result
+        if (!q->ExecuteTo(rtv.value)) {
+
+            // not found data
+            rtv.value = -1;
+        }
+    }
+    catch(...) {
+        rtv.success = false;
+        rtv.errCode = conn->lastErrorCode;
+        rtv.errMsg = conn->lastErrorMessage;
+    }
+    return rtv;
+}

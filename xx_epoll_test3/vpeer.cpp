@@ -21,6 +21,56 @@ void VPeerCB::Timeout() {
 
 /****************************************************************************************/
 
+// 发推送 package
+int VPeer::SendPushPackage(xx::ObjBase_s const &o) const {
+    // 推送性质的包, serial == 0
+    return SendResponsePackage(0, o);
+}
+
+// 发回应 package
+int VPeer::SendResponsePackage(int const &serial, xx::ObjBase_s const &o) const {
+    if (!Alive()) return __LINE__;
+
+    // 准备发包填充容器
+    xx::Data d(16384);
+    // 跳过包头
+    d.len = sizeof(uint32_t);
+    // 写 要发给谁
+    d.WriteFixed(clientId);
+    // 写序号
+    d.WriteVarInteger(serial);
+    // 写数据
+    S->om.WriteTo(d, o);
+    // 填包头
+    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
+    // 发包并返回
+    return gatewayPeer->Send(std::move(d));
+}
+
+// 发请求 package（收到相应回应时会触发 cb 执行。超时或断开也会触发，buf == nullptr）
+int VPeer::SendRequestPackage(xx::ObjBase_s const &o, std::function<void(xx::ObjBase_s &&o)> &&cbfunc, double const &timeoutSeconds) {
+    // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
+    autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
+    // 创建一个 带超时的回调
+    auto &&cb = xx::Make<VPeerCB>(xx::SharedFromThis(this), autoIncSerial, [s = S, f = std::move(cbfunc)](uint8_t const *buf, size_t len) {
+        xx::Data_r dr(buf, len);
+        xx::ObjBase_s o;
+        if (int r = s->om.ReadFrom(dr, o)) {
+            LOG_ERR("cbfunc s->om.ReadFrom(dr, o) r = ", r);
+            f(nullptr);
+        } else {
+            f(std::move(o));
+        }
+    }, timeoutSeconds);
+    cb->Hold();
+    // 以序列号建立cb的映射
+    callbacks[autoIncSerial] = cb;
+    // 发包并返回( 请求性质的包, 序号为负数 )
+    return SendResponsePackage(-autoIncSerial, o);
+}
+
+/****************************************************************************************/
+
 int VPeer::SendPush(uint8_t const *const &buf, size_t const &len) const {
     // 推送性质的包, serial == 0
     return SendResponse(0, buf, len);
@@ -183,49 +233,96 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
     xx::Data_r dr(buf, len);
     LOG_INFO("clientId = ", clientId, " accountId = ", accountId, " buf = ", dr);
     if (IsGuest()) {
-        // logic here
-        xx::ObjBase_s pkg;
-        if (int r = S->om.ReadFrom(dr, pkg)) {
+        // guest logic here: auth login
+
+        // unpack
+        xx::ObjBase_s ob;
+        if (int r = S->om.ReadFrom(dr, ob)) {
             Close(__LINE__, xx::ToString("VPeer ReceiveRequest clientId = ", clientId, " accountId = ", accountId, " if (int r = S->om.ReadFrom(dr, pkg)) r = ", r, " buf = ", dr));
             return;
         }
-        switch (pkg.typeId()) {
+
+        // switch handle
+        switch (ob.typeId()) {
             case xx::TypeId_v<Client_Lobby::Auth>: {
-                auto &&o = S->om.As<Client_Lobby::Auth>(pkg);
-                // todo: set busy flag?
-                // o -> shared_ptr thread safe
+                auto &&o = S->om.As<Client_Lobby::Auth>(ob);
+
+                // check & set busy flag
+                if (typeRef<Client_Lobby::Auth>()) {
+                    Close(__LINE__, "VPeer::ReceiveRequest duplicated Client_Lobby::Auth");
+                    return;
+                }
+
+                // put job to thread pool
+                // thread safe: o -> shared_ptr( use ), copy serial( copy through ), vpper -> weak( move through )
                 S->db->AddJob([o = S->ToPtr(std::move(o)), serial, w = Weak()](DB::Env &env) mutable {
-                    int aid = env.GetAccountIdByUsernamePassword(o->username, o->password);
-                    env.server->Dispatch([serial, aid, w = std::move(w)] {
+
+                    // SQL query
+                    auto rtv = env.TryGetAccountIdByUsernamePassword(o->username, o->password);
+
+                    // dispatch handle SQL query result
+                    // thread safe: copy serial( use ), move rtv( use ), move w( use )
+                    env.server->Dispatch([serial, rtv = std::move(rtv), w = std::move(w)]() mutable {
+
+                        // ensure vp is exists & alive
                         if (auto vp = w.Lock()) {
-                            // todo: clear busy flag?
-                            auto msg = xx::Make<Lobby_Client::AuthResult>();
-                            msg->accountId = aid;
-                            auto s = ((Server*)vp->ec);
-                            s->d.Clear();
-                            s->om.WriteTo(s->d, msg);
-                            vp->SendResponse(serial, s->d.buf, s->d.len);
-                            if (aid != -1) {
-                                // vp->accountId = aid;
-                                // todo: update key?
+                            if (vp->Alive()) {
+
+                                // clear busy flag
+                                assert(vp->typeCount<Client_Lobby::Auth>() == 1);
+                                vp->typeDeref<Client_Lobby::Auth>();
+
+                                // check result( rv.value is accountId )
+                                if (!rtv) {
+                                    // sql execute error
+                                    // todo: send generic error
+                                    return;
+                                } else if (rtv.value == -1) {
+                                    // not found: do nothing
+                                } else {
+                                    // found: set accountId
+                                    if (!vp->SetAccountId(rtv.value)) {
+                                        // error
+                                        rtv.value = -1;
+                                    }
+                                }
+                                // send package
+                                // todo: get static pkg instance from S for shared use ?
+                                auto m = xx::Make<Lobby_Client::AuthResult>();
+                                m->accountId = rtv.value;
+                                vp->SendResponsePackage(serial, m);
                             }
-                            // todo: xx::ObjBase_s version SendXxxxxx
                         }
                     });
                 });
 
-                break;
+                // no more code here( do not visit moved values )
+                return;
             }
+
+                // no more case here
             default: {
-                break;
+                return;
             }
         }
     } else {
         // todo: game logic here
+
+
     }
 }
 
 void VPeer::Update(double const &dt) {
     if (IsGuest()) return;
     // todo: frame logic here
+}
+
+bool VPeer::SetAccountId(int const& accountId_) {
+    if (accountId != -1) return false;
+    //if (S->vps.Exists<1>(accountId_)) return false;
+    if (S->vps.UpdateAt<1>(serverVpsIndex, accountId_)) {
+        accountId = accountId_;
+        return true;
+    }
+    return false;
 }

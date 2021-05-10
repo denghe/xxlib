@@ -159,6 +159,7 @@ namespace xx::SQLite {
     // 数据库主体
     struct Connection {
         friend Query;
+        friend Reader;
 
         // 保存最后一次的错误码
         int lastErrorCode = 0;
@@ -274,11 +275,12 @@ namespace xx::SQLite {
 
     struct Reader {
     protected:
+        Connection& owner;
         sqlite3_stmt *stmt = nullptr;
     public:
         int numCols = 0;
 
-        Reader(sqlite3_stmt *const &stmt);
+        Reader(Connection& owner, sqlite3_stmt *const &stmt);
 
         Reader() = delete;
 
@@ -671,7 +673,7 @@ namespace xx::SQLite {
 
     inline void Query::Execute(ReadFunc &&rf) {
         assert(stmt);
-        Reader dr(stmt);
+        Reader dr(owner, stmt);
 
         int r = sqlite3_step(stmt);
         if (r == SQLITE_DONE || (r == SQLITE_ROW && !rf)) goto LabEnd;
@@ -713,19 +715,19 @@ namespace xx::SQLite {
     /***************************************************************/
     // Reader
 
-    inline Reader::Reader(sqlite3_stmt *const &stmt) : stmt(stmt) {}
+    inline Reader::Reader(Connection& owner, sqlite3_stmt *const &stmt) : owner(owner), stmt(stmt) {}
 
     inline int Reader::GetColumnCount() {
         return sqlite3_column_count(stmt);
     }
 
     inline DataTypes Reader::GetColumnDataType(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols) owner.ThrowError(-__LINE__, "Reader GetColumnDataType colIdx out of range");
         return (DataTypes) sqlite3_column_type(stmt, colIdx);
     }
 
     inline char const *Reader::GetColumnName(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols) owner.ThrowError(-__LINE__, "Reader GetColumnName colIdx out of range");
         return sqlite3_column_name(stmt, colIdx);
     }
 
@@ -743,40 +745,40 @@ namespace xx::SQLite {
 
 
     inline bool Reader::IsDBNull(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols) owner.ThrowError(-__LINE__, "Reader IsDBNull colIdx out of range");
         return GetColumnDataType(colIdx) == DataTypes::Null;
     }
 
     inline char const *Reader::ReadString(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols) owner.ThrowError(-__LINE__, "Reader ReadString colIdx out of range");
         if (IsDBNull(colIdx)) return nullptr;
         return (char const *) sqlite3_column_text(stmt, colIdx);
     }
 
     inline int Reader::ReadInt32(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) owner.ThrowError(-__LINE__, "Reader ReadInt32 colIdx out of range");
         return sqlite3_column_int(stmt, colIdx);
     }
 
     inline int64_t Reader::ReadInt64(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) owner.ThrowError(-__LINE__, "Reader ReadInt64 colIdx out of range");
         return sqlite3_column_int64(stmt, colIdx);
     }
 
     inline double Reader::ReadDouble(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) owner.ThrowError(-__LINE__, "Reader ReadDouble colIdx out of range");
         return sqlite3_column_double(stmt, colIdx);
     }
 
     inline std::pair<char const *, int> Reader::ReadText(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols) owner.ThrowError(-__LINE__, "Reader ReadText colIdx out of range");
         auto ptr = (char const *) sqlite3_column_text(stmt, colIdx);
         auto len = sqlite3_column_bytes(stmt, colIdx);
         return std::make_pair(ptr, len);
     }
 
     inline std::pair<char const *, int> Reader::ReadBlob(int const &colIdx) {
-        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
+        if (colIdx < 0 || colIdx >= numCols) owner.ThrowError(-__LINE__, "Reader ReadBlob colIdx out of range");
         auto ptr = (char const *) sqlite3_column_blob(stmt, colIdx);
         auto len = sqlite3_column_bytes(stmt, colIdx);
         return std::make_pair(ptr, len);
