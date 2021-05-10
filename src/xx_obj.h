@@ -1110,8 +1110,8 @@ using BaseType = BT; \
 T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
-T(T&& o) noexcept = default; \
-T& operator=(T&& o) noexcept = default; \
+T(T&& o) = default; \
+T& operator=(T&& o) = default; \
 void Write(xx::ObjManager& o, xx::Data& d) const override; \
 int Read(xx::ObjManager& o, xx::Data_r& d) override; \
 void Append(xx::ObjManager& o, std::string& s) const override; \
@@ -1125,8 +1125,8 @@ void SetDefaultValue(xx::ObjManager& o) override;
 T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
-T(T&& o) noexcept = default; \
-T& operator=(T&& o) noexcept = default;
+T(T&& o) = default; \
+T& operator=(T&& o) = default;
 
 #define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \
