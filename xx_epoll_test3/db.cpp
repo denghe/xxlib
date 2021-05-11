@@ -69,8 +69,8 @@ DB::Rtv<int> DB::Env::TryGetAccountIdByUsernamePassword(std::string_view const &
     }
     catch(...) {
         rtv.success = false;
-        rtv.errCode = conn->lastErrorCode;
-        rtv.errMsg = conn->lastErrorMessage;
+        rtv.errorCode = conn->lastErrorCode;
+        rtv.errorMessage = conn->lastErrorMessage;
     }
     return rtv;
 }

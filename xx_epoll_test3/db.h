@@ -17,8 +17,8 @@ struct DB {
             return success;
         }
 
-        int errCode = 0;
-        std::string errMsg;
+        int errorCode = 0;
+        std::string errorMessage;
 
         template<typename U>
         explicit Rtv(U&& v){

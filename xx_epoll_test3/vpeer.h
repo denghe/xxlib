@@ -44,6 +44,9 @@ struct VPeer : EP::Timer {
     // 所有 带超时的回调. key: serial
     std::unordered_map<int, xx::Shared<VPeerCB>> callbacks;
 
+    // logic data
+    int32_t accountId = -1;
+
     /****************************************************************************************/
     // receive helpers
 
@@ -82,6 +85,12 @@ struct VPeer : EP::Timer {
     /****************************************************************************************/
     // send helpers
 
+    // return cached instance for quickly send package
+    template<typename T>
+    xx::Shared<T> const& InstanceOf() const {
+        return ((Server*)ec)->om.InstanceOf<T>();
+    }
+
     // 发推送 package
     int SendPushPackage(xx::ObjBase_s const &o) const;
 
@@ -91,11 +100,6 @@ struct VPeer : EP::Timer {
     // 发请求 package（收到相应回应时会触发 cb 执行。超时或断开也会触发，buf == nullptr）
     int SendRequestPackage(xx::ObjBase_s const &o, std::function<void(xx::ObjBase_s&& o)> &&cbfunc, double const &timeoutSeconds);
 
-
-    /****************************************************************************************/
-    // logic data
-
-    int32_t accountId = -1;
 
     /****************************************************************************************/
 

@@ -1,6 +1,6 @@
 #include "vpeer.h"
 #include "gpeer.h"
-#include "pkg.h"
+#include "pkg_lobby.h"
 #include "db.h"
 
 #define S ((Server*)ec)
@@ -254,7 +254,7 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                 }
 
                 // put job to thread pool
-                // thread safe: o -> shared_ptr( use ), copy serial( copy through ), vpper -> weak( move through )
+                // thread safe: o => shared_ptr( use ), copy serial( copy through ), vpper => weak( move through )
                 S->db->AddJob([o = S->ToPtr(std::move(o)), serial, w = Weak()](DB::Env &env) mutable {
 
                     // SQL query
@@ -275,54 +275,45 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                                 // check result( rv.value is accountId )
                                 if (!rtv) {
                                     // sql execute error
-                                    // todo: send generic error
+                                    auto&& m = vp->InstanceOf<Generic::Error>();
+                                    m->errorCode = rtv.errorCode;
+                                    m->errorMessage = rtv.errorMessage;
+                                    vp->SendResponsePackage(serial, m);
                                     return;
                                 } else if (rtv.value == -1) {
                                     // not found: do nothing
                                 } else {
                                     // found: set accountId
                                     if (!vp->SetAccountId(rtv.value)) {
-                                        // error
+                                        // error: duplicate?
                                         rtv.value = -1;
                                     }
                                 }
                                 // send package
-                                // todo: get static pkg instance from S for shared use ?
-                                auto m = xx::Make<Lobby_Client::AuthResult>();
+                                auto&& m = vp->InstanceOf<Lobby_Client::AuthResult>();
                                 m->accountId = rtv.value;
                                 vp->SendResponsePackage(serial, m);
                             }
                         }
                     });
                 });
-
-                // no more code here( do not visit moved values )
-                return;
             }
-
-                // no more case here
-            default: {
-                return;
-            }
+            default: break;
         }
     } else {
         // todo: game logic here
-
-
     }
+}
+
+bool VPeer::SetAccountId(int const& accountId_) {
+    if (accountId != -1) return false;
+    if (accountId == accountId_) return false;
+    if (!S->vps.UpdateAt<1>(serverVpsIndex, accountId_)) return false;
+    accountId = accountId_;
+    return true;
 }
 
 void VPeer::Update(double const &dt) {
     if (IsGuest()) return;
     // todo: frame logic here
-}
-
-bool VPeer::SetAccountId(int const& accountId_) {
-    if (accountId != -1) return false;
-    //if (S->vps.Exists<1>(accountId_)) return false;
-    if (S->vps.UpdateAt<1>(serverVpsIndex, accountId_)) {
-        accountId = accountId_;
-        return true;
-    }
-    return false;
 }

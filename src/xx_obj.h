@@ -150,6 +150,9 @@ namespace xx {
 		// 存储 typeId 对应的 Type 是否为 "简单类型"( 只含有基础数据类型, 可跳过递归检测，简化序列化操作 )
 		inline static std::array<bool, std::numeric_limits<uint16_t>::max()> simples{};
 
+		// instance cache( for send )
+        inline static std::array<ObjBase_s, std::numeric_limits<uint16_t>::max()> objs{};
+
 		// 根据 typeid 判断父子关系
 		XX_INLINE static bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) noexcept {
 			for (; typeId != baseTypeId; typeId = pids[typeId]) {
@@ -195,6 +198,7 @@ namespace xx {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			pids[TypeId_v<T>] = TypeId_v<typename T::BaseType>;
 			fs[TypeId_v<T>] = []() -> ObjBase_s { return Make<T>(); };
+            objs[TypeId_v<T>] = Make<T>();
 			if constexpr (IsSimpleType_v<T>) {
 				if constexpr (std::is_same_v<typename T::IsSimpleType_v, T>) {
 					simples[TypeId_v<T>] = true;
@@ -208,7 +212,14 @@ namespace xx {
 			return fs[typeId]();
 		}
 
-		// 向 data 写入数据( 支持 Shared<T> 或 T 结构体 ). 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
+        // return cached type instance
+        template<typename T>
+        XX_INLINE static Shared<T> const& InstanceOf() {
+            return *(Shared<T>*)&objs[TypeId_v<T>];
+        }
+
+
+        // 向 data 写入数据( 支持 Shared<T> 或 T 结构体 ). 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		// 如果 v 是 Shared<T> 类型 且 v 的类型 和 T 完全一致( 并非基类 ), 则可 令 direct = true 以加速写入操作
 		// 如果有预分配 data 的内存，可设置 needReserve 为 false. 主要针对结构体嵌套的简单类型. 遇到 "类" 会阻断 ( 需有充分把握，最好在结束后 assert( d.len <= d.cap ) )
 		template<bool needReserve = true, bool direct = false, typename T>

@@ -21,7 +21,8 @@ add_executable(xx_epoll_test3
 		vpeer.cpp
 		pingtimer.cpp
 		db.cpp
-		../codegen_test2/cpp/pkg.cpp
+		../codegen_test2/cpp/pkg_generic.cpp
+		../codegen_test2/cpp/pkg_lobby.cpp
 		)
 
 target_link_libraries(xx_epoll_test3
