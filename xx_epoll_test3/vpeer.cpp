@@ -251,9 +251,12 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                 auto &&o = S->om.As<Client_Lobby::Auth>(ob);
 
                 // check & set busy flag
-                if (typeRef<Client_Lobby::Auth>()) {
+                if (TypeCount<Client_Lobby::Auth>()) {
                     Close(__LINE__, "VPeer::ReceiveRequest duplicated Client_Lobby::Auth");
                     return;
+                }
+                else {
+                    TypeCountInc<Client_Lobby::Auth>();
                 }
 
                 // put job to thread pool
@@ -271,8 +274,8 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                         if (auto vp = w.Lock(); vp->Alive()) {
 
                             // clear busy flag
-                            assert(vp->typeCount<Client_Lobby::Auth>() == 1);
-                            vp->typeDeref<Client_Lobby::Auth>();
+                            assert(vp->TypeCount<Client_Lobby::Auth>() == 1);
+                            vp->TypeCountDec<Client_Lobby::Auth>();
 
                             // check result( rv.value is accountId )
                             if (!rtv) {

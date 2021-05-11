@@ -58,31 +58,20 @@ struct VPeer : EP::Timer {
     std::array<int8_t, std::numeric_limits<uint16_t>::max()> typeCounters{};
     // return count value
     template<typename T>
-    int8_t typeCount() const {
+    int8_t const& TypeCount() const {
         return typeCounters[xx::TypeId_v<T>];
     }
-    int8_t typeCount(uint16_t const& typeId) const {
-        return typeCounters[typeId];
-    }
-    // return old count value, count += 1
+    // ++count
     template<typename T>
-    int8_t typeRef() {
+    void TypeCountInc() {
         assert(typeCounters[xx::TypeId_v<T>] >= 0);
-        return typeCounters[xx::TypeId_v<T>]++;
-    }
-    int8_t typeRef(uint16_t const& typeId) {
-        assert(typeCounters[typeId] >= 0);
-        return typeCounters[typeId]++;
+        ++typeCounters[xx::TypeId_v<T>];
     }
     // --count
     template<typename T>
-    int8_t typeDeref() {
+    void TypeCountDec() {
         assert(typeCounters[xx::TypeId_v<T>] > 0);
-        return --typeCounters[xx::TypeId_v<T>];
-    }
-    uint8_t typeDeref(uint16_t const& typeId) {
-        assert(typeCounters[typeId] > 0);
-        return --typeCounters[typeId];
+        --typeCounters[xx::TypeId_v<T>];
     }
 
     /****************************************************************************************/
