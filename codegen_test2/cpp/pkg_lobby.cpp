@@ -1,12 +1,12 @@
 ﻿#include "pkg_lobby.h"
 #include "pkg_lobby.cpp.inc"
 void CodeGen_pkg_lobby::Register() {
-	::xx::ObjManager::Register<::Lobby_Client::Response::Auth::Online>();
-	::xx::ObjManager::Register<::Lobby_Client::Response::Auth::Error>();
-	::xx::ObjManager::Register<::Lobby_Client::Response::Auth::Restore>();
-	::xx::ObjManager::Register<::Client_Lobby::Request::Auth>();
+	::xx::ObjManager::Register<::Lobby_Client::Auth::Online>();
+	::xx::ObjManager::Register<::Lobby_Client::Auth::Error>();
+	::xx::ObjManager::Register<::Lobby_Client::Auth::Restore>();
+	::xx::ObjManager::Register<::Client_Lobby::Auth>();
 }
-namespace Lobby_Client::Response::Auth{
+namespace Lobby_Client::Auth{
     void Online::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         om.Write(d, this->accountId);
     }
@@ -27,7 +27,7 @@ namespace Lobby_Client::Response::Auth{
 #endif
     }
     void Online::Clone(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::Lobby_Client::Response::Auth::Online*)tar;
+        auto out = (::Lobby_Client::Auth::Online*)tar;
         om.Clone_(this->accountId, out->accountId);
     }
     int Online::RecursiveCheck(::xx::ObjManager& om) const {
@@ -41,7 +41,7 @@ namespace Lobby_Client::Response::Auth{
         this->accountId = 0;
     }
 }
-namespace Lobby_Client::Response::Auth{
+namespace Lobby_Client::Auth{
     void Error::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
     }
@@ -75,7 +75,7 @@ namespace Lobby_Client::Response::Auth{
         this->BaseType::SetDefaultValue(om);
     }
 }
-namespace Lobby_Client::Response::Auth{
+namespace Lobby_Client::Auth{
     void Restore::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
         om.Write(d, this->serviceId);
@@ -100,7 +100,7 @@ namespace Lobby_Client::Response::Auth{
     }
     void Restore::Clone(::xx::ObjManager& om, void* const &tar) const {
         this->BaseType::Clone(om, tar);
-        auto out = (::Lobby_Client::Response::Auth::Restore*)tar;
+        auto out = (::Lobby_Client::Auth::Restore*)tar;
         om.Clone_(this->serviceId, out->serviceId);
     }
     int Restore::RecursiveCheck(::xx::ObjManager& om) const {
@@ -117,7 +117,7 @@ namespace Lobby_Client::Response::Auth{
         this->serviceId = 0;
     }
 }
-namespace Client_Lobby::Request{
+namespace Client_Lobby{
     void Auth::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         om.Write(d, this->username);
         om.Write(d, this->password);
@@ -141,7 +141,7 @@ namespace Client_Lobby::Request{
 #endif
     }
     void Auth::Clone(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::Client_Lobby::Request::Auth*)tar;
+        auto out = (::Client_Lobby::Auth*)tar;
         om.Clone_(this->username, out->username);
         om.Clone_(this->password, out->password);
     }

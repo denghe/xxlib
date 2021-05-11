@@ -1,6 +1,6 @@
 ﻿using TemplateLibrary;
 
-namespace Client_Lobby.Request {
+namespace Client_Lobby {
     [TypeId(10)]
     class Auth {
         string username;
@@ -8,7 +8,7 @@ namespace Client_Lobby.Request {
     }
 }
 
-namespace Lobby_Client.Response {
+namespace Lobby_Client {
     namespace Auth {
         [TypeId(11)]
         class Error : Generic.Error {};
