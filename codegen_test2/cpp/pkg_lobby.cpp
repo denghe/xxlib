@@ -2,6 +2,7 @@
 #include "pkg_lobby.cpp.inc"
 void CodeGen_pkg_lobby::Register() {
 	::xx::ObjManager::Register<::Lobby_Client::Response::Auth::Online>();
+	::xx::ObjManager::Register<::Lobby_Client::Response::Auth::Error>();
 	::xx::ObjManager::Register<::Lobby_Client::Response::Auth::Restore>();
 	::xx::ObjManager::Register<::Client_Lobby::Request::Auth>();
 }
@@ -15,7 +16,7 @@ namespace Lobby_Client::Response::Auth{
     }
     void Online::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":11");
+        ::xx::Append(s, "{\"__typeId__\":12");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif
@@ -41,6 +42,40 @@ namespace Lobby_Client::Response::Auth{
     }
 }
 namespace Lobby_Client::Response::Auth{
+    void Error::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+        this->BaseType::Write(om, d);
+    }
+    int Error::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
+        if (int r = this->BaseType::Read(om, d)) return r;
+        return 0;
+    }
+    void Error::Append(::xx::ObjManager& om, std::string& s) const {
+#ifndef XX_DISABLE_APPEND
+        ::xx::Append(s, "{\"__typeId__\":11");
+        this->AppendCore(om, s);
+        s.push_back('}');
+#endif
+    }
+    void Error::AppendCore(::xx::ObjManager& om, std::string& s) const {
+#ifndef XX_DISABLE_APPEND
+        this->BaseType::AppendCore(om, s);
+#endif
+    }
+    void Error::Clone(::xx::ObjManager& om, void* const &tar) const {
+        this->BaseType::Clone(om, tar);
+    }
+    int Error::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = this->BaseType::RecursiveCheck(om)) return r;
+        return 0;
+    }
+    void Error::RecursiveReset(::xx::ObjManager& om) {
+        this->BaseType::RecursiveReset(om);
+    }
+    void Error::SetDefaultValue(::xx::ObjManager& om) {
+        this->BaseType::SetDefaultValue(om);
+    }
+}
+namespace Lobby_Client::Response::Auth{
     void Restore::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
         om.Write(d, this->serviceId);
@@ -52,7 +87,7 @@ namespace Lobby_Client::Response::Auth{
     }
     void Restore::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":12");
+        ::xx::Append(s, "{\"__typeId__\":13");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif
