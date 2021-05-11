@@ -1,12 +1,12 @@
 ﻿#pragma once
-#include "xx_obj.h"
-#include "pkg.h.inc"
-struct CodeGen_pkg {
-	inline static const ::std::string md5 = "#*MD5<01a4f94996362665c3f08071f8228e75>*#";
+#include "pkg_generic.h"
+#include "pkg_lobby.h.inc"
+struct CodeGen_pkg_lobby {
+	inline static const ::std::string md5 = "#*MD5<06f6182325a53dbd958ca0f30bf111e4>*#";
     static void Register();
-    CodeGen_pkg() { Register(); }
+    CodeGen_pkg_lobby() { Register(); }
 };
-inline CodeGen_pkg __CodeGen_pkg;
+inline CodeGen_pkg_lobby __CodeGen_pkg_lobby;
 namespace Lobby_Client { struct AuthResult; }
 namespace Client_Lobby { struct Auth; }
 namespace xx {
@@ -30,4 +30,4 @@ namespace Client_Lobby {
         ::std::string password;
     };
 }
-#include "pkg_.h.inc"
+#include "pkg_lobby_.h.inc"

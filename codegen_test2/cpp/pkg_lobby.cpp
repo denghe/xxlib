@@ -1,6 +1,6 @@
-﻿#include "pkg.h"
-#include "pkg.cpp.inc"
-void CodeGen_pkg::Register() {
+﻿#include "pkg_lobby.h"
+#include "pkg_lobby.cpp.inc"
+void CodeGen_pkg_lobby::Register() {
 	::xx::ObjManager::Register<::Lobby_Client::AuthResult>();
 	::xx::ObjManager::Register<::Client_Lobby::Auth>();
 }

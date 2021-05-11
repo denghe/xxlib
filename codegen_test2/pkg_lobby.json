@@ -1,0 +1,8 @@
+{
+  "refs": ["pkg_generic.json"],
+  "name": "pkg_lobby",
+  "files": [ "pkg_lobby.cs" ],
+  "!outdir_cs": "cs",
+  "!outdir_lua": "lua",
+  "outdir_cpp": "cpp"
+}
