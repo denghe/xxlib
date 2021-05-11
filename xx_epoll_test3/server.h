@@ -7,11 +7,12 @@ namespace EP = xx::Epoll;
 // 预声明
 struct Listener;
 struct GPeer;
-//struct SPeer;
 struct VPeer;
 struct PingTimer;
-// Lobby? Room?
 struct DB;
+struct Game;
+
+//struct SPeer
 
 // 服务本体
 struct Server : EP::Context {
@@ -29,16 +30,17 @@ struct Server : EP::Context {
 
     // shared obj manager
     xx::ObjManager om;
-    // shared data
-    xx::Data d;
 
 //    // server peers. key: server id
 //    std::unordered_map<uint32_t, xx::Shared<SPeer>> sps;
 
+    // key: gameId
+    std::unordered_map<int, xx::Shared<Game>> games;
+
     // gateway peers. key: gateway id
     std::unordered_map<uint32_t, xx::Shared<GPeer>> gps;
 
-    // virtual peers. key0: gateway id << 32 | client id   key1: account id (logic data)
+    // virtual peers( players ). key0: gateway id << 32 | client id   key1: account id (logic data)
     xx::DictMK<xx::Shared<VPeer>, uint64_t, int32_t> vps;
 
     // Make: accountId = --server->autoDecId

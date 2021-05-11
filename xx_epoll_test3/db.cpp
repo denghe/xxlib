@@ -34,37 +34,39 @@ DB::Env::Env() {
 CREATE TABLE acc (
     id              int         primary key     not null,
     username        text                        not null,
-    password        text                        not null
+    password        text                        not null,
+    nickname        text                        not null,
+    coin            float                       not null
 )
 )#");
     }
     if (conn->Execute<int64_t>("select count(*) from acc") == 0) {
         conn->Call(R"#(
-insert into acc(id, username, password) values (1, "a", "a")
+insert into acc(id, username, password, nickname, coin) values (1, "a", "a", "player1", 100)
 )#");
         conn->Call(R"#(
-insert into acc(id, username, password) values (2, "b", "b")
+insert into acc(id, username, password, nickname, coin) values (2, "b", "b", "player2", 200)
 )#");
     }
 }
 
-DB::Rtv<int> DB::Env::TryGetAccountIdByUsernamePassword(std::string_view const &username, std::string_view const &password) {
-    DB::Rtv<int> rtv;
+DB::Rtv<DB::AccountInfo> DB::Env::TryGetAccountInfoByUsernamePassword(std::string_view const &username, std::string_view const &password) {
+    Rtv<AccountInfo> rtv;
     try {
         // create query
-        auto &q = qTryGetAccountIdByUsernamePassword;
+        auto &q = qTryGetAccountInfoByUsernamePassword;
         if (!q) {
-            q.Emplace(*conn, "select id from acc where username = ? and password = ?");
+            q.Emplace(*conn, "select id, nickname, coin from acc where username = ? and password = ?");
         }
 
         // set args
         q->SetParameters(username, password);
 
         // execute, fill result
-        if (!q->ExecuteTo(rtv.value)) {
+        if (!q->ExecuteTo(rtv.value.accountId, rtv.value.nickname, rtv.value.coin)) {
 
             // not found data
-            rtv.value = -1;
+            rtv.value.accountId = -1;
         }
     }
     catch(...) {

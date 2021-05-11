@@ -91,6 +91,14 @@ size_t _countof(T const (&arr)[N]) {
 #endif
 
 
+#define XX_SIMPLE_STRUCT_DEFAULT_CODES(T)\
+T() = default;\
+T(T const&) = default;\
+T(T &&) = default;\
+T& operator=(T const&) = default;\
+T& operator=(T &&) = default;
+
+
 // stackless 协程相关
 // 当前主要用到这些宏。只有 lineNumber 一个特殊变量名要求
 #define COR_BEGIN	switch (lineNumber) { case 0:

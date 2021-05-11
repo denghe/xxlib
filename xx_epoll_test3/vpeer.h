@@ -1,9 +1,11 @@
 #pragma once
 
 #include "server.h"
+#include "db.h"
 
 struct GPeer;
 struct VPeer;
+struct Game;
 
 // 带超时的回调
 struct VPeerCB : EP::Timer {
@@ -49,6 +51,9 @@ struct VPeer : EP::Timer {
 
     // logic data
     int32_t accountId = -1;
+    std::string nickname;
+    double coin = 0;
+    Game* game = nullptr;
 
     /****************************************************************************************/
     // receive helpers
@@ -148,5 +153,5 @@ struct VPeer : EP::Timer {
     bool IsGuest() const;
 
     // guest: set accountId, update key / swap.  return 0: online success. 1: swap success.  error: < 0
-    int SetAccountId(int const& accountId);
+    int SetAccount(DB::AccountInfo const& ai);
 };

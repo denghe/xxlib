@@ -7,6 +7,7 @@
 #include "gpeer.h"
 #include "vpeer.h"
 #include "db.h"
+#include "game.h"
 
 int Server::Init() {
     // 初始化监听器

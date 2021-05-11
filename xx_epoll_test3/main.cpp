@@ -7,6 +7,7 @@
 #include "gpeer.h"
 #include "vpeer.h"
 #include "db.h"
+#include "game.h"
 
 int main() {
 	// 禁掉 SIGPIPE 信号避免因为连接关闭出错

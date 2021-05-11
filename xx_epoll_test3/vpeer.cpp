@@ -2,6 +2,7 @@
 #include "gpeer.h"
 #include "pkg_lobby.h"
 #include "db.h"
+#include "game.h"
 
 #define S ((Server*)ec)
 
@@ -263,7 +264,7 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                 S->db->AddJob([o = S->ToPtr(std::move(o)), serial, w = Weak()](DB::Env &env) mutable {
 
                     // SQL query
-                    auto rtv = env.TryGetAccountIdByUsernamePassword(o->username, o->password);
+                    auto rtv = env.TryGetAccountInfoByUsernamePassword(o->username, o->password);
 
                     // dispatch handle SQL query result
                     // thread safe: copy serial( use ), move rtv( use ), move w( use )
@@ -285,7 +286,7 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                                 m->errorMessage = rtv.errorMessage;
                                 vp->SendResponsePackage(serial, m);
 
-                            } else if (rtv.value == -1) {
+                            } else if (rtv.value.accountId == -1) {
 
                                 // not found
                                 auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
@@ -296,27 +297,40 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                             } else {
 
                                 // found: set accountId
-                                int r = vp->SetAccountId(rtv.value);
+                                int r = vp->SetAccount(rtv.value);
                                 if (r < 0) {
 
                                     // send error
                                     auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
                                     m->errorCode = -2;
-                                    m->errorMessage = xx::ToString("SetAccountId(rtv.value) error r = ", r);
+                                    m->errorMessage = xx::ToString("SetAccountId error. accountId = ", rtv.value.accountId, " r = ", r);
                                     vp->SendResponsePackage(serial, m);
                                 } else {
+
+                                    // success
+                                    auto fill = [&](Lobby_Client::Auth::Online* const& m) {
+                                        m->accountId = rtv.value.accountId;
+                                        m->nickname = rtv.value.nickname;
+                                        m->coin = rtv.value.coin;
+                                        m->games.clear();
+                                        for (auto& kv : ((Server*)vp->ec)->games) {
+                                            auto& g = m->games.emplace_back();
+                                            g.gameId = kv.first;
+                                        }
+                                    };
                                     if (r == 0) {
 
                                         // send auth result: online
                                         auto &&m = vp->InstanceOf<Lobby_Client::Auth::Online>();
-                                        m->accountId = rtv.value;
+                                        fill(m);
                                         vp->SendResponsePackage(serial, m);
                                     } else {
 
                                         // send auth result: restore
                                         auto &&m = vp->InstanceOf<Lobby_Client::Auth::Restore>();
-                                        m->accountId = rtv.value;
-                                        m->serviceId = 0;   // todo: fill by state
+                                        fill(m);
+                                        m->gameId = vp->game->gameId;
+                                        //m->serviceId = vp->game->peer->serviceId;
                                         vp->SendResponsePackage(serial, m);
                                     }
                                 }
@@ -333,23 +347,28 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
     }
 }
 
-int VPeer::SetAccountId(int const &accountId_) {
+int VPeer::SetAccount(DB::AccountInfo const& ai) {
     // ensure current is guest mode
     if (accountId != -1) return -__LINE__;
     // validate args
-    if (accountId == accountId_) return -__LINE__;
+    if (accountId == ai.accountId) return -__LINE__;
     // check exists
-    int idx = S->vps.Find<1>(accountId_);
+    int idx = S->vps.Find<1>(ai.accountId);
     if (idx == -1) {
         // not found: update key, online
         assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
-        auto r = S->vps.UpdateAt<1>(serverVpsIndex, accountId_);
+        auto r = S->vps.UpdateAt<1>(serverVpsIndex, ai.accountId);
         assert(r);
-        accountId = accountId_;
+        accountId = ai.accountId;
+        nickname = ai.nickname;
+        coin = ai.coin;
         return 0;
     } else {
         // exists: kick & swap
         auto &tar = S->vps.ValueAt(idx);
+        assert(tar->accountId == ai.accountId);
+        assert(tar->nickname == ai.nickname);
+        assert(tar->coin == ai.coin);
         tar->Kick(__LINE__, xx::ToString("replace by gatewayId = ", gatewayPeer->gatewayId, " clientId = ", clientId, " ip = ", ip));
         SwapWith(idx);
         return 1;

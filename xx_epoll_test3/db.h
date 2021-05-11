@@ -32,6 +32,13 @@ struct DB {
         Rtv& operator=(Rtv&&) noexcept = default;
     };
 
+    struct AccountInfo {
+        XX_SIMPLE_STRUCT_DEFAULT_CODES(AccountInfo);
+        int32_t accountId = -1;
+        std::string nickname;
+        double coin = 0;
+    };
+
     struct Env {
         Env();
         void operator()(std::function<void(Env&)>& job);
@@ -42,9 +49,9 @@ struct DB {
         xx::ThreadPool2<Env, 1>* tp = nullptr;
         xx::Shared<xx::SQLite::Connection> conn;
 
-        // try get account id by username & password. value == -1: not found
-        xx::Shared<xx::SQLite::Query> qTryGetAccountIdByUsernamePassword;
-        Rtv<int> TryGetAccountIdByUsernamePassword(std::string_view const& username, std::string_view const& password);
+        // try get accountId, nickname, coin from table: acc  by  username & password. value == -1: not found
+        xx::Shared<xx::SQLite::Query> qTryGetAccountInfoByUsernamePassword;
+        Rtv<AccountInfo> TryGetAccountInfoByUsernamePassword(std::string_view const& username, std::string_view const& password);
 
         // todo: more logic func here
     };
