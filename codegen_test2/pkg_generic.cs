@@ -6,7 +6,7 @@ namespace Generic {
 
     [TypeId(2)]
     class Error {
-        int errNumber;
-        string errMessage;
+        int errorCode;
+        string errorMessage;
     };
 }

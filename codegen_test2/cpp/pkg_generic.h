@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "pkg_generic.h.inc"
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<73a86f606c1370ac143df00e31c7e076>*#";
+	inline static const ::std::string md5 = "#*MD5<1945a300c2a9878813c3823e0d20c44c>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };
@@ -24,8 +24,8 @@ namespace Generic {
     struct Error : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Error, ::xx::ObjBase)
         using IsSimpleType_v = Error;
-        int32_t errNumber = 0;
-        ::std::string errMessage;
+        int32_t errorCode = 0;
+        ::std::string errorMessage;
     };
 }
 #include "pkg_generic_.h.inc"

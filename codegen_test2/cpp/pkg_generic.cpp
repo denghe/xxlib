@@ -33,12 +33,12 @@ namespace Generic{
 }
 namespace Generic{
     void Error::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->errNumber);
-        om.Write(d, this->errMessage);
+        om.Write(d, this->errorCode);
+        om.Write(d, this->errorMessage);
     }
     int Error::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->errNumber)) return r;
-        if (int r = om.Read(d, this->errMessage)) return r;
+        if (int r = om.Read(d, this->errorCode)) return r;
+        if (int r = om.Read(d, this->errorMessage)) return r;
         return 0;
     }
     void Error::Append(::xx::ObjManager& om, std::string& s) const {
@@ -50,26 +50,26 @@ namespace Generic{
     }
     void Error::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        om.Append(s, ",\"errNumber\":", this->errNumber);
-        om.Append(s, ",\"errMessage\":", this->errMessage);
+        om.Append(s, ",\"errorCode\":", this->errorCode);
+        om.Append(s, ",\"errorMessage\":", this->errorMessage);
 #endif
     }
     void Error::Clone(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::Generic::Error*)tar;
-        om.Clone_(this->errNumber, out->errNumber);
-        om.Clone_(this->errMessage, out->errMessage);
+        om.Clone_(this->errorCode, out->errorCode);
+        om.Clone_(this->errorMessage, out->errorMessage);
     }
     int Error::RecursiveCheck(::xx::ObjManager& om) const {
-        if (int r = om.RecursiveCheck(this->errNumber)) return r;
-        if (int r = om.RecursiveCheck(this->errMessage)) return r;
+        if (int r = om.RecursiveCheck(this->errorCode)) return r;
+        if (int r = om.RecursiveCheck(this->errorMessage)) return r;
         return 0;
     }
     void Error::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->errNumber);
-        om.RecursiveReset(this->errMessage);
+        om.RecursiveReset(this->errorCode);
+        om.RecursiveReset(this->errorMessage);
     }
     void Error::SetDefaultValue(::xx::ObjManager& om) {
-        this->errNumber = 0;
-        om.SetDefaultValue(this->errMessage);
+        this->errorCode = 0;
+        om.SetDefaultValue(this->errorMessage);
     }
 }
