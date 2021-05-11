@@ -147,6 +147,6 @@ struct VPeer : EP::Timer {
     // accountId < 0
     bool IsGuest() const;
 
-    // guest: set accountId, update key / swap. if failed, return != 0
+    // guest: set accountId, update key / swap.  return 0: online success. 1: swap success.  error: < 0
     int SetAccountId(int const& accountId);
 };

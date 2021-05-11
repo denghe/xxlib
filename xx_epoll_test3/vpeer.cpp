@@ -202,7 +202,7 @@ xx::Weak<VPeer> VPeer::Weak() {
 /****************************************************************************************/
 // accountId? logic code here
 
-VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string&& ip)
+VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string &&ip)
         : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId), ip(std::move(ip)) {
     accountId = --server->autoDecId;
     auto r = server->vps.Add(xx::SharedFromThis(this), ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
@@ -254,8 +254,7 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                 if (TypeCount<Client_Lobby::Auth>()) {
                     Close(__LINE__, "VPeer::ReceiveRequest duplicated Client_Lobby::Auth");
                     return;
-                }
-                else {
+                } else {
                     TypeCountInc<Client_Lobby::Auth>();
                 }
 
@@ -281,7 +280,7 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                             if (!rtv) {
 
                                 // send sql execute error
-                                auto&& m = vp->InstanceOf<Generic::Error>();
+                                auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
                                 m->errorCode = rtv.errorCode;
                                 m->errorMessage = rtv.errorMessage;
                                 vp->SendResponsePackage(serial, m);
@@ -289,7 +288,7 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                             } else if (rtv.value == -1) {
 
                                 // not found
-                                auto&& m = vp->InstanceOf<Generic::Error>();
+                                auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
                                 m->errorCode = -1;
                                 m->errorMessage = "bad username or password.";
                                 vp->SendResponsePackage(serial, m);
@@ -297,57 +296,64 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                             } else {
 
                                 // found: set accountId
-                                if (int r = vp->SetAccountId(rtv.value)) {
+                                int r = vp->SetAccountId(rtv.value);
+                                if (r < 0) {
 
                                     // send error
-                                    auto&& m = vp->InstanceOf<Generic::Error>();
+                                    auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
                                     m->errorCode = -2;
                                     m->errorMessage = xx::ToString("SetAccountId(rtv.value) error r = ", r);
                                     vp->SendResponsePackage(serial, m);
+                                } else {
+                                    if (r == 0) {
+
+                                        // send auth result: online
+                                        auto &&m = vp->InstanceOf<Lobby_Client::Auth::Online>();
+                                        m->accountId = rtv.value;
+                                        vp->SendResponsePackage(serial, m);
+                                    } else {
+
+                                        // send auth result: restore
+                                        auto &&m = vp->InstanceOf<Lobby_Client::Auth::Restore>();
+                                        m->accountId = rtv.value;
+                                        m->serviceId = 0;   // todo: fill by state
+                                        vp->SendResponsePackage(serial, m);
+                                    }
                                 }
-                                else {
-
-                                    // send auth result( success )
-                                    auto&& m = vp->InstanceOf<Lobby_Client::AuthResult>();
-                                    m->accountId = rtv.value;
-                                    vp->SendResponsePackage(serial, m);
-
-                                    // todo: logic: sync state?
-                                }
-
                             }
                         }
                     });
                 });
             }
-            default: break;
+            default:
+                break;
         }
     } else {
         // todo: game logic here
     }
 }
 
-int VPeer::SetAccountId(int const& accountId_) {
+int VPeer::SetAccountId(int const &accountId_) {
     // ensure current is guest mode
-    if (accountId != -1) return __LINE__;
+    if (accountId != -1) return -__LINE__;
     // validate args
-    if (accountId == accountId_) return __LINE__;
+    if (accountId == accountId_) return -__LINE__;
     // check exists
     int idx = S->vps.Find<1>(accountId_);
     if (idx == -1) {
-        // new user: update key, online
+        // not found: update key, online
         assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
         auto r = S->vps.UpdateAt<1>(serverVpsIndex, accountId_);
         assert(r);
         accountId = accountId_;
-    }
-    else {
-        // old user: kick old user, swap ctx
-        auto& tar = S->vps.ValueAt(idx);
+        return 0;
+    } else {
+        // exists: kick & swap
+        auto &tar = S->vps.ValueAt(idx);
         tar->Kick(__LINE__, xx::ToString("replace by gatewayId = ", gatewayPeer->gatewayId, " clientId = ", clientId, " ip = ", ip));
         SwapWith(idx);
+        return 1;
     }
-    return 0;
 }
 
 void VPeer::Update(double const &dt) {
