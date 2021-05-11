@@ -27,7 +27,7 @@ struct VPeerCB : EP::Timer {
 
 // 虚拟 peer
 struct VPeer : EP::Timer {
-    explicit VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId);
+    explicit VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string&& ip);
 
     // index at server->vps( fill after create )
     int serverVpsIndex = -1;
@@ -37,6 +37,9 @@ struct VPeer : EP::Timer {
 
     // 存放位于 gateway 的 client id
     uint32_t clientId;
+
+    // client ip address( from cmd: accept )
+    std::string ip;
 
     // 循环自增用于生成 serial
     int autoIncSerial = 0;
@@ -155,6 +158,6 @@ struct VPeer : EP::Timer {
     // accountId < 0
     bool IsGuest() const;
 
-    // guest: set accountId, update key. if failed, return false (duplicate key? accountId != -1?)
-    bool SetAccountId(int const& accountId);
+    // guest: set accountId, update key / swap. if failed, return != 0
+    int SetAccountId(int const& accountId);
 };

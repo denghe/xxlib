@@ -79,7 +79,7 @@ void GPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
         // create peer, fill props, hold & store to server.vps, send open
         LOG_INFO("gatewayId = ", gatewayId, " accept clientId = ", clientId, " ip = ", ip);
         // todo: check ip is valid?
-        (void)xx::Make<VPeer>(S, this, clientId);
+        (void)xx::Make<VPeer>(S, this, clientId, std::move(ip));
     } else if (cmd == "close") {
         uint32_t clientId;
         if (int r = dr.Read(clientId)) {
