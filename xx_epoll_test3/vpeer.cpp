@@ -308,6 +308,8 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                                     auto&& m = vp->InstanceOf<Lobby_Client::AuthResult>();
                                     m->accountId = rtv.value;
                                     vp->SendResponsePackage(serial, m);
+
+                                    // todo: logic: sync state?
                                 }
 
                             }
