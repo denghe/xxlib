@@ -1,6 +1,6 @@
 ﻿using TemplateLibrary;
 
-namespace Client_Lobby {
+namespace Client_Lobby.Request {
     [TypeId(10)]
     class Auth {
         string username;
@@ -8,10 +8,18 @@ namespace Client_Lobby {
     };
 }
 
-namespace Lobby_Client {
-    [TypeId(11)]
-    class AuthResult {
-        [Desc("-1: not found")]
-        int accountId;
-    };
+namespace Lobby_Client.Response {
+    namespace Auth {
+        [TypeId(11)]
+        class Online {
+            int accountId;
+            // todo: more account data here
+        };
+        [TypeId(12)]
+        class Restore : Online {
+            int serviceId;
+            // todo: more state data here
+        };
+    }
+    // todo: restore state?
 }
