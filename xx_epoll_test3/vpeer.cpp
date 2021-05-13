@@ -53,7 +53,7 @@ int VPeer::SendRequestPackage(xx::ObjBase_s const &o, std::function<void(xx::Obj
     // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
     autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
     // 创建一个 带超时的回调
-    auto &&cb = xx::Make<VPeerCB>(xx::SharedFromThis(this), autoIncSerial, [s = S, f = std::move(cbfunc)](uint8_t const *buf, size_t len) {
+    auto &&cb = xx::Make<VPeerCB>(this, autoIncSerial, [s = S, f = std::move(cbfunc)](uint8_t const *buf, size_t len) {
         xx::Data_r dr(buf, len);
         xx::ObjBase_s o;
         if (int r = s->om.ReadFrom(dr, o)) {
@@ -65,7 +65,7 @@ int VPeer::SendRequestPackage(xx::ObjBase_s const &o, std::function<void(xx::Obj
     }, timeoutSeconds);
     cb->Hold();
     // 以序列号建立cb的映射
-    callbacks[autoIncSerial] = cb;
+    callbacks[autoIncSerial] = std::move(cb);
     // 发包并返回( 请求性质的包, 序号为负数 )
     return SendResponsePackage(-autoIncSerial, o);
 }
@@ -100,10 +100,10 @@ int VPeer::SendRequest(uint8_t const *const &buf, size_t const &len, typename VP
     // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
     autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
     // 创建一个 带超时的回调
-    auto &&cb = xx::Make<VPeerCB>(xx::SharedFromThis(this), autoIncSerial, std::move(cbfunc), timeoutSeconds);
+    auto &&cb = xx::Make<VPeerCB>(this, autoIncSerial, std::move(cbfunc), timeoutSeconds);
     cb->Hold();
     // 以序列号建立cb的映射
-    callbacks[autoIncSerial] = cb;
+    callbacks[autoIncSerial] = std::move(cb);
     // 发包并返回( 请求性质的包, 序号为负数 )
     return SendResponse(-autoIncSerial, buf, len);
 }
@@ -206,7 +206,7 @@ xx::Weak<VPeer> VPeer::Weak() {
 VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string &&ip)
         : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId), ip(std::move(ip)) {
     accountId = --server->autoDecId;
-    auto r = server->vps.Add(xx::SharedFromThis(this), ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
+    auto r = server->vps.Add(this, ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
     assert(r.success);
     serverVpsIndex = r.index;
     assert(S->vps.ValueAt(serverVpsIndex).pointer == this);

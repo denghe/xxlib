@@ -176,13 +176,13 @@ namespace xx::Epoll {
         int Send(Data &&data);
 
         // 会复制数据
-        inline int Send(uint8_t const *const &buf, size_t const &len) { return Send({buf, len}); }
+        int Send(uint8_t const *const &buf, size_t const &len) { return Send({buf, len}); }
 
         // 兼容 kcp peer 函数调用需求
-        inline int Flush() { return 0; }
+        int Flush() { return 0; }
 
         // 判断 peer 是否还活着( 没断 )
-        inline virtual bool Alive() { return fd != -1; }
+        virtual bool Alive() const { return fd != -1; }
 
         // 和另一个 peer 互换 fd 和 mapping
         void SwapFD(Shared<TcpPeer> const &o);

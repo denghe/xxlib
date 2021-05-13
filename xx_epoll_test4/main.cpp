@@ -2,12 +2,8 @@
 #include "config.h"
 #include "server.h"
 #include "listener.h"
-#include "pingtimer.h"
-#include "apeer.h"
-#include "gpeer.h"
-#include "vpeer.h"
+#include "peer.h"
 #include "db.h"
-#include "game.h"
 
 int main() {
 	// 禁掉 SIGPIPE 信号避免因为连接关闭出错

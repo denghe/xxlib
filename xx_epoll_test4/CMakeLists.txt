@@ -16,13 +16,9 @@ add_executable(xx_epoll_test4
 		server.cpp
 		peer.cpp
 		listener.cpp
-		apeer.cpp
-		gpeer.cpp
-		vpeer.cpp
-		pingtimer.cpp
 		db.cpp
 		../codegen_test2/cpp/pkg_generic.cpp
-		../codegen_test2/cpp/pkg_lobby.cpp
+		../codegen_test2/cpp/pkg_db.cpp
 		)
 
 target_link_libraries(xx_epoll_test4

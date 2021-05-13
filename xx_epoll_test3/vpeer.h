@@ -94,7 +94,7 @@ struct VPeer : EP::Timer {
     // 发回应 package
     int SendResponsePackage(int const &serial, xx::ObjBase_s const &o) const;
 
-    // 发请求 package（收到相应回应时会触发 cb 执行。超时或断开也会触发，buf == nullptr）
+    // 发请求 package（收到相应回应时会触发 cb 执行。超时或断开也会触发，o == nullptr）
     int SendRequestPackage(xx::ObjBase_s const &o, std::function<void(xx::ObjBase_s&& o)> &&cbfunc, double const &timeoutSeconds);
 
 

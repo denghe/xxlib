@@ -1,9 +1,9 @@
 ﻿#include "listener.h"
-#include "apeer.h"
+#include "peer.h"
 #include "config.h"
 #include "xx_logger.h"
 
-void Listener::Accept(xx::Shared<APeer> const &p) {
+void Listener::Accept(xx::Shared<Peer> const &p) {
     // 没连上
     if (!p) return;
 
