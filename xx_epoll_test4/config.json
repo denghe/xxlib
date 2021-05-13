@@ -1,0 +1,5 @@
+﻿{
+  "serverId": 0,
+  "listenPort": 20000,
+  "peerTimeoutSeconds": 5
+}
