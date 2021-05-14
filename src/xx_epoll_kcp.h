@@ -76,7 +76,7 @@ namespace xx::Epoll {
         // 从容器变量移除
         // DelayUnhold();
         // return true;
-        void CloseChilds(int const &reason, char const *const &desc);
+        void CloseChilds(int const &reason, std::string_view const &desc);
 
     protected:
         friend Context;
@@ -112,7 +112,7 @@ namespace xx::Epoll {
         void Input(uint8_t const *const &buf, size_t const &len, bool isFirst = false);
 
         // 回收 kcp 对象, 看情况从 ep->kcps 移除
-        bool Close(int const &reason, std::string_view *const &desc) override;
+        bool Close(int const &reason, std::string_view const &desc) override;
 
         // Close
         void Timeout() override;
@@ -146,7 +146,7 @@ namespace xx::Epoll {
         virtual void Accept(Shared<PeerType> const &peer) = 0;
 
         // 调用 CloseChilds
-        bool Close(int const &reason, std::string_view *const &desc) override;
+        bool Close(int const &reason, std::string_view const &desc) override;
 
         // MakeFD
         virtual int Listen(int const &port, char const* const& hostName = nullptr, bool const& reusePort = false, size_t const& rmem_max = 1784 * 5000, size_t const& wmem_max = 1784 * 5000);
@@ -284,7 +284,7 @@ namespace xx::Epoll {
         } while (true);
     }
 
-    inline bool KcpPeer::Close(int const &reason, char const *const &desc) {
+    inline bool KcpPeer::Close(int const &reason, std::string_view const &desc) {
         if (!kcp) return false;
         // 回收 kcp
         ikcp_release(kcp);
@@ -311,7 +311,7 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    inline bool KcpListener<PeerType, ENABLED>::Close(int const &reason, char const *const &desc) {
+    inline bool KcpListener<PeerType, ENABLED>::Close(int const &reason, std::string_view const &desc) {
         // 防重入 顺便关 fd
         if (!this->KcpBase::Close(reason, desc)) return false;
         // 关闭所有虚拟 peer
@@ -406,7 +406,7 @@ namespace xx::Epoll {
         SetTimeout(1);
     }
 
-    inline void KcpBase::CloseChilds(int const &reason, char const *const &desc) {
+    inline void KcpBase::CloseChilds(int const &reason, std::string_view const &desc) {
         for (auto &&kv : cps) {
             // 先清掉 owner 避免 Close 函数内部到 cps 来移除自己, 同时减持父容器
             kv.second->owner.Reset();
@@ -528,7 +528,7 @@ namespace xx::Epoll {
         std::vector<sockaddr_in6> addrs;
 
         // 关闭 fd, 关闭所有子
-        bool Close(int const &reason, std::string_view *const &desc) override;
+        bool Close(int const &reason, std::string_view const &desc) override;
     };
 
     template<typename PeerType, class ENABLED>
@@ -648,7 +648,7 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    bool KcpDialer<PeerType, ENABLED>::Close(int const &reason, char const *const &desc) {
+    bool KcpDialer<PeerType, ENABLED>::Close(int const &reason, std::string_view const &desc) {
         // 防重入 顺便关 fd
         if (!this->KcpBase::Close(reason, desc)) return false;
         // 关闭所有虚拟 peer
