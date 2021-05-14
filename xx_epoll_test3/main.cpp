@@ -2,7 +2,7 @@
 #include "config.h"
 #include "server.h"
 #include "glistener.h"
-#include "pingtimer.h"
+#include "timer.h"
 #include "slistener.h"
 #include "speer.h"
 #include "gpeer.h"

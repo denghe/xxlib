@@ -5,7 +5,7 @@ namespace EP = xx::Epoll;
 struct PingTimer : EP::Timer {
     using EP::Timer::Timer;
 
-    const double intervalSeconds = 3;
+    const double intervalSeconds = 1;
     void Start();
 
     void Timeout() override;

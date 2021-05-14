@@ -4,6 +4,9 @@
 struct DBPeer : Peer {
     using Peer::Peer;
 
+    // cleanup callbacks, DelayUnhold, reset server.dbPeer
+    bool Close(int const& reason, std::string_view const& desc) override;
+
     // 收到推送( serial == 0 ), 需要自拟业务逻辑
     void ReceivePush(xx::ObjBase_s &&ob) override;
 

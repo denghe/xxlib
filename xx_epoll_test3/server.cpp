@@ -3,7 +3,7 @@
 #include "glistener.h"
 #include "slistener.h"
 #include "speer.h"
-#include "pingtimer.h"
+#include "timer.h"
 #include "xx_logger.h"
 #include "gpeer.h"
 #include "vpeer.h"
@@ -16,15 +16,15 @@ int Server::Init() {
     xx::MakeTo(serviceListener, this);
 
     // 如果监听失败则输出错误提示并退出
-    if (int r = serviceListener->Listen((int)config.listenPort)) {
-        LOG_ERROR("listen to port ", config.listenPort, "failed.");
+    if (int r = serviceListener->Listen((int)config.serviceListenPort)) {
+        LOG_ERROR("listen to port ", config.serviceListenPort, "failed.");
         return r;
     }
 
     xx::MakeTo(gatewayListener, this);
     // 如果监听失败则输出错误提示并退出
-    if (int r = gatewayListener->Listen((int)config.listenPort)) {
-        LOG_ERROR("listen to port ", config.listenPort, "failed.");
+    if (int r = gatewayListener->Listen((int)config.gatewayListenPort)) {
+        LOG_ERROR("listen to port ", config.gatewayListenPort, "failed.");
         return r;
     }
 

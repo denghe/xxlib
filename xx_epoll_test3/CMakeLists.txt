@@ -22,7 +22,7 @@ add_executable(xx_epoll_test3
 		vpeer.cpp
 		dbdialer.cpp
 		dbpeer.cpp
-		pingtimer.cpp
+        timer.cpp
 		../codegen_test2/cpp/pkg_generic.cpp
 		../codegen_test2/cpp/pkg_lobby.cpp
 		../codegen_test2/cpp/pkg_db.cpp
