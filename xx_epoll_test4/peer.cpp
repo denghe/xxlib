@@ -21,6 +21,21 @@ void PeerCB::Timeout() {
 /****************************************************************************************/
 
 
+bool Peer::Close(int const &reason, std::string_view const &desc) {
+    // 防重入( 同时关闭 fd )
+    if (!this->Item::Close(reason, desc)) return false;
+
+    // 触发所有已存在回调（ 模拟超时回调 ）
+    for (auto &&iter : callbacks) {
+        iter.second->func(nullptr);
+    }
+    callbacks.clear();
+
+    // 延迟减持
+    DelayUnhold();
+    return true;
+}
+
 void Peer::Receive() {
     // 取出指针备用
     auto buf = recv.buf;

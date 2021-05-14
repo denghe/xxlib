@@ -32,6 +32,8 @@ struct Peer : EP::TcpPeer {
     // 所有 带超时的回调. key: serial
     std::unordered_map<int, xx::Shared<PeerCB>> callbacks;
 
+    // cleanup callbacks, DelayUnhold
+    bool Close(int const& reason, std::string_view const& desc) override;
 
     // 收到数据. 切割后进一步调用 ReceiveXxxxxxx
     void Receive() override;
