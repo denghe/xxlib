@@ -20,7 +20,7 @@ add_executable(xx_epoll_test5
 		lpeer.cpp
 		main.cpp
 		peer.cpp
-		pingtimer.cpp
+        timer.cpp
 		server.cpp
 		vpeer.cpp
 		../codegen_test2/cpp/pkg_generic.cpp

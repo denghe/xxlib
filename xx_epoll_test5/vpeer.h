@@ -59,9 +59,6 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
     [[maybe_unused]] void SwapWith(int const &idx);
 
-    // return xx::SharedFromThis(this).ToWeak();
-    xx::Weak<VPeer> Weak();
-
     // gatewayPeer != nullptr
     bool Alive() const;
 
@@ -79,10 +76,4 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
 
     // logic update here
     void Update(double const &dt);
-
-    // accountId < 0
-    bool IsGuest() const;
-
-    // guest: set accountId, update key / swap.  return 0: online success. 1: swap success.  error: < 0
-    int SetAccount(Database::AccountInfo const& ai);
 };

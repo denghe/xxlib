@@ -1,7 +1,7 @@
 ﻿#include "server.h"
 #include "config.h"
 #include "glistener.h"
-#include "pingtimer.h"
+#include "timer.h"
 #include "xx_logger.h"
 #include "gpeer.h"
 #include "vpeer.h"
@@ -29,8 +29,8 @@ int Server::Init() {
     lobbyDialer->AddAddress(config.lobbyIP, (int)config.lobbyPort);
 
     // 初始化间隔时间为 ? 秒的处理服务器之间 ping 防止连接僵死的 timer
-    xx::MakeTo(pingTimer, this);
-    pingTimer->Start();
+    xx::MakeTo(timer, this);
+    timer->Start();
 
     // set 10 times per seconds for FrameUpdate
     SetFrameRate(10);

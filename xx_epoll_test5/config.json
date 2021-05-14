@@ -1,6 +1,6 @@
 ﻿{
   "serverId": 1,
-  "listenPort": 40000,
+  "listenPort": 20001,
   "peerTimeoutSeconds": 5,
   "lobbyIP": "127.0.0.1",
   "lobbyPort": 20000,

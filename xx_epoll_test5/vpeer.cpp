@@ -96,10 +96,6 @@ void VPeer::Kick(int const &reason, std::string_view const &desc, bool const &fr
     S->vps.UpdateAt<0>(serverVpsIndex, clientId);
 }
 
-xx::Weak<VPeer> VPeer::Weak() {
-    return xx::SharedFromThis(this).ToWeak();
-}
-
 /****************************************************************************************/
 // accountId? logic code here
 
@@ -114,22 +110,14 @@ VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &c
     gatewayPeer->SendOpen(clientId);
 }
 
-bool VPeer::IsGuest() const {
-    return accountId < 0;
-}
-
 void VPeer::Timeout() {
     // todo: logic here ?
     // Kick(__LINE__, "Timeout");
 }
 
 void VPeer::ReceivePush(xx::ObjBase_s &&ob) {
-    if (IsGuest()) {
-        LOG_ERR("clientId = ", clientId, " (Guest) ob = ", S->om.ToString(ob));
-    } else {
-        LOG_INFO("clientId = ", clientId, ", accountId = ", accountId, " ob = ", S->om.ToString(ob));
-        // todo: logic here
-    }
+    LOG_INFO("clientId = ", clientId, ", accountId = ", accountId, " ob = ", S->om.ToString(ob));
+    // todo: logic here
 }
 
 void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
@@ -137,6 +125,5 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 }
 
 void VPeer::Update(double const &dt) {
-    if (IsGuest()) return;
     // todo: frame logic here
 }

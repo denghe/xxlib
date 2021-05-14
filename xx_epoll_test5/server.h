@@ -8,7 +8,7 @@ namespace EP = xx::Epoll;
 struct GListener;
 struct GPeer;
 struct VPeer;
-struct PingTimer;
+struct Timer;
 struct DBDialer;
 struct DBPeer;
 struct LDialer;
@@ -22,8 +22,8 @@ struct Server : EP::Context {
     // 等待 gateway 接入的监听器
     xx::Shared<GListener> gatewayListener;
 
-    // 用于 ping 内部服务的 timer
-    xx::Shared<PingTimer> pingTimer;
+    // 用于 dialer
+    xx::Shared<Timer> timer;
 
     // for connect to db server
     xx::Shared<DBDialer> dbDialer;
