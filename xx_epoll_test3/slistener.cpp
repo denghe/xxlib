@@ -14,6 +14,4 @@ void SListener::Accept(xx::Shared<SPeer> const &p) {
     p->SetTimeoutSeconds(config.peerTimeoutSeconds);
 
     LOG_INFO("ip = ", p->addr);
-
-    // todo
 }

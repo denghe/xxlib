@@ -2,12 +2,12 @@
 #include "server.h"
 
 struct VPeer;
-// struct SPeer;
+struct SPeer;
 
 struct Game {
     int gameId = -1;
 
-    //xx::Shared<SPeer> peer;
+    xx::Shared<SPeer> peer;
 
     std::unordered_set<uint32_t> accountIds;
 };
