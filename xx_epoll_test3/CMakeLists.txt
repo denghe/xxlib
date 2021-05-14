@@ -19,14 +19,15 @@ add_executable(xx_epoll_test3
 		apeer.cpp
 		gpeer.cpp
 		vpeer.cpp
+		dbdialer.cpp
+		dbpeer.cpp
 		pingtimer.cpp
-		db.cpp
 		../codegen_test2/cpp/pkg_generic.cpp
 		../codegen_test2/cpp/pkg_lobby.cpp
+		../codegen_test2/cpp/pkg_db.cpp
 		)
 
 target_link_libraries(xx_epoll_test3
 		pthread
 		readline
-		sqlite3
 		)

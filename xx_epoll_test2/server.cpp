@@ -1,5 +1,5 @@
 ﻿#include "server.h"
-#include "dialer.h"
+#include "dbdialer.h"
 #include "config.h"
 #include "listener.h"
 #include "pingtimer.h"

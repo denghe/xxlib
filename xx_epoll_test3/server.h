@@ -9,7 +9,8 @@ struct Listener;
 struct GPeer;
 struct VPeer;
 struct PingTimer;
-struct DB;
+struct DBDialer;
+struct DBPeer;
 struct Game;
 
 //struct SPeer
@@ -25,8 +26,9 @@ struct Server : EP::Context {
     // 用于 ping 内部服务的 timer
     xx::Shared<PingTimer> pingTimer;
 
-    // shared database handler
-    xx::Shared<DB> db;
+    // for connect to db server
+    xx::Shared<DBDialer> dbDialer;
+    xx::Shared<DBPeer> dbPeer;
 
     // shared obj manager
     xx::ObjManager om;

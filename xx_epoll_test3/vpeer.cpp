@@ -1,35 +1,14 @@
 #include "vpeer.h"
 #include "gpeer.h"
 #include "pkg_lobby.h"
-#include "db.h"
+#include "pkg_db.h"
+#include "dbpeer.h"
 #include "game.h"
 
 #define S ((Server*)ec)
 
-/****************************************************************************************/
-
-VPeerCB::VPeerCB(VPeer *const &vpeer, int const &serial, Func &&cbFunc, double const &timeoutSeconds)
-        : EP::Timer(vpeer->ec, -1), vpeer(vpeer), serial(serial), func(std::move(cbFunc)) {
-    SetTimeoutSeconds(timeoutSeconds);
-}
-
-void VPeerCB::Timeout() {
-    // 模拟超时
-    func(nullptr, 0);
-    // 从容器移除
-    vpeer->callbacks.erase(serial);
-}
-
-/****************************************************************************************/
-
-// 发推送 package
-int VPeer::SendPushPackage(xx::ObjBase_s const &o) const {
-    // 推送性质的包, serial == 0
-    return SendResponsePackage(0, o);
-}
-
 // 发回应 package
-int VPeer::SendResponsePackage(int const &serial, xx::ObjBase_s const &o) const {
+int VPeer::SendResponse(int32_t const &serial, xx::ObjBase_s const &ob) {
     if (!Alive()) return __LINE__;
 
     // 准备发包填充容器
@@ -41,71 +20,11 @@ int VPeer::SendResponsePackage(int const &serial, xx::ObjBase_s const &o) const 
     // 写序号
     d.WriteVarInteger(serial);
     // 写数据
-    S->om.WriteTo(d, o);
+    S->om.WriteTo(d, ob);
     // 填包头
     *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
     // 发包并返回
     return gatewayPeer->Send(std::move(d));
-}
-
-// 发请求 package（收到相应回应时会触发 cb 执行。超时或断开也会触发，buf == nullptr）
-int VPeer::SendRequestPackage(xx::ObjBase_s const &o, std::function<void(xx::ObjBase_s &&o)> &&cbfunc, double const &timeoutSeconds) {
-    // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
-    autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
-    // 创建一个 带超时的回调
-    auto &&cb = xx::Make<VPeerCB>(this, autoIncSerial, [s = S, f = std::move(cbfunc)](uint8_t const *buf, size_t len) {
-        xx::Data_r dr(buf, len);
-        xx::ObjBase_s o;
-        if (int r = s->om.ReadFrom(dr, o)) {
-            LOG_ERR("cbfunc s->om.ReadFrom(dr, o) r = ", r);
-            f(nullptr);
-        } else {
-            f(std::move(o));
-        }
-    }, timeoutSeconds);
-    cb->Hold();
-    // 以序列号建立cb的映射
-    callbacks[autoIncSerial] = std::move(cb);
-    // 发包并返回( 请求性质的包, 序号为负数 )
-    return SendResponsePackage(-autoIncSerial, o);
-}
-
-/****************************************************************************************/
-
-int VPeer::SendPush(uint8_t const *const &buf, size_t const &len) const {
-    // 推送性质的包, serial == 0
-    return SendResponse(0, buf, len);
-}
-
-int VPeer::SendResponse(int32_t const &serial, uint8_t const *const &buf, size_t const &len) const {
-    if (!Alive()) return __LINE__;
-
-    // 准备发包填充容器
-    xx::Data d(len + 13);
-    // 跳过包头
-    d.len = sizeof(uint32_t);
-    // 写 要发给谁
-    d.WriteFixed(clientId);
-    // 写序号
-    d.WriteVarInteger(serial);
-    // 写数据
-    d.WriteBuf(buf, len);
-    // 填包头
-    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
-    // 发包并返回
-    return gatewayPeer->Send(std::move(d));
-}
-
-int VPeer::SendRequest(uint8_t const *const &buf, size_t const &len, typename VPeerCB::Func &&cbfunc, double const &timeoutSeconds) {
-    // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
-    autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
-    // 创建一个 带超时的回调
-    auto &&cb = xx::Make<VPeerCB>(this, autoIncSerial, std::move(cbfunc), timeoutSeconds);
-    cb->Hold();
-    // 以序列号建立cb的映射
-    callbacks[autoIncSerial] = std::move(cb);
-    // 发包并返回( 请求性质的包, 序号为负数 )
-    return SendResponse(-autoIncSerial, buf, len);
 }
 
 void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
@@ -120,23 +39,27 @@ void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
         return;
     }
 
+    // unpack
+    xx::ObjBase_s ob;
+    if (int r = S->om.ReadFrom(dr, ob)) {
+        S->om.KillRecursive(ob);
+        Kick(__LINE__, xx::ToString("S->om.ReadFrom(dr, ob) r = ", r));
+    }
+
+    // ensure
+    if (!ob || ob.typeId() == 0) {
+        Kick(__LINE__, xx::ToString("!ob || ob.typeId() == 0"));
+    }
+
     // 根据序列号的情况分性质转发
     if (serial == 0) {
-        ReceivePush(buf + dr.offset, len - dr.offset);
+        ReceivePush(std::move(ob));
     } else if (serial > 0) {
-        ReceiveResponse(serial, buf + dr.offset, len - dr.offset);
+        ReceiveResponse(serial, std::move(ob));
     } else {
         // -serial: 将 serial 转为正数
-        ReceiveRequest(-serial, buf + dr.offset, len - dr.offset);
+        ReceiveRequest(-serial, std::move(ob));
     }
-}
-
-void VPeer::ReceiveResponse(int const &serial_, uint8_t const *const &buf, size_t const &len) {
-    // 根据序号定位到 cb. 找不到可能是超时或发错?
-    auto &&iter = callbacks.find(serial_);
-    if (iter == callbacks.end()) return;
-    iter->second->func(buf, len);
-    callbacks.erase(iter);
 }
 
 bool VPeer::Alive() const {
@@ -158,10 +81,7 @@ void VPeer::Kick(int const &reason, std::string_view const &desc, bool const &fr
     LOG_INFO("reason = ", reason, ", desc = ", desc);
 
     // 触发所有已存在回调（ 模拟超时回调 ）
-    for (auto &&iter : callbacks) {
-        iter.second->func(nullptr, 0);
-    }
-    callbacks.clear();
+    ClearCallbacks();
 
     if (!fromGPeerClose) {
         // cmd to gateway: close, sync gateway clientIds
@@ -223,33 +143,33 @@ void VPeer::Timeout() {
     // Kick(__LINE__, "Timeout");
 }
 
-void VPeer::ReceivePush(uint8_t const *const &buf, size_t const &len) {
-    xx::Data_r dr(buf, len);
+void VPeer::ReceivePush(xx::ObjBase_s &&ob) {
     if (IsGuest()) {
-        LOG_ERR("clientId = ", clientId, " (Guest) ReceivePush ", dr);
+        LOG_ERR("clientId = ", clientId, " (Guest) ob = ", S->om.ToString(ob));
     } else {
-        LOG_INFO("clientId = ", clientId, ", accountId = ", accountId, " ReceivePush ", dr);
+        LOG_INFO("clientId = ", clientId, ", accountId = ", accountId, " ob = ", S->om.ToString(ob));
         // todo: logic here
     }
 }
 
-void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t const &len) {
-    xx::Data_r dr(buf, len);
-    LOG_INFO("clientId = ", clientId, " accountId = ", accountId, " buf = ", dr);
+void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
+    LOG_INFO("clientId = ", clientId, " accountId = ", accountId, " ob = ", S->om.ToString(ob));
     if (IsGuest()) {
         // guest logic here: auth login
-
-        // unpack
-        xx::ObjBase_s ob;
-        if (int r = S->om.ReadFrom(dr, ob)) {
-            Close(__LINE__, xx::ToString("VPeer ReceiveRequest clientId = ", clientId, " accountId = ", accountId, " if (int r = S->om.ReadFrom(dr, pkg)) r = ", r, " buf = ", dr));
-            return;
-        }
 
         // switch handle
         switch (ob.typeId()) {
             case xx::TypeId_v<Client_Lobby::Auth>: {
                 auto &&o = S->om.As<Client_Lobby::Auth>(ob);
+
+                // ensure dbpeer
+                if (!S->dbPeer || !S->dbPeer->Alive()) {
+                    auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                    m->errorCode = -1;
+                    m->errorMessage = "can't connect to db server";
+                    SendResponse(serial, m);
+                    return;
+                }
 
                 // check & set busy flag
                 if (TypeCount<Client_Lobby::Auth>()) {
@@ -259,61 +179,66 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                     TypeCountInc<Client_Lobby::Auth>();
                 }
 
-                // put job to thread pool
-                // thread safe: o => shared_ptr( use ), copy serial( copy through ), vpper => weak( move through )
-                S->db->AddJob([o = S->ToPtr(std::move(o)), serial, w = Weak()](DB::Env &env) mutable {
+                {
+                    auto &&m = xx::Make<Lobby_Database::GetAccountInfoByUsernamePassword>();
+                    m->username = std::move(o->username);
+                    m->password = std::move(o->password);
+                    S->dbPeer->SendRequest(m, [this, serial](xx::ObjBase_s &&ob) {
+                        // check & clear busy flag
+                        assert(TypeCount<Client_Lobby::Auth>() == 1);
+                        TypeCountDec<Client_Lobby::Auth>();
 
-                    // SQL query
-                    auto rtv = env.TryGetAccountInfoByUsernamePassword(o->username, o->password);
+                        // timeout?
+                        if (!ob) {
+                            // send error
+                            auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                            m->errorCode = -2;
+                            m->errorMessage = "db server response timeout";
+                            SendResponse(serial, m);
+                            return;
+                        }
 
-                    // dispatch handle SQL query result
-                    // thread safe: copy serial( use ), move rtv( use ), move w( use )
-                    env.server->Dispatch([serial, rtv = std::move(rtv), w = std::move(w)]() mutable {
+                        // handle result
+                        switch (ob.typeId()) {
+                            case xx::TypeId_v<Database_Lobby::GetAccountInfoByUsernamePassword::Error>: {
+                                auto &&o = S->om.As<Database_Lobby::GetAccountInfoByUsernamePassword::Error>(ob);
 
-                        // ensure vp is exists & alive
-                        if (auto vp = w.Lock(); vp->Alive()) {
+                                // send error
+                                auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                                m->errorCode = o->errorCode;
+                                m->errorMessage = std::move(o->errorMessage);
+                                SendResponse(serial, m);
+                                return;
+                            }
+                            case xx::TypeId_v<Database_Lobby::GetAccountInfoByUsernamePassword::Result>: {
+                                auto &&o = S->om.As<Database_Lobby::GetAccountInfoByUsernamePassword::Result>(ob);
 
-                            // clear busy flag
-                            assert(vp->TypeCount<Client_Lobby::Auth>() == 1);
-                            vp->TypeCountDec<Client_Lobby::Auth>();
+                                // can't find user: send error
+                                if (!o->accountInfo.has_value()) {
+                                    auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                                    m->errorCode = -1;
+                                    m->errorMessage = "bad username or password";
+                                    SendResponse(serial, m);
+                                    return;
+                                }
 
-                            // check result( rv.value is accountId )
-                            if (!rtv) {
-
-                                // send sql execute error
-                                auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
-                                m->errorCode = rtv.errorCode;
-                                m->errorMessage = rtv.errorMessage;
-                                vp->SendResponsePackage(serial, m);
-
-                            } else if (rtv.value.accountId == -1) {
-
-                                // not found
-                                auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
-                                m->errorCode = -1;
-                                m->errorMessage = "bad username or password.";
-                                vp->SendResponsePackage(serial, m);
-
-                            } else {
-
-                                // found: set accountId
-                                int r = vp->SetAccount(rtv.value);
+                                int r = SetAccount(*o->accountInfo);
                                 if (r < 0) {
 
                                     // send error
-                                    auto &&m = vp->InstanceOf<Lobby_Client::Auth::Error>();
+                                    auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
                                     m->errorCode = -2;
-                                    m->errorMessage = xx::ToString("SetAccountId error. accountId = ", rtv.value.accountId, " r = ", r);
-                                    vp->SendResponsePackage(serial, m);
+                                    m->errorMessage = xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r);
+                                    SendResponse(serial, m);
                                 } else {
 
                                     // success
                                     auto fill = [&](Lobby_Client::Auth::Online* const& m) {
-                                        m->accountId = rtv.value.accountId;
-                                        m->nickname = rtv.value.nickname;
-                                        m->coin = rtv.value.coin;
+                                        m->accountId = o->accountInfo->accountId;
+                                        m->nickname = o->accountInfo->nickname;
+                                        m->coin = o->accountInfo->coin;
                                         m->games.clear();
-                                        for (auto& kv : ((Server*)vp->ec)->games) {
+                                        for (auto& kv : S->games) {
                                             auto& g = m->games.emplace_back();
                                             g.gameId = kv.first;
                                         }
@@ -321,24 +246,27 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
                                     if (r == 0) {
 
                                         // send auth result: online
-                                        auto &&m = vp->InstanceOf<Lobby_Client::Auth::Online>();
+                                        auto &&m = InstanceOf<Lobby_Client::Auth::Online>();
                                         fill(m);
-                                        vp->SendResponsePackage(serial, m);
+                                        SendResponse(serial, m);
                                     } else {
 
                                         // send auth result: restore
-                                        auto &&m = vp->InstanceOf<Lobby_Client::Auth::Restore>();
+                                        auto &&m = InstanceOf<Lobby_Client::Auth::Restore>();
                                         fill(m);
-                                        m->gameId = vp->game->gameId;
-                                        //m->serviceId = vp->game->peer->serviceId;
-                                        vp->SendResponsePackage(serial, m);
+                                        m->gameId = game->gameId;
+                                        //m->serviceId = vp->game->peer->serviceId; // todo: fill
+                                        SendResponse(serial, m);
                                     }
                                 }
+                                return;
                             }
                         }
-                    });
-                });
-            }
+                    }, 15);
+                }
+
+            } // case
+
             default:
                 break;
         }
@@ -347,7 +275,7 @@ void VPeer::ReceiveRequest(int const &serial, uint8_t const *const &buf, size_t 
     }
 }
 
-int VPeer::SetAccount(DB::AccountInfo const& ai) {
+int VPeer::SetAccount(Database::AccountInfo const &ai) {
     // ensure current is guest mode
     if (accountId != -1) return -__LINE__;
     // validate args

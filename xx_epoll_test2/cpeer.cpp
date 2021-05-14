@@ -2,7 +2,7 @@
 #include "speer.h"
 #include "server.h"
 #include "config.h"
-#include "dialer.h"
+#include "dbdialer.h"
 #include "xx_logger.h"
 
 bool CPeer::Close(int const& reason, std::string_view const& desc) {

@@ -5,35 +5,32 @@
 
 #define S ((Server*)ec)
 
-
-PeerCB::PeerCB(Peer *const &peer, int const &serial, Func &&cbFunc, double const &timeoutSeconds)
-        : EP::Timer(peer->ec, -1), peer(peer), serial(serial), func(std::move(cbFunc)) {
-    SetTimeoutSeconds(timeoutSeconds);
-}
-
-void PeerCB::Timeout() {
-    // 模拟超时
-    func(nullptr);
-    // 从容器移除
-    peer->callbacks.erase(serial);
-}
-
-/****************************************************************************************/
-
-
 bool Peer::Close(int const &reason, std::string_view const &desc) {
     // 防重入( 同时关闭 fd )
     if (!this->Item::Close(reason, desc)) return false;
 
-    // 触发所有已存在回调（ 模拟超时回调 ）
-    for (auto &&iter : callbacks) {
-        iter.second->func(nullptr);
-    }
-    callbacks.clear();
+    ClearCallbacks();
 
     // 延迟减持
     DelayUnhold();
     return true;
+}
+
+int Peer::SendResponse(int32_t const &serial, xx::ObjBase_s const &ob) {
+    if (!Alive()) return __LINE__;
+    // 准备发包填充容器
+    xx::Data d(65536);
+    // 跳过包头
+    d.len = sizeof(uint32_t);
+    // 写序号
+    d.WriteVarInteger(serial);
+    // 写数据
+    S->om.WriteTo(d, ob);
+    // 填包头
+    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
+    // 发包并返回
+    Send(std::move(d));
+    return 0;
 }
 
 void Peer::Receive() {
@@ -62,29 +59,29 @@ void Peer::Receive() {
         {
             xx::Data_r dr(buf, dataLen);
             // 试读出序号
-            int serial = 0;
+            int32_t serial = 0;
             if (int r = dr.Read(serial)) {
                 LOG_ERR("dr.Read(serial) r = ", r);
             }
             else {
                 // unpack
-                xx::ObjBase_s o;
-                if ((r = S->om.ReadFrom(dr, o))) {
-                    LOG_ERR("S->om.ReadFrom(dr, o) r = ", r);
-                    S->om.KillRecursive(o);
+                xx::ObjBase_s ob;
+                if ((r = S->om.ReadFrom(dr, ob))) {
+                    LOG_ERR("S->om.ReadFrom(dr, ob) r = ", r);
+                    S->om.KillRecursive(ob);
                 }
-                if (!o || o.typeId() == 0) {
-                    LOG_ERR("o is nullptr or typeId == 0");
+                if (!ob || ob.typeId() == 0) {
+                    LOG_ERR("ob is nullptr or typeId == 0");
                 }
                 else {
                     // 根据序列号的情况分性质转发
                     if (serial == 0) {
-                        ReceivePush(std::move(o));
+                        ReceivePush(std::move(ob));
                     } else if (serial > 0) {
-                        ReceiveResponse(serial, std::move(o));
+                        ReceiveResponse(serial, std::move(ob));
                     } else {
                         // -serial: 将 serial 转为正数
-                        ReceiveRequest(-serial, std::move(o));
+                        ReceiveRequest(-serial, std::move(ob));
                     }
                 }
             }
@@ -99,55 +96,13 @@ void Peer::Receive() {
     recv.RemoveFront(buf - recv.buf);
 }
 
-int Peer::SendPush(xx::ObjBase_s const &o) {
-    // 推送性质的包, serial == 0
-    return SendResponse(0, o);
-}
-
-int Peer::SendResponse(int const &serial, xx::ObjBase_s const &o) {
-    if (!Alive()) return __LINE__;
-    // 准备发包填充容器
-    xx::Data d(65536);
-    // 跳过包头
-    d.len = sizeof(uint32_t);
-    // 写序号
-    d.WriteVarInteger((int32_t)0);
-    // 写数据
-    S->om.WriteTo(d, o);
-    // 填包头
-    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
-    // 发包并返回
-    Send(std::move(d));
-    return 0;
-}
-
-int Peer::SendRequest(xx::ObjBase_s const &o, std::function<void(xx::ObjBase_s&& o)> &&cbfunc, double const &timeoutSeconds) {
-    // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
-    autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
-    // 创建一个 带超时的回调
-    auto &&cb = xx::Make<PeerCB>(this, autoIncSerial, std::move(cbfunc), timeoutSeconds);
-    cb->Hold();
-    // 以序列号建立cb的映射
-    callbacks[autoIncSerial] = std::move(cb);
-    // 发包并返回( 请求性质的包, 序号为负数 )
-    return SendResponse(-autoIncSerial, o);
-}
-
-void Peer::ReceiveResponse(int const &serial, xx::ObjBase_s &&o) {
-    // 根据序号定位到 cb. 找不到可能是超时或发错?
-    auto &&iter = callbacks.find(serial);
-    if (iter == callbacks.end()) return;
-    iter->second->func(std::move(o));
-    callbacks.erase(iter);
-}
-
 /****************************************************************************************/
 
-void Peer::ReceivePush(xx::ObjBase_s &&o) {
-    LOG_ERR("unhandled package:", o);
+void Peer::ReceivePush(xx::ObjBase_s &&ob) {
+    LOG_ERR("unhandled package:", S->om.ToString(ob));
 }
 
-void Peer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
+void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     switch(ob.typeId()) {
         case xx::TypeId_v<Lobby_Database::GetAccountInfoByUsernamePassword>: {
             auto &&o = S->om.As<Lobby_Database::GetAccountInfoByUsernamePassword>(ob);
@@ -193,6 +148,6 @@ void Peer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
             return;
         }
         default:
-            LOG_ERR("unhandled package:", ob);
+            LOG_ERR("unhandled package: ", S->om.ToString(ob));
     }
 }

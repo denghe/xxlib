@@ -58,7 +58,7 @@
 #include "server.h"
 #include "listener.h"
 #include "pingtimer.h"
-#include "dialer.h"
+#include "dbdialer.h"
 #include "tasktimer.h"
 
 int main() {

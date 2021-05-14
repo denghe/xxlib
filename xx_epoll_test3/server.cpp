@@ -6,7 +6,8 @@
 #include "apeer.h"
 #include "gpeer.h"
 #include "vpeer.h"
-#include "db.h"
+#include "dbpeer.h"
+#include "dbdialer.h"
 #include "game.h"
 
 int Server::Init() {
@@ -19,8 +20,8 @@ int Server::Init() {
         return r;
     }
 
-    // init db
-    xx::MakeTo(db, this);
+    // init db dialer
+    xx::MakeTo(dbDialer, this);
 
     // 初始化间隔时间为 ? 秒的处理服务器之间 ping 防止连接僵死的 timer
     xx::MakeTo(pingTimer, this);

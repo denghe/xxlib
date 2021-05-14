@@ -6,7 +6,8 @@
 #include "apeer.h"
 #include "gpeer.h"
 #include "vpeer.h"
-#include "db.h"
+#include "dbdialer.h"
+#include "dbpeer.h"
 #include "game.h"
 
 int main() {

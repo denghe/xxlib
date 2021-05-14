@@ -1,6 +1,6 @@
 #include "tasktimer.h"
 #include "server.h"
-#include "dialer.h"
+#include "dbdialer.h"
 
 void TaskTimer::Start() {
     SetTimeoutSeconds(intervalSeconds);

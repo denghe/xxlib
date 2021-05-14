@@ -1,7 +1,7 @@
 ﻿#include "speer.h"
 #include "server.h"
 #include "cpeer.h"
-#include "dialer.h"
+#include "dbdialer.h"
 #include "xx_logger.h"
 
 bool SPeer::Close(int const& reason, std::string_view const& desc) {

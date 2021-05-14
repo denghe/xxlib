@@ -1,16 +1,18 @@
 #include "pingtimer.h"
 #include "server.h"
-#include "apeer.h"
+#include "dbdialer.h"
+#include "dbpeer.h"
+
+#define S ((Server*)ec)
 
 void PingTimer::Start() {
     SetTimeoutSeconds(intervalSeconds);
 }
 
 void PingTimer::Timeout() {
-    auto &&server = *(Server *)ec;
     auto &&now = xx::NowSteadyEpochMilliseconds();
 //    // 遍历当前已存在的服务器间连接容器
-//    for (auto &&dp : server.dps) {
+//    for (auto &&dp : S->dps) {
 //        // 如果连接存在
 //        if (auto &&sp = dp.second.second) {
 //            // 如果正在等
@@ -29,6 +31,14 @@ void PingTimer::Timeout() {
 //            }
 //        }
 //    }
+
+    // dial to db
+    if (!S->dbPeer) {
+        auto& d = S->dbDialer;
+        if (S->dbDialer->Busy()) {
+            S->dbDialer->DialSeconds(2);
+        }
+    }
 
     // timer 续命
     SetTimeoutSeconds(intervalSeconds);
