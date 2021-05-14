@@ -8,10 +8,12 @@ struct Config {
     uint32_t serverId = 0;
     uint32_t listenPort = 0;
     double peerTimeoutSeconds = 0;
+    std::string lobbyIP;
+    uint32_t lobbyPort = 0;
     std::string dbIP;
     uint32_t dbPort = 0;
 };
-AJSON(Config, serverId, listenPort, peerTimeoutSeconds, dbIP, dbPort);
+AJSON(Config, serverId, listenPort, peerTimeoutSeconds, lobbyIP, lobbyPort, dbIP, dbPort);
 
 
 // 适配 std::cout

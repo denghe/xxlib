@@ -2,7 +2,7 @@
 #include "server.h"
 #include "xx_epoll_omhelpers.h"
 
-struct DBPeer : EP::TcpPeer, EP::OMExt<DBPeer> {
+struct LPeer : EP::TcpPeer, EP::OMExt<LPeer> {
     using EP::TcpPeer::TcpPeer;
 
     // cleanup callbacks, DelayUnhold

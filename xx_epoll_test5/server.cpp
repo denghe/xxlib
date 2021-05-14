@@ -1,21 +1,21 @@
 ﻿#include "server.h"
 #include "config.h"
-#include "listener.h"
+#include "glistener.h"
 #include "pingtimer.h"
 #include "xx_logger.h"
-#include "apeer.h"
 #include "gpeer.h"
 #include "vpeer.h"
 #include "dbpeer.h"
 #include "dbdialer.h"
-#include "game.h"
+#include "lpeer.h"
+#include "ldialer.h"
 
 int Server::Init() {
     // 初始化监听器
-    xx::MakeTo(listener, this);
+    xx::MakeTo(gatewayListener, this);
 
     // 如果监听失败则输出错误提示并退出
-    if (int r = listener->Listen((int)config.listenPort)) {
+    if (int r = gatewayListener->Listen((int)config.listenPort)) {
         LOG_ERROR("listen to port ", config.listenPort, "failed.");
         return r;
     }
@@ -23,6 +23,10 @@ int Server::Init() {
     // init db dialer
     xx::MakeTo(dbDialer, this);
     dbDialer->AddAddress(config.dbIP, (int)config.dbPort);
+
+    // init lobby dialer
+    xx::MakeTo(lobbyDialer, this);
+    lobbyDialer->AddAddress(config.lobbyIP, (int)config.lobbyPort);
 
     // 初始化间隔时间为 ? 秒的处理服务器之间 ping 防止连接僵死的 timer
     xx::MakeTo(pingTimer, this);
