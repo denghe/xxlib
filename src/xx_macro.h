@@ -43,11 +43,11 @@ template<typename T> struct HasTypedef_##TN<T, std::void_t<typename T::TN>> : st
 template<typename T> constexpr bool TN = HasTypedef_##TN<T>::value;
 
 #if defined(__i386__) || defined(i386) || defined(_M_IX86) || defined(_X86_) || defined(__THW_INTEL) || defined(__x86_64__) || defined(_M_X64)
-#    define XX_IA
+#    define XX_ARCH_IA
 #endif
 
 #if defined(__LP64__) || __WORDSIZE == 64 || defined(_WIN64) || defined(_M_X64)
-#    define XX_64
+#    define XX_ARCH_64
 #endif
 
 #ifdef _MSC_VER
