@@ -5,7 +5,8 @@
 namespace EP = xx::Epoll;
 
 // 预声明
-struct Listener;
+struct GListener;
+struct SListener;
 struct GPeer;
 struct VPeer;
 struct PingTimer;
@@ -21,7 +22,8 @@ struct Server : EP::Context {
     using EP::Context::Context;
 
     // 等待 server 接入的监听器
-    xx::Shared<Listener> listener;
+    xx::Shared<SListener> serviceListener;
+    xx::Shared<GListener> gatewayListener;
 
     // 用于 ping 内部服务的 timer
     xx::Shared<PingTimer> pingTimer;

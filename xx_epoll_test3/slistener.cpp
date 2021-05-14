@@ -1,9 +1,9 @@
-﻿#include "listener.h"
-#include "apeer.h"
+﻿#include "slistener.h"
+#include "speer.h"
 #include "config.h"
 #include "xx_logger.h"
 
-void Listener::Accept(xx::Shared<APeer> const &p) {
+void SListener::Accept(xx::Shared<SPeer> const &p) {
     // 没连上
     if (!p) return;
 
@@ -14,4 +14,6 @@ void Listener::Accept(xx::Shared<APeer> const &p) {
     p->SetTimeoutSeconds(config.peerTimeoutSeconds);
 
     LOG_INFO("ip = ", p->addr);
+
+    // todo
 }

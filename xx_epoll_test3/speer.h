@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "peer.h"
 
-struct DBPeer : Peer {
+struct SPeer : Peer {
     using Peer::Peer;
 
     // 收到推送( serial == 0 ), 需要自拟业务逻辑

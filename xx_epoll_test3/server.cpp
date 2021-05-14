@@ -1,9 +1,10 @@
 ﻿#include "server.h"
 #include "config.h"
-#include "listener.h"
+#include "glistener.h"
+#include "slistener.h"
+#include "speer.h"
 #include "pingtimer.h"
 #include "xx_logger.h"
-#include "apeer.h"
 #include "gpeer.h"
 #include "vpeer.h"
 #include "dbpeer.h"
@@ -12,10 +13,17 @@
 
 int Server::Init() {
     // 初始化监听器
-    xx::MakeTo(listener, this);
+    xx::MakeTo(serviceListener, this);
 
     // 如果监听失败则输出错误提示并退出
-    if (int r = listener->Listen((int)config.listenPort)) {
+    if (int r = serviceListener->Listen((int)config.listenPort)) {
+        LOG_ERROR("listen to port ", config.listenPort, "failed.");
+        return r;
+    }
+
+    xx::MakeTo(gatewayListener, this);
+    // 如果监听失败则输出错误提示并退出
+    if (int r = gatewayListener->Listen((int)config.listenPort)) {
         LOG_ERROR("listen to port ", config.listenPort, "failed.");
         return r;
     }

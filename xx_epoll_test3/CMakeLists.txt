@@ -15,8 +15,9 @@ add_executable(xx_epoll_test3
 		main.cpp
 		server.cpp
 		peer.cpp
-		listener.cpp
-		apeer.cpp
+		slistener.cpp
+		speer.cpp
+		glistener.cpp
 		gpeer.cpp
 		vpeer.cpp
 		dbdialer.cpp
