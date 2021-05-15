@@ -1,6 +1,6 @@
 ﻿#include "server.h"
 #include "lpeer.h"
-#include "pkg_lobby.h"
+#include "pkg_lobby_client.h"
 
 #define S ((Server*)ec)
 
