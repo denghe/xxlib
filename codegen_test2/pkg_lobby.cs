@@ -24,22 +24,17 @@ namespace Lobby_Client {
         [TypeId(11)]
         class Error : Generic.Error {};
 
-        [Desc("登录成功 上线( 不在游戏中的时候，即便是断线重连也下发这个包 )")]
+        [Desc("登录成功 新上线 或 恢复")]
         [TypeId(12)]
-        class Online {
+        class Success {
             int accountId;
             string nickname;
             double coin;
             // more ...
             List<Game> games;
-        }
-
-        [Desc("登录成功 恢复( 断线重连, 回到游戏 )")]
-        [TypeId(13)]
-        class Restore : Online {
-            [Desc("要回到的游戏id( 界面切换、预加载的凭据 )")]
+            [Desc("要回到的游戏id( 小于0: 在大厅 )")]
             int gameId;
-            [Desc("要等待 open 的服务id( 等待网络就绪，和游戏服通信的地址 )")]
+            [Desc("要等待 open 的服务id( 小于0: 新上线  等于0: 大厅顶下线  大于0: 游戏服务id )")]
             int serviceId;
         }
     }
