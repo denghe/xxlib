@@ -1,0 +1,10 @@
+{
+  "refs": ["pkg_generic.json"],
+  "name": "pkg_db_service",
+  "files": [ "pkg_db_service.cs" ],
+  "!outdir_cs": "cs",
+  "!outdir_lua": "lua",
+  "outdir_cpp": "cpp",
+  "typeid_from": 100,
+  "typeid_to": 199
+}

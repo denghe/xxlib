@@ -4,6 +4,102 @@ void CodeGen_pkg_generic::Register() {
 	::xx::ObjManager::Register<::Generic::Success>();
 	::xx::ObjManager::Register<::Generic::Error>();
 }
+namespace xx {
+	void ObjFuncs<::Generic::GameInfo, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::Generic::GameInfo const& in) {
+        om.Write(d, in.gameId);
+        om.Write(d, in.info);
+    }
+	void ObjFuncs<::Generic::GameInfo, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::Generic::GameInfo const& in) {
+        om.Write<false>(d, in.gameId);
+        om.Write<false>(d, in.info);
+    }
+	int ObjFuncs<::Generic::GameInfo, void>::Read(::xx::ObjManager& om, ::xx::Data_r& d, ::Generic::GameInfo& out) {
+        if (int r = om.Read(d, out.gameId)) return r;
+        if (int r = om.Read(d, out.info)) return r;
+        return 0;
+    }
+	void ObjFuncs<::Generic::GameInfo, void>::Append(ObjManager &om, std::string& s, ::Generic::GameInfo const& in) {
+#ifndef XX_DISABLE_APPEND
+        s.push_back('{');
+        AppendCore(om, s, in);
+        s.push_back('}');
+#endif
+    }
+	void ObjFuncs<::Generic::GameInfo, void>::AppendCore(ObjManager &om, std::string& s, ::Generic::GameInfo const& in) {
+#ifndef XX_DISABLE_APPEND
+        om.Append(s, "\"gameId\":", in.gameId); 
+        om.Append(s, ",\"info\":", in.info);
+#endif
+    }
+    void ObjFuncs<::Generic::GameInfo>::Clone(::xx::ObjManager& om, ::Generic::GameInfo const& in, ::Generic::GameInfo &out) {
+        om.Clone_(in.gameId, out.gameId);
+        om.Clone_(in.info, out.info);
+    }
+    int ObjFuncs<::Generic::GameInfo>::RecursiveCheck(::xx::ObjManager& om, ::Generic::GameInfo const& in) {
+        if (int r = om.RecursiveCheck(in.gameId)) return r;
+        if (int r = om.RecursiveCheck(in.info)) return r;
+        return 0;
+    }
+    void ObjFuncs<::Generic::GameInfo>::RecursiveReset(::xx::ObjManager& om, ::Generic::GameInfo& in) {
+        om.RecursiveReset(in.gameId);
+        om.RecursiveReset(in.info);
+    }
+    void ObjFuncs<::Generic::GameInfo>::SetDefaultValue(::xx::ObjManager& om, ::Generic::GameInfo& in) {
+        in.gameId = 0;
+        om.SetDefaultValue(in.info);
+    }
+	void ObjFuncs<::Generic::PlayerInfo, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::Generic::PlayerInfo const& in) {
+        om.Write(d, in.accountId);
+        om.Write(d, in.nickname);
+        om.Write(d, in.coin);
+    }
+	void ObjFuncs<::Generic::PlayerInfo, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::Generic::PlayerInfo const& in) {
+        om.Write<false>(d, in.accountId);
+        om.Write<false>(d, in.nickname);
+        om.Write<false>(d, in.coin);
+    }
+	int ObjFuncs<::Generic::PlayerInfo, void>::Read(::xx::ObjManager& om, ::xx::Data_r& d, ::Generic::PlayerInfo& out) {
+        if (int r = om.Read(d, out.accountId)) return r;
+        if (int r = om.Read(d, out.nickname)) return r;
+        if (int r = om.Read(d, out.coin)) return r;
+        return 0;
+    }
+	void ObjFuncs<::Generic::PlayerInfo, void>::Append(ObjManager &om, std::string& s, ::Generic::PlayerInfo const& in) {
+#ifndef XX_DISABLE_APPEND
+        s.push_back('{');
+        AppendCore(om, s, in);
+        s.push_back('}');
+#endif
+    }
+	void ObjFuncs<::Generic::PlayerInfo, void>::AppendCore(ObjManager &om, std::string& s, ::Generic::PlayerInfo const& in) {
+#ifndef XX_DISABLE_APPEND
+        om.Append(s, "\"accountId\":", in.accountId); 
+        om.Append(s, ",\"nickname\":", in.nickname);
+        om.Append(s, ",\"coin\":", in.coin);
+#endif
+    }
+    void ObjFuncs<::Generic::PlayerInfo>::Clone(::xx::ObjManager& om, ::Generic::PlayerInfo const& in, ::Generic::PlayerInfo &out) {
+        om.Clone_(in.accountId, out.accountId);
+        om.Clone_(in.nickname, out.nickname);
+        om.Clone_(in.coin, out.coin);
+    }
+    int ObjFuncs<::Generic::PlayerInfo>::RecursiveCheck(::xx::ObjManager& om, ::Generic::PlayerInfo const& in) {
+        if (int r = om.RecursiveCheck(in.accountId)) return r;
+        if (int r = om.RecursiveCheck(in.nickname)) return r;
+        if (int r = om.RecursiveCheck(in.coin)) return r;
+        return 0;
+    }
+    void ObjFuncs<::Generic::PlayerInfo>::RecursiveReset(::xx::ObjManager& om, ::Generic::PlayerInfo& in) {
+        om.RecursiveReset(in.accountId);
+        om.RecursiveReset(in.nickname);
+        om.RecursiveReset(in.coin);
+    }
+    void ObjFuncs<::Generic::PlayerInfo>::SetDefaultValue(::xx::ObjManager& om, ::Generic::PlayerInfo& in) {
+        in.accountId = 0;
+        om.SetDefaultValue(in.nickname);
+        in.coin = 0;
+    }
+}
 namespace Generic{
     void Success::Write(::xx::ObjManager& om, ::xx::Data& d) const {
     }

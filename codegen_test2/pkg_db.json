@@ -1,8 +1,0 @@
-{
-  "refs": ["pkg_generic.json"],
-  "name": "pkg_db",
-  "files": [ "pkg_db.cs" ],
-  "!outdir_cs": "cs",
-  "!outdir_lua": "lua",
-  "outdir_cpp": "cpp"
-}

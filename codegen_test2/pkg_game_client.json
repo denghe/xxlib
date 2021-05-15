@@ -1,0 +1,10 @@
+{
+  "refs": ["pkg_generic.json"],
+  "name": "pkg_game_client",
+  "files": [ "pkg_game_client.cs" ],
+  "!outdir_cs": "cs",
+  "!outdir_lua": "lua",
+  "outdir_cpp": "cpp",
+  "typeid_from": 50,
+  "typeid_to": 99
+}
