@@ -26,6 +26,7 @@ add_executable(xx_epoll_test3
 		../codegen_test2/cpp/pkg_generic.cpp
 		../codegen_test2/cpp/pkg_lobby_client.cpp
 		../codegen_test2/cpp/pkg_db_service.cpp
+		../codegen_test2/cpp/pkg_game_lobby.cpp
 		)
 
 target_link_libraries(xx_epoll_test3

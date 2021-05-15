@@ -121,8 +121,8 @@ void VPeer::SwapWith(int const &idx) {
 
 VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string &&ip)
         : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId), ip(std::move(ip)) {
-    accountId = --server->autoDecId;
-    auto r = server->vps.Add(this, ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
+    info.accountId = --server->autoDecId;
+    auto r = server->vps.Add(this, ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, info.accountId);
     assert(r.success);
     serverVpsIndex = r.index;
     assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
@@ -131,7 +131,7 @@ VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &c
 }
 
 bool VPeer::IsGuest() const {
-    return accountId < 0;
+    return info.accountId < 0;
 }
 
 void VPeer::Timeout() {
@@ -143,13 +143,13 @@ void VPeer::ReceivePush(xx::ObjBase_s &&ob) {
     if (IsGuest()) {
         LOG_ERR("clientId = ", clientId, " (Guest) ob = ", S->om.ToString(ob));
     } else {
-        LOG_INFO("clientId = ", clientId, ", accountId = ", accountId, " ob = ", S->om.ToString(ob));
+        LOG_INFO("clientId = ", clientId, ", accountId = ", info.accountId, " ob = ", S->om.ToString(ob));
         // todo: logic here
     }
 }
 
 void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
-    LOG_INFO("clientId = ", clientId, " accountId = ", accountId, " ob = ", S->om.ToString(ob));
+    LOG_INFO("clientId = ", clientId, " accountId = ", info.accountId, " ob = ", S->om.ToString(ob));
     if (IsGuest()) {
         // guest logic here: auth login
 
@@ -222,30 +222,27 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                                     m->errorMessage = xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r);
                                     SendResponse(serial, m);
                                 } else {
-
-//                                    // success
-//                                    auto &&m = InstanceOf<Generic::Success>();
-//                                    m->accountId = o->accountInfo->accountId;
-//                                    m->nickname = o->accountInfo->nickname;
-//                                    m->coin = o->accountInfo->coin;
-//
-//                                    m->games.clear();
-//                                    for (auto& kv : S->games) {
-//                                        auto& g = m->games.emplace_back();
-//                                        g.gameId = kv.first;
-//                                    }
-
-//                                    if (game) {
-//                                        m->gameId = game->gameId;
-//                                        m->serviceId = game->peer->serviceId;
-//                                        SendResponse(serial, m);
-//                                    } else {
-//
-//                                        // not in game: online
-//                                        auto &&m = InstanceOf<Lobby_Client::Auth::Online>();
-//                                        fill(m);
-//                                        SendResponse(serial, m);
-//                                    }
+                                    {
+                                        // success
+                                        auto &&m = InstanceOf<Lobby_Client::PlayerContext>();
+                                        m->self.accountId = o->accountInfo->accountId;
+                                        m->self.nickname = o->accountInfo->nickname;
+                                        m->self.coin = o->accountInfo->coin;
+                                        m->gameId = gameId;
+                                        m->serviceId = serviceId;
+                                        SendResponse(serial, m);
+                                    }
+                                    {
+                                        // push game list
+                                        auto &&m = InstanceOf<Lobby_Client::GameOpen>();
+                                        m->gameInfos.clear();
+                                        for (auto& kv : S->sps) {
+                                            for(auto& gi : kv.second->info->gameInfos) {
+                                                m->gameInfos.push_back(gi);
+                                            }
+                                        }
+                                        SendPush(m);
+                                    }
                                 }
                                 return;
                             }
@@ -265,9 +262,9 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
 int VPeer::SetAccount(Database::AccountInfo const &ai) {
     // ensure current is guest mode
-    if (accountId != -1) return -__LINE__;
+    if (info.accountId != -1) return -__LINE__;
     // validate args
-    if (accountId == ai.accountId) return -__LINE__;
+    if (info.accountId == ai.accountId) return -__LINE__;
     // check exists
     int idx = S->vps.Find<1>(ai.accountId);
     if (idx == -1) {
@@ -275,16 +272,12 @@ int VPeer::SetAccount(Database::AccountInfo const &ai) {
         assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
         auto r = S->vps.UpdateAt<1>(serverVpsIndex, ai.accountId);
         assert(r);
-        accountId = ai.accountId;
-        nickname = ai.nickname;
-        coin = ai.coin;
+        info = ai;
         return 0;
     } else {
         // exists: kick & swap
         auto &tar = S->vps.ValueAt(idx);
-        assert(tar->accountId == ai.accountId);
-        assert(tar->nickname == ai.nickname);
-        assert(tar->coin == ai.coin);
+        assert(tar->info == ai);
         tar->Kick(__LINE__, xx::ToString("replace by gatewayId = ", gatewayPeer->gatewayId, " clientId = ", clientId, " ip = ", ip));
         SwapWith(idx);
         return 1;

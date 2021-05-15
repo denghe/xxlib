@@ -13,8 +13,7 @@ struct PingTimer;
 struct DBDialer;
 struct DBPeer;
 struct Game;
-
-//struct SPeer
+struct SPeer;
 
 // 服务本体
 struct Server : EP::Context {
@@ -35,8 +34,8 @@ struct Server : EP::Context {
     // shared obj manager
     xx::ObjManager om;
 
-//    // server peers. key: server id
-//    std::unordered_map<uint32_t, xx::Shared<SPeer>> sps;
+    // server peers. key: serviceId
+    std::unordered_map<uint32_t, xx::Shared<SPeer>> sps;
 
     // key: gameId
     std::unordered_map<int, xx::Shared<Game>> games;

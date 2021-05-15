@@ -1,13 +1,12 @@
 ﻿#pragma once
 #include "peer.h"
-
-struct Game;
+#include "pkg_game_lobby.h"
 
 struct SPeer : Peer {
     using Peer::Peer;
 
-    uint32_t serviceId = 0xFFFFFFFFu;
-    Game* game = nullptr;
+    // store Register info
+    xx::Shared<Game_Lobby::Register> info;
 
     // cleanup callbacks, DelayUnhold, remove from server.game container
     bool Close(int const& reason, std::string_view const& desc) override;

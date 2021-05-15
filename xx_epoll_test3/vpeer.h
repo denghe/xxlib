@@ -2,11 +2,11 @@
 
 #include "server.h"
 #include "xx_epoll_omhelpers.h"
+#include "pkg_db_service.h"
 
 struct GPeer;
 struct VPeer;
 struct Game;
-namespace Database { struct AccountInfo; }
 
 // 虚拟 peer
 struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
@@ -25,10 +25,9 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     std::string ip;
 
     // logic data
-    int32_t accountId = -1;
-    std::string nickname;
-    double coin = 0;
-    Game* game = nullptr;
+    Database::AccountInfo info;
+    int gameId = -1;
+    int serviceId = -1;
 
     /****************************************************************************************/
     // helpers

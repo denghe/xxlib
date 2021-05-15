@@ -67,7 +67,7 @@ std::string Server::GetInfo() {
     for (auto &&node : vps.dict) {
         xx::Append(s, "gatewayId:", (node.value->gatewayPeer? -1: node.value->gatewayPeer->gatewayId)
         , ", clientId: ", node.value->clientId
-        , ", accountId: ", node.value->accountId
+        , ", accountId: ", node.value->info.accountId
         );
     }
     return s;

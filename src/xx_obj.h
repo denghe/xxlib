@@ -1137,7 +1137,8 @@ T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
 T(T&& o) = default; \
-T& operator=(T&& o) = default;
+T& operator=(T&& o) = default; \
+bool operator==(T const&) const = default;
 
 #define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \
