@@ -13,7 +13,8 @@ namespace Generic {
     };
 
     [Desc("游戏信息")]
-    struct GameInfo {
+    [TypeId(3)]
+    class GameInfo {
         [Desc("游戏标识")]
         int gameId;
         [Desc("游戏说明( 服务器并不关心, 会转发到 client. 通常是一段 json 啥的 )")]

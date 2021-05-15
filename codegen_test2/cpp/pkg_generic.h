@@ -2,29 +2,20 @@
 #include "xx_obj.h"
 #include "pkg_generic.h.inc"
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<5d499face6f1546f25ada1cfa13a7394>*#";
+	inline static const ::std::string md5 = "#*MD5<30faf760928e20d9f50892bd39cd5c1b>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };
 inline CodeGen_pkg_generic __CodeGen_pkg_generic;
 namespace Generic { struct Success; }
 namespace Generic { struct Error; }
+namespace Generic { struct GameInfo; }
 namespace xx {
     template<> struct TypeId<::Generic::Success> { static const uint16_t value = 1; };
     template<> struct TypeId<::Generic::Error> { static const uint16_t value = 2; };
+    template<> struct TypeId<::Generic::GameInfo> { static const uint16_t value = 3; };
 }
 
-namespace Generic {
-    // 游戏信息
-    struct GameInfo {
-        XX_OBJ_STRUCT_H(GameInfo)
-        using IsSimpleType_v = GameInfo;
-        // 游戏标识
-        int32_t gameId = 0;
-        // 游戏说明( 服务器并不关心, 会转发到 client. 通常是一段 json 啥的 )
-        ::std::string info;
-    };
-}
 namespace Generic {
     // 玩家公开基础信息
     struct PlayerInfo {
@@ -54,8 +45,18 @@ namespace Generic {
         ::std::string errorMessage;
     };
 }
+namespace Generic {
+    // 游戏信息
+    struct GameInfo : ::xx::ObjBase {
+        XX_OBJ_OBJECT_H(GameInfo, ::xx::ObjBase)
+        using IsSimpleType_v = GameInfo;
+        // 游戏标识
+        int32_t gameId = 0;
+        // 游戏说明( 服务器并不关心, 会转发到 client. 通常是一段 json 啥的 )
+        ::std::string info;
+    };
+}
 namespace xx {
-	XX_OBJ_STRUCT_TEMPLATE_H(::Generic::GameInfo)
 	XX_OBJ_STRUCT_TEMPLATE_H(::Generic::PlayerInfo)
 }
 #include "pkg_generic_.h.inc"
