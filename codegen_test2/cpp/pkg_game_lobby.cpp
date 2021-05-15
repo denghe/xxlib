@@ -149,9 +149,11 @@ namespace Game_Lobby{
 namespace Game_Lobby{
     void PlayerLeave::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         om.Write(d, this->accountId);
+        om.Write(d, this->gameId);
     }
     int PlayerLeave::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = om.Read(d, this->accountId)) return r;
+        if (int r = om.Read(d, this->gameId)) return r;
         return 0;
     }
     void PlayerLeave::Append(::xx::ObjManager& om, std::string& s) const {
@@ -164,20 +166,25 @@ namespace Game_Lobby{
     void PlayerLeave::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
         om.Append(s, ",\"accountId\":", this->accountId);
+        om.Append(s, ",\"gameId\":", this->gameId);
 #endif
     }
     void PlayerLeave::Clone(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::Game_Lobby::PlayerLeave*)tar;
         om.Clone_(this->accountId, out->accountId);
+        om.Clone_(this->gameId, out->gameId);
     }
     int PlayerLeave::RecursiveCheck(::xx::ObjManager& om) const {
         if (int r = om.RecursiveCheck(this->accountId)) return r;
+        if (int r = om.RecursiveCheck(this->gameId)) return r;
         return 0;
     }
     void PlayerLeave::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->accountId);
+        om.RecursiveReset(this->gameId);
     }
     void PlayerLeave::SetDefaultValue(::xx::ObjManager& om) {
         this->accountId = 0;
+        this->gameId = 0;
     }
 }

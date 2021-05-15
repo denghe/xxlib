@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_game_lobby.h.inc"
 struct CodeGen_pkg_game_lobby {
-	inline static const ::std::string md5 = "#*MD5<1520773d6f9c214aceee106a4efd49ee>*#";
+	inline static const ::std::string md5 = "#*MD5<563d2546bc6372b8b54f29e63891db85>*#";
     static void Register();
     CodeGen_pkg_game_lobby() { Register(); }
 };
@@ -28,7 +28,7 @@ namespace Lobby_Game {
         // 网关连接标识
         uint32_t clientId = 0;
         // 进入哪个游戏
-        uint32_t gameId = 0;
+        int32_t gameId = 0;
         // 玩家信息顺便传递，避免查询 db
         ::Generic::PlayerInfo playerInfo;
     };
@@ -49,7 +49,7 @@ namespace Game_Lobby {
     struct Register : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Register, ::xx::ObjBase)
         using IsSimpleType_v = Register;
-        int32_t serviceId = 0;
+        uint32_t serviceId = 0;
         ::std::vector<::Generic::GameInfo> gameInfos;
     };
 }
@@ -60,6 +60,7 @@ namespace Game_Lobby {
         using IsSimpleType_v = PlayerLeave;
         // 玩家标识
         int32_t accountId = 0;
+        int32_t gameId = 0;
     };
 }
 #include "pkg_game_lobby_.h.inc"
