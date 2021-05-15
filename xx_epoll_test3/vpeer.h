@@ -59,9 +59,6 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     // swap server->vps.ValueAt( serverVpsIndex & idx )'s network ctx
     [[maybe_unused]] void SwapWith(int const &idx);
 
-    // return xx::SharedFromThis(this).ToWeak();
-    xx::Weak<VPeer> Weak();
-
     // gatewayPeer != nullptr
     bool Alive() const;
 

@@ -24,8 +24,8 @@ add_executable(xx_epoll_test3
 		dbpeer.cpp
         timer.cpp
 		../codegen_test2/cpp/pkg_generic.cpp
-		../codegen_test2/cpp/pkg_lobby.cpp
-		../codegen_test2/cpp/pkg_db.cpp
+		../codegen_test2/cpp/pkg_lobby_client.cpp
+		../codegen_test2/cpp/pkg_db_service.cpp
 		)
 
 target_link_libraries(xx_epoll_test3

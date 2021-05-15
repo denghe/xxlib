@@ -1,9 +1,10 @@
 #include "vpeer.h"
 #include "gpeer.h"
-#include "pkg_lobby.h"
-#include "pkg_db.h"
+#include "pkg_lobby_client.h"
+#include "pkg_db_service.h"
 #include "dbpeer.h"
 #include "game.h"
+#include "speer.h"
 
 #define S ((Server*)ec)
 
@@ -115,11 +116,6 @@ void VPeer::SwapWith(int const &idx) {
     std::swap(a.pointer, b.pointer);
 }
 
-
-xx::Weak<VPeer> VPeer::Weak() {
-    return xx::SharedFromThis(this).ToWeak();
-}
-
 /****************************************************************************************/
 // accountId? logic code here
 
@@ -164,7 +160,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                 // ensure dbpeer
                 if (!S->dbPeer || !S->dbPeer->Alive()) {
-                    auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                    auto &&m = InstanceOf<Generic::Error>();
                     m->errorCode = -1;
                     m->errorMessage = "can't connect to db server";
                     SendResponse(serial, m);
@@ -180,7 +176,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                 }
 
                 {
-                    auto &&m = xx::Make<Lobby_Database::GetAccountInfoByUsernamePassword>();
+                    auto &&m = xx::Make<Service_Database::GetAccountInfoByUsernamePassword>();
                     m->username = std::move(o->username);
                     m->password = std::move(o->password);
                     S->dbPeer->SendRequest(m, [this, serial](xx::ObjBase_s &&ob) {
@@ -191,7 +187,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                         // timeout?
                         if (!ob) {
                             // send error
-                            auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                            auto &&m = InstanceOf<Generic::Error>();
                             m->errorCode = -2;
                             m->errorMessage = "db server response timeout";
                             SendResponse(serial, m);
@@ -200,22 +196,17 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                         // handle result
                         switch (ob.typeId()) {
-                            case xx::TypeId_v<Database_Lobby::GetAccountInfoByUsernamePassword::Error>: {
-                                auto &&o = S->om.As<Database_Lobby::GetAccountInfoByUsernamePassword::Error>(ob);
-
+                            case xx::TypeId_v<Generic::Error>: {
                                 // send error
-                                auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
-                                m->errorCode = o->errorCode;
-                                m->errorMessage = std::move(o->errorMessage);
-                                SendResponse(serial, m);
+                                SendResponse(serial, ob);
                                 return;
                             }
-                            case xx::TypeId_v<Database_Lobby::GetAccountInfoByUsernamePassword::Result>: {
-                                auto &&o = S->om.As<Database_Lobby::GetAccountInfoByUsernamePassword::Result>(ob);
+                            case xx::TypeId_v<Database_Service::GetAccountInfoByUsernamePasswordResult>: {
+                                auto &&o = S->om.As<Database_Service::GetAccountInfoByUsernamePasswordResult>(ob);
 
                                 // can't find user: send error
                                 if (!o->accountInfo.has_value()) {
-                                    auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                                    auto &&m = InstanceOf<Generic::Error>();
                                     m->errorCode = -1;
                                     m->errorMessage = "bad username or password";
                                     SendResponse(serial, m);
@@ -226,30 +217,27 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                                 if (r < 0) {
 
                                     // error
-                                    auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
+                                    auto &&m = InstanceOf<Generic::Error>();
                                     m->errorCode = -2;
                                     m->errorMessage = xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r);
                                     SendResponse(serial, m);
                                 } else {
 
 //                                    // success
-//                                    auto fill = [&](Lobby_Client::Auth::Online* const& m) {
-//                                        m->accountId = o->accountInfo->accountId;
-//                                        m->nickname = o->accountInfo->nickname;
-//                                        m->coin = o->accountInfo->coin;
-//                                        m->games.clear();
-//                                        for (auto& kv : S->games) {
-//                                            auto& g = m->games.emplace_back();
-//                                            g.gameId = kv.first;
-//                                        }
-//                                    };
-//                                    if (game) {
+//                                    auto &&m = InstanceOf<Generic::Success>();
+//                                    m->accountId = o->accountInfo->accountId;
+//                                    m->nickname = o->accountInfo->nickname;
+//                                    m->coin = o->accountInfo->coin;
 //
-//                                        // in game: restore
-//                                        auto &&m = InstanceOf<Lobby_Client::Auth::Restore>();
-//                                        fill(m);
+//                                    m->games.clear();
+//                                    for (auto& kv : S->games) {
+//                                        auto& g = m->games.emplace_back();
+//                                        g.gameId = kv.first;
+//                                    }
+
+//                                    if (game) {
 //                                        m->gameId = game->gameId;
-//                                        //m->serviceId = vp->game->peer->serviceId; // todo: fill
+//                                        m->serviceId = game->peer->serviceId;
 //                                        SendResponse(serial, m);
 //                                    } else {
 //

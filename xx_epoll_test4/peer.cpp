@@ -1,7 +1,7 @@
 ﻿#include "peer.h"
 #include "server.h"
 #include "db.h"
-#include "pkg_db.h"
+#include "pkg_db_service.h"
 
 #define S ((Server*)ec)
 
@@ -104,8 +104,8 @@ void Peer::ReceivePush(xx::ObjBase_s &&ob) {
 
 void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     switch(ob.typeId()) {
-        case xx::TypeId_v<Lobby_Database::GetAccountInfoByUsernamePassword>: {
-            auto &&o = S->om.As<Lobby_Database::GetAccountInfoByUsernamePassword>(ob);
+        case xx::TypeId_v<Service_Database::GetAccountInfoByUsernamePassword>: {
+            auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob);
             // put job to thread pool
             // thread safe: o => shared_ptr( use ), copy serial( copy through ), vpper => weak( move through )
             S->db->AddJob([o = S->ToPtr(std::move(o)), serial, w = xx::SharedFromThis(this).ToWeak()](DB::Env &env) mutable {
@@ -124,7 +124,7 @@ void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
                         if (!rtv) {
 
                             // send sql execute error
-                            auto &&m = p->InstanceOf<Database_Lobby::GetAccountInfoByUsernamePassword::Error>();
+                            auto &&m = p->InstanceOf<Generic::Error>();
                             m->errorCode = rtv.errorCode;
                             m->errorMessage = rtv.errorMessage;
                             p->SendResponse(serial, m);
@@ -132,7 +132,7 @@ void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
                         } else {
 
                             // send result
-                            auto &&m = p->InstanceOf<Database_Lobby::GetAccountInfoByUsernamePassword::Result>();
+                            auto &&m = p->InstanceOf<Database_Service::GetAccountInfoByUsernamePasswordResult>();
                             if (rtv.value.accountId >= 0) {
                                 m->accountInfo.emplace();
                                 m->accountInfo->accountId = rtv.value.accountId;

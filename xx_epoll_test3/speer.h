@@ -1,10 +1,13 @@
 ﻿#pragma once
 #include "peer.h"
 
+struct Game;
+
 struct SPeer : Peer {
     using Peer::Peer;
 
-    // todo: serviceId ? mapping to game ?
+    uint32_t serviceId = 0xFFFFFFFFu;
+    Game* game = nullptr;
 
     // cleanup callbacks, DelayUnhold, remove from server.game container
     bool Close(int const& reason, std::string_view const& desc) override;
