@@ -43,7 +43,7 @@ int Server::Init() {
     EnableCommandLine();
 
     cmds["?"] = [this](auto args) {
-        std::cout << "cmds: cfg, info, quit / exit" << std::endl;
+        std::cout << "cmds: c, i, q" << std::endl;
     };
     cmds["c"] = [this](auto args) {
         std::cout << "cfg = " << config << std::endl;

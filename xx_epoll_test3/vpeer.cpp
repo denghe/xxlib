@@ -225,39 +225,39 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                                 int r = SetAccount(*o->accountInfo);
                                 if (r < 0) {
 
-                                    // send error
+                                    // error
                                     auto &&m = InstanceOf<Lobby_Client::Auth::Error>();
                                     m->errorCode = -2;
                                     m->errorMessage = xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r);
                                     SendResponse(serial, m);
                                 } else {
 
-                                    // success
-                                    auto fill = [&](Lobby_Client::Auth::Online* const& m) {
-                                        m->accountId = o->accountInfo->accountId;
-                                        m->nickname = o->accountInfo->nickname;
-                                        m->coin = o->accountInfo->coin;
-                                        m->games.clear();
-                                        for (auto& kv : S->games) {
-                                            auto& g = m->games.emplace_back();
-                                            g.gameId = kv.first;
-                                        }
-                                    };
-                                    if (r == 0) {
-
-                                        // send auth result: online
-                                        auto &&m = InstanceOf<Lobby_Client::Auth::Online>();
-                                        fill(m);
-                                        SendResponse(serial, m);
-                                    } else {
-
-                                        // send auth result: restore
-                                        auto &&m = InstanceOf<Lobby_Client::Auth::Restore>();
-                                        fill(m);
-                                        m->gameId = game->gameId;
-                                        //m->serviceId = vp->game->peer->serviceId; // todo: fill
-                                        SendResponse(serial, m);
-                                    }
+//                                    // success
+//                                    auto fill = [&](Lobby_Client::Auth::Online* const& m) {
+//                                        m->accountId = o->accountInfo->accountId;
+//                                        m->nickname = o->accountInfo->nickname;
+//                                        m->coin = o->accountInfo->coin;
+//                                        m->games.clear();
+//                                        for (auto& kv : S->games) {
+//                                            auto& g = m->games.emplace_back();
+//                                            g.gameId = kv.first;
+//                                        }
+//                                    };
+//                                    if (game) {
+//
+//                                        // in game: restore
+//                                        auto &&m = InstanceOf<Lobby_Client::Auth::Restore>();
+//                                        fill(m);
+//                                        m->gameId = game->gameId;
+//                                        //m->serviceId = vp->game->peer->serviceId; // todo: fill
+//                                        SendResponse(serial, m);
+//                                    } else {
+//
+//                                        // not in game: online
+//                                        auto &&m = InstanceOf<Lobby_Client::Auth::Online>();
+//                                        fill(m);
+//                                        SendResponse(serial, m);
+//                                    }
                                 }
                                 return;
                             }

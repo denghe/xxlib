@@ -1,7 +1,6 @@
 ﻿#include "dbdialer.h"
 #include "dbpeer.h"
 #include "server.h"
-#include "config.h"
 #include "xx_logger.h"
 
 void DBDialer::Connect(xx::Shared<DBPeer> const &peer) {
