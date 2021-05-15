@@ -232,17 +232,8 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                                         m->serviceId = serviceId;
                                         SendResponse(serial, m);
                                     }
-                                    {
-                                        // push game list
-                                        auto &&m = InstanceOf<Lobby_Client::GameOpen>();
-                                        m->gameInfos.clear();
-                                        for (auto& kv : S->sps) {
-                                            for(auto& gi : kv.second->info->gameInfos) {
-                                                m->gameInfos.push_back(gi);
-                                            }
-                                        }
-                                        SendPush(m);
-                                    }
+                                    // push game list( cache )
+                                    SendPush(InstanceOf<Lobby_Client::GameOpen>());
                                 }
                                 return;
                             }

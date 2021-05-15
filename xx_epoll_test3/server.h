@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "xx_epoll.h"
 #include "xx_dict_mk.h"
-#include "xx_obj.h"
+#include "pkg_lobby_client.h"
 namespace EP = xx::Epoll;
 
 // 预声明
@@ -37,8 +37,11 @@ struct Server : EP::Context {
     // server peers. key: serviceId
     std::unordered_map<uint32_t, xx::Shared<SPeer>> sps;
 
-    // key: gameId
-    std::unordered_map<int, xx::Shared<Game>> games;
+    // key: gameId. value: serviceId. fill by events: SPeer Register or Close
+    std::unordered_map<int, uint32_t> gameIdserviceIdMappings;
+
+    // package cache. fill by events: SPeer Register or Close
+    xx::Shared<Lobby_Client::GameOpen> cache_gameOpen;
 
     // gateway peers. key: gateway id
     std::unordered_map<uint32_t, xx::Shared<GPeer>> gps;
