@@ -3,9 +3,51 @@
 void CodeGen_pkg_generic::Register() {
 	::xx::ObjManager::Register<::Generic::Success>();
 	::xx::ObjManager::Register<::Generic::Error>();
-	::xx::ObjManager::Register<::Generic::GameInfo>();
 }
 namespace xx {
+	void ObjFuncs<::Generic::GameInfo, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::Generic::GameInfo const& in) {
+        om.Write(d, in.gameId);
+        om.Write(d, in.info);
+    }
+	void ObjFuncs<::Generic::GameInfo, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::Generic::GameInfo const& in) {
+        om.Write<false>(d, in.gameId);
+        om.Write<false>(d, in.info);
+    }
+	int ObjFuncs<::Generic::GameInfo, void>::Read(::xx::ObjManager& om, ::xx::Data_r& d, ::Generic::GameInfo& out) {
+        if (int r = om.Read(d, out.gameId)) return r;
+        if (int r = om.Read(d, out.info)) return r;
+        return 0;
+    }
+	void ObjFuncs<::Generic::GameInfo, void>::Append(ObjManager &om, std::string& s, ::Generic::GameInfo const& in) {
+#ifndef XX_DISABLE_APPEND
+        s.push_back('{');
+        AppendCore(om, s, in);
+        s.push_back('}');
+#endif
+    }
+	void ObjFuncs<::Generic::GameInfo, void>::AppendCore(ObjManager &om, std::string& s, ::Generic::GameInfo const& in) {
+#ifndef XX_DISABLE_APPEND
+        om.Append(s, "\"gameId\":", in.gameId); 
+        om.Append(s, ",\"info\":", in.info);
+#endif
+    }
+    void ObjFuncs<::Generic::GameInfo>::Clone(::xx::ObjManager& om, ::Generic::GameInfo const& in, ::Generic::GameInfo &out) {
+        om.Clone_(in.gameId, out.gameId);
+        om.Clone_(in.info, out.info);
+    }
+    int ObjFuncs<::Generic::GameInfo>::RecursiveCheck(::xx::ObjManager& om, ::Generic::GameInfo const& in) {
+        if (int r = om.RecursiveCheck(in.gameId)) return r;
+        if (int r = om.RecursiveCheck(in.info)) return r;
+        return 0;
+    }
+    void ObjFuncs<::Generic::GameInfo>::RecursiveReset(::xx::ObjManager& om, ::Generic::GameInfo& in) {
+        om.RecursiveReset(in.gameId);
+        om.RecursiveReset(in.info);
+    }
+    void ObjFuncs<::Generic::GameInfo>::SetDefaultValue(::xx::ObjManager& om, ::Generic::GameInfo& in) {
+        in.gameId = 0;
+        om.SetDefaultValue(in.info);
+    }
 	void ObjFuncs<::Generic::PlayerInfo, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::Generic::PlayerInfo const& in) {
         om.Write(d, in.accountId);
         om.Write(d, in.nickname);
@@ -125,47 +167,5 @@ namespace Generic{
     void Error::SetDefaultValue(::xx::ObjManager& om) {
         this->errorCode = 0;
         om.SetDefaultValue(this->errorMessage);
-    }
-}
-namespace Generic{
-    void GameInfo::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->gameId);
-        om.Write(d, this->info);
-    }
-    int GameInfo::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->gameId)) return r;
-        if (int r = om.Read(d, this->info)) return r;
-        return 0;
-    }
-    void GameInfo::Append(::xx::ObjManager& om, std::string& s) const {
-#ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":3");
-        this->AppendCore(om, s);
-        s.push_back('}');
-#endif
-    }
-    void GameInfo::AppendCore(::xx::ObjManager& om, std::string& s) const {
-#ifndef XX_DISABLE_APPEND
-        om.Append(s, ",\"gameId\":", this->gameId);
-        om.Append(s, ",\"info\":", this->info);
-#endif
-    }
-    void GameInfo::Clone(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::Generic::GameInfo*)tar;
-        om.Clone_(this->gameId, out->gameId);
-        om.Clone_(this->info, out->info);
-    }
-    int GameInfo::RecursiveCheck(::xx::ObjManager& om) const {
-        if (int r = om.RecursiveCheck(this->gameId)) return r;
-        if (int r = om.RecursiveCheck(this->info)) return r;
-        return 0;
-    }
-    void GameInfo::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->gameId);
-        om.RecursiveReset(this->info);
-    }
-    void GameInfo::SetDefaultValue(::xx::ObjManager& om) {
-        this->gameId = 0;
-        om.SetDefaultValue(this->info);
     }
 }
