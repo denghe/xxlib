@@ -12,6 +12,11 @@
 #include "game.h"
 
 int Server::Init() {
+    // fill instance cache
+    for(size_t i = 0; i < 65536;++i) {
+        objs[i] = xx::ObjManager::Create(i);
+    }
+
     // 初始化监听器
     xx::MakeTo(serviceListener, this);
 
@@ -80,4 +85,16 @@ int Server::FrameUpdate() {
         node.value->Update(dt);
     }
     return 0;
+}
+
+void Server::Fill_data_Lobby_Client_GameOpen() {
+    auto&& pkg = FromCache<Lobby_Client::GameOpen>();
+    auto&& tar = pkg->gameInfos;
+    tar.clear();
+    for(auto const& kv : sps) {
+        assert(kv.second && kv.second->Alive());
+        auto& src = kv.second->info->gameInfos;
+        tar.insert(tar.end(), src.begin(), src.end());
+    }
+    om.ClearAndWriteTo(data_Lobby_Client_GameOpen, pkg);
 }

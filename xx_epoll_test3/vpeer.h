@@ -30,16 +30,6 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     int serviceId = -1;
 
     /****************************************************************************************/
-    // helpers
-
-    // return cached instance for quickly Send Push / Response   ( can't hold )
-    template<typename T>
-    xx::Shared<T> const& InstanceOf() const {
-        assert(((Server*)ec)->om.InstanceOf<T>().useCount() == 1);
-        return ((Server*)ec)->om.InstanceOf<T>();
-    }
-
-    /****************************************************************************************/
 
     // 发回应
     int SendResponse(int32_t const &serial, xx::ObjBase_s const &ob);
@@ -80,5 +70,5 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     bool IsGuest() const;
 
     // guest: set accountId, update key / swap.  return 0: online success. 1: swap success.  error: < 0
-    int SetAccount(Database::AccountInfo const& ai);
+    int Online(Database::AccountInfo const& ai);
 };

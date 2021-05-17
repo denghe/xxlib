@@ -11,12 +11,6 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
     // 收到数据. 切割后进一步调用 ReceiveXxxxxxx
     void Receive() override;
 
-    // return cached instance for quickly send package
-    template<typename T>
-    xx::Shared<T> const& InstanceOf() const {
-        return ((Server*)ec)->om.InstanceOf<T>();
-    }
-
     // 发回应
     int SendResponse(int const &serial, xx::ObjBase_s const &ob);
 

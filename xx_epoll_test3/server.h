@@ -40,9 +40,6 @@ struct Server : EP::Context {
     // key: gameId. value: serviceId. fill by events: SPeer Register or Close
     std::unordered_map<int, uint32_t> gameIdserviceIdMappings;
 
-    // package cache. fill by events: SPeer Register or Close
-    xx::Shared<Lobby_Client::GameOpen> cache_gameOpen;
-
     // gateway peers. key: gateway id
     std::unordered_map<uint32_t, xx::Shared<GPeer>> gps;
 
@@ -61,4 +58,23 @@ struct Server : EP::Context {
 
     // 得到执行情况的快照
     std::string GetInfo();
+
+    /**************************************************************************************/
+    // caches
+
+    // package instance cache for Send Push / Response ( can't hold )
+    std::array<xx::ObjBase_s, std::numeric_limits<uint16_t>::max()> objs{};
+
+    // return cached package instance
+    template<typename T>
+    xx::Shared<T> const& FromCache() {
+        assert((*(xx::Shared<T>*)&objs[xx::TypeId_v<T>]).useCount() == 1);
+        return *(xx::Shared<T>*)&objs[xx::TypeId_v<T>];
+    }
+
+    // package: Lobby_Client::GameOpen's data cache. fill by events: SPeer Register or Close
+    xx::Data data_Lobby_Client_GameOpen;
+
+    // rebuild cache( for each sps, push )
+    void Fill_data_Lobby_Client_GameOpen();
 };

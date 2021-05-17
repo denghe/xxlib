@@ -160,7 +160,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                 // ensure dbpeer
                 if (!S->dbPeer || !S->dbPeer->Alive()) {
-                    auto &&m = InstanceOf<Generic::Error>();
+                    auto &&m = S->FromCache<Generic::Error>();
                     m->errorCode = -1;
                     m->errorMessage = "can't connect to db server";
                     SendResponse(serial, m);
@@ -187,7 +187,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                         // timeout?
                         if (!ob) {
                             // send error
-                            auto &&m = InstanceOf<Generic::Error>();
+                            auto &&m = S->FromCache<Generic::Error>();
                             m->errorCode = -2;
                             m->errorMessage = "db server response timeout";
                             SendResponse(serial, m);
@@ -206,25 +206,25 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                                 // can't find user: send error
                                 if (!o->accountInfo.has_value()) {
-                                    auto &&m = InstanceOf<Generic::Error>();
+                                    auto &&m = S->FromCache<Generic::Error>();
                                     m->errorCode = -1;
                                     m->errorMessage = "bad username or password";
                                     SendResponse(serial, m);
                                     return;
                                 }
 
-                                int r = SetAccount(*o->accountInfo);
+                                int r = Online(*o->accountInfo);
                                 if (r < 0) {
 
                                     // error
-                                    auto &&m = InstanceOf<Generic::Error>();
+                                    auto &&m = S->FromCache<Generic::Error>();
                                     m->errorCode = -2;
                                     m->errorMessage = xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r);
                                     SendResponse(serial, m);
                                 } else {
                                     {
                                         // success
-                                        auto &&m = InstanceOf<Lobby_Client::PlayerContext>();
+                                        auto &&m = S->FromCache<Lobby_Client::PlayerContext>();
                                         m->self.accountId = o->accountInfo->accountId;
                                         m->self.nickname = o->accountInfo->nickname;
                                         m->self.coin = o->accountInfo->coin;
@@ -233,7 +233,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                                         SendResponse(serial, m);
                                     }
                                     // push game list( cache )
-                                    SendPush(InstanceOf<Lobby_Client::GameOpen>());
+                                    SendPush(S->FromCache<Lobby_Client::GameOpen>());
                                 }
                                 return;
                             }
@@ -251,7 +251,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
     }
 }
 
-int VPeer::SetAccount(Database::AccountInfo const &ai) {
+int VPeer::Online(Database::AccountInfo const &ai) {
     // ensure current is guest mode
     if (info.accountId != -1) return -__LINE__;
     // validate args
