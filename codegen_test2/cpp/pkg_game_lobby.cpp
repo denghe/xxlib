@@ -70,7 +70,7 @@ namespace Lobby_Game{
     }
 }
 namespace Lobby_Game{
-    void PlayerLeave::WriteTo(xx::Data& d, int32_t const& accountId, ::std::string const& reason) {
+    void PlayerLeave::WriteTo(xx::Data& d, int32_t const& accountId, std::string_view const& reason) {
         d.Write(xx::TypeId_v<PlayerLeave>);
         d.Write(accountId);
         d.Write(reason);

@@ -181,7 +181,7 @@ namespace Lobby_Client{
     }
 }
 namespace Client_Lobby{
-    void Auth::WriteTo(xx::Data& d, ::std::string const& username, ::std::string const& password) {
+    void Auth::WriteTo(xx::Data& d, std::string_view const& username, std::string_view const& password) {
         d.Write(xx::TypeId_v<Auth>);
         d.Write(username);
         d.Write(password);

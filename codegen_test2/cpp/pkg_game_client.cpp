@@ -93,7 +93,7 @@ namespace Game1{
     }
 }
 namespace Game1{
-    void Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, ::std::string const& senderNickname, ::std::string const& content) {
+    void Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, std::string_view const& senderNickname, std::string_view const& content) {
         d.Write(xx::TypeId_v<Message>);
         d.Write(timestamp);
         d.Write(senderId);
@@ -358,7 +358,7 @@ namespace Client_Game1{
     }
 }
 namespace Client_Game1{
-    void SendMessage::WriteTo(xx::Data& d, ::std::string const& content) {
+    void SendMessage::WriteTo(xx::Data& d, std::string_view const& content) {
         d.Write(xx::TypeId_v<SendMessage>);
         d.Write(content);
     }
@@ -491,7 +491,7 @@ namespace Game1{
     }
 }
 namespace Game1{
-    void Event_Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, ::std::string const& content) {
+    void Event_Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, std::string_view const& content) {
         d.Write(xx::TypeId_v<Event_Message>);
         d.Write(timestamp);
         d.Write(senderId);

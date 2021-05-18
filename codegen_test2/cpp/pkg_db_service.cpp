@@ -97,7 +97,7 @@ namespace Database_Service{
     }
 }
 namespace Service_Database{
-    void GetAccountInfoByUsernamePassword::WriteTo(xx::Data& d, ::std::string const& username, ::std::string const& password) {
+    void GetAccountInfoByUsernamePassword::WriteTo(xx::Data& d, std::string_view const& username, std::string_view const& password) {
         d.Write(xx::TypeId_v<GetAccountInfoByUsernamePassword>);
         d.Write(username);
         d.Write(password);
