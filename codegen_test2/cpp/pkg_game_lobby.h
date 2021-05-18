@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_game_lobby.h.inc"
 struct CodeGen_pkg_game_lobby {
-	inline static const ::std::string md5 = "#*MD5<11b793de845de2af7115cc3ecff841c2>*#";
+	inline static const ::std::string md5 = "#*MD5<9be2e232123426dd82bbe83d129ae8cd>*#";
     static void Register();
     CodeGen_pkg_game_lobby() { Register(); }
 };
@@ -43,7 +43,7 @@ namespace Lobby_Game {
         int32_t accountId = 0;
         // 操作原因
         ::std::string reason;
-        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&);
+        static void WriteTo(xx::Data& d, int32_t const&, std::string_view const&);
     };
 }
 namespace Game_Lobby {

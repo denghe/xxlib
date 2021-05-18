@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_game_client.h.inc"
 struct CodeGen_pkg_game_client {
-	inline static const ::std::string md5 = "#*MD5<1dce641d2eccf11157445ab1829a8018>*#";
+	inline static const ::std::string md5 = "#*MD5<043a8b5060ac34d8646ea9722fc2e261>*#";
     static void Register();
     CodeGen_pkg_game_client() { Register(); }
 };
@@ -65,7 +65,7 @@ namespace Game1 {
         ::std::string senderNickname;
         // 内容
         ::std::string content;
-        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, ::std::string const&, ::std::string const&);
+        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, std::string_view const&, std::string_view const&);
     };
 }
 namespace Game1 {
@@ -124,7 +124,7 @@ namespace Client_Game1 {
         using IsSimpleType_v = SendMessage;
         // 内容
         ::std::string content;
-        static void WriteTo(xx::Data& d, ::std::string const&);
+        static void WriteTo(xx::Data& d, std::string_view const&);
     };
 }
 namespace Game1 {
@@ -155,7 +155,7 @@ namespace Game1 {
         int32_t senderId = 0;
         // 内容
         ::std::string content;
-        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, ::std::string const&);
+        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, std::string_view const&);
     };
 }
 #include "pkg_game_client_.h.inc"

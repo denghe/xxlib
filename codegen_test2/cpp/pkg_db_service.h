@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_db_service.h.inc"
 struct CodeGen_pkg_db_service {
-	inline static const ::std::string md5 = "#*MD5<d7fe074cc4a1d60d4e991f1d4da935b1>*#";
+	inline static const ::std::string md5 = "#*MD5<2471f2de3593c978d18c657ef65bf8cc>*#";
     static void Register();
     CodeGen_pkg_db_service() { Register(); }
 };
@@ -22,7 +22,7 @@ namespace Database {
         int32_t accountId = -1;
         ::std::string nickname;
         double coin = 0;
-        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&, double const&);
+        static void WriteTo(xx::Data& d, int32_t const&, std::string_view const&, double const&);
     };
 }
 namespace Database_Service {
@@ -42,7 +42,7 @@ namespace Service_Database {
         using IsSimpleType_v = GetAccountInfoByUsernamePassword;
         ::std::string username;
         ::std::string password;
-        static void WriteTo(xx::Data& d, ::std::string const&, ::std::string const&);
+        static void WriteTo(xx::Data& d, std::string_view const&, std::string_view const&);
     };
 }
 namespace xx {

@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "pkg_generic.h.inc"
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<843ffc4cec3261d863e98b98721d75bd>*#";
+	inline static const ::std::string md5 = "#*MD5<06dd596d38ebababc2f1886940f5ddd4>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };
@@ -23,7 +23,7 @@ namespace Generic {
         int32_t gameId = 0;
         // 游戏说明( 服务器并不关心, 会转发到 client. 通常是一段 json 啥的 )
         ::std::string info;
-        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&);
+        static void WriteTo(xx::Data& d, int32_t const&, std::string_view const&);
     };
 }
 namespace Generic {
@@ -37,7 +37,7 @@ namespace Generic {
         ::std::string nickname;
         // 玩家资产
         double coin = 0;
-        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&, double const&);
+        static void WriteTo(xx::Data& d, int32_t const&, std::string_view const&, double const&);
     };
 }
 namespace Generic {
@@ -55,7 +55,7 @@ namespace Generic {
         using IsSimpleType_v = Error;
         int32_t errorCode = 0;
         ::std::string errorMessage;
-        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&);
+        static void WriteTo(xx::Data& d, int32_t const&, std::string_view const&);
     };
 }
 namespace xx {

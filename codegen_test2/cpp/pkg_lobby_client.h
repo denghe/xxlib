@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_lobby_client.h.inc"
 struct CodeGen_pkg_lobby_client {
-	inline static const ::std::string md5 = "#*MD5<7535b54bce8007ffc6bca043779b7b20>*#";
+	inline static const ::std::string md5 = "#*MD5<d555949e1fb4d076a006d61eb3f4fa42>*#";
     static void Register();
     CodeGen_pkg_lobby_client() { Register(); }
 };
@@ -73,7 +73,7 @@ namespace Client_Lobby {
         using IsSimpleType_v = Auth;
         ::std::string username;
         ::std::string password;
-        static void WriteTo(xx::Data& d, ::std::string const&, ::std::string const&);
+        static void WriteTo(xx::Data& d, std::string_view const&, std::string_view const&);
     };
 }
 namespace Client_Lobby {
