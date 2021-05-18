@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "pkg_generic.h.inc"
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<707d493eac0403ed6095694197f1af82>*#";
+	inline static const ::std::string md5 = "#*MD5<332f78ad910547de747ebdd24bc42494>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };
@@ -62,14 +62,14 @@ namespace xx {
 	XX_OBJ_STRUCT_TEMPLATE_H(::Generic::GameInfo)
     template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<::Generic::GameInfo, std::decay_t<T>>>> {
 		template<bool needReserve = true>
-		static inline void Write(Data& d, T const& in) { std::declval<xx::ObjManager>().Write(d, in); }
-		static inline int Read(Data_r& d, T& out) { return std::declval<xx::ObjManager>().Read(d, out); }
+		static inline void Write(Data& d, T const& in) { (*(nullptr(xx::ObjManager*)).Write(d, in); }
+		static inline int Read(Data_r& d, T& out) { return *(nullptr(xx::ObjManager*)).Read(d, out); }
     };
 	XX_OBJ_STRUCT_TEMPLATE_H(::Generic::PlayerInfo)
     template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<::Generic::PlayerInfo, std::decay_t<T>>>> {
 		template<bool needReserve = true>
-		static inline void Write(Data& d, T const& in) { std::declval<xx::ObjManager>().Write(d, in); }
-		static inline int Read(Data_r& d, T& out) { return std::declval<xx::ObjManager>().Read(d, out); }
+		static inline void Write(Data& d, T const& in) { (*(nullptr(xx::ObjManager*)).Write(d, in); }
+		static inline int Read(Data_r& d, T& out) { return *(nullptr(xx::ObjManager*)).Read(d, out); }
     };
 }
 #include "pkg_generic_.h.inc"

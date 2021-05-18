@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_db_service.h.inc"
 struct CodeGen_pkg_db_service {
-	inline static const ::std::string md5 = "#*MD5<490355b48bd14975a89f70190491d164>*#";
+	inline static const ::std::string md5 = "#*MD5<36f3b698ee3923aaa0875e5ac86bf08a>*#";
     static void Register();
     CodeGen_pkg_db_service() { Register(); }
 };
@@ -49,8 +49,8 @@ namespace xx {
 	XX_OBJ_STRUCT_TEMPLATE_H(::Database::AccountInfo)
     template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<::Database::AccountInfo, std::decay_t<T>>>> {
 		template<bool needReserve = true>
-		static inline void Write(Data& d, T const& in) { std::declval<xx::ObjManager>().Write(d, in); }
-		static inline int Read(Data_r& d, T& out) { return std::declval<xx::ObjManager>().Read(d, out); }
+		static inline void Write(Data& d, T const& in) { (*(nullptr(xx::ObjManager*)).Write(d, in); }
+		static inline int Read(Data_r& d, T& out) { return *(nullptr(xx::ObjManager*)).Read(d, out); }
     };
 }
 #include "pkg_db_service_.h.inc"
