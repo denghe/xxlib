@@ -42,13 +42,15 @@ namespace xx::Epoll {
         std::unordered_map<int32_t, xx::Shared<CB<T>>> callbacks;
 
         // 发推送
-        int SendPush(xx::ObjBase_s const &ob) {
+        template<typename PKG = xx::ObjBase, typename ... Args>
+        int SendPush(Args const& ... args) {
             // 推送性质的包, serial == 0
-            return ((T*)this)->SendResponse(0, ob);
+            return ((T*)this)->template SendResponse<PKG>(0, args...);
         }
 
         // 发请求（收到相应回应时会触发 cb 执行。超时或断开也会触发，o == nullptr）
-        int SendRequest(xx::ObjBase_s const &o, typename CB<T>::Func &&cbfunc, double const &timeoutSeconds) {
+        template<typename PKG = xx::ObjBase, typename ... Args>
+        int SendRequest(typename CB<T>::Func &&cbfunc, double const &timeoutSeconds, Args const& ... args) {
             // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
             autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
             // 创建一个 带超时的回调
@@ -57,7 +59,7 @@ namespace xx::Epoll {
             // 以序列号建立cb的映射
             callbacks[autoIncSerial] = std::move(cb);
             // 发包并返回( 请求性质的包, 序号为负数 )
-            return ((T*)this)->SendResponse(-autoIncSerial, o);
+            return ((T*)this)->template SendResponse<PKG>(-autoIncSerial, args...);
         }
 
         // 收到回应( 自动调用 发送请求时设置的回调函数 )

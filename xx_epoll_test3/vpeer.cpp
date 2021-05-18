@@ -8,26 +8,6 @@
 
 #define S ((Server*)ec)
 
-// 发回应 package
-int VPeer::SendResponse(int32_t const &serial, xx::ObjBase_s const &ob) {
-    if (!Alive()) return __LINE__;
-
-    // 准备发包填充容器
-    xx::Data d(16384);
-    // 跳过包头
-    d.len = sizeof(uint32_t);
-    // 写 要发给谁
-    d.WriteFixed(clientId);
-    // 写序号
-    d.WriteVarInteger(serial);
-    // 写数据
-    S->om.WriteTo(d, ob);
-    // 填包头
-    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
-    // 发包并返回
-    return gatewayPeer->Send(std::move(d));
-}
-
 void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
     // drop data when offline
     if (!Alive()) return;
@@ -160,10 +140,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                 // ensure dbpeer
                 if (!S->dbPeer || !S->dbPeer->Alive()) {
-                    auto &&m = S->FromCache<Generic::Error>();
-                    m->errorCode = -1;
-                    m->errorMessage = "can't connect to db server";
-                    SendResponse(serial, m);
+                    SendResponse<Generic::Error>(serial, -1, "can't connect to db server");
                     return;
                 }
 
@@ -175,11 +152,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                     TypeCountInc<Client_Lobby::Auth>();
                 }
 
-                {
-                    auto &&m = xx::Make<Service_Database::GetAccountInfoByUsernamePassword>();
-                    m->username = std::move(o->username);
-                    m->password = std::move(o->password);
-                    S->dbPeer->SendRequest(m, [this, serial](xx::ObjBase_s &&ob) {
+                S->dbPeer->SendRequest<Service_Database::GetAccountInfoByUsernamePassword>([this, serial](xx::ObjBase_s &&ob) {
                         // check & clear busy flag
                         assert(TypeCount<Client_Lobby::Auth>() == 1);
                         TypeCountDec<Client_Lobby::Auth>();
@@ -187,10 +160,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                         // timeout?
                         if (!ob) {
                             // send error
-                            auto &&m = S->FromCache<Generic::Error>();
-                            m->errorCode = -2;
-                            m->errorMessage = "db server response timeout";
-                            SendResponse(serial, m);
+                            SendResponse<Generic::Error>(serial, -1, "db server response timeout");
                             return;
                         }
 
@@ -206,10 +176,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                                 // can't find user: send error
                                 if (!o->accountInfo.has_value()) {
-                                    auto &&m = S->FromCache<Generic::Error>();
-                                    m->errorCode = -1;
-                                    m->errorMessage = "bad username or password";
-                                    SendResponse(serial, m);
+                                    SendResponse<Generic::Error>(serial, -2, "bad username or password");
                                     return;
                                 }
 
@@ -217,10 +184,7 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                                 if (r < 0) {
 
                                     // error
-                                    auto &&m = S->FromCache<Generic::Error>();
-                                    m->errorCode = -2;
-                                    m->errorMessage = xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r);
-                                    SendResponse(serial, m);
+                                    SendResponse<Generic::Error>(serial, -3, xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r));
                                 } else {
                                     {
                                         // success
@@ -232,15 +196,14 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                                         m->serviceId = serviceId;
                                         SendResponse(serial, m);
                                     }
-                                    // push game list( cache )
-                                    SendPush(S->FromCache<Lobby_Client::GameOpen>());
+
+                                    // push game list cache
+                                    SendPush<xx::Span>(S->data_Lobby_Client_GameOpen);
                                 }
                                 return;
                             }
                         }
-                    }, 15);
-                }
-
+                    }, 15, o->username, o->password);
             } // case
 
             default:

@@ -548,6 +548,13 @@ namespace xx {
         template<bool needReserve = true, typename ...TS>
         void Write(TS const& ...vs);
 
+        // TS is base of Span. write buf only, do not write length
+        template<bool needReserve = true, typename ...TS>
+        void WriteBufSpans(TS const& ...vs) {
+            (WriteBuf(vs.buf, vs.len), ...);
+        }
+
+
         /***************************************************************************************************************************/
 
         ~Data_rw() {

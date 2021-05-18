@@ -3,8 +3,8 @@
 #include "server.h"
 #include "xx_epoll_omhelpers.h"
 #include "pkg_db_service.h"
+#include "gpeer.h"
 
-struct GPeer;
 struct VPeer;
 struct Game;
 
@@ -31,8 +31,34 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
 
     /****************************************************************************************/
 
-    // 发回应
-    int SendResponse(int32_t const &serial, xx::ObjBase_s const &ob);
+    // 发回应 for EP::OMExt<ThisType>
+    template<typename PKG = xx::ObjBase, typename ... Args>
+    int SendResponse(int32_t const &serial, Args const& ... args) {
+        if (!Alive()) return __LINE__;
+
+        // 准备发包填充容器
+        xx::Data d(16384);
+        // 跳过包头
+        d.len = sizeof(uint32_t);
+        // 写 要发给谁
+        d.WriteFixed(clientId);
+        // 写序号
+        d.WriteVarInteger(serial);
+        // write args
+        if constexpr(std::is_same_v<xx::ObjBase, PKG>) {
+            ((Server*)ec)->om.WriteTo(d, args...);
+        }
+        else if constexpr(std::is_same_v<xx::Span, PKG>) {
+            d.WriteBufSpans(args...);
+        }
+        else {
+            PKG::WriteTo(d, args...);
+        }
+        // 填包头
+        *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
+        // 发包并返回
+        return gatewayPeer->Send(std::move(d));
+    }
 
     // 收到数据( 进一步解析 serial, unpack 并转发到下面几个函数 )
     void Receive(uint8_t const *const &buf, size_t const &len);

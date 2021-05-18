@@ -77,20 +77,3 @@ void Peer::Receive() {
     // 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
     recv.RemoveFront(buf - recv.buf);
 }
-
-int Peer::SendResponse(int32_t const &serial, xx::ObjBase_s const &o) {
-    if (!Alive()) return __LINE__;
-    // 准备发包填充容器
-    xx::Data d(65536);
-    // 跳过包头
-    d.len = sizeof(uint32_t);
-    // 写序号
-    d.WriteVarInteger(serial);
-    // 写数据
-    S->om.WriteTo(d, o);
-    // 填包头
-    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
-    // 发包并返回
-    Send(std::move(d));
-    return 0;
-}
