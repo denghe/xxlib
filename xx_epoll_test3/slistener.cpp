@@ -11,7 +11,7 @@ void SListener::Accept(xx::Shared<SPeer> const &p) {
     p->Hold();
 
     // 设置自动断线超时时间
-    p->SetTimeoutSeconds(config.peerTimeoutSeconds);
+    p->SetTimeoutSeconds(15);
 
     LOG_INFO("ip = ", p->addr);
 }

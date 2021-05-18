@@ -125,7 +125,7 @@ void GPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
                 Close(__LINE__, xx::ToString("GPeer ReceiveCommand cmd gatewayId = ", gatewayId, " already exists"));
                 return;
             }
-            SetTimeoutSeconds(config.peerTimeoutSeconds);
+            SetTimeoutSeconds(15);
             S->gps[gatewayId] = xx::SharedFromThis(this);
             LOG_INFO("cmd = gatewayId = ", gatewayId);
             return;
@@ -162,7 +162,7 @@ void GPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
             }
         } else if (cmd == "ping") {
             // keep alive
-            SetTimeoutSeconds(config.peerTimeoutSeconds);
+            SetTimeoutSeconds(15);
             // echo back
             SendTo(0xFFFFFFFFu, "ping", dr.LeftSpan());
         } else {

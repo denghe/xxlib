@@ -3,7 +3,11 @@
 #include "server.h"
 #include "xx_logger.h"
 
+#define S ((Server*)ec)
+
 void DBDialer::Connect(xx::Shared<DBPeer> const &peer) {
+    assert(!S->dbPeer);
+
     // 没连上
     if (!peer) {
         LOG_INFO("failed");
@@ -16,5 +20,5 @@ void DBDialer::Connect(xx::Shared<DBPeer> const &peer) {
     peer->Hold();
 
     // 将 peer 放入容器
-    ((Server *)ec)->dbPeer = peer;
+    S->dbPeer = peer;
 }

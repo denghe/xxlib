@@ -5,14 +5,12 @@
 // 用类结构映射到 json 格式:
 
 struct Config {
-    uint32_t serverId = 0;
     uint32_t gatewayListenPort = 0;
     uint32_t serviceListenPort = 0;
-    double peerTimeoutSeconds = 0;
     std::string dbIP;
     uint32_t dbPort = 0;
 };
-AJSON(Config, serverId, gatewayListenPort, serviceListenPort, peerTimeoutSeconds, dbIP, dbPort);
+AJSON(Config, gatewayListenPort, serviceListenPort, dbIP, dbPort);
 
 
 // 适配 std::cout
