@@ -10,9 +10,9 @@ void CodeGen_pkg_lobby_client::Register() {
 }
 namespace Lobby_Client{
     void PlayerContext::WriteTo(xx::Data& d, ::Generic::PlayerInfo const& self, int32_t const& gameId, int32_t const& serviceId) {
-        d.Write(xx::TypeId_v<PlayerContext>);) {
-        d.Write(self);) {
-        d.Write(gameId);) {
+        d.Write(xx::TypeId_v<PlayerContext>);
+        d.Write(self);
+        d.Write(gameId);
         d.Write(serviceId);
     }
     void PlayerContext::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -65,7 +65,7 @@ namespace Lobby_Client{
 }
 namespace Lobby_Client{
     void EnterGameSuccess::WriteTo(xx::Data& d, int32_t const& serviceId) {
-        d.Write(xx::TypeId_v<EnterGameSuccess>);) {
+        d.Write(xx::TypeId_v<EnterGameSuccess>);
         d.Write(serviceId);
     }
     void EnterGameSuccess::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -104,7 +104,7 @@ namespace Lobby_Client{
 }
 namespace Lobby_Client{
     void GameOpen::WriteTo(xx::Data& d, ::std::vector<::Generic::GameInfo> const& gameInfos) {
-        d.Write(xx::TypeId_v<GameOpen>);) {
+        d.Write(xx::TypeId_v<GameOpen>);
         d.Write(gameInfos);
     }
     void GameOpen::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -143,7 +143,7 @@ namespace Lobby_Client{
 }
 namespace Lobby_Client{
     void GameClose::WriteTo(xx::Data& d, ::std::vector<int32_t> const& gameIds) {
-        d.Write(xx::TypeId_v<GameClose>);) {
+        d.Write(xx::TypeId_v<GameClose>);
         d.Write(gameIds);
     }
     void GameClose::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -182,8 +182,8 @@ namespace Lobby_Client{
 }
 namespace Client_Lobby{
     void Auth::WriteTo(xx::Data& d, ::std::string const& username, ::std::string const& password) {
-        d.Write(xx::TypeId_v<Auth>);) {
-        d.Write(username);) {
+        d.Write(xx::TypeId_v<Auth>);
+        d.Write(username);
         d.Write(password);
     }
     void Auth::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -229,7 +229,7 @@ namespace Client_Lobby{
 }
 namespace Client_Lobby{
     void EnterGame::WriteTo(xx::Data& d, int32_t const& gameId) {
-        d.Write(xx::TypeId_v<EnterGame>);) {
+        d.Write(xx::TypeId_v<EnterGame>);
         d.Write(gameId);
     }
     void EnterGame::Write(::xx::ObjManager& om, ::xx::Data& d) const {

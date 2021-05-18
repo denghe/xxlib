@@ -8,10 +8,10 @@ void CodeGen_pkg_game_lobby::Register() {
 }
 namespace Lobby_Game{
     void PlayerEnter::WriteTo(xx::Data& d, uint32_t const& gatewayId, uint32_t const& clientId, int32_t const& gameId, ::Generic::PlayerInfo const& playerInfo) {
-        d.Write(xx::TypeId_v<PlayerEnter>);) {
-        d.Write(gatewayId);) {
-        d.Write(clientId);) {
-        d.Write(gameId);) {
+        d.Write(xx::TypeId_v<PlayerEnter>);
+        d.Write(gatewayId);
+        d.Write(clientId);
+        d.Write(gameId);
         d.Write(playerInfo);
     }
     void PlayerEnter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -71,8 +71,8 @@ namespace Lobby_Game{
 }
 namespace Lobby_Game{
     void PlayerLeave::WriteTo(xx::Data& d, int32_t const& accountId, ::std::string const& reason) {
-        d.Write(xx::TypeId_v<PlayerLeave>);) {
-        d.Write(accountId);) {
+        d.Write(xx::TypeId_v<PlayerLeave>);
+        d.Write(accountId);
         d.Write(reason);
     }
     void PlayerLeave::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -118,8 +118,8 @@ namespace Lobby_Game{
 }
 namespace Game_Lobby{
     void Register::WriteTo(xx::Data& d, uint32_t const& serviceId, ::std::vector<::Generic::GameInfo> const& gameInfos) {
-        d.Write(xx::TypeId_v<Register>);) {
-        d.Write(serviceId);) {
+        d.Write(xx::TypeId_v<Register>);
+        d.Write(serviceId);
         d.Write(gameInfos);
     }
     void Register::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -165,8 +165,8 @@ namespace Game_Lobby{
 }
 namespace Game_Lobby{
     void PlayerLeave::WriteTo(xx::Data& d, int32_t const& accountId, int32_t const& gameId) {
-        d.Write(xx::TypeId_v<PlayerLeave>);) {
-        d.Write(accountId);) {
+        d.Write(xx::TypeId_v<PlayerLeave>);
+        d.Write(accountId);
         d.Write(gameId);
     }
     void PlayerLeave::Write(::xx::ObjManager& om, ::xx::Data& d) const {

@@ -132,8 +132,8 @@ namespace Generic{
 }
 namespace Generic{
     void Error::WriteTo(xx::Data& d, int32_t const& errorCode, ::std::string const& errorMessage) {
-        d.Write(xx::TypeId_v<Error>);) {
-        d.Write(errorCode);) {
+        d.Write(xx::TypeId_v<Error>);
+        d.Write(errorCode);
         d.Write(errorMessage);
     }
     void Error::Write(::xx::ObjManager& om, ::xx::Data& d) const {

@@ -59,7 +59,7 @@ namespace xx {
 }
 namespace Database_Service{
     void GetAccountInfoByUsernamePasswordResult::WriteTo(xx::Data& d, ::std::optional<::Database::AccountInfo> const& accountInfo) {
-        d.Write(xx::TypeId_v<GetAccountInfoByUsernamePasswordResult>);) {
+        d.Write(xx::TypeId_v<GetAccountInfoByUsernamePasswordResult>);
         d.Write(accountInfo);
     }
     void GetAccountInfoByUsernamePasswordResult::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -98,8 +98,8 @@ namespace Database_Service{
 }
 namespace Service_Database{
     void GetAccountInfoByUsernamePassword::WriteTo(xx::Data& d, ::std::string const& username, ::std::string const& password) {
-        d.Write(xx::TypeId_v<GetAccountInfoByUsernamePassword>);) {
-        d.Write(username);) {
+        d.Write(xx::TypeId_v<GetAccountInfoByUsernamePassword>);
+        d.Write(username);
         d.Write(password);
     }
     void GetAccountInfoByUsernamePassword::Write(::xx::ObjManager& om, ::xx::Data& d) const {

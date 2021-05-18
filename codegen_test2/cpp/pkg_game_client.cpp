@@ -16,7 +16,7 @@ void CodeGen_pkg_game_client::Register() {
 }
 namespace Game1{
     void Event::WriteTo(xx::Data& d, int64_t const& timestamp) {
-        d.Write(xx::TypeId_v<Event>);) {
+        d.Write(xx::TypeId_v<Event>);
         d.Write(timestamp);
     }
     void Event::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -55,7 +55,7 @@ namespace Game1{
 }
 namespace Game1{
     void Player::WriteTo(xx::Data& d, ::Generic::PlayerInfo const& info) {
-        d.Write(xx::TypeId_v<Player>);) {
+        d.Write(xx::TypeId_v<Player>);
         d.Write(info);
     }
     void Player::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -94,10 +94,10 @@ namespace Game1{
 }
 namespace Game1{
     void Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, ::std::string const& senderNickname, ::std::string const& content) {
-        d.Write(xx::TypeId_v<Message>);) {
-        d.Write(timestamp);) {
-        d.Write(senderId);) {
-        d.Write(senderNickname);) {
+        d.Write(xx::TypeId_v<Message>);
+        d.Write(timestamp);
+        d.Write(senderId);
+        d.Write(senderNickname);
         d.Write(content);
     }
     void Message::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -157,8 +157,8 @@ namespace Game1{
 }
 namespace Game1{
     void Scene::WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Player>> const& players, ::std::vector<::xx::Shared<::Game1::Message>> const& messages) {
-        d.Write(xx::TypeId_v<Scene>);) {
-        d.Write(players);) {
+        d.Write(xx::TypeId_v<Scene>);
+        d.Write(players);
         d.Write(messages);
     }
     void Scene::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -204,8 +204,8 @@ namespace Game1{
 }
 namespace Game1_Client{
     void FullSync::WriteTo(xx::Data& d, ::xx::Shared<::Game1::Scene> const& scene, ::xx::Weak<::Game1::Player> const& self) {
-        d.Write(xx::TypeId_v<FullSync>);) {
-        d.Write(scene);) {
+        d.Write(xx::TypeId_v<FullSync>);
+        d.Write(scene);
         d.Write(self);
     }
     void FullSync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -251,7 +251,7 @@ namespace Game1_Client{
 }
 namespace Game1_Client{
     void Sync::WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Event>> const& events) {
-        d.Write(xx::TypeId_v<Sync>);) {
+        d.Write(xx::TypeId_v<Sync>);
         d.Write(events);
     }
     void Sync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -290,7 +290,7 @@ namespace Game1_Client{
 }
 namespace Client_Game1{
     void Enter::WriteTo(xx::Data& d, bool const& loading) {
-        d.Write(xx::TypeId_v<Enter>);) {
+        d.Write(xx::TypeId_v<Enter>);
         d.Write(loading);
     }
     void Enter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -359,7 +359,7 @@ namespace Client_Game1{
 }
 namespace Client_Game1{
     void SendMessage::WriteTo(xx::Data& d, ::std::string const& content) {
-        d.Write(xx::TypeId_v<SendMessage>);) {
+        d.Write(xx::TypeId_v<SendMessage>);
         d.Write(content);
     }
     void SendMessage::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -398,8 +398,8 @@ namespace Client_Game1{
 }
 namespace Game1{
     void Event_PlayerEnter::WriteTo(xx::Data& d, int64_t const& timestamp, ::xx::Shared<::Game1::Player> const& player) {
-        d.Write(xx::TypeId_v<Event_PlayerEnter>);) {
-        d.Write(timestamp);) {
+        d.Write(xx::TypeId_v<Event_PlayerEnter>);
+        d.Write(timestamp);
         d.Write(player);
     }
     void Event_PlayerEnter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -445,8 +445,8 @@ namespace Game1{
 }
 namespace Game1{
     void Event_PlayerLeave::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& accountId) {
-        d.Write(xx::TypeId_v<Event_PlayerLeave>);) {
-        d.Write(timestamp);) {
+        d.Write(xx::TypeId_v<Event_PlayerLeave>);
+        d.Write(timestamp);
         d.Write(accountId);
     }
     void Event_PlayerLeave::Write(::xx::ObjManager& om, ::xx::Data& d) const {
@@ -492,9 +492,9 @@ namespace Game1{
 }
 namespace Game1{
     void Event_Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, ::std::string const& content) {
-        d.Write(xx::TypeId_v<Event_Message>);) {
-        d.Write(timestamp);) {
-        d.Write(senderId);) {
+        d.Write(xx::TypeId_v<Event_Message>);
+        d.Write(timestamp);
+        d.Write(senderId);
         d.Write(content);
     }
     void Event_Message::Write(::xx::ObjManager& om, ::xx::Data& d) const {
