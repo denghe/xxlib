@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_game_lobby.h.inc"
 struct CodeGen_pkg_game_lobby {
-	inline static const ::std::string md5 = "#*MD5<563d2546bc6372b8b54f29e63891db85>*#";
+	inline static const ::std::string md5 = "#*MD5<11b793de845de2af7115cc3ecff841c2>*#";
     static void Register();
     CodeGen_pkg_game_lobby() { Register(); }
 };
@@ -31,6 +31,7 @@ namespace Lobby_Game {
         int32_t gameId = 0;
         // 玩家信息顺便传递，避免查询 db
         ::Generic::PlayerInfo playerInfo;
+        static void WriteTo(xx::Data& d, uint32_t const&, uint32_t const&, int32_t const&, ::Generic::PlayerInfo const&);
     };
 }
 namespace Lobby_Game {
@@ -42,6 +43,7 @@ namespace Lobby_Game {
         int32_t accountId = 0;
         // 操作原因
         ::std::string reason;
+        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&);
     };
 }
 namespace Game_Lobby {
@@ -51,6 +53,7 @@ namespace Game_Lobby {
         using IsSimpleType_v = Register;
         uint32_t serviceId = 0;
         ::std::vector<::Generic::GameInfo> gameInfos;
+        static void WriteTo(xx::Data& d, uint32_t const&, ::std::vector<::Generic::GameInfo> const&);
     };
 }
 namespace Game_Lobby {
@@ -61,6 +64,7 @@ namespace Game_Lobby {
         // 玩家标识
         int32_t accountId = 0;
         int32_t gameId = 0;
+        static void WriteTo(xx::Data& d, int32_t const&, int32_t const&);
     };
 }
 #include "pkg_game_lobby_.h.inc"

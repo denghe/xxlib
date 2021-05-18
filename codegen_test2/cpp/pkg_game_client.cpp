@@ -15,11 +15,15 @@ void CodeGen_pkg_game_client::Register() {
 	::xx::ObjManager::Register<::Game1::Event_Message>();
 }
 namespace Game1{
+    void Event::WriteTo(xx::Data& d, int64_t const& timestamp) {
+        d.Write(xx::TypeId_v<Event>);) {
+        d.Write(timestamp);
+    }
     void Event::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->timestamp);
+        d.Write(this->timestamp);
     }
     int Event::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->timestamp)) return r;
+        if (int r = d.Read(this->timestamp)) return r;
         return 0;
     }
     void Event::Append(::xx::ObjManager& om, std::string& s) const {
@@ -50,11 +54,15 @@ namespace Game1{
     }
 }
 namespace Game1{
+    void Player::WriteTo(xx::Data& d, ::Generic::PlayerInfo const& info) {
+        d.Write(xx::TypeId_v<Player>);) {
+        d.Write(info);
+    }
     void Player::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->info);
+        d.Write(this->info);
     }
     int Player::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->info)) return r;
+        if (int r = d.Read(this->info)) return r;
         return 0;
     }
     void Player::Append(::xx::ObjManager& om, std::string& s) const {
@@ -85,17 +93,24 @@ namespace Game1{
     }
 }
 namespace Game1{
+    void Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, ::std::string const& senderNickname, ::std::string const& content) {
+        d.Write(xx::TypeId_v<Message>);) {
+        d.Write(timestamp);) {
+        d.Write(senderId);) {
+        d.Write(senderNickname);) {
+        d.Write(content);
+    }
     void Message::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->timestamp);
-        om.Write(d, this->senderId);
-        om.Write(d, this->senderNickname);
-        om.Write(d, this->content);
+        d.Write(this->timestamp);
+        d.Write(this->senderId);
+        d.Write(this->senderNickname);
+        d.Write(this->content);
     }
     int Message::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->timestamp)) return r;
-        if (int r = om.Read(d, this->senderId)) return r;
-        if (int r = om.Read(d, this->senderNickname)) return r;
-        if (int r = om.Read(d, this->content)) return r;
+        if (int r = d.Read(this->timestamp)) return r;
+        if (int r = d.Read(this->senderId)) return r;
+        if (int r = d.Read(this->senderNickname)) return r;
+        if (int r = d.Read(this->content)) return r;
         return 0;
     }
     void Message::Append(::xx::ObjManager& om, std::string& s) const {
@@ -141,13 +156,18 @@ namespace Game1{
     }
 }
 namespace Game1{
+    void Scene::WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Player>> const& players, ::std::vector<::xx::Shared<::Game1::Message>> const& messages) {
+        d.Write(xx::TypeId_v<Scene>);) {
+        d.Write(players);) {
+        d.Write(messages);
+    }
     void Scene::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->players);
-        om.Write(d, this->messages);
+        d.Write(this->players);
+        d.Write(this->messages);
     }
     int Scene::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->players)) return r;
-        if (int r = om.Read(d, this->messages)) return r;
+        if (int r = d.Read(this->players)) return r;
+        if (int r = d.Read(this->messages)) return r;
         return 0;
     }
     void Scene::Append(::xx::ObjManager& om, std::string& s) const {
@@ -183,13 +203,18 @@ namespace Game1{
     }
 }
 namespace Game1_Client{
+    void FullSync::WriteTo(xx::Data& d, ::xx::Shared<::Game1::Scene> const& scene, ::xx::Weak<::Game1::Player> const& self) {
+        d.Write(xx::TypeId_v<FullSync>);) {
+        d.Write(scene);) {
+        d.Write(self);
+    }
     void FullSync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->scene);
-        om.Write(d, this->self);
+        d.Write(this->scene);
+        d.Write(this->self);
     }
     int FullSync::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->scene)) return r;
-        if (int r = om.Read(d, this->self)) return r;
+        if (int r = d.Read(this->scene)) return r;
+        if (int r = d.Read(this->self)) return r;
         return 0;
     }
     void FullSync::Append(::xx::ObjManager& om, std::string& s) const {
@@ -225,11 +250,15 @@ namespace Game1_Client{
     }
 }
 namespace Game1_Client{
+    void Sync::WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Event>> const& events) {
+        d.Write(xx::TypeId_v<Sync>);) {
+        d.Write(events);
+    }
     void Sync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->events);
+        d.Write(this->events);
     }
     int Sync::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->events)) return r;
+        if (int r = d.Read(this->events)) return r;
         return 0;
     }
     void Sync::Append(::xx::ObjManager& om, std::string& s) const {
@@ -260,11 +289,15 @@ namespace Game1_Client{
     }
 }
 namespace Client_Game1{
+    void Enter::WriteTo(xx::Data& d, bool const& loading) {
+        d.Write(xx::TypeId_v<Enter>);) {
+        d.Write(loading);
+    }
     void Enter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->loading);
+        d.Write(this->loading);
     }
     int Enter::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->loading)) return r;
+        if (int r = d.Read(this->loading)) return r;
         return 0;
     }
     void Enter::Append(::xx::ObjManager& om, std::string& s) const {
@@ -295,6 +328,9 @@ namespace Client_Game1{
     }
 }
 namespace Client_Game1{
+    void Leave::WriteTo(xx::Data& d) {
+        d.Write(xx::TypeId_v<Leave>);
+    }
     void Leave::Write(::xx::ObjManager& om, ::xx::Data& d) const {
     }
     int Leave::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
@@ -322,11 +358,15 @@ namespace Client_Game1{
     }
 }
 namespace Client_Game1{
+    void SendMessage::WriteTo(xx::Data& d, ::std::string const& content) {
+        d.Write(xx::TypeId_v<SendMessage>);) {
+        d.Write(content);
+    }
     void SendMessage::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->content);
+        d.Write(this->content);
     }
     int SendMessage::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->content)) return r;
+        if (int r = d.Read(this->content)) return r;
         return 0;
     }
     void SendMessage::Append(::xx::ObjManager& om, std::string& s) const {
@@ -357,13 +397,18 @@ namespace Client_Game1{
     }
 }
 namespace Game1{
+    void Event_PlayerEnter::WriteTo(xx::Data& d, int64_t const& timestamp, ::xx::Shared<::Game1::Player> const& player) {
+        d.Write(xx::TypeId_v<Event_PlayerEnter>);) {
+        d.Write(timestamp);) {
+        d.Write(player);
+    }
     void Event_PlayerEnter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
-        om.Write(d, this->player);
+        d.Write(this->player);
     }
     int Event_PlayerEnter::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = this->BaseType::Read(om, d)) return r;
-        if (int r = om.Read(d, this->player)) return r;
+        if (int r = d.Read(this->player)) return r;
         return 0;
     }
     void Event_PlayerEnter::Append(::xx::ObjManager& om, std::string& s) const {
@@ -399,13 +444,18 @@ namespace Game1{
     }
 }
 namespace Game1{
+    void Event_PlayerLeave::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& accountId) {
+        d.Write(xx::TypeId_v<Event_PlayerLeave>);) {
+        d.Write(timestamp);) {
+        d.Write(accountId);
+    }
     void Event_PlayerLeave::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
-        om.Write(d, this->accountId);
+        d.Write(this->accountId);
     }
     int Event_PlayerLeave::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = this->BaseType::Read(om, d)) return r;
-        if (int r = om.Read(d, this->accountId)) return r;
+        if (int r = d.Read(this->accountId)) return r;
         return 0;
     }
     void Event_PlayerLeave::Append(::xx::ObjManager& om, std::string& s) const {
@@ -441,15 +491,21 @@ namespace Game1{
     }
 }
 namespace Game1{
+    void Event_Message::WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, ::std::string const& content) {
+        d.Write(xx::TypeId_v<Event_Message>);) {
+        d.Write(timestamp);) {
+        d.Write(senderId);) {
+        d.Write(content);
+    }
     void Event_Message::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
-        om.Write(d, this->senderId);
-        om.Write(d, this->content);
+        d.Write(this->senderId);
+        d.Write(this->content);
     }
     int Event_Message::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = this->BaseType::Read(om, d)) return r;
-        if (int r = om.Read(d, this->senderId)) return r;
-        if (int r = om.Read(d, this->content)) return r;
+        if (int r = d.Read(this->senderId)) return r;
+        if (int r = d.Read(this->content)) return r;
         return 0;
     }
     void Event_Message::Append(::xx::ObjManager& om, std::string& s) const {

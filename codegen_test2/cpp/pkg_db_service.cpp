@@ -6,19 +6,19 @@ void CodeGen_pkg_db_service::Register() {
 }
 namespace xx {
 	void ObjFuncs<::Database::AccountInfo, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::Database::AccountInfo const& in) {
-        om.Write(d, in.accountId);
-        om.Write(d, in.nickname);
-        om.Write(d, in.coin);
+        d.Write(in.accountId);
+        d.Write(in.nickname);
+        d.Write(in.coin);
     }
 	void ObjFuncs<::Database::AccountInfo, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::Database::AccountInfo const& in) {
-        om.Write<false>(d, in.accountId);
-        om.Write<false>(d, in.nickname);
-        om.Write<false>(d, in.coin);
+        d.Write<false>(in.accountId);
+        d.Write<false>(in.nickname);
+        d.Write<false>(in.coin);
     }
 	int ObjFuncs<::Database::AccountInfo, void>::Read(::xx::ObjManager& om, ::xx::Data_r& d, ::Database::AccountInfo& out) {
-        if (int r = om.Read(d, out.accountId)) return r;
-        if (int r = om.Read(d, out.nickname)) return r;
-        if (int r = om.Read(d, out.coin)) return r;
+        if (int r = d.Read(out.accountId)) return r;
+        if (int r = d.Read(out.nickname)) return r;
+        if (int r = d.Read(out.coin)) return r;
         return 0;
     }
 	void ObjFuncs<::Database::AccountInfo, void>::Append(ObjManager &om, std::string& s, ::Database::AccountInfo const& in) {
@@ -58,11 +58,15 @@ namespace xx {
     }
 }
 namespace Database_Service{
+    void GetAccountInfoByUsernamePasswordResult::WriteTo(xx::Data& d, ::std::optional<::Database::AccountInfo> const& accountInfo) {
+        d.Write(xx::TypeId_v<GetAccountInfoByUsernamePasswordResult>);) {
+        d.Write(accountInfo);
+    }
     void GetAccountInfoByUsernamePasswordResult::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->accountInfo);
+        d.Write(this->accountInfo);
     }
     int GetAccountInfoByUsernamePasswordResult::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->accountInfo)) return r;
+        if (int r = d.Read(this->accountInfo)) return r;
         return 0;
     }
     void GetAccountInfoByUsernamePasswordResult::Append(::xx::ObjManager& om, std::string& s) const {
@@ -93,13 +97,18 @@ namespace Database_Service{
     }
 }
 namespace Service_Database{
+    void GetAccountInfoByUsernamePassword::WriteTo(xx::Data& d, ::std::string const& username, ::std::string const& password) {
+        d.Write(xx::TypeId_v<GetAccountInfoByUsernamePassword>);) {
+        d.Write(username);) {
+        d.Write(password);
+    }
     void GetAccountInfoByUsernamePassword::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->username);
-        om.Write(d, this->password);
+        d.Write(this->username);
+        d.Write(this->password);
     }
     int GetAccountInfoByUsernamePassword::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->username)) return r;
-        if (int r = om.Read(d, this->password)) return r;
+        if (int r = d.Read(this->username)) return r;
+        if (int r = d.Read(this->password)) return r;
         return 0;
     }
     void GetAccountInfoByUsernamePassword::Append(::xx::ObjManager& om, std::string& s) const {

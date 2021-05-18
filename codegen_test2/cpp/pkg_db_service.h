@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_db_service.h.inc"
 struct CodeGen_pkg_db_service {
-	inline static const ::std::string md5 = "#*MD5<0c31a57c5e37e835d88ed0470d9ff99f>*#";
+	inline static const ::std::string md5 = "#*MD5<490355b48bd14975a89f70190491d164>*#";
     static void Register();
     CodeGen_pkg_db_service() { Register(); }
 };
@@ -22,6 +22,7 @@ namespace Database {
         int32_t accountId = -1;
         ::std::string nickname;
         double coin = 0;
+        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&, double const&);
     };
 }
 namespace Database_Service {
@@ -31,6 +32,7 @@ namespace Database_Service {
         using IsSimpleType_v = GetAccountInfoByUsernamePasswordResult;
         // 为空就是没找到
         ::std::optional<::Database::AccountInfo> accountInfo;
+        static void WriteTo(xx::Data& d, ::std::optional<::Database::AccountInfo> const&);
     };
 }
 namespace Service_Database {
@@ -40,9 +42,15 @@ namespace Service_Database {
         using IsSimpleType_v = GetAccountInfoByUsernamePassword;
         ::std::string username;
         ::std::string password;
+        static void WriteTo(xx::Data& d, ::std::string const&, ::std::string const&);
     };
 }
 namespace xx {
 	XX_OBJ_STRUCT_TEMPLATE_H(::Database::AccountInfo)
+    template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<::Database::AccountInfo, std::decay_t<T>>>> {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) { std::declval<xx::ObjManager>().Write(d, in); }
+		static inline int Read(Data_r& d, T& out) { return std::declval<xx::ObjManager>().Read(d, out); }
+    };
 }
 #include "pkg_db_service_.h.inc"

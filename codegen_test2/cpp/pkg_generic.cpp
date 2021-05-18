@@ -6,16 +6,16 @@ void CodeGen_pkg_generic::Register() {
 }
 namespace xx {
 	void ObjFuncs<::Generic::GameInfo, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::Generic::GameInfo const& in) {
-        om.Write(d, in.gameId);
-        om.Write(d, in.info);
+        d.Write(in.gameId);
+        d.Write(in.info);
     }
 	void ObjFuncs<::Generic::GameInfo, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::Generic::GameInfo const& in) {
-        om.Write<false>(d, in.gameId);
-        om.Write<false>(d, in.info);
+        d.Write<false>(in.gameId);
+        d.Write<false>(in.info);
     }
 	int ObjFuncs<::Generic::GameInfo, void>::Read(::xx::ObjManager& om, ::xx::Data_r& d, ::Generic::GameInfo& out) {
-        if (int r = om.Read(d, out.gameId)) return r;
-        if (int r = om.Read(d, out.info)) return r;
+        if (int r = d.Read(out.gameId)) return r;
+        if (int r = d.Read(out.info)) return r;
         return 0;
     }
 	void ObjFuncs<::Generic::GameInfo, void>::Append(ObjManager &om, std::string& s, ::Generic::GameInfo const& in) {
@@ -49,19 +49,19 @@ namespace xx {
         om.SetDefaultValue(in.info);
     }
 	void ObjFuncs<::Generic::PlayerInfo, void>::Write(::xx::ObjManager& om, ::xx::Data& d, ::Generic::PlayerInfo const& in) {
-        om.Write(d, in.accountId);
-        om.Write(d, in.nickname);
-        om.Write(d, in.coin);
+        d.Write(in.accountId);
+        d.Write(in.nickname);
+        d.Write(in.coin);
     }
 	void ObjFuncs<::Generic::PlayerInfo, void>::WriteFast(::xx::ObjManager& om, ::xx::Data& d, ::Generic::PlayerInfo const& in) {
-        om.Write<false>(d, in.accountId);
-        om.Write<false>(d, in.nickname);
-        om.Write<false>(d, in.coin);
+        d.Write<false>(in.accountId);
+        d.Write<false>(in.nickname);
+        d.Write<false>(in.coin);
     }
 	int ObjFuncs<::Generic::PlayerInfo, void>::Read(::xx::ObjManager& om, ::xx::Data_r& d, ::Generic::PlayerInfo& out) {
-        if (int r = om.Read(d, out.accountId)) return r;
-        if (int r = om.Read(d, out.nickname)) return r;
-        if (int r = om.Read(d, out.coin)) return r;
+        if (int r = d.Read(out.accountId)) return r;
+        if (int r = d.Read(out.nickname)) return r;
+        if (int r = d.Read(out.coin)) return r;
         return 0;
     }
 	void ObjFuncs<::Generic::PlayerInfo, void>::Append(ObjManager &om, std::string& s, ::Generic::PlayerInfo const& in) {
@@ -101,6 +101,9 @@ namespace xx {
     }
 }
 namespace Generic{
+    void Success::WriteTo(xx::Data& d) {
+        d.Write(xx::TypeId_v<Success>);
+    }
     void Success::Write(::xx::ObjManager& om, ::xx::Data& d) const {
     }
     int Success::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
@@ -128,13 +131,18 @@ namespace Generic{
     }
 }
 namespace Generic{
+    void Error::WriteTo(xx::Data& d, int32_t const& errorCode, ::std::string const& errorMessage) {
+        d.Write(xx::TypeId_v<Error>);) {
+        d.Write(errorCode);) {
+        d.Write(errorMessage);
+    }
     void Error::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->errorCode);
-        om.Write(d, this->errorMessage);
+        d.Write(this->errorCode);
+        d.Write(this->errorMessage);
     }
     int Error::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->errorCode)) return r;
-        if (int r = om.Read(d, this->errorMessage)) return r;
+        if (int r = d.Read(this->errorCode)) return r;
+        if (int r = d.Read(this->errorMessage)) return r;
         return 0;
     }
     void Error::Append(::xx::ObjManager& om, std::string& s) const {

@@ -9,15 +9,21 @@ void CodeGen_pkg_lobby_client::Register() {
 	::xx::ObjManager::Register<::Client_Lobby::EnterGame>();
 }
 namespace Lobby_Client{
+    void PlayerContext::WriteTo(xx::Data& d, ::Generic::PlayerInfo const& self, int32_t const& gameId, int32_t const& serviceId) {
+        d.Write(xx::TypeId_v<PlayerContext>);) {
+        d.Write(self);) {
+        d.Write(gameId);) {
+        d.Write(serviceId);
+    }
     void PlayerContext::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->self);
-        om.Write(d, this->gameId);
-        om.Write(d, this->serviceId);
+        d.Write(this->self);
+        d.Write(this->gameId);
+        d.Write(this->serviceId);
     }
     int PlayerContext::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->self)) return r;
-        if (int r = om.Read(d, this->gameId)) return r;
-        if (int r = om.Read(d, this->serviceId)) return r;
+        if (int r = d.Read(this->self)) return r;
+        if (int r = d.Read(this->gameId)) return r;
+        if (int r = d.Read(this->serviceId)) return r;
         return 0;
     }
     void PlayerContext::Append(::xx::ObjManager& om, std::string& s) const {
@@ -58,11 +64,15 @@ namespace Lobby_Client{
     }
 }
 namespace Lobby_Client{
+    void EnterGameSuccess::WriteTo(xx::Data& d, int32_t const& serviceId) {
+        d.Write(xx::TypeId_v<EnterGameSuccess>);) {
+        d.Write(serviceId);
+    }
     void EnterGameSuccess::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->serviceId);
+        d.Write(this->serviceId);
     }
     int EnterGameSuccess::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->serviceId)) return r;
+        if (int r = d.Read(this->serviceId)) return r;
         return 0;
     }
     void EnterGameSuccess::Append(::xx::ObjManager& om, std::string& s) const {
@@ -93,11 +103,15 @@ namespace Lobby_Client{
     }
 }
 namespace Lobby_Client{
+    void GameOpen::WriteTo(xx::Data& d, ::std::vector<::Generic::GameInfo> const& gameInfos) {
+        d.Write(xx::TypeId_v<GameOpen>);) {
+        d.Write(gameInfos);
+    }
     void GameOpen::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->gameInfos);
+        d.Write(this->gameInfos);
     }
     int GameOpen::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->gameInfos)) return r;
+        if (int r = d.Read(this->gameInfos)) return r;
         return 0;
     }
     void GameOpen::Append(::xx::ObjManager& om, std::string& s) const {
@@ -128,11 +142,15 @@ namespace Lobby_Client{
     }
 }
 namespace Lobby_Client{
+    void GameClose::WriteTo(xx::Data& d, ::std::vector<int32_t> const& gameIds) {
+        d.Write(xx::TypeId_v<GameClose>);) {
+        d.Write(gameIds);
+    }
     void GameClose::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->gameIds);
+        d.Write(this->gameIds);
     }
     int GameClose::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->gameIds)) return r;
+        if (int r = d.Read(this->gameIds)) return r;
         return 0;
     }
     void GameClose::Append(::xx::ObjManager& om, std::string& s) const {
@@ -163,13 +181,18 @@ namespace Lobby_Client{
     }
 }
 namespace Client_Lobby{
+    void Auth::WriteTo(xx::Data& d, ::std::string const& username, ::std::string const& password) {
+        d.Write(xx::TypeId_v<Auth>);) {
+        d.Write(username);) {
+        d.Write(password);
+    }
     void Auth::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->username);
-        om.Write(d, this->password);
+        d.Write(this->username);
+        d.Write(this->password);
     }
     int Auth::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->username)) return r;
-        if (int r = om.Read(d, this->password)) return r;
+        if (int r = d.Read(this->username)) return r;
+        if (int r = d.Read(this->password)) return r;
         return 0;
     }
     void Auth::Append(::xx::ObjManager& om, std::string& s) const {
@@ -205,11 +228,15 @@ namespace Client_Lobby{
     }
 }
 namespace Client_Lobby{
+    void EnterGame::WriteTo(xx::Data& d, int32_t const& gameId) {
+        d.Write(xx::TypeId_v<EnterGame>);) {
+        d.Write(gameId);
+    }
     void EnterGame::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->gameId);
+        d.Write(this->gameId);
     }
     int EnterGame::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->gameId)) return r;
+        if (int r = d.Read(this->gameId)) return r;
         return 0;
     }
     void EnterGame::Append(::xx::ObjManager& om, std::string& s) const {

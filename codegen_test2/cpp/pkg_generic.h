@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "pkg_generic.h.inc"
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<5d499face6f1546f25ada1cfa13a7394>*#";
+	inline static const ::std::string md5 = "#*MD5<707d493eac0403ed6095694197f1af82>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };
@@ -23,6 +23,7 @@ namespace Generic {
         int32_t gameId = 0;
         // 游戏说明( 服务器并不关心, 会转发到 client. 通常是一段 json 啥的 )
         ::std::string info;
+        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&);
     };
 }
 namespace Generic {
@@ -36,6 +37,7 @@ namespace Generic {
         ::std::string nickname;
         // 玩家资产
         double coin = 0;
+        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&, double const&);
     };
 }
 namespace Generic {
@@ -43,6 +45,7 @@ namespace Generic {
     struct Success : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Success, ::xx::ObjBase)
         using IsSimpleType_v = Success;
+        static void WriteTo(xx::Data& d);
     };
 }
 namespace Generic {
@@ -52,10 +55,21 @@ namespace Generic {
         using IsSimpleType_v = Error;
         int32_t errorCode = 0;
         ::std::string errorMessage;
+        static void WriteTo(xx::Data& d, int32_t const&, ::std::string const&);
     };
 }
 namespace xx {
 	XX_OBJ_STRUCT_TEMPLATE_H(::Generic::GameInfo)
+    template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<::Generic::GameInfo, std::decay_t<T>>>> {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) { std::declval<xx::ObjManager>().Write(d, in); }
+		static inline int Read(Data_r& d, T& out) { return std::declval<xx::ObjManager>().Read(d, out); }
+    };
 	XX_OBJ_STRUCT_TEMPLATE_H(::Generic::PlayerInfo)
+    template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<::Generic::PlayerInfo, std::decay_t<T>>>> {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) { std::declval<xx::ObjManager>().Write(d, in); }
+		static inline int Read(Data_r& d, T& out) { return std::declval<xx::ObjManager>().Read(d, out); }
+    };
 }
 #include "pkg_generic_.h.inc"

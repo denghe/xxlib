@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_lobby_client.h.inc"
 struct CodeGen_pkg_lobby_client {
-	inline static const ::std::string md5 = "#*MD5<aeffcf6b8032db7ef4b928939dbb2b6d>*#";
+	inline static const ::std::string md5 = "#*MD5<7535b54bce8007ffc6bca043779b7b20>*#";
     static void Register();
     CodeGen_pkg_lobby_client() { Register(); }
 };
@@ -33,6 +33,7 @@ namespace Lobby_Client {
         int32_t gameId = 0;
         // 要等待 open 的服务id( 小于0: 新上线 不用等  等于0: 大厅顶下线 不用等  大于0: 游戏服务id )
         int32_t serviceId = 0;
+        static void WriteTo(xx::Data& d, ::Generic::PlayerInfo const&, int32_t const&, int32_t const&);
     };
 }
 namespace Lobby_Client {
@@ -42,6 +43,7 @@ namespace Lobby_Client {
         using IsSimpleType_v = EnterGameSuccess;
         // 要等待 open 的服务id
         int32_t serviceId = 0;
+        static void WriteTo(xx::Data& d, int32_t const&);
     };
 }
 namespace Lobby_Client {
@@ -51,6 +53,7 @@ namespace Lobby_Client {
         using IsSimpleType_v = GameOpen;
         // 游戏信息列表
         ::std::vector<::Generic::GameInfo> gameInfos;
+        static void WriteTo(xx::Data& d, ::std::vector<::Generic::GameInfo> const&);
     };
 }
 namespace Lobby_Client {
@@ -60,6 +63,7 @@ namespace Lobby_Client {
         using IsSimpleType_v = GameClose;
         // 游戏标识列表
         ::std::vector<int32_t> gameIds;
+        static void WriteTo(xx::Data& d, ::std::vector<int32_t> const&);
     };
 }
 namespace Client_Lobby {
@@ -69,6 +73,7 @@ namespace Client_Lobby {
         using IsSimpleType_v = Auth;
         ::std::string username;
         ::std::string password;
+        static void WriteTo(xx::Data& d, ::std::string const&, ::std::string const&);
     };
 }
 namespace Client_Lobby {
@@ -77,6 +82,7 @@ namespace Client_Lobby {
         XX_OBJ_OBJECT_H(EnterGame, ::xx::ObjBase)
         using IsSimpleType_v = EnterGame;
         int32_t gameId = 0;
+        static void WriteTo(xx::Data& d, int32_t const&);
     };
 }
 #include "pkg_lobby_client_.h.inc"

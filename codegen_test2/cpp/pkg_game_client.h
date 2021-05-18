@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_game_client.h.inc"
 struct CodeGen_pkg_game_client {
-	inline static const ::std::string md5 = "#*MD5<1a3e232836a502cbebe62f31427d750e>*#";
+	inline static const ::std::string md5 = "#*MD5<1dce641d2eccf11157445ab1829a8018>*#";
     static void Register();
     CodeGen_pkg_game_client() { Register(); }
 };
@@ -38,9 +38,9 @@ namespace Game1 {
     // 事件--基类
     struct Event : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Event, ::xx::ObjBase)
-        using IsSimpleType_v = Event;
         // 同 Game1.Message.timestamp
         int64_t timestamp = 0;
+        static void WriteTo(xx::Data& d, int64_t const&);
     };
 }
 namespace Game1 {
@@ -49,6 +49,7 @@ namespace Game1 {
         XX_OBJ_OBJECT_H(Player, ::xx::ObjBase)
         using IsSimpleType_v = Player;
         ::Generic::PlayerInfo info;
+        static void WriteTo(xx::Data& d, ::Generic::PlayerInfo const&);
     };
 }
 namespace Game1 {
@@ -64,24 +65,29 @@ namespace Game1 {
         ::std::string senderNickname;
         // 内容
         ::std::string content;
+        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, ::std::string const&, ::std::string const&);
     };
 }
 namespace Game1 {
     // 游戏场景( 不便下发到 client 的敏感信息不在此列，由服务端自行附加 )
     struct Scene : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Scene, ::xx::ObjBase)
+        using IsSimpleType_v = Scene;
         ::std::vector<::xx::Shared<::Game1::Player>> players;
         ::std::vector<::xx::Shared<::Game1::Message>> messages;
+        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Player>> const&, ::std::vector<::xx::Shared<::Game1::Message>> const&);
     };
 }
 namespace Game1_Client {
     // 推送: 完整同步
     struct FullSync : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(FullSync, ::xx::ObjBase)
+        using IsSimpleType_v = FullSync;
         // 游戏场景
         ::xx::Shared<::Game1::Scene> scene;
         // 指向当前玩家上下文
         ::xx::Weak<::Game1::Player> self;
+        static void WriteTo(xx::Data& d, ::xx::Shared<::Game1::Scene> const&, ::xx::Weak<::Game1::Player> const&);
     };
 }
 namespace Game1_Client {
@@ -90,6 +96,7 @@ namespace Game1_Client {
         XX_OBJ_OBJECT_H(Sync, ::xx::ObjBase)
         // 事件集合( 已按时间戳排序 )
         ::std::vector<::xx::Shared<::Game1::Event>> events;
+        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Event>> const&);
     };
 }
 namespace Client_Game1 {
@@ -99,6 +106,7 @@ namespace Client_Game1 {
         using IsSimpleType_v = Enter;
         // 是否正在读条. 是：并非真正进入，只是为了延长 游戏服超时踢人 时间, 无返回值. 否: 游戏服下发 FullSync
         bool loading = false;
+        static void WriteTo(xx::Data& d, bool const&);
     };
 }
 namespace Client_Game1 {
@@ -106,6 +114,7 @@ namespace Client_Game1 {
     struct Leave : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Leave, ::xx::ObjBase)
         using IsSimpleType_v = Leave;
+        static void WriteTo(xx::Data& d);
     };
 }
 namespace Client_Game1 {
@@ -115,14 +124,17 @@ namespace Client_Game1 {
         using IsSimpleType_v = SendMessage;
         // 内容
         ::std::string content;
+        static void WriteTo(xx::Data& d, ::std::string const&);
     };
 }
 namespace Game1 {
     // 事件--玩家进入
     struct Event_PlayerEnter : ::Game1::Event {
         XX_OBJ_OBJECT_H(Event_PlayerEnter, ::Game1::Event)
+        using IsSimpleType_v = Event_PlayerEnter;
         // 玩家信息
         ::xx::Shared<::Game1::Player> player;
+        static void WriteTo(xx::Data& d, int64_t const&, ::xx::Shared<::Game1::Player> const&);
     };
 }
 namespace Game1 {
@@ -131,6 +143,7 @@ namespace Game1 {
         XX_OBJ_OBJECT_H(Event_PlayerLeave, ::Game1::Event)
         using IsSimpleType_v = Event_PlayerLeave;
         int32_t accountId = 0;
+        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&);
     };
 }
 namespace Game1 {
@@ -142,6 +155,7 @@ namespace Game1 {
         int32_t senderId = 0;
         // 内容
         ::std::string content;
+        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, ::std::string const&);
     };
 }
 #include "pkg_game_client_.h.inc"

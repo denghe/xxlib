@@ -7,17 +7,24 @@ void CodeGen_pkg_game_lobby::Register() {
 	::xx::ObjManager::Register<::Game_Lobby::PlayerLeave>();
 }
 namespace Lobby_Game{
+    void PlayerEnter::WriteTo(xx::Data& d, uint32_t const& gatewayId, uint32_t const& clientId, int32_t const& gameId, ::Generic::PlayerInfo const& playerInfo) {
+        d.Write(xx::TypeId_v<PlayerEnter>);) {
+        d.Write(gatewayId);) {
+        d.Write(clientId);) {
+        d.Write(gameId);) {
+        d.Write(playerInfo);
+    }
     void PlayerEnter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->gatewayId);
-        om.Write(d, this->clientId);
-        om.Write(d, this->gameId);
-        om.Write(d, this->playerInfo);
+        d.Write(this->gatewayId);
+        d.Write(this->clientId);
+        d.Write(this->gameId);
+        d.Write(this->playerInfo);
     }
     int PlayerEnter::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->gatewayId)) return r;
-        if (int r = om.Read(d, this->clientId)) return r;
-        if (int r = om.Read(d, this->gameId)) return r;
-        if (int r = om.Read(d, this->playerInfo)) return r;
+        if (int r = d.Read(this->gatewayId)) return r;
+        if (int r = d.Read(this->clientId)) return r;
+        if (int r = d.Read(this->gameId)) return r;
+        if (int r = d.Read(this->playerInfo)) return r;
         return 0;
     }
     void PlayerEnter::Append(::xx::ObjManager& om, std::string& s) const {
@@ -63,13 +70,18 @@ namespace Lobby_Game{
     }
 }
 namespace Lobby_Game{
+    void PlayerLeave::WriteTo(xx::Data& d, int32_t const& accountId, ::std::string const& reason) {
+        d.Write(xx::TypeId_v<PlayerLeave>);) {
+        d.Write(accountId);) {
+        d.Write(reason);
+    }
     void PlayerLeave::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->accountId);
-        om.Write(d, this->reason);
+        d.Write(this->accountId);
+        d.Write(this->reason);
     }
     int PlayerLeave::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->accountId)) return r;
-        if (int r = om.Read(d, this->reason)) return r;
+        if (int r = d.Read(this->accountId)) return r;
+        if (int r = d.Read(this->reason)) return r;
         return 0;
     }
     void PlayerLeave::Append(::xx::ObjManager& om, std::string& s) const {
@@ -105,13 +117,18 @@ namespace Lobby_Game{
     }
 }
 namespace Game_Lobby{
+    void Register::WriteTo(xx::Data& d, uint32_t const& serviceId, ::std::vector<::Generic::GameInfo> const& gameInfos) {
+        d.Write(xx::TypeId_v<Register>);) {
+        d.Write(serviceId);) {
+        d.Write(gameInfos);
+    }
     void Register::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->serviceId);
-        om.Write(d, this->gameInfos);
+        d.Write(this->serviceId);
+        d.Write(this->gameInfos);
     }
     int Register::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->serviceId)) return r;
-        if (int r = om.Read(d, this->gameInfos)) return r;
+        if (int r = d.Read(this->serviceId)) return r;
+        if (int r = d.Read(this->gameInfos)) return r;
         return 0;
     }
     void Register::Append(::xx::ObjManager& om, std::string& s) const {
@@ -147,13 +164,18 @@ namespace Game_Lobby{
     }
 }
 namespace Game_Lobby{
+    void PlayerLeave::WriteTo(xx::Data& d, int32_t const& accountId, int32_t const& gameId) {
+        d.Write(xx::TypeId_v<PlayerLeave>);) {
+        d.Write(accountId);) {
+        d.Write(gameId);
+    }
     void PlayerLeave::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        om.Write(d, this->accountId);
-        om.Write(d, this->gameId);
+        d.Write(this->accountId);
+        d.Write(this->gameId);
     }
     int PlayerLeave::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = om.Read(d, this->accountId)) return r;
-        if (int r = om.Read(d, this->gameId)) return r;
+        if (int r = d.Read(this->accountId)) return r;
+        if (int r = d.Read(this->gameId)) return r;
         return 0;
     }
     void PlayerLeave::Append(::xx::ObjManager& om, std::string& s) const {
