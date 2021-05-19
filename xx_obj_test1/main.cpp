@@ -148,19 +148,33 @@ void Test3() {
 	}
 }
 
-#include <io.h>
-#include <fcntl.h>
-
 /*
 🀀🀁🀂🀃🀆🀅🀄️
 🀇🀈🀉🀊🀋🀌🀍🀎🀏
 🀐🀑🀒🀓🀔🀕🀖🀗🀘
 🀙🀚🀛🀜🀝🀞🀟🀠🀡
+
+🂡🂢🂣🂤🂥🂦🂧🂨🂩🂪🂫🂭🂮
+🂱🂲🂳🂴🂵🂶🂷🂸🂹🂺🂻🂽🂾
+🃁🃂🃃🃄🃅🃆🃇🃈🃉🃊🃋🃍🃎
+🃑🃒🃓🃔🃕🃖🃗🃘🃙🃚🃛🃝🃞
+🃟🃏
 */
 
 int main() {
-	SetConsoleOutputCP(CP_UTF8);
-    auto c = u8"我日🀕🀇我日";
+    // windows console is not support
+    auto c = u8R"(
+🀀🀁🀂🀃🀆🀅🀄️
+🀇🀈🀉🀊🀋🀌🀍🀎🀏
+🀐🀑🀒🀓🀔🀕🀖🀗🀘
+🀙🀚🀛🀜🀝🀞🀟🀠🀡
+
+🂡🂢🂣🂤🂥🂦🂧🂨🂩🂪🂫🂭🂮
+🂱🂲🂳🂴🂵🂶🂷🂸🂹🂺🂻🂽🂾
+🃁🃂🃃🃄🃅🃆🃇🃈🃉🃊🃋🃍🃎
+🃑🃒🃓🃔🃕🃖🃗🃘🃙🃚🃛🃝🃞
+🃟🃏
+)";
     std::cout << (char*)c << std::endl;
 
 	//Test1();

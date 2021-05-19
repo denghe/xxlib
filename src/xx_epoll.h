@@ -75,7 +75,7 @@ namespace xx {
         }
 
         // 启动时自动注册函数
-        DumpFuncs<sockaddr_in6>() {
+        DumpFuncs() {
             if (dumpFuncs[(size_t) value]) throw std::runtime_error(" DumpFuncs<sockaddr_in6> if (dumpFuncs[value])");
             dumpFuncs[(size_t) value] = Dump;
         }
