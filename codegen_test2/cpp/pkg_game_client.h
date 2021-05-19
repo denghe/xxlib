@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_game_client.h.inc"
 struct CodeGen_pkg_game_client {
-	inline static const ::std::string md5 = "#*MD5<043a8b5060ac34d8646ea9722fc2e261>*#";
+	inline static const ::std::string md5 = "#*MD5<f83ddb480d73a1fd9af1d46358567fcc>*#";
     static void Register();
     CodeGen_pkg_game_client() { Register(); }
 };
@@ -40,7 +40,7 @@ namespace Game1 {
         XX_OBJ_OBJECT_H(Event, ::xx::ObjBase)
         // 同 Game1.Message.timestamp
         int64_t timestamp = 0;
-        static void WriteTo(xx::Data& d, int64_t const&);
+        static void WriteTo(xx::Data& d, int64_t const& timestamp);
     };
 }
 namespace Game1 {
@@ -49,7 +49,7 @@ namespace Game1 {
         XX_OBJ_OBJECT_H(Player, ::xx::ObjBase)
         using IsSimpleType_v = Player;
         ::Generic::PlayerInfo info;
-        static void WriteTo(xx::Data& d, ::Generic::PlayerInfo const&);
+        static void WriteTo(xx::Data& d, ::Generic::PlayerInfo const& info);
     };
 }
 namespace Game1 {
@@ -65,7 +65,7 @@ namespace Game1 {
         ::std::string senderNickname;
         // 内容
         ::std::string content;
-        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, std::string_view const&, std::string_view const&);
+        static void WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, std::string_view const& senderNickname, std::string_view const& content);
     };
 }
 namespace Game1 {
@@ -75,7 +75,7 @@ namespace Game1 {
         using IsSimpleType_v = Scene;
         ::std::vector<::xx::Shared<::Game1::Player>> players;
         ::std::vector<::xx::Shared<::Game1::Message>> messages;
-        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Player>> const&, ::std::vector<::xx::Shared<::Game1::Message>> const&);
+        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Player>> const& players, ::std::vector<::xx::Shared<::Game1::Message>> const& messages);
     };
 }
 namespace Game1_Client {
@@ -87,7 +87,7 @@ namespace Game1_Client {
         ::xx::Shared<::Game1::Scene> scene;
         // 指向当前玩家上下文
         ::xx::Weak<::Game1::Player> self;
-        static void WriteTo(xx::Data& d, ::xx::Shared<::Game1::Scene> const&, ::xx::Weak<::Game1::Player> const&);
+        static void WriteTo(xx::Data& d, ::xx::Shared<::Game1::Scene> const& scene, ::xx::Weak<::Game1::Player> const& self);
     };
 }
 namespace Game1_Client {
@@ -96,7 +96,7 @@ namespace Game1_Client {
         XX_OBJ_OBJECT_H(Sync, ::xx::ObjBase)
         // 事件集合( 已按时间戳排序 )
         ::std::vector<::xx::Shared<::Game1::Event>> events;
-        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Event>> const&);
+        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Event>> const& events);
     };
 }
 namespace Client_Game1 {
@@ -106,7 +106,7 @@ namespace Client_Game1 {
         using IsSimpleType_v = Enter;
         // 是否正在读条. 是：并非真正进入，只是为了延长 游戏服超时踢人 时间, 无返回值. 否: 游戏服下发 FullSync
         bool loading = false;
-        static void WriteTo(xx::Data& d, bool const&);
+        static void WriteTo(xx::Data& d, bool const& loading);
     };
 }
 namespace Client_Game1 {
@@ -124,7 +124,7 @@ namespace Client_Game1 {
         using IsSimpleType_v = SendMessage;
         // 内容
         ::std::string content;
-        static void WriteTo(xx::Data& d, std::string_view const&);
+        static void WriteTo(xx::Data& d, std::string_view const& content);
     };
 }
 namespace Game1 {
@@ -134,7 +134,7 @@ namespace Game1 {
         using IsSimpleType_v = Event_PlayerEnter;
         // 玩家信息
         ::xx::Shared<::Game1::Player> player;
-        static void WriteTo(xx::Data& d, int64_t const&, ::xx::Shared<::Game1::Player> const&);
+        static void WriteTo(xx::Data& d, int64_t const& timestamp, ::xx::Shared<::Game1::Player> const& player);
     };
 }
 namespace Game1 {
@@ -143,7 +143,7 @@ namespace Game1 {
         XX_OBJ_OBJECT_H(Event_PlayerLeave, ::Game1::Event)
         using IsSimpleType_v = Event_PlayerLeave;
         int32_t accountId = 0;
-        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&);
+        static void WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& accountId);
     };
 }
 namespace Game1 {
@@ -155,7 +155,7 @@ namespace Game1 {
         int32_t senderId = 0;
         // 内容
         ::std::string content;
-        static void WriteTo(xx::Data& d, int64_t const&, int32_t const&, std::string_view const&);
+        static void WriteTo(xx::Data& d, int64_t const& timestamp, int32_t const& senderId, std::string_view const& content);
     };
 }
 #include "pkg_game_client_.h.inc"

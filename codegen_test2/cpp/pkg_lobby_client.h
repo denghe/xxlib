@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_lobby_client.h.inc"
 struct CodeGen_pkg_lobby_client {
-	inline static const ::std::string md5 = "#*MD5<d555949e1fb4d076a006d61eb3f4fa42>*#";
+	inline static const ::std::string md5 = "#*MD5<c59f84bc6221e7f8f4d8161e71ede987>*#";
     static void Register();
     CodeGen_pkg_lobby_client() { Register(); }
 };
@@ -33,7 +33,7 @@ namespace Lobby_Client {
         int32_t gameId = 0;
         // 要等待 open 的服务id( 小于0: 新上线 不用等  等于0: 大厅顶下线 不用等  大于0: 游戏服务id )
         int32_t serviceId = 0;
-        static void WriteTo(xx::Data& d, ::Generic::PlayerInfo const&, int32_t const&, int32_t const&);
+        static void WriteTo(xx::Data& d, ::Generic::PlayerInfo const& self, int32_t const& gameId, int32_t const& serviceId);
     };
 }
 namespace Lobby_Client {
@@ -43,7 +43,7 @@ namespace Lobby_Client {
         using IsSimpleType_v = EnterGameSuccess;
         // 要等待 open 的服务id
         int32_t serviceId = 0;
-        static void WriteTo(xx::Data& d, int32_t const&);
+        static void WriteTo(xx::Data& d, int32_t const& serviceId);
     };
 }
 namespace Lobby_Client {
@@ -53,7 +53,7 @@ namespace Lobby_Client {
         using IsSimpleType_v = GameOpen;
         // 游戏信息列表
         ::std::vector<::Generic::GameInfo> gameInfos;
-        static void WriteTo(xx::Data& d, ::std::vector<::Generic::GameInfo> const&);
+        static void WriteTo(xx::Data& d, ::std::vector<::Generic::GameInfo> const& gameInfos);
     };
 }
 namespace Lobby_Client {
@@ -63,7 +63,7 @@ namespace Lobby_Client {
         using IsSimpleType_v = GameClose;
         // 游戏标识列表
         ::std::vector<int32_t> gameIds;
-        static void WriteTo(xx::Data& d, ::std::vector<int32_t> const&);
+        static void WriteTo(xx::Data& d, ::std::vector<int32_t> const& gameIds);
     };
 }
 namespace Client_Lobby {
@@ -73,7 +73,7 @@ namespace Client_Lobby {
         using IsSimpleType_v = Auth;
         ::std::string username;
         ::std::string password;
-        static void WriteTo(xx::Data& d, std::string_view const&, std::string_view const&);
+        static void WriteTo(xx::Data& d, std::string_view const& username, std::string_view const& password);
     };
 }
 namespace Client_Lobby {
@@ -82,7 +82,7 @@ namespace Client_Lobby {
         XX_OBJ_OBJECT_H(EnterGame, ::xx::ObjBase)
         using IsSimpleType_v = EnterGame;
         int32_t gameId = 0;
-        static void WriteTo(xx::Data& d, int32_t const&);
+        static void WriteTo(xx::Data& d, int32_t const& gameId);
     };
 }
 #include "pkg_lobby_client_.h.inc"

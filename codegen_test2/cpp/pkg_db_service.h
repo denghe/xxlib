@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_db_service.h.inc"
 struct CodeGen_pkg_db_service {
-	inline static const ::std::string md5 = "#*MD5<2471f2de3593c978d18c657ef65bf8cc>*#";
+	inline static const ::std::string md5 = "#*MD5<750aba5d9593285634c8f7373af89d84>*#";
     static void Register();
     CodeGen_pkg_db_service() { Register(); }
 };
@@ -22,7 +22,7 @@ namespace Database {
         int32_t accountId = -1;
         ::std::string nickname;
         double coin = 0;
-        static void WriteTo(xx::Data& d, int32_t const&, std::string_view const&, double const&);
+        static void WriteTo(xx::Data& d, int32_t const& accountId, std::string_view const& nickname, double const& coin);
     };
 }
 namespace Database_Service {
@@ -32,7 +32,7 @@ namespace Database_Service {
         using IsSimpleType_v = GetAccountInfoByUsernamePasswordResult;
         // 为空就是没找到
         ::std::optional<::Database::AccountInfo> accountInfo;
-        static void WriteTo(xx::Data& d, ::std::optional<::Database::AccountInfo> const&);
+        static void WriteTo(xx::Data& d, ::std::optional<::Database::AccountInfo> const& accountInfo);
     };
 }
 namespace Service_Database {
@@ -42,15 +42,15 @@ namespace Service_Database {
         using IsSimpleType_v = GetAccountInfoByUsernamePassword;
         ::std::string username;
         ::std::string password;
-        static void WriteTo(xx::Data& d, std::string_view const&, std::string_view const&);
+        static void WriteTo(xx::Data& d, std::string_view const& username, std::string_view const& password);
     };
 }
 namespace xx {
 	XX_OBJ_STRUCT_TEMPLATE_H(::Database::AccountInfo)
     template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<::Database::AccountInfo, std::decay_t<T>>>> {
 		template<bool needReserve = true>
-		static inline void Write(Data& d, T const& in) { (*(xx::ObjManager*)nullptr).Write(d, in); }
-		static inline int Read(Data_r& d, T& out) { return (*(xx::ObjManager*)nullptr).Read(d, out); }
+		static inline void Write(Data& d, T const& in) { (*(xx::ObjManager*)-1).Write(d, in); }
+		static inline int Read(Data_r& d, T& out) { return (*(xx::ObjManager*)-1).Read(d, out); }
     };
 }
 #include "pkg_db_service_.h.inc"
