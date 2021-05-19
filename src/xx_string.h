@@ -36,12 +36,66 @@ namespace xx {
         (::xx::Core::Append(s, args), ...);
     }
 
+    template<std::size_t...Idxs, typename...TS>
+    void AppendFormatCore(std::index_sequence<Idxs...>, std::string& s, size_t const& i, TS const&...vs) {
+        (((i == Idxs) ? (Append(s, vs), 0) : 0), ...);
+    }
+
+    // 格式化追加, {0} {1}... 这种. 针对重复出现的参数, 是从已经追加出来的字串区域复制, 故追加自己并不会导致内容翻倍
+    template<typename...TS>
+    size_t AppendFormat(std::string& s, char const* const& format, TS const&...vs) {
+        std::array<std::string_view, sizeof...(vs)> cache{};
+        size_t offset = 0;
+        while (auto c = format[offset]) {
+            if (c == '{') {
+                c = format[++offset];
+                if (c == '{') {
+                    Append(s, '{');
+                }
+                else {
+                    size_t i = 0;
+                    while ((c = format[offset])) {
+                        if (c == '}') {
+                            if (i >= sizeof...(vs)) return i;   // error
+                            if (cache[i].size()) {
+                                s.append(cache[i]);
+                            }
+                            else {
+                                auto bak = s.size();
+                                AppendFormatCore(std::make_index_sequence<sizeof...(TS)>(), s, i, vs...);
+                                cache[i] = std::string_view(&s[bak], s.size() - bak);
+                            }
+                            break;
+                        }
+                        else {
+                            i = i * 10 + (c - '0');
+                        }
+                        ++offset;
+                    }
+                }
+            }
+            else {
+                Append(s, c);
+            }
+            ++offset;
+        }
+        return 0;
+    }
+
     template<typename ...Args>
     std::string ToString(Args const& ... args) {
         std::string s;
         Append(s, args...);
         return s;
     }
+
+    template<typename ...Args>
+    std::string ToStringFormat(char const* const& format, Args const& ... args) {
+        std::string s;
+        AppendFormat(s, format, args...);
+        return s;
+    }
+
 
     /************************************************************************************/
     // StringFuncs 继续适配各种常见数据类型
@@ -491,6 +545,29 @@ namespace xx {
         std::cout.flush();
     }
 
+    // 带 format 格式化的 Cout
+    template<typename...Args>
+    inline void CoutFormat(char const* const& format, Args const& ...args) {
+        std::string s;
+        AppendFormat(s, format, args...);
+        for (auto&& c : s) {
+            if (!c) c = '^';
+        }
+        std::cout << s;
+    }
+
+    // 在 CoutFormat 基础上添加了换行
+    template<typename...Args>
+    inline void CoutNFormat(char const* const& format, Args const& ...args) {
+        CoutFormat(format, args...);
+        std::cout << std::endl;
+    }
+
+    // 在 CoutNFormat 基础上于头部添加了时间
+    template<typename...Args>
+    inline void CoutTNFormat(char const* const& format, Args const& ...args) {
+        CoutNFormat("[", std::chrono::system_clock::now(), "] ", args...);
+    }
 }
 
 
