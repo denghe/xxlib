@@ -16,23 +16,6 @@ bool Peer::Close(int const &reason, std::string_view const &desc) {
     return true;
 }
 
-int Peer::SendResponse(int32_t const &serial, xx::ObjBase_s const &ob) {
-    if (!Alive()) return __LINE__;
-    // 准备发包填充容器
-    xx::Data d(65536);
-    // 跳过包头
-    d.len = sizeof(uint32_t);
-    // 写序号
-    d.WriteVarInteger(serial);
-    // 写数据
-    S->om.WriteTo(d, ob);
-    // 填包头
-    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
-    // 发包并返回
-    Send(std::move(d));
-    return 0;
-}
-
 void Peer::Receive() {
     // 取出指针备用
     auto buf = recv.buf;
@@ -119,20 +102,18 @@ void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
 
                     // ensure p is exists & alive
                     if (auto p = w.Lock(); p->Alive()) {
+                        auto s = (Server*)p->ec;
 
                         // check result
                         if (!rtv) {
 
-                            // send sql execute error
-                            auto &&m = p->InstanceOf<Generic::Error>();
-                            m->errorCode = rtv.errorCode;
-                            m->errorMessage = rtv.errorMessage;
-                            p->SendResponse(serial, m);
+                            // send error
+                            p->SendResponse<Generic::Error>(serial, rtv.errorCode, rtv.errorMessage);
 
                         } else {
 
                             // send result
-                            auto &&m = p->InstanceOf<Database_Service::GetAccountInfoByUsernamePasswordResult>();
+                            auto &&m = s->FromCache<Database_Service::GetAccountInfoByUsernamePasswordResult>();
                             if (rtv.value.accountId >= 0) {
                                 m->accountInfo.emplace();
                                 m->accountInfo->accountId = rtv.value.accountId;
