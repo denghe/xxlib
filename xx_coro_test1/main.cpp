@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <cassert>
 #include <cstring>
+#include "xx_coro.h"
 
 // co_yield Cond().Xxxxx(v).Xxxx(v)...;
 struct Cond {
@@ -36,9 +37,13 @@ struct Cond {
 
     Cond() = default;
 
-    Cond(int const &sleepTimes_) { SleepTimes(sleepTimes_); }
+    Cond(int const &sleepTimes_) {
+        SleepTimes(sleepTimes_);
+    }
 
-    Cond(double const &sleepSeconds_) { SleepSeconds(sleepSeconds_); }
+    Cond(double const &sleepSeconds_) {
+        SleepSeconds(sleepSeconds_);
+    }
 
     Cond &&SleepTimes(int const &v) {
         hasSleepTimes = true;
@@ -55,35 +60,6 @@ struct Cond {
     // more
 };
 
-struct Coro {
-    struct promise_type {
-        Coro get_return_object() {
-            return {.h = std::coroutine_handle<promise_type>::from_promise(*this)};
-        }
-
-        std::suspend_never initial_suspend() { return {}; }
-
-        std::suspend_never final_suspend() noexcept { return {}; }
-
-        std::exception_ptr e;
-
-        void unhandled_exception() {
-            e = std::current_exception();
-        }
-
-        Cond v;
-
-        template<typename U>
-        std::suspend_always yield_value(U &&u) {
-            v = std::forward<U>(u);
-            return {};
-        }
-    };
-
-    std::coroutine_handle<promise_type> h;
-};
-
-
 struct Coros {
     Coros(Coros const &) = delete;
 
@@ -95,8 +71,7 @@ struct Coros {
 
     /*************************************************/
     struct Node {
-        decltype(Coro::h) h;
-        Cond *c;
+        xx::Generator<Cond> g;
         int prev, next, wIdx;    // for wheel
         // todo: more cond idx here for remove sync
     };
@@ -129,7 +104,7 @@ struct Coros {
     void Clear() {
         for (int i = 0; i < count; ++i) {
             if (nodes[i].prev == -2) continue;
-            nodes[i].h.destroy();
+            nodes[i].g.~Generator<Cond>();
         }
         freeList = -1;
         freeCount = 0;
@@ -202,6 +177,7 @@ protected:
         } else {
             n = 1;
         }
+        assert(n < wheelLen);
         return n;
     }
 
@@ -212,16 +188,15 @@ public:
     }
 
     // c: Coro Func(...) { ... co_yield Cond().xxxx; ... co_return
-    void Add(Coro &&coro) {
-        if (coro.h.done()) return;
-        auto &c = coro.h.promise().v;
+    void Add(xx::Generator<Cond> &&g) {
+        if (g.Done()) return;
+        auto&& c = g.Value();
         auto n = CalcSleepTimes(c);
         auto wIdx = (cursor + n) % wheelLen;
         auto idx = Alloc();
         AddToWheel(idx, wIdx);
         auto &node = nodes[idx];
-        node.h = coro.h;
-        node.c = &c;
+        new (&node.g) xx::Generator<Cond>(std::move(g));
         // todo: handle other conds
     }
 
@@ -234,11 +209,11 @@ public:
         wheel[cursor] = -1;
         do {
             auto next = nodes[idx].next;
-            nodes[idx].h.resume();
-            if (nodes[idx].h.done()) {
+            if (nodes[idx].g.Resume()) {
+                nodes[idx].g.~Generator<Cond>();
                 Free(idx);
             } else {
-                auto &c = *nodes[idx].c;
+                auto&& c = nodes[idx].g.Value();
                 auto n = CalcSleepTimes(c);
                 auto wIdx = (cursor + n) % wheelLen;
                 AddToWheel(idx, wIdx);
@@ -248,21 +223,29 @@ public:
     }
 };
 
-Coro test() {
+xx::Generator<Cond> Test() {
     for (int i = 3; i <= 4; ++i) {
         std::cout << i << std::endl;
         co_yield i;
     }
+    std::cout << "End" << std::endl;
+}
+
+xx::Generator<Cond> Test2() {
+    CoAwait(Test());
+//    auto&& g = Test();
+//    while(!g.Resume()) {
+//        co_yield g.Value();
+//    }
 }
 
 
 int main() {
     Coros cs;
-    cs.Add(test());
-    int n = 0;
+    cs.Add(Test2());
     while (cs) {
+        std::cout << "------------------- " << cs.cursor << " -------------------" << std::endl;
         cs();
-        std::cout << "------------------- " << (++n) << " -------------------" << std::endl;
     }
     return 0;
 }
