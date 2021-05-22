@@ -13,3 +13,7 @@ include_directories(
 add_executable(xx_coro_test1
         main.cpp
         )
+
+target_link_libraries(xx_coro_test1
+		pthread
+		)
