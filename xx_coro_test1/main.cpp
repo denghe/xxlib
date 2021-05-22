@@ -1,12 +1,9 @@
 ﻿#include <coroutine>
 #include <exception>
 #include <iostream>
-#include <vector>
 #include <tuple>
-#include <unordered_set>
-#include <cassert>
-#include <cstring>
 #include "xx_coro.h"
+#include "xx_nodepool.h"
 
 // co_yield Cond().Xxxxx(v).Xxxx(v)...;
 struct Cond {
@@ -69,97 +66,58 @@ struct Coros {
 
     Coros &operator=(Coros &&) = default;
 
-    /*************************************************/
-    struct Node {
-        xx::Generator<Cond> g;
-        int prev, next, wIdx;    // for wheel
-        // todo: more cond idx here for remove sync
-    };
-    /*************************************************/
-    int freeList = -1;
-    int freeCount = 0;
-    int count = 0;
-    size_t cap;
-    Node *nodes;
-    /*************************************************/
+    // int: wheel index
+    xx::NodePool<std::tuple<int, xx::Generator<Cond>>> nodes;
+
     int wheelLen;
     int *wheel;
     int cursor = 0;
     double frameDelaySeconds;
 
-    explicit Coros(size_t const &cap = 8192, double const &framePerSeconds = 10, int const &wheelLen = 10 * 60 * 5)
-            : cap(cap), frameDelaySeconds(1.0 / framePerSeconds), wheelLen(wheelLen) {
-        assert(cap > 0);
-        nodes = (Node *) malloc(cap * sizeof(Node));
+    explicit Coros(double const &framePerSeconds = 10, int const &wheelLen = 10 * 60 * 5)
+            : frameDelaySeconds(1.0 / framePerSeconds), wheelLen(wheelLen) {
         wheel = (int *) malloc(wheelLen * sizeof(int));
         memset(wheel, -1, wheelLen * sizeof(int));
     }
 
     ~Coros() {
-        Clear();
         free(wheel);
-        free(nodes);
     }
 
     void Clear() {
-        for (int i = 0; i < count; ++i) {
-            if (nodes[i].prev == -2) continue;
-            nodes[i].g.~Generator<Cond>();
-        }
-        freeList = -1;
-        freeCount = 0;
-        count = 0;
+        nodes.Clear();
         memset(wheel, -1, wheelLen * sizeof(int));
         cursor = 0;
     }
 
 protected:
-    int Alloc() {
-        int idx;
-        if (freeCount > 0) {
-            idx = freeList;
-            freeList = nodes[idx].next;
-            freeCount--;
-        } else {
-            if (count == cap) {
-                cap *= 2;
-                nodes = (Node *) realloc(nodes, cap);
-            }
-            idx = count;
-            count++;
-        }
-        return idx;
-    }
 
-    void Free(int const &idx) {
-        assert(idx >= 0 && idx < count && nodes[idx].prev != -2);
-        nodes[idx].next = freeList;
-        freeList = idx;
-        freeCount++;
-        nodes[idx].prev = -2;           // -2: foreach 时的无效标志
-    }
-
-    void AddToWheel(int const &idx, int const &wIdx) {
-        nodes[idx].prev = -1;
-        nodes[idx].next = wheel[wIdx];
-        nodes[idx].wIdx = wIdx;
+    void WheelAdd(int const &idx, int const &wIdx) {
+        auto& n = nodes[idx];
+        n.prev = -1;
+        n.next = wheel[wIdx];
+        std::get<0>(n.value) = wIdx;
         if (wheel[wIdx] >= 0) {
             nodes[wheel[wIdx]].prev = idx;
         }
         wheel[wIdx] = idx;
     }
 
-    void RemoveFromWheel(int const &idx) {
-        assert(nodes[idx].wIdx >= 0);
-        if (nodes[idx].prev < 0 && wheel[nodes[idx].wIdx] == idx) {
-            wheel[nodes[idx].wIdx] = nodes[idx].next;
+    // todo: event occur: stop sleep
+    void WheelRemove(int const &idx) {
+        auto& n = nodes[idx];
+        assert(n.prev != -2);
+        auto& wIdx = std::get<0>(n.value);
+        assert(wIdx >= 0);
+        if (n.prev < 0 && wheel[wIdx] == idx) {
+            wheel[wIdx] = n.next;
         } else {
-            nodes[nodes[idx].prev].next = nodes[idx].next;
+            nodes[n.prev].next = n.next;
         }
-        if (nodes[idx].next >= 0) {
-            nodes[nodes[idx].next].prev = nodes[idx].prev;
+        if (n.next >= 0) {
+            nodes[n.next].prev = n.prev;
         }
-        nodes[idx].wIdx = -1;
+        wIdx = -1;
     }
 
 
@@ -184,7 +142,7 @@ protected:
 public:
 
     operator bool() const {
-        return count - freeCount > 0;
+        return nodes.Count() > 0;
     }
 
     // c: Coro Func(...) { ... co_yield Cond().xxxx; ... co_return
@@ -192,11 +150,9 @@ public:
         if (g.Done()) return;
         auto&& c = g.Value();
         auto n = CalcSleepTimes(c);
+        auto idx = nodes.Alloc(0, std::move(g));
         auto wIdx = (cursor + n) % wheelLen;
-        auto idx = Alloc();
-        AddToWheel(idx, wIdx);
-        auto &node = nodes[idx];
-        new (&node.g) xx::Generator<Cond>(std::move(g));
+        WheelAdd(idx, wIdx);
         // todo: handle other conds
     }
 
@@ -208,15 +164,16 @@ public:
         assert(nodes[idx].prev == -1);
         wheel[cursor] = -1;
         do {
-            auto next = nodes[idx].next;
-            if (nodes[idx].g.Resume()) {
-                nodes[idx].g.~Generator<Cond>();
-                Free(idx);
+            auto& n = nodes[idx];
+            auto next = n.next;
+            auto& coro = std::get<1>(n.value);
+            if (coro.Resume()) {
+                nodes.Free(idx);
             } else {
-                auto&& c = nodes[idx].g.Value();
-                auto n = CalcSleepTimes(c);
-                auto wIdx = (cursor + n) % wheelLen;
-                AddToWheel(idx, wIdx);
+                auto&& cond = coro.Value();
+                auto num = CalcSleepTimes(cond);
+                auto wIdx = (cursor + num) % wheelLen;
+                WheelAdd(idx, wIdx);
             }
             idx = next;
         } while (idx != -1);
@@ -232,7 +189,11 @@ xx::Generator<Cond> Test() {
 }
 
 xx::Generator<Cond> Test2() {
+    //auto w = SharedFromThis(this).ToWeak();
     CoAwait(Test());
+    //if(auto self = w.Lock()) self->
+    //this->Send
+
 //    auto&& g = Test();
 //    while(!g.Resume()) {
 //        co_yield g.Value();
