@@ -145,16 +145,16 @@ namespace xx {
         int sleepTimes = 0;
         double sleepSeconds = 0.0;
         std::function<bool()> updateCallback;
-        std::function<bool()> eventCallback;
+        std::function<int(void*)> eventCallback;
         // more
 
         Cond() = default;
 
-        Cond(int const &sleepTimes_) {
+        explicit Cond(int const &sleepTimes_) {
             SleepTimes(sleepTimes_);
         }
 
-        Cond(double const &sleepSeconds_) {
+        explicit Cond(double const &sleepSeconds_) {
             SleepSeconds(sleepSeconds_);
         }
 
@@ -171,14 +171,14 @@ namespace xx {
         }
 
         template<typename F, class ENABLED = std::enable_if_t<!std::is_arithmetic_v<F>>>
-        Cond &&UpdateCallback(F&& cbFunc) {
+        Cond &&UpdateCallback(F &&cbFunc) {
             hasUpdateCallback = true;
             updateCallback = std::forward<F>(cbFunc);
             return std::move(*this);
         }
 
         template<typename F, class ENABLED = std::enable_if_t<!std::is_arithmetic_v<F>>>
-        Cond &&EventCallback(F&& cbFunc) {
+        [[maybe_unused]] Cond &&EventCallback(F &&cbFunc) {
             hasEventCallback = true;
             eventCallback = std::forward<F>(cbFunc);
             return std::move(*this);
@@ -230,7 +230,7 @@ namespace xx {
     protected:
 
         void WheelAdd(int const &idx, int const &wIdx) {
-            auto& n = nodes[idx];
+            auto &n = nodes[idx];
             n.prev = -1;
             n.next = wheel[wIdx];
             std::get<0>(n.value) = wIdx;
@@ -241,9 +241,9 @@ namespace xx {
         }
 
         void WheelRemove(int const &idx) {
-            auto& n = nodes[idx];
+            auto &n = nodes[idx];
             assert(n.prev != -2);
-            auto& wIdx = std::get<0>(n.value);
+            auto &wIdx = std::get<0>(n.value);
             assert(wIdx >= 0);
             if (n.prev < 0 && wheel[wIdx] == idx) {
                 wheel[wIdx] = n.next;
@@ -265,7 +265,7 @@ namespace xx {
                 assert(c.sleepSeconds > 0);
                 n = (int) (c.sleepSeconds / frameDelaySeconds);
                 if (n == 0) {
-                    n == 1;
+                    n = 1;
                 }
             } else {
                 n = 1;
@@ -274,7 +274,7 @@ namespace xx {
             return n;
         }
 
-        void HandleCond(Cond& cond, int const& idx, int const& wIdx) {
+        void HandleCond(Cond &cond, int const &idx, int const &wIdx) {
             WheelAdd(idx, wIdx);
             if (cond.hasUpdateCallback) {
                 assert(!updateCallbacks.contains(idx));
@@ -287,7 +287,7 @@ namespace xx {
             // todo: more
         }
 
-        void Resume(int const& idx, Coro& coro, Cond& c) {
+        void Resume(int const &idx, Coro &coro, Cond &c) {
             if (coro.Resume()) {
                 if (c.hasUpdateCallback) {
                     assert(updateCallbacks.contains(idx));
@@ -309,36 +309,39 @@ namespace xx {
 
         void HandleUpdateCallback() {
             if (updateCallbacks.empty()) return;
-            for (auto iter = updateCallbacks.begin(); iter != updateCallbacks.end(); ) {
+            for (auto iter = updateCallbacks.begin(); iter != updateCallbacks.end();) {
                 auto idx = *iter;
-                auto& coro = std::get<1>(nodes[idx].value);
-                auto& c = coro.Value();
+                auto &coro = std::get<1>(nodes[idx].value);
+                auto &c = coro.Value();
                 assert(c.hasUpdateCallback && c.updateCallback);
                 auto r = c.updateCallback();
                 if (r) {
                     WheelRemove(idx);
                     Resume(idx, coro, c);
                     iter = updateCallbacks.erase(iter);
+                } else {
+                    ++iter;
                 }
-                else ++iter;
             }
         }
 
     public:
-        void HandleEventCallback() {
+        [[maybe_unused]] void HandleEventCallback(void* eventData) {
             if (eventCallbacks.empty()) return;
-            for (auto iter = eventCallbacks.begin(); iter != eventCallbacks.end(); ) {
+            for (auto iter = eventCallbacks.begin(); iter != eventCallbacks.end();) {
                 auto idx = *iter;
-                auto& coro = std::get<1>(nodes[idx].value);
-                auto& c = coro.Value();
+                auto &coro = std::get<1>(nodes[idx].value);
+                auto &c = coro.Value();
                 assert(c.hasEventCallback && c.eventCallback);
-                auto r = c.eventCallback();
-                if (r) {
+                auto r = c.eventCallback(eventData);
+                if (r < 0) {
+                    ++iter;
+                } else {
                     WheelRemove(idx);
                     Resume(idx, coro, c);
+                    if (r > 0) return;  // swallow
                     iter = eventCallbacks.erase(iter);
                 }
-                else ++iter;
             }
         }
 
@@ -349,7 +352,7 @@ namespace xx {
         // c: Coro Func(...) { ... co_yield Cond().xxxx; ... co_return
         void Add(Generator<Cond> &&g) {
             if (g.Done()) return;
-            auto&& c = g.Value();
+            auto &&c = g.Value();
             auto n = CalcSleepTimes(c);
             auto idx = nodes.Alloc(0, std::move(g));
             auto wIdx = (cursor + n) % wheelLen;
@@ -366,9 +369,9 @@ namespace xx {
             assert(nodes[idx].prev == -1);
             wheel[cursor] = -1;
             do {
-                auto& n = nodes[idx];
+                auto &n = nodes[idx];
                 auto next = n.next;
-                auto& coro = std::get<1>(n.value);
+                auto &coro = std::get<1>(n.value);
                 Resume(idx, coro, coro.Value());
                 idx = next;
             } while (idx != -1);
