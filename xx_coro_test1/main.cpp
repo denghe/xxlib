@@ -7,21 +7,30 @@ using namespace std::chrono_literals;
 
 xx::ThreadPool<> tp;
 
-xx::Coro Test() {
-    std::atomic<bool> ok = false;
-    tp.Add([&]{
-        std::this_thread::sleep_for(1s);
-        ok = true;
-        std::cout << "ok = true" << std::endl;
+auto DoSomeTask() {
+    auto ok = std::make_shared<bool>(false);
+    tp.Add([ok_w = std::weak_ptr<bool>(ok)]{
+        std::this_thread::sleep_for(2s);
+        if (auto ok = ok_w.lock()) {
+            *ok = true;
+            std::cout << "ok = true" << std::endl;
+        }
+        else {
+            std::cout << "coroutine is dead" << std::endl;
+        }
     });
+    return ok;
+}
+
+xx::Coro Test() {
+    auto ok = DoSomeTask();
     for (int i = 3; i <= 4; ++i) {
         std::cout << i << std::endl;
         co_yield i;
     }
-    co_yield xx::Cond(50).UpdateCallback([&]{
-        auto rtv = (bool)ok;
-        std::cout << "ok == " << rtv << std::endl;
-        return rtv;
+    co_yield xx::Cond(2).UpdateCallback([&]{
+        std::cout << "ok == " << *ok << std::endl;
+        return *ok;
     });
     std::cout << "End" << std::endl;
 }
@@ -36,6 +45,9 @@ int main() {
     while (cs) {
         std::cout << "------------------- " << cs.cursor << " -------------------" << std::endl;
         cs();
+        std::this_thread::sleep_for(100ms);
+    }
+    while(tp) {
         std::this_thread::sleep_for(100ms);
     }
     return 0;
