@@ -150,11 +150,11 @@ namespace xx {
 
         Cond() = default;
 
-        explicit Cond(int const &sleepTimes_) {
+        Cond(int const &sleepTimes_) {
             SleepTimes(sleepTimes_);
         }
 
-        explicit Cond(double const &sleepSeconds_) {
+        Cond(double const &sleepSeconds_) {
             SleepSeconds(sleepSeconds_);
         }
 
