@@ -38,7 +38,7 @@ namespace xx {
         NodePool() {
             if constexpr (reserve) {
                 cap = firstCap;
-                nodes = (Node *) malloc(nodes, cap);
+                nodes = (Node *) malloc(nodes, cap * sizeof(T));
             }
         }
 
@@ -68,11 +68,26 @@ namespace xx {
                 freeCount--;
             } else {
                 if (count == cap) {
-                    cap *= 2;
-                    if (!cap) {
+                    if (cap == 0) {
                         cap = firstCap;
                     }
-                    nodes = (Node *) realloc(nodes, cap);
+                    else {
+                        cap *= 2;
+                    }
+                    if constexpr(std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
+                        nodes = (Node *) realloc((void*)nodes, cap * sizeof(T));
+                    }
+                    else {
+                        auto newNodes = (Node*)malloc(cap * sizeof(T));
+                        for (int i = 0; i < count; ++i) {
+                            newNodes[i].prev = nodes[i].prev;
+                            newNodes[i].next = nodes[i].next;
+                            new (&newNodes[i].value) T(std::move(nodes[i].value));
+                            nodes[i].value.~T();
+                        }
+                        free(nodes);
+                        nodes = newNodes;
+                    }
                 }
                 idx = count;
                 count++;
