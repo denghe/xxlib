@@ -66,6 +66,12 @@ namespace xx {
                 worker.join();
             }
         }
+
+        void Join() {
+            while(*this) {
+                std::this_thread::sleep_for(100ms);
+            }
+        }
     };
 
 
@@ -128,6 +134,12 @@ namespace xx {
             cond.notify_all();
             for (std::thread& worker : threads) {
                 worker.join();
+            }
+        }
+
+        void Join() {
+            while(*this) {
+                std::this_thread::sleep_for(100ms);
             }
         }
     };

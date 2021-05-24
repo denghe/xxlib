@@ -187,17 +187,18 @@ namespace xx {
 
     protected:
         template<std::size_t...Idxs, typename T>
-        static int Wait_(std::index_sequence<Idxs...>, T const &t) {
+        static int WaitOK_(std::index_sequence<Idxs...>, T const &t) {
             return (... + (**std::get<Idxs>(t) ? 1 : 0));
         }
 
     public:
-
+        // special UpdateCallback for wait task complete by std::shared_ptr<bool> flag. fill outCount for check success
         template<typename...OKS>
-        [[maybe_unused]] Cond &&Wait(OKS &...oks) {
+        [[maybe_unused]] Cond &&WaitOK(int& numOfOK, OKS &...oks) {
             static_assert(sizeof...(OKS) > 0);
-            return UpdateCallback([t = std::make_tuple(&oks...)] {
-                return Wait_(std::make_index_sequence<sizeof...(OKS)>(), t) == sizeof...(OKS);
+            return UpdateCallback([&numOfOK, t = std::make_tuple(&oks...)] {
+                numOfOK = WaitOK_(std::make_index_sequence<sizeof...(OKS)>(), t);
+                return numOfOK == sizeof...(OKS);
             });
         }
     };
@@ -222,7 +223,7 @@ namespace xx {
         double frameDelaySeconds;
 
         int updateList = -1;
-        //std::unordered_set<int> updateCallbacks;
+        //int eventList = -1;
 //        std::unordered_set<int> eventCallbacks;
 
         explicit Coros(double const &framePerSeconds = 10, int const &wheelLen = 10 * 60 * 5)
@@ -240,7 +241,6 @@ namespace xx {
             memset(wheel, -1, wheelLen * sizeof(int));
             cursor = 0;
             updateList = -1;
-            //updateCallbacks.clear();
 //            eventCallbacks.clear();
         }
 
@@ -360,23 +360,7 @@ namespace xx {
         }
 
     public:
-//        [[maybe_unused]] void HandleEventCallback(void* eventData) {
-//            if (eventCallbacks.empty()) return;
-//            for (auto iter = eventCallbacks.begin(); iter != eventCallbacks.end();) {
-//                auto idx = *iter;
-//                auto &coro = std::get<0>(nodes[idx].value);
-//                auto &c = coro.Value();
-//                assert(c.hasEventCallback && c.eventCallback);
-//                auto r = c.eventCallback(eventData);
-//                if (r < 0) {
-//                    ++iter;
-//                } else {
-//                    WheelRemove(idx);
-//                    Resume(idx, coro, c);
-//                    if (r > 0) return;  // swallow
-//                    iter = eventCallbacks.erase(iter);
-//                }
-//            }
+//        [[maybe_unused]] void HandleEventCallback(int const& serial) {
 //        }
 
         operator bool() const {

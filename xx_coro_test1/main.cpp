@@ -5,10 +5,10 @@ using namespace std::chrono_literals;
 #include "xx_coro.h"
 #include "xx_threadpool.h"
 
-xx::ThreadPool<> tp;
+xx::ThreadPool<> tp(10);
 
 template<typename F>
-std::shared_ptr<bool> AddTask(F&& f) {
+std::shared_ptr<bool> NewTask(F&& f) {
     auto ok = std::make_shared<bool>(false);
     tp.Add([ok_w = std::weak_ptr<bool>(ok), f = std::forward<F>(f)]{
         f();
@@ -23,10 +23,14 @@ std::shared_ptr<bool> AddTask(F&& f) {
 xx::Coro Test() {
     std::cout << "Begin" << std::endl;
     {
-        auto r1 = AddTask([] { std::this_thread::sleep_for(0.3s); });
-        auto r2 = AddTask([] { std::this_thread::sleep_for(0.4s); });
-        auto r3 = AddTask([] { std::this_thread::sleep_for(0.5s); });
-        co_yield xx::Cond(3).Wait(r1, r2, r3);
+        auto r1 = NewTask([] { std::this_thread::sleep_for(0.3s); });
+        auto r2 = NewTask([] { std::this_thread::sleep_for(0.4s); });
+        auto r3 = NewTask([] { std::this_thread::sleep_for(0.5s); });
+        int numOfOK = 0;
+        co_yield xx::Cond(7).WaitOK(numOfOK, r1, r2, r3);
+        if (numOfOK == 3) {
+            std::cout << "all tasks are completed" << std::endl;
+        }
     }
 
     for (int i = 1; i <= 2; ++i) {
@@ -48,8 +52,6 @@ int main() {
         cs();
         std::this_thread::sleep_for(100ms);
     }
-    while(tp) {
-        std::this_thread::sleep_for(100ms);
-    }
+    tp.Join();
     return 0;
 }
