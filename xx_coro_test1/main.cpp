@@ -7,31 +7,32 @@ using namespace std::chrono_literals;
 
 xx::ThreadPool<> tp;
 
-auto DoSomeTask() {
-    auto ok = std::make_shared<bool>(false);
-    tp.Add([ok_w = std::weak_ptr<bool>(ok)]{
-        std::this_thread::sleep_for(2s);
+std::shared_ptr<bool> DoSomeTask(std::string && tips) {
+    auto ok = xx::Cond::MakeOK();
+    tp.Add([ok_w = std::weak_ptr<bool>(ok), tips = std::move(tips)]{
+        // do some work
+        std::this_thread::sleep_for(0.5s);
+        // ensure
         if (auto ok = ok_w.lock()) {
             *ok = true;
-            std::cout << "ok = true" << std::endl;
+            std::cout << tips << ": set ok" << std::endl;
         }
         else {
-            std::cout << "coroutine is dead" << std::endl;
+            std::cout << tips << ": coroutine is dead" << std::endl;
         }
     });
     return ok;
 }
 
 xx::Coro Test() {
-    auto ok = DoSomeTask();
-    for (int i = 3; i <= 4; ++i) {
-        std::cout << i << std::endl;
+    auto ok1 = DoSomeTask("task1");
+    auto ok2 = DoSomeTask("task2");
+    co_yield xx::Cond(10).WaitOK(ok1, ok2);
+
+    for (int i = 1; i <= 2; ++i) {
+        std::cout << "i = " << i << std::endl;
         co_yield i;
     }
-    co_yield xx::Cond(2).UpdateCallback([&]{
-        std::cout << "ok == " << *ok << std::endl;
-        return *ok;
-    });
     std::cout << "End" << std::endl;
 }
 

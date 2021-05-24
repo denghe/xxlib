@@ -4,6 +4,7 @@
 #include <tuple>
 #include <functional>
 #include <unordered_set>
+#include <memory>
 #include "xx_nodepool.h"
 
 
@@ -184,7 +185,24 @@ namespace xx {
             return std::move(*this);
         }
 
-        // more
+        static std::shared_ptr<bool> MakeOK() {
+            return std::make_shared<bool>(false);
+        }
+
+    protected:
+        template<std::size_t...Idxs, typename T>
+        static int WaitOK_(std::index_sequence<Idxs...>, T const& t) {
+            return (... + (**std::get<Idxs>(t) ? 1 : 0));
+        }
+    public:
+
+        template<typename...OKS>
+        [[maybe_unused]] Cond &&WaitOK(OKS&...oks) {
+            static_assert(sizeof...(OKS) > 0);
+            return UpdateCallback([t = std::make_tuple(&oks...)]{
+                return WaitOK_(std::make_index_sequence<sizeof...(OKS)>(), t) == sizeof...(OKS);
+            });
+        }
     };
 
     using Coro = Generator<Cond>;
