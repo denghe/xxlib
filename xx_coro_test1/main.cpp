@@ -20,17 +20,6 @@ std::shared_ptr<bool> NewTask(F&& f) {
     return ok;
 }
 
-//xx::Coro CoroSendRequest(secs, pkg, ob) {
-//    bool callbacked = false;
-//    SendRequest(pkg, [&](auto&&ob_) {
-//        ob = std::move(ob_);
-//        callbacked = true;
-//    });
-//    co_yield xx::Cond(secs).UpdateCallback([&]{
-//        return callbacked;
-//    });
-//}
-
 xx::Coro Test() {
     std::cout << "Begin" << std::endl;
     {
@@ -38,20 +27,31 @@ xx::Coro Test() {
         auto r2 = NewTask([] { std::this_thread::sleep_for(0.4s); });
         auto r3 = NewTask([] { std::this_thread::sleep_for(0.5s); });
         int numOfOK = 0;
-        co_yield xx::Cond(1.0).WaitOK(numOfOK, r1, r2, r3);
+        co_yield xx::Cond(1).WaitOK(numOfOK, r1, r2, r3);
         if (numOfOK == 3) {
             std::cout << "all tasks are completed" << std::endl;
         }
     }
 
     for (int i = 1; i <= 2; ++i) {
-        std::cout << "i = " << i << std::endl;
+        std::cout << "sleep " << i << " seconds" << std::endl;
         co_yield i;
     }
 
 //    xx::ObjBase_s ob;
-//    CoAwait(CoroSendRequest(15, pkg, ob));
-//    if (ob) {}
+//    co_yield xx::Cond(15).Event(
+//        SendRequest(pkg, [this](auto serial, auto&& ob_) {
+//            ob = std::move(ob_);
+//            FireEvent(serial);
+//        }
+//    );
+//    if (ob) { ... }
+
+    std::cout << "while true" << std::endl;
+    while(true) {
+        co_yield 0;
+        if (true) break;
+    }
 
     std::cout << "End" << std::endl;
 }

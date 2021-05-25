@@ -3,10 +3,9 @@
 #include <exception>
 #include <tuple>
 #include <functional>
-#include <unordered_set>
+#include <unordered_map>
 #include <memory>
 #include "xx_nodepool.h"
-
 
 // for clion editor read line error
 #define XX_COROUTINE_CLANG_SUPPORT 0
@@ -132,58 +131,37 @@ namespace xx {
 
         Cond &operator=(Cond &&) = default;
 
-        union {
-            uint64_t flags = 0;
-            struct {
-                uint8_t hasSleepTimes;
-                uint8_t hasSleepSeconds;
-                uint8_t hasUpdateCallback;
-//                uint8_t hasEventCallback;
-                // more
-            };
-        };
+        uint8_t hasEvent = 0;
+        uint8_t hasUpdate = 0;
 
-        int sleepTimes = 0;
-        double sleepSeconds = 0.0;
-        std::function<bool()> updateCallback;
-//        std::function<int(void*)> eventCallback;
-        // more
+        float sleepSeconds = 0.0;
+        int wIdx = -1;
+
+        int eventKey = 0;
+
+        int updatePrev = -1, updateNext = -1;
+        std::function<bool()> updateFunc;
+
 
         Cond() = default;
 
-        Cond(int const &sleepTimes_) {
-            SleepTimes(sleepTimes_);
+        Cond(float const &sleepSeconds) : sleepSeconds(sleepSeconds) {
         }
 
-        Cond(double const &sleepSeconds_) {
-            SleepSeconds(sleepSeconds_);
-        }
-
-        Cond &&SleepTimes(int const &v) {
-            hasSleepTimes = true;
-            sleepTimes = v;
+        [[maybe_unused]] Cond &&Event(int const& eventKey_) {
+            assert(!hasEvent);
+            hasEvent = true;
+            eventKey = eventKey_;
             return std::move(*this);
         }
 
-        Cond &&SleepSeconds(double const &v) {
-            hasSleepSeconds = true;
-            sleepSeconds = v;
+        template<typename F>
+        Cond &&Update(F &&cbFunc) {
+            assert(!hasUpdate);
+            hasUpdate = true;
+            updateFunc = std::forward<F>(cbFunc);
             return std::move(*this);
         }
-
-        template<typename F, class ENABLED = std::enable_if_t<!std::is_arithmetic_v<F>>>
-        Cond &&UpdateCallback(F &&cbFunc) {
-            hasUpdateCallback = true;
-            updateCallback = std::forward<F>(cbFunc);
-            return std::move(*this);
-        }
-
-//        template<typename F, class ENABLED = std::enable_if_t<!std::is_arithmetic_v<F>>>
-//        [[maybe_unused]] Cond &&EventCallback(F &&cbFunc) {
-//            hasEventCallback = true;
-//            eventCallback = std::forward<F>(cbFunc);
-//            return std::move(*this);
-//        }
 
     protected:
         template<std::size_t...Idxs, typename T>
@@ -192,11 +170,12 @@ namespace xx {
         }
 
     public:
-        // special UpdateCallback for wait task complete by std::shared_ptr<bool> flag. fill outCount for check success
+        // special Update for wait task complete by std::shared_ptr<bool> flag. fill outCount for check success
         template<typename...OKS>
         [[maybe_unused]] Cond &&WaitOK(int& numOfOK, OKS &...oks) {
             static_assert(sizeof...(OKS) > 0);
-            return UpdateCallback([&numOfOK, t = std::make_tuple(&oks...)] {
+            assert(!hasUpdate);
+            return Update([&numOfOK, t = std::make_tuple(&oks...)] {
                 numOfOK = WaitOK_(std::make_index_sequence<sizeof...(OKS)>(), t);
                 return numOfOK == sizeof...(OKS);
             });
@@ -214,20 +193,21 @@ namespace xx {
 
         Coros &operator=(Coros &&) = default;
 
-        // 1: wheel index    2: update prev   3: update next
-        NodePool<std::tuple<Generator<Cond>, int, int, int>> nodes;
+        // 1: wheel index
+        NodePool<std::pair<Generator<Cond>, Cond*>> nodes;
 
         int wheelLen;
         int *wheel;
         int cursor = 0;
-        double frameDelaySeconds;
+        float frameDelaySeconds;
 
         int updateList = -1;
-        //int eventList = -1;
-//        std::unordered_set<int> eventCallbacks;
 
-        explicit Coros(double const &framePerSeconds = 10, int const &wheelLen = 10 * 60 * 5)
-                : frameDelaySeconds(1.0 / framePerSeconds), wheelLen(wheelLen) {
+        // key: eventKey   value: node index
+        std::unordered_map<int, int> eventKeyMappings;
+
+        explicit Coros(float const &framePerSeconds = 10, int const &wheelLen = 10 * 60 * 5)
+                : frameDelaySeconds(1.0f / framePerSeconds), wheelLen(wheelLen) {
             wheel = (int *) malloc(wheelLen * sizeof(int));
             memset(wheel, -1, wheelLen * sizeof(int));
         }
@@ -241,91 +221,96 @@ namespace xx {
             memset(wheel, -1, wheelLen * sizeof(int));
             cursor = 0;
             updateList = -1;
-//            eventCallbacks.clear();
+            eventKeyMappings.clear();
         }
 
     protected:
 
-        void WheelAdd(int const &idx, int const &wIdx) {
+        void WheelAdd(Cond &c, int const &idx, int const &wIdx) {
             auto &n = nodes[idx];
             n.prev = -1;
             n.next = wheel[wIdx];
-            std::get<1>(n.value) = wIdx;
+            c.wIdx = wIdx;
             if (wheel[wIdx] >= 0) {
                 nodes[wheel[wIdx]].prev = idx;
             }
             wheel[wIdx] = idx;
         }
 
-        void WheelRemove(int const &idx) {
+        void WheelRemove(Cond &c, int const &idx) {
             auto &n = nodes[idx];
             assert(n.prev != -2);
-            auto &wIdx = std::get<1>(n.value);
-            assert(wIdx >= 0);
-            if (n.prev < 0 && wheel[wIdx] == idx) {
-                wheel[wIdx] = n.next;
+            assert(c.wIdx >= 0);
+            if (n.prev < 0 && wheel[c.wIdx] == idx) {
+                wheel[c.wIdx] = n.next;
             } else {
                 nodes[n.prev].next = n.next;
             }
             if (n.next >= 0) {
                 nodes[n.next].prev = n.prev;
             }
-            wIdx = -1;
+            c.wIdx = -1;
         }
 
-        void UpdateAdd(int const &idx) {
-            auto &t = nodes[idx].value;
-            std::get<2>(t) = -1;            // prev
-            std::get<3>(t) = updateList;    // next
+        Cond &GetCond(int const& idx) {
+            return *nodes[idx].value.second;
+        }
+
+        void UpdateAdd(Cond &c, int const &idx) {
+            c.updatePrev = -1;
+            c.updateNext = updateList;
             if (updateList != -1) {
-                std::get<2>(nodes[updateList].value) = idx;
+                GetCond(updateList).updatePrev = idx;
             }
             updateList = idx;
             //std::cout << __LINE__ << " updateList = " << updateList << std::endl;
         }
 
-        void UpdateRemove(int const &idx) {
-            auto &t = nodes[idx].value;
+        void UpdateRemove(Cond& cond, int const &idx) {
             if (updateList == idx) {
-                assert(std::get<2>(t) == -1);
-                updateList = std::get<3>(t);
+                assert(cond.updatePrev == -1);
+                updateList = cond.updateNext;
                 //std::cout << __LINE__ << " updateList = " << updateList << std::endl;
             } else {
-                assert(std::get<2>(t) != -1);
-                std::get<3>(nodes[std::get<2>(t)].value) = std::get<3>(t);
+                assert(cond.updatePrev != -1);
+                GetCond(cond.updatePrev).updateNext = cond.updateNext;
             }
-            if (std::get<3>(t) != -1) {
-                assert(std::get<2>(nodes[std::get<3>(t)].value) == idx);
-                std::get<2>(nodes[std::get<3>(t)].value) = std::get<2>(t);
+            if (cond.updateNext != -1) {
+                assert(GetCond(cond.updateNext).updatePrev == idx);
+                GetCond(cond.updateNext).updatePrev = cond.updatePrev;
             }
+        }
+
+        void EventAdd(Cond &cond, int const &idx) {
+            assert(eventKeyMappings.contains(cond.eventKey));
+            auto r = eventKeyMappings.emplace(cond.eventKey, idx);
+            assert(r.second);
+        }
+
+        void EventRemove(Cond &cond, int const &idx) {
+            assert(eventKeyMappings.contains(cond.eventKey));
+            assert(eventKeyMappings[cond.eventKey] == idx);
+            eventKeyMappings.erase(cond.eventKey);
         }
 
         int CalcSleepTimes(Cond const &c) const {
-            int n;
-            if (c.hasSleepTimes) {
-                assert(c.sleepTimes > 0);
-                n = c.sleepTimes;
-            } else if (c.hasSleepSeconds) {
-                assert(c.sleepSeconds > 0);
-                n = (int) (c.sleepSeconds / frameDelaySeconds);
-                if (n == 0) {
-                    n = 1;
-                }
-            } else {
+            auto n = (int) (c.sleepSeconds / frameDelaySeconds);
+            assert(n < wheelLen);
+            if (n == 0) {
                 n = 1;
             }
-            assert(n < wheelLen);
             return n;
         }
 
-        void HandleCond(Cond &cond, int const &idx, int const &wIdx) {
-            WheelAdd(idx, wIdx);
-            if (cond.hasUpdateCallback) {
-                UpdateAdd(idx);
+        // for Add / Resume
+        void HandleCond(Cond &c, int const &idx, int const &wIdx) {
+            WheelAdd(c, idx, wIdx);
+            if (c.hasUpdate) {
+                UpdateAdd(c, idx);
             }
-//            if (cond.hasEventCallback) {
-//            }
-            // todo: more
+            if (c.hasEvent) {
+                EventAdd(c, idx);
+            }
         }
 
         void Resume(int const &idx, Coro &coro, Cond &c) {
@@ -338,21 +323,20 @@ namespace xx {
             }
         }
 
-        void HandleUpdateCallback() {
+        void HandleUpdate() {
             if (updateList == -1) return;
             auto idx = updateList;
             do {
-                auto &t = nodes[idx].value;
-                auto next = std::get<3>(t);
-                auto &coro = std::get<0>(t);
-                auto &c = coro.Value();
-                assert(c.hasUpdateCallback);
-                assert(c.updateCallback);
-                auto r = c.updateCallback();
+                auto &coro = nodes[idx].value.first;
+                auto &c = *nodes[idx].value.second;
+                auto next = c.updateNext;
+                assert(c.hasUpdate);
+                assert(c.updateFunc);
+                auto r = c.updateFunc();
                 //std::cout << __LINE__ << " r = " << r << std::endl;
                 if (r) {
-                    UpdateRemove(idx);
-                    WheelRemove(idx);
+                    UpdateRemove(c, idx);
+                    WheelRemove(c, idx);
                     Resume(idx, coro, c);
                 }
                 idx = next;
@@ -360,8 +344,15 @@ namespace xx {
         }
 
     public:
-//        [[maybe_unused]] void HandleEventCallback(int const& serial) {
-//        }
+        [[maybe_unused]] void FireEvent(int const& eventKey) {
+            auto iter = eventKeyMappings.find(eventKey);
+            if (iter != eventKeyMappings.end()) {
+                auto idx = iter->second;
+                auto &coro = nodes[idx].value.first;
+                auto &c = *nodes[idx].value.second;
+                Resume(idx, coro, c);
+            }
+        }
 
         operator bool() const {
             return nodes.Count() > 0;
@@ -372,14 +363,14 @@ namespace xx {
             if (g.Done()) return;
             auto &&c = g.Value();
             auto n = CalcSleepTimes(c);
-            auto idx = nodes.Alloc(std::move(g), 0, -1, -1);
+            auto idx = nodes.Alloc(std::move(g), &c);
             auto wIdx = (cursor + n) % wheelLen;
             HandleCond(c, idx, wIdx);
         }
 
         // update time wheel, resume list coros
         void operator()() {
-            HandleUpdateCallback();
+            HandleUpdate();
 
             cursor = (cursor + 1) % ((int) wheelLen - 1);
             if (wheel[cursor] == -1) return;
@@ -388,17 +379,17 @@ namespace xx {
             wheel[cursor] = -1;
             do {
                 auto &n = nodes[idx];
-                assert(std::get<1>(n.value) == cursor);
                 auto next = n.next;
-                auto &coro = std::get<0>(n.value);
-                auto &cond = coro.Value();
-                if (cond.hasUpdateCallback) {
-                    UpdateRemove(idx);
+                auto &coro = n.value.first;
+                auto &c = *n.value.second;
+                assert(c.wIdx == cursor);
+                if (c.hasUpdate) {
+                    UpdateRemove(c, idx);
                 }
-//                if (cond.hasEventCallback) {
-//                    EventRemove(idx);
-//                }
-                Resume(idx, coro, coro.Value());
+                if (c.hasEvent) {
+                    EventRemove(c, idx);
+                }
+                Resume(idx, coro, c);
                 idx = next;
             } while (idx != -1);
         }
