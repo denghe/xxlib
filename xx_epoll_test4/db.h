@@ -56,10 +56,4 @@ struct DB {
         // todo: more logic func here
     };
     xx::ThreadPool2<Env, 1> tp;
-
-    // S->db->AddJob([ ...... ](DB::Env& env) mutable { ...... });
-    template<typename F>
-    void AddJob(F&& f) {
-        tp.Add(std::forward<F>(f));
-    }
 };
