@@ -96,8 +96,8 @@ void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     }
 }
 
-xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &serial, xx::ObjBase_s &&ob) {
-    auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob);
+xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &serial, xx::ObjBase_s &&ob_) {
+    auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob_);
 
     std::optional<DB::Rtv<DB::AccountInfo>> rtv;
     co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {

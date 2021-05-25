@@ -412,7 +412,7 @@ co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable
 if (rtv.has_value()) {} else {}
         */
         template<typename ThreadPool, typename Dispatcher, typename Rtv, typename Func>
-        int NewCoroTask(ThreadPool& tp, Dispatcher& d, Rtv& rtv, Func&& func) {
+        int CoroNewTask(ThreadPool& tp, Dispatcher& d, Rtv& rtv, Func&& func) {
             auto serial = ((T*)this)->GenSerial();
             tp.Add([&d, w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
                 d.Dispatch([ w = std::move(w), serial, &rtv, result = func(env) ]() mutable {
@@ -425,19 +425,27 @@ if (rtv.has_value()) {} else {}
             return serial;
         }
 
-        template<typename Rtv,typename ... Args>
-        int SendRequest(Rtv& rtv, Args const&... args) {
-            return SendRequest([this, &rtv](auto serial, Rtv&& ob) {
-                rtv = std::move(ob);
-                FireEvent(serial);
-            }, 99999, std::forward<Args>(args)...);
-        }
-
 //        template<typename Rtv, typename Func>
 //        int NewTask(Rtv& rtv, Func&& func) {
-//            return NewCoroTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
+//            return CoroNewTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
 //        }
 
+
+        /* example:
+
+           xx::ObjBase_s ob;
+           co_yield xx::Cond(15).Event(CoroSendRequest<Generic::Error>(ob, rtv->errorCode, rtv->errorMessage));
+           if (ob) {
+               //...
+           }
+        */
+        template<typename PKG = xx::ObjBase, typename Rtv,typename ... Args>
+        int CoroSendRequest(Rtv& rtv, Args const&... args) {
+            return ((T*)this)->template SendRequest<PKG>([this, &rtv](int32_t const& serial, xx::ObjBase_s &&ob) {
+                rtv = std::move(ob);
+                coros.FireEvent(serial);
+            }, 99999.0, args...);
+            return 0;
+        }
     };
 }
-

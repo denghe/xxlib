@@ -53,7 +53,7 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer>, xx::CorosExt<Peer> {
     // helper
     template<typename Rtv, typename Func>
     int NewTask(Rtv& rtv, Func&& func) {
-        return NewCoroTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
+        return CoroNewTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
     }
 
     // coroutine func for handle request: GetAccountInfoByUsernamePassword
