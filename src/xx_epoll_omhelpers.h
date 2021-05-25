@@ -5,14 +5,14 @@
 namespace xx::Epoll {
 
     // 带超时的回调
-    template<typename Peer, typename Func_ = std::function<void(xx::ObjBase_s &&o)>>
+    template<typename Peer, typename Func_ = std::function<void(int32_t const& serial, xx::ObjBase_s &&o)>>
     struct CB : Timer {
         using Func = Func_;
         using Container = std::unordered_map<int32_t, xx::Shared<CB<Peer, Func_>>>;
 
         Container* container;
 
-        // 序号( 移除的时候要用到 )
+        // 序号
         int32_t serial = 0;
 
         // 回调函数本体
@@ -26,7 +26,7 @@ namespace xx::Epoll {
         // 执行 func(0,0) 后 从容器移除
         void Timeout() override {
             // 模拟超时
-            func(nullptr);
+            func(serial, nullptr);
             // 从容器移除
             container->erase(serial);
         }
@@ -38,28 +38,35 @@ namespace xx::Epoll {
         // 循环自增用于生成 serial
         int32_t autoIncSerial = 0;
 
+        // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
+        int32_t GenSerial() {
+            autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
+            return autoIncSerial;
+        }
+
         // 所有 带超时的回调. key: serial
         std::unordered_map<int32_t, xx::Shared<CB<T>>> callbacks;
 
         // 发推送
         template<typename PKG = xx::ObjBase, typename ... Args>
-        int SendPush(Args const& ... args) {
+        void SendPush(Args const& ... args) {
             // 推送性质的包, serial == 0
-            return ((T*)this)->template SendResponse<PKG>(0, args...);
+            ((T*)this)->template SendResponse<PKG>(0, args...);
         }
 
         // 发请求（收到相应回应时会触发 cb 执行。超时或断开也会触发，o == nullptr）
         template<typename PKG = xx::ObjBase, typename ... Args>
         int SendRequest(typename CB<T>::Func &&cbfunc, double const &timeoutSeconds, Args const& ... args) {
             // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
-            autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
+            auto serial = GenSerial();
             // 创建一个 带超时的回调
-            auto &&cb = xx::Make<CB<T>>(((T*)this)->ec, &callbacks, autoIncSerial, std::move(cbfunc), timeoutSeconds);
+            auto &&cb = xx::Make<CB<T>>(((T*)this)->ec, &callbacks, serial, std::move(cbfunc), timeoutSeconds);
             cb->Hold();
             // 以序列号建立cb的映射
-            callbacks[autoIncSerial] = std::move(cb);
+            callbacks[serial] = std::move(cb);
             // 发包并返回( 请求性质的包, 序号为负数 )
-            return ((T*)this)->template SendResponse<PKG>(-autoIncSerial, args...);
+            ((T*)this)->template SendResponse<PKG>(-serial, args...);
+            return serial;
         }
 
         // 收到回应( 自动调用 发送请求时设置的回调函数 )
@@ -67,14 +74,14 @@ namespace xx::Epoll {
             // 根据序号定位到 cb. 找不到可能是超时或发错?
             auto &&iter = callbacks.find(serial);
             if (iter == callbacks.end()) return;
-            iter->second->func(std::move(ob));
+            iter->second->func(iter->second->serial, std::move(ob));
             callbacks.erase(iter);
         }
 
         // 触发所有已存在回调（ 模拟超时回调 ） & clear
         void ClearCallbacks() {
             for (auto &&iter : callbacks) {
-                iter.second->func(nullptr);
+                iter.second->func(iter.second->serial, nullptr);
             }
             callbacks.clear();
         }

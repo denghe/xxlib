@@ -1,8 +1,10 @@
 ﻿#pragma once
 #include "server.h"
+#include "db.h"
 #include "xx_epoll_omhelpers.h"
+#include "xx_coro.h"
 
-struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
+struct Peer : EP::TcpPeer, EP::OMExt<Peer>, xx::CorosExt<Peer> {
     using EP::TcpPeer::TcpPeer;
 
     // cleanup callbacks, DelayUnhold
@@ -10,8 +12,8 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
 
     // 发回应 for EP::OMExt<ThisType>
     template<typename PKG = xx::ObjBase, typename ... Args>
-    int SendResponse(int32_t const &serial, Args const& ... args) {
-        if (!Alive()) return __LINE__;
+    void SendResponse(int32_t const &serial, Args const& ... args) {
+        if (!Alive()) return;
 
         // 准备发包填充容器
         xx::Data d(16384);
@@ -32,7 +34,7 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
         // 填包头
         d.WriteFixedAt(bak, (uint32_t) (d.len - sizeof(uint32_t)));
         // 发包并返回
-        return Send(std::move(d));
+        Send(std::move(d));
     }
 
     // 收到数据. 切割后进一步调用 ReceiveXxxxxxx
@@ -43,4 +45,17 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
 
     // 收到请求( serial 收到时为负数, 但传递到这里时已反转为正数 ), 需要自拟业务逻辑
     void ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob);
+
+
+    /***********************************************************************************************/
+    // coroutines
+
+    // helper
+    template<typename Rtv, typename Func>
+    int NewTask(Rtv& rtv, Func&& func) {
+        return NewCoroTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
+    }
+
+    // coroutine func for handle request: GetAccountInfoByUsernamePassword
+    xx::Coro HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &serial, xx::ObjBase_s &&ob);
 };

@@ -165,19 +165,20 @@ namespace xx {
 
     protected:
         template<std::size_t...Idxs, typename T>
-        static int WaitOK_(std::index_sequence<Idxs...>, T const &t) {
+        static int Wait_(std::index_sequence<Idxs...>, T const &t) {
             return (... + (**std::get<Idxs>(t) ? 1 : 0));
         }
 
     public:
-        // special Update for wait task complete by std::shared_ptr<bool> flag. fill outCount for check success
-        template<typename...OKS>
-        [[maybe_unused]] Cond &&WaitOK(int& numOfOK, OKS &...oks) {
-            static_assert(sizeof...(OKS) > 0);
+        // flag: std::shared_ptr<bool>
+        // Update for wait all tasks complete. n = completed tasks count
+        template<typename...Flags>
+        [[maybe_unused]] Cond &&Wait(int& n, Flags &...flags) {
+            static_assert(sizeof...(Flags) > 0);
             assert(!hasUpdate);
-            return Update([&numOfOK, t = std::make_tuple(&oks...)] {
-                numOfOK = WaitOK_(std::make_index_sequence<sizeof...(OKS)>(), t);
-                return numOfOK == sizeof...(OKS);
+            return Update([&n, t = std::make_tuple(&flags...)] {
+                n = Wait_(std::make_index_sequence<sizeof...(Flags)>(), t);
+                return n == sizeof...(Flags);
             });
         }
     };
@@ -394,4 +395,49 @@ namespace xx {
             } while (idx != -1);
         }
     };
+
+    // Coros ext for Peer
+    template<typename T>
+    struct CorosExt {
+        // coroutine support
+        xx::Coros coros;
+
+        /* example:
+
+std::optional<DB::Rtv<DB::AccountInfo>> rtv;
+co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
+    return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
+}));
+
+if (rtv.has_value()) {} else {}
+        */
+        template<typename ThreadPool, typename Dispatcher, typename Rtv, typename Func>
+        int NewCoroTask(ThreadPool& tp, Dispatcher& d, Rtv& rtv, Func&& func) {
+            auto serial = ((T*)this)->GenSerial();
+            tp.Add([&d, w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
+                d.Dispatch([ w = std::move(w), serial, &rtv, result = func(env) ]() mutable {
+                    if (auto p = w.Lock()) {
+                        rtv = std::move(result);
+                        p->coros.FireEvent(serial);
+                    }
+                });
+            });
+            return serial;
+        }
+
+        template<typename Rtv,typename ... Args>
+        int SendRequest(Rtv& rtv, Args const&... args) {
+            return SendRequest([this, &rtv](auto serial, Rtv&& ob) {
+                rtv = std::move(ob);
+                FireEvent(serial);
+            }, 99999, std::forward<Args>(args)...);
+        }
+
+//        template<typename Rtv, typename Func>
+//        int NewTask(Rtv& rtv, Func&& func) {
+//            return NewCoroTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
+//        }
+
+    };
 }
+

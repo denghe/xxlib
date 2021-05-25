@@ -88,47 +88,35 @@ void Peer::ReceivePush(xx::ObjBase_s &&ob) {
 void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     switch(ob.typeId()) {
         case xx::TypeId_v<Service_Database::GetAccountInfoByUsernamePassword>: {
-            auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob);
-            // put job to thread pool
-            // thread safe: o => shared_ptr( use ), copy serial( copy through ), vpper => weak( move through )
-            S->db->AddJob([o = S->ToPtr(std::move(o)), serial, w = xx::SharedFromThis(this).ToWeak()](DB::Env &env) mutable {
-
-                // SQL query
-                auto rtv = env.TryGetAccountInfoByUsernamePassword(o->username, o->password);
-
-                // dispatch handle SQL query result
-                // thread safe: copy serial( use ), move rtv( use ), move w( use )
-                env.server->Dispatch([serial, rtv = std::move(rtv), w = std::move(w)]() mutable {
-
-                    // ensure p is exists & alive
-                    if (auto p = w.Lock(); p->Alive()) {
-                        auto s = (Server*)p->ec;
-
-                        // check result
-                        if (!rtv) {
-
-                            // send error
-                            p->SendResponse<Generic::Error>(serial, rtv.errorCode, rtv.errorMessage);
-
-                        } else {
-
-                            // send result
-                            auto &&m = s->FromCache<Database_Service::GetAccountInfoByUsernamePasswordResult>();
-                            if (rtv.value.accountId >= 0) {
-                                m->accountInfo.emplace();
-                                m->accountInfo->accountId = rtv.value.accountId;
-                                m->accountInfo->nickname = rtv.value.nickname;
-                                m->accountInfo->coin = rtv.value.coin;
-                            }
-                            p->SendResponse(serial, m);
-
-                        }
-                    }
-                });
-            });
+            coros.Add(HandleRequest_GetAccountInfoByUsernamePassword(serial, std::move(ob)));
             return;
         }
         default:
             LOG_ERR("unhandled package: ", S->om.ToString(ob));
+    }
+}
+
+xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &serial, xx::ObjBase_s &&ob) {
+    auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob);
+
+    std::optional<DB::Rtv<DB::AccountInfo>> rtv;
+    co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
+        return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
+    }));
+
+    if (rtv.has_value()) {
+        // send result
+        auto &&m = S->FromCache<Database_Service::GetAccountInfoByUsernamePasswordResult>();
+        if (rtv->value.accountId >= 0) {
+            m->accountInfo.emplace();
+            m->accountInfo->accountId = rtv->value.accountId;
+            m->accountInfo->nickname = rtv->value.nickname;
+            m->accountInfo->coin = rtv->value.coin;
+        }
+        SendResponse(serial, m);
+
+    } else {
+        // send error
+        SendResponse<Generic::Error>(serial, rtv->errorCode, rtv->errorMessage);
     }
 }
