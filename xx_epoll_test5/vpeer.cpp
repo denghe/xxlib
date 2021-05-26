@@ -8,26 +8,6 @@
 
 #define S ((Server*)ec)
 
-// 发回应 package
-int VPeer::SendResponse(int32_t const &serial, xx::ObjBase_s const &ob) {
-    if (!Alive()) return __LINE__;
-
-    // 准备发包填充容器
-    xx::Data d(16384);
-    // 跳过包头
-    d.len = sizeof(uint32_t);
-    // 写 要发给谁
-    d.WriteFixed(clientId);
-    // 写序号
-    d.WriteVarInteger(serial);
-    // 写数据
-    S->om.WriteTo(d, ob);
-    // 填包头
-    *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
-    // 发包并返回
-    return gatewayPeer->Send(std::move(d));
-}
-
 void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
     // drop data when offline
     if (!Alive()) return;

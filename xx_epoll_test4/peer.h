@@ -1,10 +1,11 @@
 ﻿#pragma once
+
 #include "server.h"
 #include "db.h"
 #include "xx_epoll_omhelpers.h"
 #include "xx_coro.h"
 
-struct Peer : EP::TcpPeer, EP::OMExt<Peer>, xx::CorosExt<Peer> {
+struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
     using EP::TcpPeer::TcpPeer;
 
     // cleanup callbacks, DelayUnhold
@@ -12,7 +13,7 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer>, xx::CorosExt<Peer> {
 
     // 发回应 for EP::OMExt<ThisType>
     template<typename PKG = xx::ObjBase, typename ... Args>
-    void SendResponse(int32_t const &serial, Args const& ... args) {
+    void SendResponse(int32_t const &serial, Args const &... args) {
         if (!Alive()) return;
 
         // 准备发包填充容器
@@ -23,12 +24,10 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer>, xx::CorosExt<Peer> {
         d.WriteVarInteger(serial);
         // write args
         if constexpr(std::is_same_v<xx::ObjBase, PKG>) {
-            ((Server*)ec)->om.WriteTo(d, args...);
-        }
-        else if constexpr(std::is_same_v<xx::Span, PKG>) {
+            ((Server *) ec)->om.WriteTo(d, args...);
+        } else if constexpr(std::is_same_v<xx::Span, PKG>) {
             d.WriteBufSpans(args...);
-        }
-        else {
+        } else {
             PKG::WriteTo(d, args...);
         }
         // 填包头
@@ -50,10 +49,21 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer>, xx::CorosExt<Peer> {
     /***********************************************************************************************/
     // coroutines
 
-    // helper
+    // coroutine support
+    xx::Coros coros;
+
     template<typename Rtv, typename Func>
-    int NewTask(Rtv& rtv, Func&& func) {
-        return CoroNewTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
+    int NewTask(Rtv &rtv, Func &&func) {
+        auto serial = GenSerial();
+        ((Server *) ec)->db->tp.Add([s = ((Server *) ec), w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
+            s->Dispatch([w = std::move(w), serial, &rtv, result = func(env)]() mutable {
+                if (auto p = w.Lock()) {
+                    rtv = std::move(result);
+                    p->coros.FireEvent(serial);
+                }
+            });
+        });
+        return serial;
     }
 
     // coroutine func for handle request: GetAccountInfoByUsernamePassword

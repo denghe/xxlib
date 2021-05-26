@@ -31,19 +31,9 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     Game* game = nullptr;
 
     /****************************************************************************************/
-    // helpers
-
-    // return cached instance for quickly Send Push / Response   ( can't hold )
-    template<typename T>
-    xx::Shared<T> const& InstanceOf() const {
-        assert(((Server*)ec)->om.InstanceOf<T>().useCount() == 1);
-        return ((Server*)ec)->om.InstanceOf<T>();
-    }
-
-    /****************************************************************************************/
 
     // 发回应
-    int SendResponse(int32_t const &serial, xx::ObjBase_s const &ob);
+    void SendResponse(int32_t const &serial, xx::ObjBase_s const &ob);
 
     // 收到数据( 进一步解析 serial, unpack 并转发到下面几个函数 )
     void Receive(uint8_t const *const &buf, size_t const &len);

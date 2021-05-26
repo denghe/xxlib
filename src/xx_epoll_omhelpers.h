@@ -5,7 +5,7 @@
 namespace xx::Epoll {
 
     // 带超时的回调
-    template<typename Peer, typename Func_ = std::function<void(int32_t const& serial, xx::ObjBase_s &&o)>>
+    template<typename Peer, typename Func_ = std::function<void(int32_t const& serial_, xx::ObjBase_s &&o)>>
     struct CB : Timer {
         using Func = Func_;
         using Container = std::unordered_map<int32_t, xx::Shared<CB<Peer, Func_>>>;

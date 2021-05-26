@@ -129,14 +129,17 @@ void VPeer::ReceivePush(xx::ObjBase_s &&ob) {
 }
 
 void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
-    LOG_INFO("clientId = ", clientId, " accountId = ", info.accountId, " ob = ", S->om.ToString(ob));
     if (IsGuest()) {
         // guest logic here: auth login
 
         // switch handle
         switch (ob.typeId()) {
             case xx::TypeId_v<Client_Lobby::Auth>: {
-                auto &&o = S->om.As<Client_Lobby::Auth>(ob);
+                // check flag
+                if (flag_Auth) {
+                    Close(__LINE__, "VPeer::ReceiveRequest already authing...");
+                    return;
+                }
 
                 // ensure dbpeer
                 if (!S->dbPeer || !S->dbPeer->Alive()) {
@@ -144,75 +147,78 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                     return;
                 }
 
-                // check & set busy flag
-                if (TypeCount<Client_Lobby::Auth>()) {
-                    Close(__LINE__, "VPeer::ReceiveRequest duplicated Client_Lobby::Auth");
-                    return;
-                } else {
-                    TypeCountInc<Client_Lobby::Auth>();
-                }
-
-                S->dbPeer->SendRequest<Service_Database::GetAccountInfoByUsernamePassword>([this, serial](xx::ObjBase_s &&ob) {
-                        // check & clear busy flag
-                        assert(TypeCount<Client_Lobby::Auth>() == 1);
-                        TypeCountDec<Client_Lobby::Auth>();
-
-                        // timeout?
-                        if (!ob) {
-                            // send error
-                            SendResponse<Generic::Error>(serial, -1, "db server response timeout");
-                            return;
-                        }
-
-                        // handle result
-                        switch (ob.typeId()) {
-                            case xx::TypeId_v<Generic::Error>: {
-                                // send error
-                                SendResponse(serial, ob);
-                                return;
-                            }
-                            case xx::TypeId_v<Database_Service::GetAccountInfoByUsernamePasswordResult>: {
-                                auto &&o = S->om.As<Database_Service::GetAccountInfoByUsernamePasswordResult>(ob);
-
-                                // can't find user: send error
-                                if (!o->accountInfo.has_value()) {
-                                    SendResponse<Generic::Error>(serial, -2, "bad username or password");
-                                    return;
-                                }
-
-                                int r = Online(*o->accountInfo);
-                                if (r < 0) {
-
-                                    // error
-                                    SendResponse<Generic::Error>(serial, -3, xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r));
-                                } else {
-                                    {
-                                        // success
-                                        auto &&m = S->FromCache<Lobby_Client::PlayerContext>();
-                                        m->self.accountId = o->accountInfo->accountId;
-                                        m->self.nickname = o->accountInfo->nickname;
-                                        m->self.coin = o->accountInfo->coin;
-                                        m->gameId = gameId;
-                                        m->serviceId = serviceId;
-                                        SendResponse(serial, m);
-                                    }
-
-                                    // push game list cache
-                                    SendPush<xx::Span>(S->data_Lobby_Client_GameOpen);
-                                }
-                                return;
-                            }
-                        }
-                    }, 15, o->username, o->password);
+                // set flag
+                flag_Auth = true;
+                coros.Add(HandleRequest_Auth(serial, std::move(ob)));
+                return;
             } // case
 
             default:
-                break;
+                LOG_ERR("unhandled package: ", S->om.ToString(ob));
         }
     } else {
         // todo: game logic here
     }
 }
+
+xx::Coro VPeer::HandleRequest_Auth(int const &serial, xx::ObjBase_s &&ob) {
+    auto &&a = S->om.As<Client_Lobby::Auth>(ob);
+    assert(a);
+
+    xx::ObjBase_s rtv;
+    co_yield xx::Cond(15).Event( DbCoroSendRequest<Service_Database::GetAccountInfoByUsernamePassword>(rtv, a->username, a->password) );
+
+    // clear flag
+    flag_Auth = false;
+
+    // timeout?
+    if (!ob) {
+        // send error
+        SendResponse<Generic::Error>(serial, -1, "db server response timeout");
+        co_return;
+    }
+
+    // handle result
+    switch (ob.typeId()) {
+        case xx::TypeId_v<Generic::Error>: {
+            // send error
+            SendResponse(serial, ob);
+            co_return;
+        }
+        case xx::TypeId_v<Database_Service::GetAccountInfoByUsernamePasswordResult>: {
+            auto &&o = S->om.As<Database_Service::GetAccountInfoByUsernamePasswordResult>(ob);
+
+            // can't find user: send error
+            if (!o->accountInfo.has_value()) {
+                SendResponse<Generic::Error>(serial, -2, "bad username or password");
+                co_return;
+            }
+
+            int r = Online(*o->accountInfo);
+            if (r < 0) {
+
+                // error
+                SendResponse<Generic::Error>(serial, -3, xx::ToString("SetAccountId error. accountId = ", o->accountInfo->accountId, " r = ", r));
+            } else {
+                {
+                    // success
+                    auto &&m = S->FromCache<Lobby_Client::PlayerContext>();
+                    m->self.accountId = o->accountInfo->accountId;
+                    m->self.nickname = o->accountInfo->nickname;
+                    m->self.coin = o->accountInfo->coin;
+                    m->gameId = gameId;
+                    m->serviceId = serviceId;
+                    SendResponse(serial, m);
+                }
+
+                // push game list cache
+                SendPush<xx::Span>(S->data_Lobby_Client_GameOpen);
+            }
+            co_return;
+        }
+    }
+}
+
 
 int VPeer::Online(Database::AccountInfo const &ai) {
     // ensure current is guest mode
@@ -239,6 +245,7 @@ int VPeer::Online(Database::AccountInfo const &ai) {
 }
 
 void VPeer::Update(double const &dt) {
+    coros();
     if (IsGuest()) return;
     // todo: frame logic here
 }

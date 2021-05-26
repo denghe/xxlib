@@ -395,57 +395,31 @@ namespace xx {
             } while (idx != -1);
         }
     };
-
-    // Coros ext for Peer
-    template<typename T>
-    struct CorosExt {
-        // coroutine support
-        xx::Coros coros;
-
-        /* example:
-
-std::optional<DB::Rtv<DB::AccountInfo>> rtv;
-co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
-    return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
-}));
-
-if (rtv.has_value()) {} else {}
-        */
-        template<typename ThreadPool, typename Dispatcher, typename Rtv, typename Func>
-        int CoroNewTask(ThreadPool& tp, Dispatcher& d, Rtv& rtv, Func&& func) {
-            auto serial = ((T*)this)->GenSerial();
-            tp.Add([&d, w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
-                d.Dispatch([ w = std::move(w), serial, &rtv, result = func(env) ]() mutable {
-                    if (auto p = w.Lock()) {
-                        rtv = std::move(result);
-                        p->coros.FireEvent(serial);
-                    }
-                });
-            });
-            return serial;
-        }
-
-//        template<typename Rtv, typename Func>
-//        int NewTask(Rtv& rtv, Func&& func) {
-//            return CoroNewTask(((Server*)(ec))->db->tp, *(Server*)(ec), rtv, std::forward<Func>(func));
-//        }
-
-
-        /* example:
-
-           xx::ObjBase_s ob;
-           co_yield xx::Cond(15).Event(CoroSendRequest<Generic::Error>(ob, rtv->errorCode, rtv->errorMessage));
-           if (ob) {
-               //...
-           }
-        */
-        template<typename PKG = xx::ObjBase, typename Rtv,typename ... Args>
-        int CoroSendRequest(Rtv& rtv, Args const&... args) {
-            return ((T*)this)->template SendRequest<PKG>([this, &rtv](int32_t const& serial, xx::ObjBase_s &&ob) {
-                rtv = std::move(ob);
-                coros.FireEvent(serial);
-            }, 99999.0, args...);
-            return 0;
-        }
-    };
 }
+
+/*
+    // coroutine support
+    xx::Coros coros;
+
+    template<typename Rtv, typename Func>
+    int NewTask(Rtv &rtv, Func &&func) {
+        auto serial = GenSerial();
+        ((Server *) ec)->db->tp.Add([s = ((Server *) ec), w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
+            s->Dispatch([w = std::move(w), serial, &rtv, result = func(env)]() mutable {
+                if (auto p = w.Lock()) {
+                    rtv = std::move(result);
+                    p->coros.FireEvent(serial);
+                }
+            });
+        });
+        return serial;
+    }
+
+    template<typename PKG = xx::ObjBase, typename Rtv, typename ... Args>
+    int CoroSendRequest(Rtv &rtv, Args const &... args) {
+        return SendRequest<PKG>([this, &rtv](int const &serial, xx::ObjBase_s &&ob) {
+            rtv = std::move(ob);
+            coros.FireEvent(serial);
+        }, 99999.0, args...);
+    }
+*/
