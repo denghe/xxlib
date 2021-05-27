@@ -7,21 +7,18 @@
 #include <memory>
 #include "xx_nodepool.h"
 
-// for clion editor read line error
-#define XX_COROUTINE_CLANG_SUPPORT 0
-
-#if XX_COROUTINE_CLANG_SUPPORT && defined(__clang__)
+#if __has_include(<coroutine>)
+#include <coroutine>
+#elif __has_include(<experimental/coroutine>)
 #include <experimental/coroutine>
 #else
-
-#include <coroutine>
-
+static_assert(false, "No co_await support");
 #endif
 
 #define CoAwait(func) {auto&& g = func; while(!g.Resume()) { co_yield g.Value(); }}
 
 namespace xx {
-#if XX_COROUTINE_CLANG_SUPPORT && defined(__clang__)
+#if __has_include(<experimental/coroutine>)
     using namespace std::experimental;
 #else
     using namespace std;
@@ -95,7 +92,7 @@ namespace xx {
             promise_type &operator=(promise_type &&) = delete;
 
             [[maybe_unused]] auto initial_suspend() {
-                return suspend_always{};
+                return suspend_never{};
             }
 
             [[maybe_unused]] auto final_suspend() noexcept {
