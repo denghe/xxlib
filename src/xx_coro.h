@@ -208,6 +208,9 @@ namespace xx {
         // key: eventKey   value: node index
         std::unordered_map<int, int> eventKeyMappings;
 
+        // last coro resume state
+        bool isTimeout = false;
+
         explicit Coros(float const &framePerSeconds = 10, int const &wheelLen = 10 * 60 * 5)
                 : frameDelaySeconds(1.0f / framePerSeconds), wheelLen(wheelLen) {
             wheel = (int *) malloc(wheelLen * sizeof(int));
@@ -337,6 +340,7 @@ namespace xx {
                 auto r = c.updateFunc();
                 //std::cout << __LINE__ << " r = " << r << std::endl;
                 if (r) {
+                    isTimeout = false;
                     UpdateRemove(c, idx);
                     WheelRemove(c, idx);
                     Resume(idx, coro, c);
@@ -349,6 +353,7 @@ namespace xx {
         [[maybe_unused]] void FireEvent(int const& eventKey) {
             auto iter = eventKeyMappings.find(eventKey);
             if (iter != eventKeyMappings.end()) {
+                isTimeout = false;
                 auto idx = iter->second;
                 auto &coro = nodes[idx].value.first;
                 auto &c = *nodes[idx].value.second;
@@ -374,6 +379,7 @@ namespace xx {
         void operator()() {
             HandleUpdate();
 
+            isTimeout = true;
             cursor = (cursor + 1) % ((int) wheelLen - 1);
             if (wheel[cursor] == -1) return;
             auto idx = wheel[cursor];
