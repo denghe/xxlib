@@ -105,7 +105,11 @@ namespace xx {
 
             [[maybe_unused]] void return_void() {}
 
+#if __has_include(<concept>)
             template<std::convertible_to<T> From>
+#else
+            template<typename From>
+#endif
             [[maybe_unused]] auto yield_value(From &&some_value) {
                 v = std::forward<From>(some_value);
                 return suspend_always{};
