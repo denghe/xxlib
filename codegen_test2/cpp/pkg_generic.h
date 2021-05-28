@@ -2,7 +2,7 @@
 #include "xx_obj.h"
 #include "pkg_generic.h.inc"
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<7b24f79c477833a763a11e19411933ed>*#";
+	inline static const ::std::string md5 = "#*MD5<935e966f5ef2a8d4ca2b1c61f5d330be>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };
@@ -23,7 +23,6 @@ namespace Generic {
         int32_t gameId = 0;
         // 游戏说明( 服务器并不关心, 会转发到 client. 通常是一段 json 啥的 )
         ::std::string info;
-        static void WriteTo(xx::Data& d, int32_t const& gameId, std::string_view const& info);
     };
 }
 namespace Generic {
@@ -37,7 +36,6 @@ namespace Generic {
         ::std::string nickname;
         // 玩家资产
         double coin = 0;
-        static void WriteTo(xx::Data& d, int32_t const& accountId, std::string_view const& nickname, double const& coin);
     };
 }
 namespace Generic {
