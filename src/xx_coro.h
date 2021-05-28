@@ -284,13 +284,13 @@ namespace xx {
         }
 
         void EventAdd(Cond &cond, int const &idx) {
-            assert(eventKeyMappings.contains(cond.eventKey));
+            assert(eventKeyMappings.find(cond.eventKey) != eventKeyMappings.end());
             auto r = eventKeyMappings.emplace(cond.eventKey, idx);
             assert(r.second);
         }
 
         void EventRemove(Cond &cond, int const &idx) {
-            assert(eventKeyMappings.contains(cond.eventKey));
+            assert(eventKeyMappings.find(cond.eventKey) != eventKeyMappings.end());
             assert(eventKeyMappings[cond.eventKey] == idx);
             eventKeyMappings.erase(cond.eventKey);
         }
