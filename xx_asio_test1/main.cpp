@@ -4,7 +4,7 @@
 
 struct Client : xx::Asio::Client {
     xx::Coros coros;
-    Client() {
+    Client() : coros(100, 100 * 60 * 5) {
         coros.Add(Logic());
     }
     void FrameUpdate() {
@@ -91,7 +91,7 @@ struct Client : xx::Asio::Client {
 int main() {
     Client c;
     do {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 100 fps
         c.Update();
         {
             // 模拟 lua 收包
