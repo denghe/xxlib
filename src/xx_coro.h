@@ -92,7 +92,7 @@ namespace xx {
             promise_type &operator=(promise_type &&) = delete;
 
             [[maybe_unused]] auto initial_suspend() {
-                return suspend_never{};
+                return suspend_always{};
             }
 
             [[maybe_unused]] auto final_suspend() noexcept {
