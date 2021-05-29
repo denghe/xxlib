@@ -21,6 +21,7 @@ struct Client : xx::Asio::Client {
         SetDomainPort("192.168.1.135", 10001);
 
     LabBegin:
+        xx::CoutTN("LabBegin");
         // 无脑重置一发
         Reset();
 
@@ -29,7 +30,7 @@ struct Client : xx::Asio::Client {
 
         // 开始域名解析
         if (int r = Resolve()) {
-            xx::CoutN("c.Resolve() = ", r);
+            xx::CoutTN("c.Resolve() = ", r);
             goto LabBegin;
         }
 
@@ -39,12 +40,12 @@ struct Client : xx::Asio::Client {
 
         // 打印下 ip 列表
         for (auto& ip : GetIPList()) {
-            std::cout << ip << std::endl;
+            xx::CoutTN(ip);
         }
 
         // 开始拨号
         if (int r = Dial()) {
-            xx::CoutN("c.Dial() = ", r);
+            xx::CoutTN("c.Dial() = ", r);
             goto LabBegin;
         }
 
@@ -92,7 +93,7 @@ int main() {
     Client c;
     do {
         std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 100 fps
-        c.Update();
+        c.FrameUpdate();
         {
             // 模拟 lua 收包
             xx::Asio::Package p;
