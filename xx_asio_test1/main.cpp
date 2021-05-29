@@ -2,9 +2,11 @@
 #include "xx_string.h"
 #include "xx_coro.h"
 
+#define CLIENT_FPS 60
+
 struct Client : xx::Asio::Client {
     xx::Coros coros;
-    Client() : coros(100, 100 * 60 * 5) {
+    Client() : coros(CLIENT_FPS, CLIENT_FPS * 60 * 5) {
         coros.Add(Logic());
     }
     void Update2() {
@@ -58,19 +60,10 @@ struct Client : xx::Asio::Client {
         co_yield xx::Cond(5).Update([&]{ return Alive() ? IsOpened(0) : true; });
         if (!Alive() || coros.isTimeout) goto LabBegin;
 
-        // 设置收到 echo 包的回调: 算 ping 并清除 flag
-        peer->onReceiveEcho = [this](xx::Data const& d)->int {
-            //xx::CoutN("reccv echo: ", d);
-            assert(d.len == 8);
-            xx::Data_r dr(d.buf, d.len);
-            double v;
-            if (int rtv = dr.ReadFixed(v)) return rtv;
-            ping = xx::NowSteadyEpochSeconds() - v;
-            recvEcho = true;
-            return 0;
-        };
+        // 设置收到 echo 包的回调
+        peer->onReceiveEcho = [this](auto && a1) { return HandlePing(std::forward<decltype(a1)>(a1)); };
 
-        // 简单实现一个 ping 逻辑. loop: 发送当前 secs, 在收到回包后间隔 1 秒再发
+        // 简单实现一个 ping 逻辑. while(true) { 发送当前 secs, 等回包算ping, 等1秒 }
     LabKeepAlive:
         recvEcho = false;
         d.Clear();
@@ -81,6 +74,7 @@ struct Client : xx::Asio::Client {
         co_yield xx::Cond(10).Update([&]{ return Alive() ? recvEcho : true; });
         if (!Alive() || coros.isTimeout) goto LabBegin;
 
+        // ping 是在 onReceiveEcho 里算的
         xx::CoutN("ping = ", ping);
 
         // 等 1 秒
@@ -88,12 +82,24 @@ struct Client : xx::Asio::Client {
         if (!Alive()) goto LabBegin;
         goto LabKeepAlive;
     }
+
+    // 算 ping 并清除 flag
+    int HandlePing(xx::Data const& d_) {
+        //xx::CoutN("reccv echo: ", d);
+        assert(d_.len == 8);
+        xx::Data_r dr(d_.buf, d_.len);
+        double v;
+        if (int rtv = dr.ReadFixed(v)) return rtv;
+        ping = xx::NowSteadyEpochSeconds() - v;
+        recvEcho = true;
+        return 0;
+    };
 };
 
 int main() {
     Client c;
     do {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 100 fps
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000 / CLIENT_FPS));
         // 驱动 asio
         c.Update();
         {
