@@ -146,8 +146,9 @@ namespace xx {
 
         Cond() = default;
 
-        Cond(float const &sleepSeconds) : sleepSeconds(sleepSeconds) {
-        }
+        Cond(int const &sleepSeconds) : sleepSeconds((float)sleepSeconds) {}
+
+        Cond(float const &sleepSeconds) : sleepSeconds(sleepSeconds) {}
 
         [[maybe_unused]] Cond &&Event(int const& eventKey_) {
             assert(!hasEvent);

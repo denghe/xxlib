@@ -7,8 +7,9 @@ struct Client : xx::Asio::Client {
     Client() : coros(100, 100 * 60 * 5) {
         coros.Add(Logic());
     }
-    void FrameUpdate() {
-        Update();
+    void Update2() {
+        // 产生 C++ 回调
+        if (peer) peer->HandleReceivedCppPackages();
         coros();
     }
 
@@ -93,16 +94,15 @@ int main() {
     Client c;
     do {
         std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 100 fps
-        c.FrameUpdate();
+        // 驱动 asio
+        c.Update();
         {
             // 模拟 lua 收包
             xx::Asio::Package p;
             (void)c.TryGetPackage(p);
         }
-        {
-            // 产生 C++ 回调
-            if (c.peer) c.peer->HandleReceivedCppPackages();
-        }
+        // 驱动 c++ 回调 和 协程
+        c.Update2();
     }
     while(c.coros);
 	std::cout << "end." << std::endl;
