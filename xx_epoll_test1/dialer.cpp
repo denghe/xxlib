@@ -6,7 +6,7 @@
 void Dialer::Connect(xx::Shared<SPeer> const &peer) {
     // 没连上
     if (!peer) {
-        LOG_INFO("Dialer Connect failed. serverId = ", serverId);
+        LOG_ERROR("failed. serverId = ", serverId);
         return;
     }
 
