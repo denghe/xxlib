@@ -102,6 +102,7 @@ void VPeer::SwapWith(int const &idx) {
 VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string &&ip)
         : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId), ip(std::move(ip)), coros(server->frameRate, server->frameRate * 60 * 5) {
     info.accountId = --server->autoDecId;
+    gatewayPeer->clientIds.insert(clientId);
     auto r = server->vps.Add(this, ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, info.accountId);
     assert(r.success);
     serverVpsIndex = r.index;

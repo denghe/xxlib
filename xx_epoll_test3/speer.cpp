@@ -9,17 +9,19 @@ bool SPeer::Close(int const &reason, std::string_view const &desc) {
     // close fd, ClearCallbacks, DelayUnhold
     if (!this->Peer::Close(reason, desc)) return false;
 
-    // remove info from mappings
-    for(auto const& gi : info->gameInfos) {
-        assert(S->gameIdserviceIdMappings.contains(gi.gameId));
-        S->gameIdserviceIdMappings.erase(gi.gameId);
-    }
-    // remove this from sps
-    assert(S->sps.contains(info->serviceId));
-    S->sps.erase(info->serviceId);
+    if (info) {
+        // remove info from mappings
+        for (auto const &gi : info->gameInfos) {
+            assert(S->gameIdserviceIdMappings.contains(gi.gameId));
+            S->gameIdserviceIdMappings.erase(gi.gameId);
+        }
+        // remove this from sps
+        assert(S->sps.contains(info->serviceId));
+        S->sps.erase(info->serviceId);
 
-    // rebuild cache
-    S->Fill_data_Lobby_Client_GameOpen();
+        // rebuild cache
+        S->Fill_data_Lobby_Client_GameOpen();
+    }
 
     return true;
 }
@@ -30,22 +32,28 @@ bool SPeer::Close(int const &reason, std::string_view const &desc) {
 #define CASEEND }
 
 void SPeer::ReceivePush(xx::ObjBase_s &&ob) {
-    switch(ob.typeId()) {
-        CASE(Game_Lobby::PlayerLeave)
-            auto idx = S->vps.Find<1>(o->accountId);
-            if (idx != -1) {
-                auto& vp = S->vps.ValueAt(idx);
-                assert(vp && vp->info.accountId == o->accountId);
-                if (vp->serviceId == info->serviceId && vp->gameId == o->gameId) {
-                    vp->serviceId = -1;
-                    vp->gameId = -1;
+    if (info) {
+        // registered
+        switch(ob.typeId()) {
+            CASE(Game_Lobby::PlayerLeave)
+                auto idx = S->vps.Find<1>(o->accountId);
+                if (idx != -1) {
+                    auto& vp = S->vps.ValueAt(idx);
+                    assert(vp && vp->info.accountId == o->accountId);
+                    if (vp->serviceId == info->serviceId && vp->gameId == o->gameId) {
+                        vp->serviceId = -1;
+                        vp->gameId = -1;
+                    }
                 }
-            }
-            return;
-        CASEEND
-        default:
-            LOG_ERR("unhandled package: ", S->om.ToString(ob));
-            break;
+                return;
+            CASEEND
+            default:
+                LOG_ERR("unhandled package: ", S->om.ToString(ob));
+                break;
+        }
+    }
+    else {
+        LOG_ERR("unhandled package: ", S->om.ToString(ob));
     }
 }
 

@@ -3,7 +3,7 @@
   "clientTimeoutSeconds": 30,
   "listenPort": 10001,
   "serverInfos": [
-    {"serverId": 0, "ip": "127.0.0.1", "port": 20000},
+    {"serverId": 0, "ip": "127.0.0.1", "port": 19999},
     {"serverId": 1, "ip": "127.0.0.1", "port": 20001}
   ]
 }

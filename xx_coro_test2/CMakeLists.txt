@@ -15,7 +15,7 @@ add_executable(xx_coro_test2
         )
 
 if(UNIX)
-	target_link_libraries(xx_coro_test1
+	target_link_libraries(xx_coro_test2
 			pthread
 			)
 endif()

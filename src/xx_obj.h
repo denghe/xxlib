@@ -444,6 +444,7 @@ namespace xx {
 						uint16_t typeId;
 						if (int r = Read_(d, typeId)) return r;
 						if (!typeId) return __LINE__;
+                        if (!fs[typeId]) return __LINE__;
 						if (!IsBaseOf<U>(typeId)) return __LINE__;
 
 						if (!v || v.typeId() != typeId) {

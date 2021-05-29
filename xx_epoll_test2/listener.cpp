@@ -34,5 +34,5 @@ void Listener::Accept(xx::Shared<CPeer> const &cp) {
     // 向默认服务发送 accept 通知
     s0->SendCommand("accept", cp->clientId, xx::ToString(cp->addr));
 
-    LOG_INFO("success. ip = ", cp->addr);
+    LOG_INFO("success. ip = ", cp->addr, ", clientId = ", cp->clientId);
 }
