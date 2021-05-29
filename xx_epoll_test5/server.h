@@ -54,4 +54,18 @@ struct Server : EP::Context {
 
     // 得到执行情况的快照
     std::string GetInfo();
+
+    /**************************************************************************************/
+    // caches
+
+    // package instance cache for Send Push / Response ( can't hold )
+    std::array<xx::ObjBase_s, std::numeric_limits<uint16_t>::max()> objs{};
+
+    // return cached package instance
+    template<typename T>
+    xx::Shared<T> const& FromCache() {
+        assert((*(xx::Shared<T>*)&objs[xx::TypeId_v<T>]).useCount() == 1);
+        return *(xx::Shared<T>*)&objs[xx::TypeId_v<T>];
+    }
+
 };

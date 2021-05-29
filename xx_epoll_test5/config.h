@@ -6,12 +6,13 @@
 
 struct Config {
     uint32_t gameId = 0;
+    uint32_t gatewayListenPort = 0;
     std::string lobbyIP;
     uint32_t lobbyPort = 0;
     std::string dbIP;
     uint32_t dbPort = 0;
 };
-AJSON(Config, gameId, lobbyIP, lobbyPort, dbIP, dbPort);
+AJSON(Config, gameId, gatewayListenPort, lobbyIP, lobbyPort, dbIP, dbPort);
 
 
 // 适配 std::cout
