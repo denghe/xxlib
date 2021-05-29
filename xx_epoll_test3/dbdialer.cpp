@@ -10,7 +10,7 @@ void DBDialer::Connect(xx::Shared<DBPeer> const &peer) {
 
     // 没连上
     if (!peer) {
-        LOG_INFO("failed");
+        LOG_ERROR("failed");
         return;
     }
 

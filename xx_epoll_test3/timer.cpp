@@ -5,17 +5,17 @@
 
 #define S ((Server*)ec)
 
-void PingTimer::Start() {
+void Timer::Start() {
     SetTimeoutSeconds(intervalSeconds);
 }
 
-void PingTimer::Timeout() {
+void Timer::Timeout() {
     auto &&now = xx::NowSteadyEpochMilliseconds();
 
 //    // 遍历当前已存在的服务器间连接容器
-//    for (auto &&dp : S->dps) {
+//    for (auto &&kv : S->sps) {
 //        // 如果连接存在
-//        if (auto &&sp = dp.second.second) {
+//        if (auto &&sp = dp.second) {
 //            // 如果正在等
 //            if (sp->waitingPingBack) {
 //                // 如果已经等了好些时候了( 该值可配？）
@@ -36,7 +36,7 @@ void PingTimer::Timeout() {
     // dial to db
     if (!S->dbPeer) {
         auto& d = S->dbDialer;
-        if (d->Busy()) {
+        if (!d->Busy()) {
             d->DialSeconds(2);
         }
     }

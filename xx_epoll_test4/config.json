@@ -1,4 +1,3 @@
 ﻿{
-  "listenPort": 30000,
-  "peerTimeoutSeconds": 5
+  "listenPort": 30000
 }

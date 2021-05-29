@@ -13,6 +13,8 @@ bool Peer::Close(int const &reason, std::string_view const &desc) {
 
     // 延迟减持
     DelayUnhold();
+
+    LOG_ERR("reason = ", reason, " desc = ", desc);
     return true;
 }
 

@@ -38,8 +38,8 @@ int Server::Init() {
     dbDialer->AddAddress(config.dbIP, (int)config.dbPort);
 
     // 初始化间隔时间为 ? 秒的处理服务器之间 ping 防止连接僵死的 timer
-    xx::MakeTo(pingTimer, this);
-    pingTimer->Start();
+    xx::MakeTo(timer, this);
+    timer->Start();
 
     // set 10 times per seconds for FrameUpdate
     SetFrameRate(10);
