@@ -2,15 +2,14 @@
 
 #include "server.h"
 #include "xx_epoll_omhelpers.h"
-
-struct GPeer;
-struct VPeer;
-struct Game;
-namespace Database { struct AccountInfo; }
+#include "pkg_db_service.h"
+#include "gpeer.h"
+#include "xx_coro.h"
+#include "dbpeer.h"
 
 // 虚拟 peer
-struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
-    explicit VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string&& ip);
+struct VPeer : EP::Timer, EP::OMExt<VPeer> {
+    explicit VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string &&ip);
 
     // index at server->vps( fill after create )
     int serverVpsIndex = -1;
@@ -25,15 +24,53 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     std::string ip;
 
     // logic data
-    int32_t accountId = -1;
-    std::string nickname;
-    double coin = 0;
-    Game* game = nullptr;
+    Database::AccountInfo info;
 
     /****************************************************************************************/
 
-    // 发回应
-    void SendResponse(int32_t const &serial, xx::ObjBase_s const &ob);
+    // coroutine support
+    xx::Coros coros;
+
+    template<typename PKG = xx::ObjBase, typename Rtv, typename ... Args>
+    int DbCoroSendRequest(Rtv &rtv, Args const &... args) {
+        assert(((Server*)ec)->dbPeer && ((Server*)ec)->dbPeer->Alive());
+        return ((Server*)ec)->dbPeer->SendRequest<PKG>([this, &rtv](int32_t const &serial_, xx::ObjBase_s &&ob) {
+            rtv = std::move(ob);
+            coros.FireEvent(serial_);
+        }, 99999.0, args...);
+    }
+
+    bool flag_Auth = false;
+    xx::Coro HandleRequest_Auth(int const &serial, xx::ObjBase_s &&ob);
+
+    /****************************************************************************************/
+
+    // 发回应 for EP::OMExt<ThisType>
+    template<typename PKG = xx::ObjBase, typename ... Args>
+    void SendResponse(int32_t const &serial, Args const &... args) {
+        if (!Alive()) return;
+
+        // 准备发包填充容器
+        xx::Data d(16384);
+        // 跳过包头
+        d.len = sizeof(uint32_t);
+        // 写 要发给谁
+        d.WriteFixed(clientId);
+        // 写序号
+        d.WriteVarInteger(serial);
+        // write args
+        if constexpr(std::is_same_v<xx::ObjBase, PKG>) {
+            ((Server *) ec)->om.WriteTo(d, args...);
+        } else if constexpr(std::is_same_v<xx::Span, PKG>) {
+            d.WriteBufSpans(args...);
+        } else {
+            PKG::WriteTo(d, args...);
+        }
+        // 填包头
+        *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
+        // 发包并返回
+        gatewayPeer->Send(std::move(d));
+    }
 
     // 收到数据( 进一步解析 serial, unpack 并转发到下面几个函数 )
     void Receive(uint8_t const *const &buf, size_t const &len);
@@ -56,7 +93,7 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer>, EP::TypeCounterExt {
     bool Close(int const &reason, std::string_view const &desc) override;
 
     // kick, cleanup, update key at server.vps, remove from gpeer.clientIds
-    void Kick(int const &reason, std::string_view const &desc, bool const& fromGPeerClose = false);
+    void Kick(int const &reason, std::string_view const &desc, bool const &fromGPeerClose = false);
 
 
     /****************************************************************************************/

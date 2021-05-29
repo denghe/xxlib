@@ -27,22 +27,23 @@ void GPeer::SendClose(uint32_t const &clientId) {
 bool GPeer::Close(int const &reason, std::string_view const &desc) {
     // 防重入( 同时关闭 fd )
     if (!this->Item::Close(reason, desc)) return false;
-    assert(gatewayId != 0xFFFFFFFFu);
     LOG_INFO("gatewayId = ", gatewayId, ", reason = ", reason, ", desc = ", desc);
 
-    // close all child vpeer
-    for (auto &&clientId: clientIds) {
-        auto p = GetVPeerByClientId(clientId);
-        assert(p);
-        p->Kick(__LINE__, "GPeer Close", true);
+    if (gatewayId != 0xFFFFFFFFu) {
+        // close all child vpeer
+        for (auto &&clientId: clientIds) {
+            auto p = GetVPeerByClientId(clientId);
+            assert(p);
+            p->Kick(__LINE__, "GPeer Close", true);
+        }
+
+        // 从容器移除 this
+        assert(S->gps.find(gatewayId) != S->gps.end());
+        S->gps.erase(gatewayId);
+
+        // set flag
+        gatewayId = 0xFFFFFFFFu;
     }
-
-    // 从容器移除 this
-    assert(S->gps.find(gatewayId) != S->gps.end());
-    S->gps.erase(gatewayId);
-
-    // set flag
-    gatewayId = 0xFFFFFFFFu;
 
     // 延迟减持
     DelayUnhold();
@@ -63,7 +64,7 @@ void GPeer::Receive() {
 
         // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
         if (dataLen < sizeof(addr) || dataLen > 1024 * 256) {
-            Close(__LINE__, "Peer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
+            Close(__LINE__, "GPeer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
             return;
         }
 
@@ -97,6 +98,7 @@ void GPeer::Receive() {
 }
 
 void GPeer::ReceivePackage(uint32_t const &clientId, uint8_t *const &buf, size_t const &len) {
+    assert(gatewayId != 0xFFFFFFFFu);
     xx::Data_r dr(buf, len);
     LOG_INFO("gatewayId:", gatewayId, ", clientId = , ", clientId, ", buf = ", dr);
     if (auto p = GetVPeerByClientId(clientId)) {
@@ -112,37 +114,60 @@ void GPeer::ReceiveCommand(uint8_t *const &buf, size_t const &len) {
         LOG_ERR("gatewayId = ", gatewayId, " dr.Read(cmd) r = ", r);
         return;
     }
-    if (cmd == "accept") {
-        uint32_t clientId;
-        if (int r = dr.Read(clientId)) {
-            LOG_ERR("gatewayId = ", gatewayId, " accept dr.Read(clientId) r = ", r);
+    if (gatewayId == 0xFFFFFFFFu) {
+        if (cmd == "gatewayId") {
+            if (int r = dr.Read(gatewayId)) {
+                Close(__LINE__, xx::ToString("GPeer ReceiveCommand if (int r = dr.Read(gatewayId)), r = ", r));
+                return;
+            }
+            auto iter = S->gps.find(gatewayId);
+            if (iter != S->gps.end()) {
+                Close(__LINE__, xx::ToString("GPeer ReceiveCommand cmd gatewayId = ", gatewayId, " already exists"));
+                return;
+            }
+            SetTimeoutSeconds(15);
+            S->gps[gatewayId] = xx::SharedFromThis(this);
+            LOG_INFO("cmd = gatewayId = ", gatewayId);
             return;
+        } else {
+            LOG_ERR("unhandled cmd = ", cmd);
         }
-        std::string ip;
-        if (int r = dr.Read(ip)) {
-            LOG_ERR("gatewayId = ", gatewayId, " accept dr.Read(ip) r = ", r);
-            return;
+    }
+    else {
+        if (cmd == "accept") {
+            uint32_t clientId;
+            if (int r = dr.Read(clientId)) {
+                LOG_ERR("gatewayId = ", gatewayId, " accept dr.Read(clientId) r = ", r);
+                return;
+            }
+            std::string ip;
+            if (int r = dr.Read(ip)) {
+                LOG_ERR("gatewayId = ", gatewayId, " accept dr.Read(ip) r = ", r);
+                return;
+            }
+            // create peer, fill props, hold & store to server.vps, send open
+            LOG_INFO("gatewayId = ", gatewayId, " accept clientId = ", clientId, " ip = ", ip);
+
+            // todo: check ip is valid?
+
+            (void) xx::Make<VPeer>(S, this, clientId, std::move(ip));
+        } else if (cmd == "close") {
+            uint32_t clientId;
+            if (int r = dr.Read(clientId)) {
+                LOG_ERR("gatewayId = ", gatewayId, " close dr.Read(clientId) r = ", r);
+                return;
+            }
+            if (auto p = GetVPeerByClientId(clientId)) {
+                p->Kick(__LINE__, xx::ToString("GPeer ReceiveCommand gatewayId = ", gatewayId, " close clientId = ", clientId));
+            }
+        } else if (cmd == "ping") {
+            // keep alive
+            SetTimeoutSeconds(15);
+            // echo back
+            SendTo(0xFFFFFFFFu, "ping", dr.LeftSpan());
+        } else {
+            LOG_ERR("gatewayId = ", gatewayId, " unhandled cmd = ", cmd);
         }
-        // create peer, fill props, hold & store to server.vps, send open
-        LOG_INFO("gatewayId = ", gatewayId, " accept clientId = ", clientId, " ip = ", ip);
-        // todo: check ip is valid?
-        (void)xx::Make<VPeer>(S, this, clientId, std::move(ip));
-    } else if (cmd == "close") {
-        uint32_t clientId;
-        if (int r = dr.Read(clientId)) {
-            LOG_ERR("gatewayId = ", gatewayId, " close dr.Read(clientId) r = ", r);
-            return;
-        }
-        if (auto p = GetVPeerByClientId(clientId)) {
-            p->Kick(__LINE__, xx::ToString("GPeer ReceiveCommand gatewayId = ", gatewayId, " close clientId = ", clientId));
-        }
-    } else if (cmd == "ping") {
-        // keep alive
-        SetTimeoutSeconds(config.peerTimeoutSeconds);
-        // echo back
-        SendTo(0xFFFFFFFFu, "ping", dr.LeftSpan());
-    } else {
-        LOG_ERR("gatewayId = ", gatewayId, " unhandled cmd = ", cmd);
     }
 }
 

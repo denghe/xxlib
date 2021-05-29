@@ -80,9 +80,10 @@ void VPeer::Kick(int const &reason, std::string_view const &desc, bool const &fr
 // accountId? logic code here
 
 VPeer::VPeer(Server *const &server, GPeer *const &gatewayPeer, uint32_t const &clientId, std::string &&ip)
-        : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId), ip(std::move(ip)) {
-    accountId = --server->autoDecId;
-    auto r = server->vps.Add(this, ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, accountId);
+        : EP::Timer(server), gatewayPeer(gatewayPeer), clientId(clientId), ip(std::move(ip)), coros(server->frameRate, server->frameRate * 60 * 5) {
+    info.accountId = --server->autoDecId;
+    gatewayPeer->clientIds.insert(clientId);
+    auto r = server->vps.Add(this, ((uint64_t) gatewayPeer->gatewayId << 32) | clientId, info.accountId);
     assert(r.success);
     serverVpsIndex = r.index;
     assert(S->vps.ValueAt(serverVpsIndex).pointer == this);
@@ -96,14 +97,15 @@ void VPeer::Timeout() {
 }
 
 void VPeer::ReceivePush(xx::ObjBase_s &&ob) {
-    LOG_INFO("clientId = ", clientId, ", accountId = ", accountId, " ob = ", S->om.ToString(ob));
+    LOG_INFO("clientId = ", clientId, ", accountId = ", info.accountId, " ob = ", S->om.ToString(ob));
     // todo: logic here
 }
 
 void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
-    LOG_INFO("clientId = ", clientId, " accountId = ", accountId, " ob = ", S->om.ToString(ob));
+    LOG_INFO("clientId = ", clientId, " accountId = ", info.accountId, " ob = ", S->om.ToString(ob));
 }
 
 void VPeer::Update(double const &dt) {
+    coros();
     // todo: frame logic here
 }

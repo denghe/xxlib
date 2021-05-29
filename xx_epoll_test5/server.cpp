@@ -11,12 +11,16 @@
 #include "ldialer.h"
 
 int Server::Init() {
+    // fill instance cache
+    for(size_t i = 0; i < 65536;++i) {
+        objs[i] = xx::ObjManager::Create(i);
+    }
     // 初始化监听器
     xx::MakeTo(gatewayListener, this);
 
     // 如果监听失败则输出错误提示并退出
-    if (int r = gatewayListener->Listen((int)config.listenPort)) {
-        LOG_ERROR("listen to port ", config.listenPort, "failed.");
+    if (int r = gatewayListener->Listen((int)config.gatewayListenPort)) {
+        LOG_ERROR("listen to port ", config.gatewayListenPort, "failed.");
         return r;
     }
 
@@ -39,7 +43,7 @@ int Server::Init() {
     EnableCommandLine();
 
     cmds["?"] = [this](auto args) {
-        std::cout << "cmds: cfg, info, quit / exit" << std::endl;
+        std::cout << "cmds: c, i, q" << std::endl;
     };
     cmds["c"] = [this](auto args) {
         std::cout << "cfg = " << config << std::endl;

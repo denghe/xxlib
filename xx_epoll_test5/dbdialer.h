@@ -1,7 +1,8 @@
 ﻿#pragma once
 #include "xx_epoll.h"
-#include "dbpeer.h"
 namespace EP = xx::Epoll;
+
+struct DBPeer;
 
 // 连到 db 的拨号器
 struct DBDialer : EP::TcpDialer<DBPeer> {

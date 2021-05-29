@@ -1,5 +1,8 @@
 ﻿#pragma once
-#include "server.h"
+#include "xx_epoll.h"
+namespace EP = xx::Epoll;
+
+struct GPeer;
 
 // 继承默认监听器覆盖关键函数
 struct GListener : EP::TcpListener<GPeer> {

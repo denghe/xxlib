@@ -3,6 +3,8 @@
 #include "xx_epoll.h"
 namespace EP = xx::Epoll;
 
+struct VPeer;
+
 // gateway 连进来产生的 peer
 struct GPeer : EP::TcpPeer {
     using EP::TcpPeer::TcpPeer;

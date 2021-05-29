@@ -17,7 +17,7 @@ void Timer::Timeout() {
     // dial to db
     if (!S->dbPeer) {
         auto& d = S->dbDialer;
-        if (d->Busy()) {
+        if (!d->Busy()) {
             d->DialSeconds(2);
         }
     }
@@ -25,7 +25,7 @@ void Timer::Timeout() {
     // dial to lobby
     if (!S->lobbyPeer) {
         auto& d = S->lobbyDialer;
-        if (d->Busy()) {
+        if (!d->Busy()) {
             d->DialSeconds(2);
         }
     }
