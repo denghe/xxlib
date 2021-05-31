@@ -13,8 +13,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{0653fbcf-82a5-41f7-ac62-f0d6719f57e2}</ProjectGuid>
-    <RootNamespace>vsxxobjtest1</RootNamespace>
+    <ProjectGuid>{0653fbcf-82a5-41f7-0001-f0d6719f57e2}</ProjectGuid>
+    <RootNamespace>vsxxasiotest1</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -58,7 +58,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)codegen_test1\cpp;$(SolutionDir)src;$(SolutionDir)3rd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)codegen_test1\cpp;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
@@ -76,7 +76,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)codegen_test1\cpp;$(SolutionDir)src;$(SolutionDir)3rd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)codegen_test1\cpp;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -91,13 +91,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\codegen_test1\cpp\foo.cpp" />
-    <ClCompile Include="..\codegen_test1\cpp\p1.cpp" />
-    <ClCompile Include="..\codegen_test1\cpp\shared.cpp" />
+    <ClCompile Include="..\3rd\ikcp.c" />
     <ClCompile Include="main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\codegen_test1\foo.cs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

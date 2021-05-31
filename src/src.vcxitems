@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <ItemsProjectGuid>{867ab1eb-2575-44d6-8a47-868c1643df95}</ItemsProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MSBuildThisFileDirectory)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectCapability Include="SourceItemsFromImports" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_bits.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_data.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_funcs.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_queue.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict_mk.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_file.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_helpers.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_logger.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_bind.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_bind_samples.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_data.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_randoms.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_uv_client.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_macro.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_macro_ext.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_mysql.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_nodepool.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_obj.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_queue.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_randoms.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_sqlite.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_string.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_threadpool.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_uv.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_uv_ext2.h" />
+  </ItemGroup>
+</Project>
