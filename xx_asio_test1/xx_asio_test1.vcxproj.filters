@@ -3,5 +3,8 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="..\3rd\ikcp.c" />
+    <ClCompile Include="..\codegen_test2\cpp\pkg_game_client.cpp" />
+    <ClCompile Include="..\codegen_test2\cpp\pkg_generic.cpp" />
+    <ClCompile Include="..\codegen_test2\cpp\pkg_lobby_client.cpp" />
   </ItemGroup>
 </Project>

@@ -288,7 +288,7 @@ namespace xx {
         }
 
         void EventAdd(Cond &cond, int const &idx) {
-            assert(eventKeyMappings.find(cond.eventKey) != eventKeyMappings.end());
+            assert(eventKeyMappings.find(cond.eventKey) == eventKeyMappings.end());
             auto r = eventKeyMappings.emplace(cond.eventKey, idx);
             assert(r.second);
         }
@@ -358,6 +358,12 @@ namespace xx {
                 auto idx = iter->second;
                 auto &coro = nodes[idx].value.first;
                 auto &c = *nodes[idx].value.second;
+                assert(c.hasEvent);
+                EventRemove(c, idx);
+                if (c.hasUpdate) {
+                    UpdateRemove(c, idx);
+                }
+                WheelRemove(c, idx);
                 Resume(idx, coro, c);
             }
         }

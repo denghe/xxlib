@@ -19,9 +19,9 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
         // 准备发包填充容器
         xx::Data d(16384);
         // 跳过包头
-        auto bak = d.WriteJump(sizeof(uint32_t));
+        auto bak = d.WriteJump<false>(sizeof(uint32_t));
         // 写序号
-        d.WriteVarInteger(serial);
+        d.WriteVarInteger<false>(serial);
         // write args
         if constexpr(std::is_same_v<xx::ObjBase, PKG>) {
             ((Server *) ec)->om.WriteTo(d, args...);
