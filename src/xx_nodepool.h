@@ -106,12 +106,12 @@ namespace xx {
         }
 
         Node &operator[](int const &idx) {
-            assert(idx >= 0 && idx < count && nodes[idx].prev != -2);
+            assert(idx >= 0 && idx < count);// && nodes[idx].prev != -2);
             return nodes[idx];
         }
 
         Node const &operator[](int const &idx) const {
-            assert(idx >= 0 && idx < count && nodes[idx].prev != -2);
+            assert(idx >= 0 && idx < count);// && nodes[idx].prev != -2);
             return nodes[idx];
         }
 

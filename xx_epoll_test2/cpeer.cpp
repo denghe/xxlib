@@ -32,7 +32,7 @@ void CPeer::PartialClose() {
     // 群发断开通知
     for (auto &&sid : serverIds) {
         if (auto&& sp = ((Server *)ec)->dps[sid].second) {
-            sp->SendCommand("disconnect", clientId);
+            sp->SendCommand("close", clientId);
         }
     }
     // 从容器移除( 减持 )

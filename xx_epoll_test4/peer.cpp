@@ -14,6 +14,9 @@ bool Peer::Close(int const &reason, std::string_view const &desc) {
     // 延迟减持
     DelayUnhold();
 
+    // remove from container
+    S->peers.erase(this);
+
     LOG_ERR("reason = ", reason, " desc = ", desc);
     return true;
 }
@@ -59,6 +62,7 @@ void Peer::Receive() {
                     LOG_ERR("ob is nullptr or typeId == 0");
                 }
                 else {
+                    LOG_INFO("ob == ", S->om.ToString(ob));
                     // 根据序列号的情况分性质转发
                     if (serial == 0) {
                         ReceivePush(std::move(ob));
@@ -90,7 +94,10 @@ void Peer::ReceivePush(xx::ObjBase_s &&ob) {
 void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     switch(ob.typeId()) {
         case xx::TypeId_v<Service_Database::GetAccountInfoByUsernamePassword>: {
-            coros.Add(HandleRequest_GetAccountInfoByUsernamePassword(serial, std::move(ob)));
+            //coros.Add(HandleRequest_GetAccountInfoByUsernamePassword(serial, std::move(ob)));
+            coroSerial = serial;
+            coroOb = std::move(ob);
+            coros.Add(HandleRequest_GetAccountInfoByUsernamePassword());
             return;
         }
         default:
@@ -98,17 +105,30 @@ void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     }
 }
 
-xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &serial, xx::ObjBase_s &&ob_) {
+xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword() {//(int32_t const &serial, xx::ObjBase_s &&ob_) {
+    auto serial = coroSerial;
+    auto ob_ = std::move(coroOb);
     auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob_);
 
     std::optional<DB::Rtv<DB::AccountInfo>> rtv;
+
+//    NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
+//        xx::CoutN(__LINE__);
+//        return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
+//    });
+//    co_yield xx::Cond(15).Update([&]{ return rtv.has_value(); });
+
     co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
+        xx::CoutN(__LINE__);
         return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
     }));
 
+    xx::CoutN(__LINE__);
     if (rtv.has_value()) {
+        xx::CoutN(__LINE__);
         // send result
         auto &&m = S->FromCache<Database_Service::GetAccountInfoByUsernamePasswordResult>();
+        xx::CoutN(__LINE__);
         if (rtv->value.accountId >= 0) {
             m->accountInfo.emplace();
             m->accountInfo->accountId = rtv->value.accountId;
@@ -118,6 +138,7 @@ xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &ser
         SendResponse(serial, m);
 
     } else {
+        xx::CoutN(__LINE__);
         // send error
         SendResponse<Generic::Error>(serial, rtv->errorCode, rtv->errorMessage);
     }

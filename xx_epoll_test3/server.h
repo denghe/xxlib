@@ -63,7 +63,7 @@ struct Server : EP::Context {
     // caches
 
     // package instance cache for Send Push / Response ( can't hold )
-    std::array<xx::ObjBase_s, std::numeric_limits<uint16_t>::max()> objs{};
+    std::array<xx::ObjBase_s, 65536> objs{};
 
     // return cached package instance
     template<typename T>

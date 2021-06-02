@@ -6,6 +6,11 @@
 #include "db.h"
 
 int Server::Init() {
+    // fill instance cache
+    for(size_t i = 0; i < 65536;++i) {
+        objs[i] = xx::ObjManager::Create(i);
+    }
+
     // 初始化监听器
     xx::MakeTo(listener, this);
 
@@ -33,5 +38,12 @@ int Server::Init() {
     cmds["q"] = [this](auto args) {
         running = false;
     };
+    return 0;
+}
+
+int Server::FrameUpdate() {
+    for(auto& kv : peers) {
+        kv.second->coros();
+    }
     return 0;
 }

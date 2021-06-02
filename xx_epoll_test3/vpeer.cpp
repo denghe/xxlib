@@ -15,6 +15,7 @@ void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
     // 试读出序号. 出错直接断开退出
     int serial = 0;
     xx::Data_r dr(buf, len);
+    LOG_INFO("clientId = ", clientId, ", buf = ", dr);
     if (int r = dr.Read(serial)) {
         Kick(__LINE__, xx::ToString("dr.Read(serial) r = ", r));
         return;
@@ -150,7 +151,9 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                 // set flag
                 flag_Auth = true;
-                coros.Add(HandleRequest_Auth(serial, std::move(ob)));
+                coroSerial = serial;
+                coroOb = std::move(ob);
+                coros.Add(HandleRequest_Auth());//serial, &ob));//std::move(ob)));
                 return;
             } // case
 
@@ -162,7 +165,11 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
     }
 }
 
-xx::Coro VPeer::HandleRequest_Auth(int const &serial, xx::ObjBase_s &&ob) {
+xx::Coro VPeer::HandleRequest_Auth() {
+    auto serial = coroSerial;
+    auto ob = std::move(coroOb);
+    S->om.CoutN(serial, ob);
+    // todo: bug fix here: ob == nullptr
     auto &&a = S->om.As<Client_Lobby::Auth>(ob);
     assert(a);
 
@@ -173,21 +180,21 @@ xx::Coro VPeer::HandleRequest_Auth(int const &serial, xx::ObjBase_s &&ob) {
     flag_Auth = false;
 
     // timeout?
-    if (!ob) {
+    if (!rtv) {
         // send error
         SendResponse<Generic::Error>(serial, -1, "db server response timeout");
         co_return;
     }
 
     // handle result
-    switch (ob.typeId()) {
+    switch (rtv.typeId()) {
         case xx::TypeId_v<Generic::Error>: {
             // send error
-            SendResponse(serial, ob);
+            SendResponse(serial, rtv);
             co_return;
         }
         case xx::TypeId_v<Database_Service::GetAccountInfoByUsernamePasswordResult>: {
-            auto &&o = S->om.As<Database_Service::GetAccountInfoByUsernamePasswordResult>(ob);
+            auto &&o = S->om.As<Database_Service::GetAccountInfoByUsernamePasswordResult>(rtv);
 
             // can't find user: send error
             if (!o->accountInfo.has_value()) {

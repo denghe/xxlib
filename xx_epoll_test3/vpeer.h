@@ -42,11 +42,13 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer> {
         return ((Server*)ec)->dbPeer->SendRequest<PKG>([this, &rtv](int32_t const &serial_, xx::ObjBase_s &&ob) {
             rtv = std::move(ob);
             coros.FireEvent(serial_);
-        }, 99999.0, args...);
+        }, 99.0, args...);
     }
 
     bool flag_Auth = false;
-    xx::Coro HandleRequest_Auth(int const &serial, xx::ObjBase_s &&ob);
+    int coroSerial;
+    xx::ObjBase_s coroOb;
+    xx::Coro HandleRequest_Auth();
 
     /****************************************************************************************/
 

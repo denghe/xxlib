@@ -120,7 +120,7 @@ namespace xx {
 
 	// 适配 std::optional<T>
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t<IsOptional_v<T> && IsBaseDataType_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t<IsOptional_v<T>/* && IsBaseDataType_v<T>*/>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
 			if (in.has_value()) {
@@ -143,7 +143,7 @@ namespace xx {
 
 	// 适配 std::pair<K, V>
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t<IsPair_v<T> && IsBaseDataType_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t<IsPair_v<T>/* && IsBaseDataType_v<T>*/>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
 			d.Write<needReserve>(in.first, in.second);
@@ -155,7 +155,7 @@ namespace xx {
 
 	// 适配 std::vector, std::array
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t< (IsVector_v<T> || IsArray_v<T>) && IsBaseDataType_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t< (IsVector_v<T> || IsArray_v<T>)/* && IsBaseDataType_v<T>*/>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
 		    if constexpr(IsVector_v<T>) {
@@ -208,7 +208,7 @@ namespace xx {
 
 	// 适配 std::set, unordered_set
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t< IsSetSeries_v<T> && IsBaseDataType_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t< IsSetSeries_v<T>/* && IsBaseDataType_v<T>*/>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
 			d.WriteVarInteger<needReserve>(in.size());
@@ -245,7 +245,7 @@ namespace xx {
 
 	// 适配 std::map unordered_map
 	template<typename T>
-	struct DataFuncs<T, std::enable_if_t< IsMapSeries_v<T>&& IsBaseDataType_v<T>>> {
+	struct DataFuncs<T, std::enable_if_t< IsMapSeries_v<T> /*&& IsBaseDataType_v<T>*/>> {
 		template<bool needReserve = true>
 		static inline void Write(Data& d, T const& in) {
 			d.WriteVarInteger<needReserve>(in.size());

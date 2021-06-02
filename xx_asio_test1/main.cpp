@@ -76,13 +76,13 @@ struct Client : xx::Asio::Client {
         // Request 结果容器
         xx::ObjBase_s rtv;
 
-        //// 发 Auth 校验包
-        //SendRequest<Client_Lobby::Auth>(rtv, "abc", "123");
+        // 发 Auth 校验包
+        SendRequest<Client_Lobby::Auth>(rtv, "abc", "123");
 
-        //// 等 15 秒，如果收到 回包 就停止等待
-        //co_yield xx::Cond(15).Update([&] { return Alive() ? rtv : true; });
+        // 等 15 秒，如果收到 回包 就停止等待
+        co_yield xx::Cond(15).Update([&] { return Alive() ? rtv : true; });
 
-        co_yield xx::Cond(15).Event(SendRequest<Client_Lobby::Auth>(rtv, "abc", "123"));
+        //co_yield xx::Cond(15).Event(SendRequest<Client_Lobby::Auth>(rtv, "abc", "123"));  // known issue: vs2019 will crush
 
         // 结果空: 重来
         if (!rtv) goto LabBegin;
@@ -99,7 +99,7 @@ struct Client : xx::Asio::Client {
     int SendRequest(xx::ObjBase_s& rtv, Args const &... args) {
         return peer->SendRequest<PKG>([this, &rtv](int32_t const& serial_, xx::ObjBase_s&& ob) {
             rtv = std::move(ob);
-            coros.FireEvent(serial_);
+            //coros.FireEvent(serial_);
         }, 99999.0, args...);
     }
 

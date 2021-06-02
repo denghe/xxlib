@@ -82,14 +82,14 @@ void GPeer::Receive() {
                 // 内部指令. 传参时跳过 addr 部分
                 ReceiveCommand(buf + sizeof(addr), dataLen - sizeof(addr));
             } else {
-                // 普通包. id 打头
-                ReceivePackage(addr, buf, dataLen);
+                // 普通包. serial + typeid + data...
+                ReceivePackage(addr, buf + sizeof(addr), dataLen - sizeof(addr));
             }
 
             // 如果当前类实例 fd 已 close 则退出
             if (!Alive()) return;
         }
-        // 跳到下一个包的开头
+        // 跳到下一个包的开头1
         buf += dataLen;
     }
 
@@ -100,7 +100,7 @@ void GPeer::Receive() {
 void GPeer::ReceivePackage(uint32_t const &clientId, uint8_t *const &buf, size_t const &len) {
     assert(gatewayId != 0xFFFFFFFFu);
     xx::Data_r dr(buf, len);
-    LOG_INFO("gatewayId:", gatewayId, ", clientId = , ", clientId, ", buf = ", dr);
+    LOG_INFO("gatewayId:", gatewayId, ", clientId = ", clientId, ", buf = ", dr);
     if (auto p = GetVPeerByClientId(clientId)) {
         p->Receive(dr.buf + dr.offset, dr.len - dr.offset);
     }

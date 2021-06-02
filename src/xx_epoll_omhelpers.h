@@ -82,6 +82,7 @@ namespace xx::Epoll {
         void ClearCallbacks() {
             for (auto &&iter : callbacks) {
                 iter.second->func(iter.second->serial, nullptr);
+                iter.second->SetTimeout(0);
             }
             callbacks.clear();
         }
@@ -90,7 +91,7 @@ namespace xx::Epoll {
     struct TypeCounterExt {
         // when receive a package, let typeCounters[typeId]++
         // when handled, typeCounters[typeId]--
-        std::array<int8_t, std::numeric_limits<uint16_t>::max()> typeCounters{};
+        std::array<int8_t, 65536> typeCounters{};
         // return count value
         template<typename T>
         [[nodiscard]] int8_t const& TypeCount() const {

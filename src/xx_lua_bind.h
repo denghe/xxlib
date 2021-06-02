@@ -293,7 +293,7 @@ namespace xx::Lua {
     typedef int(*UserdataReadFromFunc)(lua_State* const& L, xx::Data_r& d);
 
     // Userdata ReadFrom 函数集
-    inline static std::array<UserdataReadFromFunc, std::numeric_limits<uint16_t>::max()> urffs{};
+    inline static std::array<UserdataReadFromFunc, 65536> urffs{};
 
     // 适配范例:
     // urffs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data_r& d)->int { ...... }
@@ -310,7 +310,7 @@ namespace xx::Lua {
     typedef void(*UserdataWriteToFunc)(lua_State* const& L, xx::Data& d, int const& idx);
 
     // Userdata WriteTo 函数集
-    inline static std::array<UserdataWriteToFunc, std::numeric_limits<uint16_t>::max()> uwtfs{};
+    inline static std::array<UserdataWriteToFunc, 65536> uwtfs{};
 
     // 适配范例:
     // uwtfs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data& d, int const& idx)->void { ...... }

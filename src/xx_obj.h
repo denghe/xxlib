@@ -142,13 +142,13 @@ namespace xx {
 		typedef ObjBase_s(*FT)();
 
 		// typeId 创建函数 映射容器
-		inline static std::array<FT, std::numeric_limits<uint16_t>::max()> fs{};
+		inline static std::array<FT, 65536> fs{};
 
 		// 存储 typeId 的 父typeId 的下标
-		inline static std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
+		inline static std::array<uint16_t, 65536> pids{};
 
 		// 存储 typeId 对应的 Type 是否为 "简单类型"( 只含有基础数据类型, 可跳过递归检测，简化序列化操作 )
-		inline static std::array<bool, std::numeric_limits<uint16_t>::max()> simples{};
+		inline static std::array<bool, 65536> simples{};
 
 		// 根据 typeid 判断父子关系
 		XX_INLINE static bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) noexcept {

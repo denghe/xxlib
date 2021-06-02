@@ -329,43 +329,25 @@ namespace xx {
             }
         }
 
-        void HandleUpdate() {
-            if (updateList == -1) return;
-            auto idx = updateList;
-            do {
-                auto &coro = nodes[idx].value.first;
-                auto &c = *nodes[idx].value.second;
-                auto next = c.updateNext;
-                assert(c.hasUpdate);
-                assert(c.updateFunc);
-                auto r = c.updateFunc();
-                //std::cout << __LINE__ << " r = " << r << std::endl;
-                if (r) {
-                    isTimeout = false;
-                    UpdateRemove(c, idx);
-                    WheelRemove(c, idx);
-                    Resume(idx, coro, c);
-                }
-                idx = next;
-            } while (idx != -1);
-        }
-
+        std::vector<int> eventKeys;
     public:
         [[maybe_unused]] void FireEvent(int const& eventKey) {
-            auto iter = eventKeyMappings.find(eventKey);
-            if (iter != eventKeyMappings.end()) {
-                isTimeout = false;
-                auto idx = iter->second;
-                auto &coro = nodes[idx].value.first;
-                auto &c = *nodes[idx].value.second;
-                assert(c.hasEvent);
-                EventRemove(c, idx);
-                if (c.hasUpdate) {
-                    UpdateRemove(c, idx);
-                }
-                WheelRemove(c, idx);
-                Resume(idx, coro, c);
-            }
+//            // known issue: bad stack
+//            auto iter = eventKeyMappings.find(eventKey);
+//            if (iter != eventKeyMappings.end()) {
+//                isTimeout = false;
+//                auto idx = iter->second;
+//                auto &coro = nodes[idx].value.first;
+//                auto &c = *nodes[idx].value.second;
+//                assert(c.hasEvent);
+//                EventRemove(c, idx);
+//                if (c.hasUpdate) {
+//                    UpdateRemove(c, idx);
+//                }
+//                WheelRemove(c, idx);
+//                Resume(idx, coro, c);
+//            }
+            eventKeys.push_back(eventKey);
         }
 
         operator bool() const {
@@ -384,9 +366,46 @@ namespace xx {
 
         // update time wheel, resume list coros
         void operator()() {
-            HandleUpdate();
+            isTimeout = false;
+
+            for(auto& k : eventKeys) {
+                auto iter = eventKeyMappings.find(k);
+                if (iter != eventKeyMappings.end()) {
+                    isTimeout = false;
+                    auto idx = iter->second;
+                    auto &coro = nodes[idx].value.first;
+                    auto &c = *nodes[idx].value.second;
+                    assert(c.hasEvent);
+                    EventRemove(c, idx);
+                    if (c.hasUpdate) {
+                        UpdateRemove(c, idx);
+                    }
+                    WheelRemove(c, idx);
+                    Resume(idx, coro, c);
+                }
+            }
+
+            if (updateList != -1) {
+                auto idx = updateList;
+                do {
+                    auto &coro = nodes[idx].value.first;
+                    auto &c = *nodes[idx].value.second;
+                    auto next = c.updateNext;
+                    assert(c.hasUpdate);
+                    assert(c.updateFunc);
+                    auto r = c.updateFunc();
+                    //std::cout << __LINE__ << " r = " << r << std::endl;
+                    if (r) {
+                        UpdateRemove(c, idx);
+                        WheelRemove(c, idx);
+                        Resume(idx, coro, c);
+                    }
+                    idx = next;
+                } while (idx != -1);
+            }
 
             isTimeout = true;
+
             cursor = (cursor + 1) % ((int) wheelLen - 1);
             if (wheel[cursor] == -1) return;
             auto idx = wheel[cursor];

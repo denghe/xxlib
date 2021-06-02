@@ -27,6 +27,9 @@ list(APPEND dirs
 list(APPEND srcs
 		main.cpp
 		../3rd/ikcp.c
+		../codegen_test2/cpp/pkg_generic.cpp
+		../codegen_test2/cpp/pkg_lobby_client.cpp
+		../codegen_test2/cpp/pkg_game_client.cpp
 		)
 
 
