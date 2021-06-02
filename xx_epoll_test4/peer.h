@@ -56,7 +56,8 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
     int NewTask(Rtv &rtv, Func &&func) {
         auto serial = GenSerial();
         ((Server *) ec)->db->tp.Add([s = ((Server *) ec), w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
-            s->Dispatch([w = std::move(w), serial, &rtv, result = func(env)]() mutable {
+            auto result = func(env);
+            s->Dispatch([w = std::move(w), serial, &rtv, result = std::move(result), func = std::move(func)]() mutable {
                 if (auto p = w.Lock()) {
                     rtv = std::move(result);
                     p->coros.FireEvent(serial);

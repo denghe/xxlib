@@ -119,16 +119,12 @@ xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword() {//(int32_t cons
 //    co_yield xx::Cond(15).Update([&]{ return rtv.has_value(); });
 
     co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
-        xx::CoutN(__LINE__);
         return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
     }));
 
-    xx::CoutN(__LINE__);
     if (rtv.has_value()) {
-        xx::CoutN(__LINE__);
         // send result
         auto &&m = S->FromCache<Database_Service::GetAccountInfoByUsernamePasswordResult>();
-        xx::CoutN(__LINE__);
         if (rtv->value.accountId >= 0) {
             m->accountInfo.emplace();
             m->accountInfo->accountId = rtv->value.accountId;
@@ -138,7 +134,6 @@ xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword() {//(int32_t cons
         SendResponse(serial, m);
 
     } else {
-        xx::CoutN(__LINE__);
         // send error
         SendResponse<Generic::Error>(serial, rtv->errorCode, rtv->errorMessage);
     }

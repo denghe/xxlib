@@ -323,31 +323,29 @@ namespace xx {
             if (coro.Resume()) {
                 nodes.Free(idx);
             } else {
+                assert(std::addressof(c) == std::addressof(coro.Value()));
                 auto num = CalcSleepTimes(c);
                 auto wIdx = (cursor + num) % wheelLen;
                 HandleCond(c, idx, wIdx);
             }
         }
 
-        std::vector<int> eventKeys;
     public:
         [[maybe_unused]] void FireEvent(int const& eventKey) {
-//            // known issue: bad stack
-//            auto iter = eventKeyMappings.find(eventKey);
-//            if (iter != eventKeyMappings.end()) {
-//                isTimeout = false;
-//                auto idx = iter->second;
-//                auto &coro = nodes[idx].value.first;
-//                auto &c = *nodes[idx].value.second;
-//                assert(c.hasEvent);
-//                EventRemove(c, idx);
-//                if (c.hasUpdate) {
-//                    UpdateRemove(c, idx);
-//                }
-//                WheelRemove(c, idx);
-//                Resume(idx, coro, c);
-//            }
-            eventKeys.push_back(eventKey);
+            auto iter = eventKeyMappings.find(eventKey);
+            if (iter != eventKeyMappings.end()) {
+                isTimeout = false;
+                auto idx = iter->second;
+                auto &coro = nodes[idx].value.first;
+                auto &c = *nodes[idx].value.second;
+                assert(c.hasEvent);
+                EventRemove(c, idx);
+                if (c.hasUpdate) {
+                    UpdateRemove(c, idx);
+                }
+                WheelRemove(c, idx);
+                Resume(idx, coro, c);
+            }
         }
 
         operator bool() const {
@@ -366,26 +364,6 @@ namespace xx {
 
         // update time wheel, resume list coros
         void operator()() {
-            isTimeout = false;
-
-            for(auto& k : eventKeys) {
-                auto iter = eventKeyMappings.find(k);
-                if (iter != eventKeyMappings.end()) {
-                    isTimeout = false;
-                    auto idx = iter->second;
-                    auto &coro = nodes[idx].value.first;
-                    auto &c = *nodes[idx].value.second;
-                    assert(c.hasEvent);
-                    EventRemove(c, idx);
-                    if (c.hasUpdate) {
-                        UpdateRemove(c, idx);
-                    }
-                    WheelRemove(c, idx);
-                    Resume(idx, coro, c);
-                }
-            }
-            eventKeys.clear();
-
             if (updateList != -1) {
                 auto idx = updateList;
                 do {
@@ -399,13 +377,12 @@ namespace xx {
                     if (r) {
                         UpdateRemove(c, idx);
                         WheelRemove(c, idx);
+                        isTimeout = false;
                         Resume(idx, coro, c);
                     }
                     idx = next;
                 } while (idx != -1);
             }
-
-            isTimeout = true;
 
             cursor = (cursor + 1) % ((int) wheelLen - 1);
             if (wheel[cursor] == -1) return;
@@ -424,6 +401,7 @@ namespace xx {
                 if (c.hasEvent) {
                     EventRemove(c, idx);
                 }
+                isTimeout = true;
                 Resume(idx, coro, c);
                 idx = next;
             } while (idx != -1);
@@ -438,8 +416,9 @@ namespace xx {
     template<typename Rtv, typename Func>
     int NewTask(Rtv &rtv, Func &&func) {
         auto serial = GenSerial();
-        ((Server *) ec)->db->tp.Add([s = ((Server *) ec), writing...w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
-            s->Dispatch([w = std::move(w), serial, &rtv, result = func(env)]() mutable {
+        ((Server *) ec)->db->tp.Add([s = ((Server *) ec), w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
+            auto result = func(env);
+            s->Dispatch([w = std::move(w), serial, &rtv, result = std::move(result), func = std::move(func)]() mutable {
                 if (auto p = w.Lock()) {
                     rtv = std::move(result);
                     p->coros.FireEvent(serial);
