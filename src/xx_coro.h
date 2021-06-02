@@ -384,6 +384,7 @@ namespace xx {
                     Resume(idx, coro, c);
                 }
             }
+            eventKeys.clear();
 
             if (updateList != -1) {
                 auto idx = updateList;
@@ -437,7 +438,7 @@ namespace xx {
     template<typename Rtv, typename Func>
     int NewTask(Rtv &rtv, Func &&func) {
         auto serial = GenSerial();
-        ((Server *) ec)->db->tp.Add([s = ((Server *) ec), w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
+        ((Server *) ec)->db->tp.Add([s = ((Server *) ec), writing...w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
             s->Dispatch([w = std::move(w), serial, &rtv, result = func(env)]() mutable {
                 if (auto p = w.Lock()) {
                     rtv = std::move(result);
