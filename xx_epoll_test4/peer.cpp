@@ -112,12 +112,6 @@ xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword() {//(int32_t cons
 
     std::optional<DB::Rtv<DB::AccountInfo>> rtv;
 
-//    NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
-//        xx::CoutN(__LINE__);
-//        return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
-//    });
-//    co_yield xx::Cond(15).Update([&]{ return rtv.has_value(); });
-
     co_yield xx::Cond(15).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
         return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
     }));
