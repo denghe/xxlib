@@ -442,6 +442,9 @@ namespace xx::Asio {
 
         // 处理 cpp pkg
         virtual void HandleReceivedCppPackages() noexcept {
+            // dead checker
+            auto holder = &client->peer;
+
             // 处理所有消息
             while (!receivedCppPackages.empty()) {
                 auto& p = receivedCppPackages.front();
@@ -476,6 +479,9 @@ namespace xx::Asio {
                     }
                 }
 
+                // check if Reset
+                if (!*holder) return;
+
                 receivedCppPackages.pop_front();
             }
 
@@ -492,6 +498,9 @@ namespace xx::Asio {
                         callbacks.pop_back();
                         a(serial, nullptr);
                     }
+
+                    // check if Reset
+                    if (!*holder) return;
                 }
             }
         }
