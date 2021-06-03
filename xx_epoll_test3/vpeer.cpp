@@ -149,11 +149,8 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
                     return;
                 }
 
-                // set flag
+                // set flag & create coroutine
                 flag_Auth = true;
-//                coroSerial = serial;
-//                coroOb = std::move(ob);
-//                coros.Add(HandleRequest_Auth());
                 coros.Add(HandleRequest_Auth(serial, std::move(ob)));
                 return;
             } // case
@@ -166,20 +163,16 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
     }
 }
 
-//xx::Coro VPeer::HandleRequest_Auth() {
-//    auto serial = coroSerial;
-//    auto ob = std::move(coroOb);
-xx::Coro VPeer::HandleRequest_Auth(int const& serial, xx::ObjBase_s&& ob) {
-    S->om.CoutN(serial, ob);
-    // todo: bug fix here: ob == nullptr
+xx::Coro VPeer::HandleRequest_Auth(int serial, xx::ObjBase_s ob) {
     auto &&a = S->om.As<Client_Lobby::Auth>(ob);
     assert(a);
 
     xx::ObjBase_s rtv;
-    co_yield xx::Cond(15).Event( DbCoroSendRequest<Service_Database::GetAccountInfoByUsernamePassword>(rtv, a->username, a->password) );
+    co_yield xx::Cond(2).Event( DbCoroSendRequest<Service_Database::GetAccountInfoByUsernamePassword>(rtv, a->username, a->password) );
 
     // clear flag
     flag_Auth = false;
+
 
     // timeout?
     if (!rtv) {
