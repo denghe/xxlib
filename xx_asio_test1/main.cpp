@@ -4,7 +4,7 @@
 #include "pkg_lobby_client.h"
 #include "pkg_game_client.h"
 
-#define CLIENT_FPS 60
+#define CLIENT_FPS 200
 
 struct Client : xx::Asio::Client {
     xx::Coros coros;
@@ -32,10 +32,12 @@ struct Client : xx::Asio::Client {
         // 无脑重置一发
         Reset();
 
-        // 睡 1 秒，避免频繁拨号
-        co_yield 1;
+        // 睡一会儿，避免频繁拨号      // todo: known issue: 似乎有一定概率卡在这行. 服务器端没这个问题
+        co_yield 1.0f;
+
 
         // 开始域名解析
+        xx::CoutTN("Resolve");
         if (int r = Resolve()) {
             xx::CoutTN("c.Resolve() = ", r);
             goto LabBegin;
@@ -73,6 +75,8 @@ struct Client : xx::Asio::Client {
         // 设置 cpp 接管 服务id, 同时也是发送目的地
         peer->SetCppServiceId(0);
 
+    LabResend:
+
         // Request 结果容器
         xx::ObjBase_s rtv;
 
@@ -83,10 +87,10 @@ struct Client : xx::Asio::Client {
         if (!rtv) goto LabBegin;
 
         // 输出
-        peer->om.CoutN(rtv);
+        //peer->om.CoutN(rtv);
 
         // try again
-        goto LabBegin;
+        goto LabResend;
     }
 
     // 发请求. 结果保存到 rtv
