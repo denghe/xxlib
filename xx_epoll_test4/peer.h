@@ -50,24 +50,27 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
     // coroutines
     xx::Coros coros;
 
+    // for multi thread
     template<typename Rtv>
     struct Task {
         Server* server;
         xx::Weak<Peer> wp;
+        int eventKey;
         Rtv r;
-        int ek;
+        
         explicit Task(Peer* const& p) : server((Server*)p->ec), wp(xx::SharedFromThis(p)) {
-            ek = p->GenSerial();
+            eventKey = p->GenSerial();
         }
         void Dispatch() {
             server->Dispatch([this] {
                 if (auto p = wp.Lock()) {
-                    p->coros.FireEvent(ek);
+                    p->coros.FireEvent(eventKey);
                 }
             });
         }
     };
 
+    // create multi thread task
     template<typename Rtv, typename Func>
     auto NewTask(Func &&func) {
         auto rtv = std::make_shared<Task<Rtv>>(this);

@@ -349,19 +349,35 @@ namespace xx {
     // coroutine support
     xx::Coros coros;
 
-    template<typename Rtv, typename Func>
-    int NewTask(Rtv &rtv, Func &&func) {
-        auto serial = GenSerial();
-        ((Server *) ec)->db->tp.Add([s = ((Server *) ec), w = xx::SharedFromThis(this).ToWeak(), serial, &rtv, func = std::forward<Func>(func)](DB::Env &env) mutable {
-            auto result = func(env);
-            s->Dispatch([w = std::move(w), serial, &rtv, result = std::move(result), func = std::move(func)]() mutable {
-                if (auto p = w.Lock()) {
-                    rtv = std::move(result);
-                    p->coros.FireEvent(serial);
+    template<typename Rtv>
+    struct Task {
+        Server* server;
+        xx::Weak<Peer> wp;
+        Rtv r;
+        int ek;
+        explicit Task(Peer* const& p) : server((Server*)p->ec), wp(xx::SharedFromThis(p)) {
+            ek = p->GenSerial();
+        }
+        void Dispatch() {
+            server->Dispatch([this] {
+                if (auto p = wp.Lock()) {
+                    p->coros.FireEvent(ek);
                 }
             });
+        }
+    };
+
+    template<typename Rtv, typename Func>
+    auto NewTask(Func &&func) {
+        auto rtv = std::make_shared<Task<Rtv>>(this);
+        ((Server *) ec)->db->tp.Add([w = std::weak_ptr<Task<Rtv>>(rtv), func = std::forward<Func>(func)](DB::Env &env) {
+            auto r = func(env);
+            if (auto s = w.lock()) {
+                s->r = std::move(r);
+                s->Dispatch();
+            }
         });
-        return serial;
+        return rtv;
     }
 
     template<typename PKG = xx::ObjBase, typename Rtv, typename ... Args>
@@ -369,6 +385,6 @@ namespace xx {
         return SendRequest<PKG>([this, &rtv](int const &serial, xx::ObjBase_s &&ob) {
             rtv = std::move(ob);
             coros.FireEvent(serial);
-        }, 99999.0, args...);
+        }, 99.0, args...);
     }
 */

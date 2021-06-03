@@ -110,7 +110,7 @@ xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t serial, xx
     auto rtv = NewTask<DB::Rtv<DB::AccountInfo>>([o](DB::Env &db) {
         return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
     });
-    co_yield xx::Cond(10).Event(rtv->ek);
+    co_yield xx::Cond(10).Event(rtv->eventKey);
 
     if (!coros.isTimeout) {
         // send result
@@ -125,6 +125,6 @@ xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t serial, xx
 
     } else {
         // send error
-        SendResponse<Generic::Error>(serial, -1, xx::ToString("sql queue timeout. o.username = ", o->username, " password = ", o->password));
+        SendResponse<Generic::Error>(serial, -1, xx::ToString("TryGetAccountInfoByUsernamePassword timeout. o = ", o->username, " password = ", o->password));
     }
 }
