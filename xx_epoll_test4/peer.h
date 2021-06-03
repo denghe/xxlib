@@ -67,10 +67,10 @@ struct Peer : EP::TcpPeer, EP::OMExt<Peer> {
         return serial;
     }
 
-    // pass arguments for coro func ( known issue: can't read argument from coro func )
-    int coroSerial;
-    xx::ObjBase_s coroOb;
+//    // pass arguments for coro func ( known issue: can't read argument from coro func )
+//    int coroSerial;
+//    xx::ObjBase_s coroOb;
 
     // coroutine func for handle request: GetAccountInfoByUsernamePassword
-    xx::Coro HandleRequest_GetAccountInfoByUsernamePassword();//(int32_t const &serial, xx::ObjBase_s &&ob);
+    xx::Coro HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &serial, xx::ObjBase_s &&ob);
 };

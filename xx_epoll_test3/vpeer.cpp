@@ -151,9 +151,10 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 
                 // set flag
                 flag_Auth = true;
-                coroSerial = serial;
-                coroOb = std::move(ob);
-                coros.Add(HandleRequest_Auth());//serial, &ob));//std::move(ob)));
+//                coroSerial = serial;
+//                coroOb = std::move(ob);
+//                coros.Add(HandleRequest_Auth());
+                coros.Add(HandleRequest_Auth(serial, std::move(ob)));
                 return;
             } // case
 
@@ -165,9 +166,10 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
     }
 }
 
-xx::Coro VPeer::HandleRequest_Auth() {
-    auto serial = coroSerial;
-    auto ob = std::move(coroOb);
+//xx::Coro VPeer::HandleRequest_Auth() {
+//    auto serial = coroSerial;
+//    auto ob = std::move(coroOb);
+xx::Coro VPeer::HandleRequest_Auth(int const& serial, xx::ObjBase_s&& ob) {
     S->om.CoutN(serial, ob);
     // todo: bug fix here: ob == nullptr
     auto &&a = S->om.As<Client_Lobby::Auth>(ob);

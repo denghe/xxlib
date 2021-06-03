@@ -94,10 +94,10 @@ void Peer::ReceivePush(xx::ObjBase_s &&ob) {
 void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     switch(ob.typeId()) {
         case xx::TypeId_v<Service_Database::GetAccountInfoByUsernamePassword>: {
-            //coros.Add(HandleRequest_GetAccountInfoByUsernamePassword(serial, std::move(ob)));
-            coroSerial = serial;
-            coroOb = std::move(ob);
-            coros.Add(HandleRequest_GetAccountInfoByUsernamePassword());
+            coros.Add(HandleRequest_GetAccountInfoByUsernamePassword(serial, std::move(ob)));
+//            coroSerial = serial;
+//            coroOb = std::move(ob);
+//            coros.Add(HandleRequest_GetAccountInfoByUsernamePassword());
             return;
         }
         default:
@@ -105,9 +105,9 @@ void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
     }
 }
 
-xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword() {//(int32_t const &serial, xx::ObjBase_s &&ob_) {
-    auto serial = coroSerial;
-    auto ob_ = std::move(coroOb);
+xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t const &serial, xx::ObjBase_s &&ob_) {
+//    auto serial = coroSerial;
+//    auto ob_ = std::move(coroOb);
     auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob_);
 
     std::optional<DB::Rtv<DB::AccountInfo>> rtv;

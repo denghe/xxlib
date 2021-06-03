@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <tuple>
+#include <variant>
 #include <functional>
 #include <unordered_map>
 #include <memory>
@@ -15,7 +16,7 @@
 static_assert(false, "No co_await support");
 #endif
 
-#define CoAwait(func) {auto&& g = func; while(!g.Resume()) { co_yield g.Value(); }}
+#define CoAwait(func) {auto&& g = func; while(!g.Done()) { co_yield g.Value(); g.Resume(); }}
 
 namespace xx {
 #if __has_include(<coroutine>)
@@ -26,99 +27,30 @@ namespace xx {
 
     template<typename T>
     struct Generator {
-        struct promise_type;
-        using Handle = coroutine_handle<promise_type>;
-    private:
-        Handle h;
-    public:
-        explicit Generator(Handle &&h) : h(std::move(h)) {}
-
-        Generator(const Generator &) = delete;
-
-        Generator &operator=(Generator const &) = delete;
-
-        // can't use == default here
-        Generator(Generator &&o) noexcept {
-            h = o.h;
-            o.h = {};
-        };
-
-        // can't use == default here
-        Generator &operator=(Generator &&o) noexcept {
-            h = o.h;
-            o.h = {};
-            return *this;
-        }
-
-        ~Generator() {
-            if (h) {
-                h.destroy();
-            }
-        }
-
-        bool Resume() {
-            h();
-            if (h.promise().e)
-                std::rethrow_exception(h.promise().e);
-            return h.done();
-        }
-
-        bool Done() {
-            return h.done();
-        }
-
-        [[nodiscard]] T const &Value() const {
-            return h.promise().v;
-        }
-
-        T &Value() {
-            return h.promise().v;
-        }
-
         struct promise_type {
-            T v;
-            std::exception_ptr e;
-
-            promise_type() = default;
-
-            ~promise_type() = default;
-
-            promise_type(promise_type const &) = delete;
-
-            promise_type(promise_type &&) = delete;
-
-            promise_type &operator=(promise_type const &) = delete;
-
-            promise_type &operator=(promise_type &&) = delete;
-
-            [[maybe_unused]] auto initial_suspend() {
-                return suspend_always{};
-            }
-
-            [[maybe_unused]] auto final_suspend() noexcept {
-                return suspend_always{};
-            }
-
-            [[maybe_unused]] auto get_return_object() {
-                return Generator{Handle::from_promise(*this)};
-            }
-
-            [[maybe_unused]] void return_void() {}
-
-#if __has_include(<concept>)
-            template<std::convertible_to<T> From>
-#else
-            template<typename From>
-#endif
-            [[maybe_unused]] auto yield_value(From &&some_value) {
-                v = std::forward<From>(some_value);
-                return suspend_always{};
-            }
-
-            [[maybe_unused]] void unhandled_exception() {
-                e = std::current_exception();
-            }
+            variant<monostate, T, exception_ptr> r;
+            suspend_never initial_suspend() { return {};}
+            suspend_always final_suspend() noexcept(true) { return {}; }
+            auto get_return_object() { return Generator{*this}; }
+            void return_void() {}
+            suspend_always yield_value(T v) { r.template emplace<1>(std::move(v)); return {}; }
+            void unhandled_exception() { r.template emplace<2>(std::current_exception()); }
         };
+
+        Generator(Generator &&o) noexcept : h(o.h) { o.h = nullptr; };
+        ~Generator() { if (h) { h.destroy(); } }
+        explicit Generator(promise_type& p) : h(coroutine_handle<promise_type>::from_promise(p)) {}
+
+        void Resume() { h.resume(); }
+        bool Done() { return h.done(); }
+        T &Value() {
+            auto& r = h.promise().r;
+            if (r.index() == 1) return get<1>(r);
+            std::rethrow_exception(get<2>(r));
+        }
+
+    private:
+        coroutine_handle<promise_type> h;
     };
 
 
@@ -320,7 +252,9 @@ namespace xx {
         }
 
         void Resume(int const &idx, Coro &coro, Cond &c) {
-            if (coro.Resume()) {
+            assert(!coro.Done());
+            coro.Resume();
+            if (coro.Done()) {
                 nodes.Free(idx);
             } else {
                 assert(std::addressof(c) == std::addressof(coro.Value()));

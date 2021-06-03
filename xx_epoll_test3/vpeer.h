@@ -46,9 +46,10 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer> {
     }
 
     bool flag_Auth = false;
-    int coroSerial;
-    xx::ObjBase_s coroOb;
-    xx::Coro HandleRequest_Auth();
+//    int coroSerial;
+//    xx::ObjBase_s coroOb;
+//    xx::Coro HandleRequest_Auth();
+    xx::Coro HandleRequest_Auth(int const& serial, xx::ObjBase_s&& ob);
 
     /****************************************************************************************/
 
