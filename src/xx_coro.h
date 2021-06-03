@@ -41,9 +41,10 @@ namespace xx {
         ~Generator() { if (h) { h.destroy(); } }
         explicit Generator(promise_type& p) : h(coroutine_handle<promise_type>::from_promise(p)) {}
 
-        void Resume() { h.resume(); }
-        bool Done() { return h.done(); }
+        void Resume() { assert(h); h.resume(); }
+        bool Done() { assert(h); return h.done(); }
         T &Value() {
+            assert(h);
             auto& r = h.promise().r;
             if (r.index() == 1) return get<1>(r);
             std::rethrow_exception(get<2>(r));
@@ -151,6 +152,7 @@ namespace xx {
         }
 
         ~Coros() {
+            nodes.Clear();
             free(wheel);
         }
 

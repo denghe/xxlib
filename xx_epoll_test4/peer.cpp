@@ -103,27 +103,28 @@ void Peer::ReceiveRequest(int32_t const &serial, xx::ObjBase_s &&ob) {
 }
 
 xx::Coro Peer::HandleRequest_GetAccountInfoByUsernamePassword(int32_t serial, xx::ObjBase_s ob) {
-    auto &&o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob);
+    // to shared_ptr for thread safe
+    auto o = S->om.As<Service_Database::GetAccountInfoByUsernamePassword>(ob).ToSharedPtr();
+    assert(!ob);
 
-    std::optional<DB::Rtv<DB::AccountInfo>> rtv;
-
-    co_yield xx::Cond(10).Event(NewTask(rtv, [o = std::move(o)](DB::Env &db) mutable {
+    auto rtv = NewTask<DB::Rtv<DB::AccountInfo>>([o](DB::Env &db) {
         return db.TryGetAccountInfoByUsernamePassword(o->username, o->password);
-    }));
+    });
+    co_yield xx::Cond(10).Event(rtv->ek);
 
-    if (rtv.has_value()) {
+    if (!coros.isTimeout) {
         // send result
         auto &&m = S->FromCache<Database_Service::GetAccountInfoByUsernamePasswordResult>();
-        if (rtv->value.accountId >= 0) {
+        if (rtv->r.value.accountId >= 0) {
             m->accountInfo.emplace();
-            m->accountInfo->accountId = rtv->value.accountId;
-            m->accountInfo->nickname = rtv->value.nickname;
-            m->accountInfo->coin = rtv->value.coin;
+            m->accountInfo->accountId = rtv->r.value.accountId;
+            m->accountInfo->nickname = rtv->r.value.nickname;
+            m->accountInfo->coin = rtv->r.value.coin;
         }
         SendResponse(serial, m);
 
     } else {
         // send error
-        SendResponse<Generic::Error>(serial, rtv->errorCode, rtv->errorMessage);
+        SendResponse<Generic::Error>(serial, -1, xx::ToString("sql queue timeout. o.username = ", o->username, " password = ", o->password));
     }
 }

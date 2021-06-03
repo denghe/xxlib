@@ -51,6 +51,7 @@ insert into acc(id, username, password, nickname, coin) values (2, "b", "b", "pl
 }
 
 DB::Rtv<DB::AccountInfo> DB::Env::TryGetAccountInfoByUsernamePassword(std::string_view const &username, std::string_view const &password) {
+    LOG_INFO("TryGetAccountInfoByUsernamePassword username = ", username, " password = ", password);
     Rtv<AccountInfo> rtv;
     try {
         // create query
@@ -74,5 +75,6 @@ DB::Rtv<DB::AccountInfo> DB::Env::TryGetAccountInfoByUsernamePassword(std::strin
         rtv.errorCode = conn->lastErrorCode;
         rtv.errorMessage = conn->lastErrorMessage;
     }
+    LOG_INFO("rtv.success = ", rtv.success);
     return rtv;
 }

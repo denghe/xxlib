@@ -375,6 +375,19 @@ namespace xx {
     constexpr size_t TupleTypeIndex_v = TupleTypeIndex<T, Tuple>::value;
 
 
+	/************************************************************************************/
+	// weak_ptr 系列
+
+	template<typename T, typename U>
+	std::weak_ptr<T> AsWeak(std::shared_ptr<U> const& v) noexcept {
+		return std::weak_ptr<T>(As<T>(v));
+	}
+
+	template<typename T>
+	std::weak_ptr<T> ToWeak(std::shared_ptr<T> const& v) noexcept {
+		return std::weak_ptr<T>(v);
+	}
+
 
     /************************************************************************************/
     // unique_ptr 系列
@@ -860,19 +873,6 @@ inline void Sleep(int const &ms) {
 //	template<typename T, typename U>
 //	bool Is(std::shared_ptr<U> const& v) noexcept {
 //		return std::dynamic_pointer_cast<T>(v) != nullptr;
-//	}
-//
-//	/************************************************************************************/
-//	// weak_ptr 系列
-//
-//	template<typename T, typename U>
-//	std::weak_ptr<T> AsWeak(std::shared_ptr<U> const& v) noexcept {
-//		return std::weak_ptr<T>(As<T>(v));
-//	}
-//
-//	template<typename T>
-//	std::weak_ptr<T> ToWeak(std::shared_ptr<T> const& v) noexcept {
-//		return std::weak_ptr<T>(v);
 //	}
 //
 

@@ -252,6 +252,17 @@ namespace xx {
         // 填充式 make
         template<typename...Args>
         Shared &Emplace(Args &&...args);
+
+        // singleton convert to std::shared_ptr ( usually for thread safe )
+        std::shared_ptr<T> ToSharedPtr() noexcept {
+            assert(useCount() == 1 && refCount() == 0);
+            auto bak = pointer;
+            pointer = nullptr;
+            return std::shared_ptr<T>(bak, [](T *p) {
+                p->~T();
+                free((HeaderType *) p - 1);
+            });
+        }
     };
 
     /************************************************************************************/

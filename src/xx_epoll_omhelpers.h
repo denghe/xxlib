@@ -23,7 +23,7 @@ namespace xx::Epoll {
             SetTimeoutSeconds(timeoutSeconds);
         }
 
-        // 执行 func(0,0) 后 从容器移除
+        // 模拟超时 后 从容器移除
         void Timeout() override {
             // 模拟超时
             func(serial, nullptr);
@@ -75,6 +75,7 @@ namespace xx::Epoll {
             auto &&iter = callbacks.find(serial);
             if (iter == callbacks.end()) return;
             iter->second->func(iter->second->serial, std::move(ob));
+            iter->second->SetTimeoutSeconds(0);
             callbacks.erase(iter);
         }
 
