@@ -15,6 +15,7 @@ void VPeer::Receive(uint8_t const *const &buf, size_t const &len) {
     // 试读出序号. 出错直接断开退出
     int serial = 0;
     xx::Data_r dr(buf, len);
+    LOG_INFO("clientId = ", clientId, ", buf = ", dr);
     if (int r = dr.Read(serial)) {
         Kick(__LINE__, xx::ToString("dr.Read(serial) r = ", r));
         return;

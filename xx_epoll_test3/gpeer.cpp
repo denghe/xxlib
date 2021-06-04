@@ -89,7 +89,7 @@ void GPeer::Receive() {
             // 如果当前类实例 fd 已 close 则退出
             if (!Alive()) return;
         }
-        // 跳到下一个包的开头1
+        // 跳到下一个包的开头
         buf += dataLen;
     }
 

@@ -11,6 +11,8 @@ bool DBPeer::Close(int const &reason, std::string_view const &desc) {
     // remove from container
     S->dbPeer.Reset();
 
+    xx::Cout("this = ", (size_t)this, "DBPeer::Close reason = ", reason, " desc = ", desc);
+
     return true;
 }
 
