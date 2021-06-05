@@ -8,6 +8,8 @@
 #include <array>
 #include <tuple>
 #include <vector>
+#include <queue>
+#include <deque>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -182,8 +184,45 @@ namespace xx {
     constexpr bool IsSetSeries_v = IsSet_v<T> || IsUnorderedSet_v<T>;
 
 
+
+    template<typename T>
+    struct IsQueue : std::false_type {
+    };
+    template<typename T>
+    struct IsQueue<std::queue<T>> : std::true_type {
+    };
+    template<typename T>
+    struct IsQueue<std::queue<T> &> : std::true_type {
+    };
+    template<typename T>
+    struct IsQueue<std::queue<T> const &> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsQueue_v = IsQueue<T>::value;
+
+    template<typename T>
+    struct IsDeque : std::false_type {
+    };
+    template<typename T>
+    struct IsDeque<std::deque<T>> : std::true_type {
+    };
+    template<typename T>
+    struct IsDeque<std::deque<T> &> : std::true_type {
+    };
+    template<typename T>
+    struct IsDeque<std::deque<T> const &> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsDeque_v = IsDeque<T>::value;
+
+    template<typename T>
+    constexpr bool IsQueueSeries_v = IsQueue_v<T> || IsDeque_v<T>;
+
+
+
     template<typename T>
     struct IsUnorderedMap : std::false_type {
+        typedef void PT;
     };
     template<typename K, typename V>
     struct IsUnorderedMap<std::unordered_map<K, V>> : std::true_type {
@@ -205,6 +244,7 @@ namespace xx {
 
     template<typename T>
     struct IsMap : std::false_type {
+        typedef void PT;
     };
     template<typename K, typename V>
     struct IsMap<std::map<K, V>> : std::true_type {

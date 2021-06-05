@@ -1,0 +1,2 @@
+﻿struct Server;
+struct VPeer;
