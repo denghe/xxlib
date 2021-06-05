@@ -1,8 +1,8 @@
 ﻿#pragma once
-#include "pkg_generic.h"
-#include "pkg_lobby_client.h.inc"
+#include <pkg_generic.h>
+#include <pkg_lobby_client.h.inc>
 struct CodeGen_pkg_lobby_client {
-	inline static const ::std::string md5 = "#*MD5<c59f84bc6221e7f8f4d8161e71ede987>*#";
+	inline static const ::std::string md5 = "#*MD5<86d2623957fc22a500586c85d99778c9>*#";
     static void Register();
     CodeGen_pkg_lobby_client() { Register(); }
 };
@@ -85,4 +85,4 @@ namespace Client_Lobby {
         static void WriteTo(xx::Data& d, int32_t const& gameId);
     };
 }
-#include "pkg_lobby_client_.h.inc"
+#include <pkg_lobby_client_.h.inc>

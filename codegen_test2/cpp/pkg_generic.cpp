@@ -1,5 +1,5 @@
-﻿#include "pkg_generic.h"
-#include "pkg_generic.cpp.inc"
+﻿#include <pkg_generic.h>
+#include <pkg_generic.cpp.inc>
 void CodeGen_pkg_generic::Register() {
 	::xx::ObjManager::Register<::Generic::Success>();
 	::xx::ObjManager::Register<::Generic::Error>();

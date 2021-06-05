@@ -1,5 +1,5 @@
-﻿#include "pkg_game_client.h"
-#include "pkg_game_client.cpp.inc"
+﻿#include <pkg_game_client.h>
+#include <pkg_game_client.cpp.inc>
 void CodeGen_pkg_game_client::Register() {
 	::xx::ObjManager::Register<::Game1::Event>();
 	::xx::ObjManager::Register<::Game1::Player>();

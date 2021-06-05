@@ -1,8 +1,8 @@
 ﻿#pragma once
-#include "xx_obj.h"
-#include "pkg_generic.h.inc"
+#include <xx_obj.h>
+#include <pkg_generic.h.inc>
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<935e966f5ef2a8d4ca2b1c61f5d330be>*#";
+	inline static const ::std::string md5 = "#*MD5<d26fb32354a5f194e227dd18ba274c57>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };
@@ -70,4 +70,4 @@ namespace xx {
 		static inline int Read(Data_r& d, T& out) { return (*(xx::ObjManager*)-1).Read(d, out); }
     };
 }
-#include "pkg_generic_.h.inc"
+#include <pkg_generic_.h.inc>

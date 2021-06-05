@@ -1,5 +1,5 @@
-﻿#include "pkg_game_lobby.h"
-#include "pkg_game_lobby.cpp.inc"
+﻿#include <pkg_game_lobby.h>
+#include <pkg_game_lobby.cpp.inc>
 void CodeGen_pkg_game_lobby::Register() {
 	::xx::ObjManager::Register<::Lobby_Game::PlayerEnter>();
 	::xx::ObjManager::Register<::Lobby_Game::PlayerLeave>();

@@ -1,5 +1,5 @@
-﻿#include "pkg_lobby_client.h"
-#include "pkg_lobby_client.cpp.inc"
+﻿#include <pkg_lobby_client.h>
+#include <pkg_lobby_client.cpp.inc>
 void CodeGen_pkg_lobby_client::Register() {
 	::xx::ObjManager::Register<::Lobby_Client::PlayerContext>();
 	::xx::ObjManager::Register<::Lobby_Client::EnterGameSuccess>();
