@@ -156,7 +156,7 @@ namespace Game1{
     }
 }
 namespace Game1{
-    void Scene::WriteTo(xx::Data& d, ::Generic::GameInfo const& gameInfo, ::std::vector<::xx::Shared<::Game1::Player>> const& players, ::std::vector<::xx::Shared<::Game1::Message>> const& messages) {
+    void Scene::WriteTo(xx::Data& d, ::Generic::GameInfo const& gameInfo, ::std::map<int32_t, ::xx::Shared<::Game1::Player>> const& players, ::std::deque<::xx::Shared<::Game1::Message>> const& messages) {
         d.Write(xx::TypeId_v<Scene>);
         d.Write(gameInfo);
         d.Write(players);

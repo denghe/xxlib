@@ -24,8 +24,8 @@ namespace Game1 {
     [TypeId(52), Include_]
     class Scene {
         Generic.GameInfo gameInfo;
-        List<Shared<Player>> players;
-        List<Shared<Message>> messages;
+        Dict<int, Shared<Player>> players;
+        Deque<Shared<Message>> messages;
     }
 
     [Desc("事件--基类")]
