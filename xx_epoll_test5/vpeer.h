@@ -6,6 +6,7 @@
 #include "gpeer.h"
 #include "xx_coro.h"
 #include "dbpeer.h"
+#include "lpeer.h"
 
 // 虚拟 peer
 struct VPeer : EP::Timer, EP::OMExt<VPeer> {
@@ -31,16 +32,16 @@ struct VPeer : EP::Timer, EP::OMExt<VPeer> {
     // coroutine support
     xx::Coros coros;
 
-    template<typename PKG = xx::ObjBase, typename Rtv, typename ... Args>
-    int DbCoroSendRequest(Rtv &rtv, Args const &... args) {
-        assert(((Server*)ec)->dbPeer && ((Server*)ec)->dbPeer->Alive());
-        return ((Server*)ec)->dbPeer->SendRequest<PKG>([this, &rtv](int32_t const &serial_, xx::ObjBase_s &&ob) {
-            rtv = std::move(ob);
-            coros.FireEvent(serial_);
+    template<typename PKG = xx::ObjBase, typename Sender, typename Rtv, typename ... Args>
+    int CoroSendRequest(Sender& sender, Rtv &rtv, Args const &... args) {
+        assert(sender && sender->Alive());
+        return sender->template SendRequest<PKG>([w = xx::SharedFromThis(this).ToWeak(), &rtv](int32_t const &eventKey, xx::ObjBase_s &&ob) {
+            if (auto vp = w.Lock()) {
+                rtv = std::move(ob);
+                vp->coros.FireEvent(eventKey);
+            }
         }, 99.0, args...);
     }
-	
-	// todo: LobbyCoroSendRequest
 
     //bool flag_Auth = false;
     //xx::Coro HandleRequest_Auth(int serial, xx::ObjBase_s ob);

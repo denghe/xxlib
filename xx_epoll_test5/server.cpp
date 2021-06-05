@@ -9,12 +9,17 @@
 #include "dbdialer.h"
 #include "lpeer.h"
 #include "ldialer.h"
+#include "gamecontext.h"
 
 int Server::Init() {
     // fill instance cache
     for(size_t i = 0; i < 65536;++i) {
         objs[i] = xx::ObjManager::Create(i);
     }
+
+    // init game context
+    gameContext = std::make_unique<GameContext>(GameContext(this));
+
     // 初始化监听器
     xx::MakeTo(gatewayListener, this);
 
@@ -79,5 +84,6 @@ int Server::FrameUpdate() {
     for (auto &&node : vps.dict) {
         node.value->Update(dt);
     }
+    gameContext->Update(dt);
     return 0;
 }

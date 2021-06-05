@@ -137,21 +137,13 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
         // switch handle
         switch (ob.typeId()) {
             case xx::TypeId_v<Client_Lobby::Auth>: {
-                // check flag
+                // check & set flag
                 if (flag_Auth) {
                     Close(__LINE__, "VPeer::ReceiveRequest already authing...");
-                    return;
+                } else {
+                    flag_Auth = true;
+                    coros.Add(HandleRequest_Auth(serial, std::move(ob)));
                 }
-
-                // ensure dbpeer
-                if (!S->dbPeer || !S->dbPeer->Alive()) {
-                    SendResponse<Generic::Error>(serial, -1, "can't connect to db server");
-                    return;
-                }
-
-                // set flag & create coroutine
-                flag_Auth = true;
-                coros.Add(HandleRequest_Auth(serial, std::move(ob)));
                 return;
             } // case
 
@@ -164,19 +156,24 @@ void VPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
 }
 
 xx::Coro VPeer::HandleRequest_Auth(int serial, xx::ObjBase_s ob) {
+    // type convert( no need thread safe )
     auto &&a = S->om.As<Client_Lobby::Auth>(ob);
     assert(a);
 
+    // auto clear flag when return
+    auto sgFlag = xx::MakeScopeGuard([this]{ flag_Auth = false; });
+
+    // dbPeer alive check
+    if (!S->dbPeer || !S->dbPeer->Alive()) {
+        SendResponse<Generic::Error>(serial, -1, "can't connect to db server");
+        co_return;
+    }
+    // send request & fill rtv
     xx::ObjBase_s rtv;
-    co_yield xx::Cond(2).Event( DbCoroSendRequest<Service_Database::GetAccountInfoByUsernamePassword>(rtv, a->username, a->password) );
-
-    // clear flag
-    flag_Auth = false;
-
+    co_yield xx::Cond(10).Event( CoroSendRequest<Service_Database::GetAccountInfoByUsernamePassword>(S->dbPeer, rtv, a->username, a->password) );
 
     // timeout?
     if (!rtv) {
-        // send error
         SendResponse<Generic::Error>(serial, -1, "db server response timeout");
         co_return;
     }
@@ -184,7 +181,7 @@ xx::Coro VPeer::HandleRequest_Auth(int serial, xx::ObjBase_s ob) {
     // handle result
     switch (rtv.typeId()) {
         case xx::TypeId_v<Generic::Error>: {
-            // send error
+            // forward send error
             SendResponse(serial, rtv);
             co_return;
         }

@@ -2,6 +2,7 @@
 #include "xx_epoll.h"
 #include "xx_dict_mk.h"
 #include "xx_obj.h"
+#include "xx_coro.h"
 namespace EP = xx::Epoll;
 
 // 预声明
@@ -13,6 +14,7 @@ struct DBDialer;
 struct DBPeer;
 struct LDialer;
 struct LPeer;
+struct GameContext;
 
 // 服务本体
 struct Server : EP::Context {
@@ -46,6 +48,9 @@ struct Server : EP::Context {
     // Kick: clientId = --server->autoDecId
     int32_t autoDecId = 0;
 
+    // game context
+    std::unique_ptr<GameContext> gameContext;
+
     // 根据 config 进一步初始化各种成员
     int Init();
 
@@ -66,6 +71,22 @@ struct Server : EP::Context {
     xx::Shared<T> const& FromCache() {
         assert((*(xx::Shared<T>*)&objs[xx::TypeId_v<T>]).useCount() == 1);
         return *(xx::Shared<T>*)&objs[xx::TypeId_v<T>];
+    }
+
+    /****************************************************************************************/
+
+    // coroutine support
+    xx::Coros coros;
+
+    template<typename PKG = xx::ObjBase, typename Sender, typename Rtv, typename ... Args>
+    int CoroSendRequest(Sender& sender, Rtv &rtv, Args const &... args) {
+        assert(sender && sender->Alive());
+        return sender->template SendRequest<PKG>([w = xx::SharedFromThis(this).ToWeak(), &rtv](int32_t const &eventKey, xx::ObjBase_s &&ob) {
+            if (auto vp = w.Lock()) {
+                rtv = std::move(ob);
+                vp->coros.FireEvent(eventKey);
+            }
+        }, 99.0, args...);
     }
 
 };
