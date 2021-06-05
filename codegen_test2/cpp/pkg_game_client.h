@@ -2,7 +2,7 @@
 #include <pkg_generic.h>
 #include <pkg_game_client.h.inc>
 struct CodeGen_pkg_game_client {
-	inline static const ::std::string md5 = "#*MD5<837b7a79473a6cadea7fc523354ec236>*#";
+	inline static const ::std::string md5 = "#*MD5<b40f9cbe9223abdbeb431247cdd45cfe>*#";
     static void Register();
     CodeGen_pkg_game_client() { Register(); }
 };
@@ -73,11 +73,9 @@ namespace Game1 {
     // 游戏场景( 不便下发到 client 的敏感信息不在此列，由服务端自行附加 )
     struct Scene : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Scene, ::xx::ObjBase)
-        using IsSimpleType_v = Scene;
         ::Generic::GameInfo gameInfo;
         ::std::map<int32_t, ::xx::Shared<::Game1::Player>> players;
         ::std::deque<::xx::Shared<::Game1::Message>> messages;
-        static void WriteTo(xx::Data& d, ::Generic::GameInfo const& gameInfo, ::std::map<int32_t, ::xx::Shared<::Game1::Player>> const& players, ::std::deque<::xx::Shared<::Game1::Message>> const& messages);
 #include <pkg_game_client_Game1Scene_.inc>
     };
 }
@@ -85,12 +83,10 @@ namespace Game1_Client {
     // 推送: 完整同步
     struct FullSync : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(FullSync, ::xx::ObjBase)
-        using IsSimpleType_v = FullSync;
         // 游戏场景
         ::xx::Shared<::Game1::Scene> scene;
         // 指向当前玩家上下文
         ::xx::Weak<::Game1::Player> self;
-        static void WriteTo(xx::Data& d, ::xx::Shared<::Game1::Scene> const& scene, ::xx::Weak<::Game1::Player> const& self);
     };
 }
 namespace Game1_Client {
@@ -99,7 +95,6 @@ namespace Game1_Client {
         XX_OBJ_OBJECT_H(Sync, ::xx::ObjBase)
         // 事件集合( 已按时间戳排序 )
         ::std::vector<::xx::Shared<::Game1::Event>> events;
-        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Event>> const& events);
     };
 }
 namespace Client_Game1 {
@@ -134,10 +129,8 @@ namespace Game1 {
     // 事件--玩家进入
     struct Event_PlayerEnter : ::Game1::Event {
         XX_OBJ_OBJECT_H(Event_PlayerEnter, ::Game1::Event)
-        using IsSimpleType_v = Event_PlayerEnter;
         // 玩家信息
         ::xx::Shared<::Game1::Player> player;
-        static void WriteTo(xx::Data& d, int64_t const& timestamp, ::xx::Shared<::Game1::Player> const& player);
     };
 }
 namespace Game1 {

@@ -156,12 +156,6 @@ namespace Game1{
     }
 }
 namespace Game1{
-    void Scene::WriteTo(xx::Data& d, ::Generic::GameInfo const& gameInfo, ::std::map<int32_t, ::xx::Shared<::Game1::Player>> const& players, ::std::deque<::xx::Shared<::Game1::Message>> const& messages) {
-        d.Write(xx::TypeId_v<Scene>);
-        d.Write(gameInfo);
-        d.Write(players);
-        d.Write(messages);
-    }
     void Scene::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         d.Write(this->gameInfo);
         d.Write(this->players);
@@ -211,11 +205,6 @@ namespace Game1{
     }
 }
 namespace Game1_Client{
-    void FullSync::WriteTo(xx::Data& d, ::xx::Shared<::Game1::Scene> const& scene, ::xx::Weak<::Game1::Player> const& self) {
-        d.Write(xx::TypeId_v<FullSync>);
-        d.Write(scene);
-        d.Write(self);
-    }
     void FullSync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         d.Write(this->scene);
         d.Write(this->self);
@@ -258,10 +247,6 @@ namespace Game1_Client{
     }
 }
 namespace Game1_Client{
-    void Sync::WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Event>> const& events) {
-        d.Write(xx::TypeId_v<Sync>);
-        d.Write(events);
-    }
     void Sync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         d.Write(this->events);
     }
@@ -405,11 +390,6 @@ namespace Client_Game1{
     }
 }
 namespace Game1{
-    void Event_PlayerEnter::WriteTo(xx::Data& d, int64_t const& timestamp, ::xx::Shared<::Game1::Player> const& player) {
-        d.Write(xx::TypeId_v<Event_PlayerEnter>);
-        d.Write(timestamp);
-        d.Write(player);
-    }
     void Event_PlayerEnter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
         d.Write(this->player);
