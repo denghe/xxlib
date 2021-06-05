@@ -2,7 +2,7 @@
 #include "pkg_generic.h"
 #include "pkg_game_client.h.inc"
 struct CodeGen_pkg_game_client {
-	inline static const ::std::string md5 = "#*MD5<f83ddb480d73a1fd9af1d46358567fcc>*#";
+	inline static const ::std::string md5 = "#*MD5<a52ba5a1b2687396796841e7a2536db4>*#";
     static void Register();
     CodeGen_pkg_game_client() { Register(); }
 };
@@ -50,6 +50,7 @@ namespace Game1 {
         using IsSimpleType_v = Player;
         ::Generic::PlayerInfo info;
         static void WriteTo(xx::Data& d, ::Generic::PlayerInfo const& info);
+#include "pkg_game_client_Game1Player_.inc"
     };
 }
 namespace Game1 {
@@ -73,9 +74,11 @@ namespace Game1 {
     struct Scene : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Scene, ::xx::ObjBase)
         using IsSimpleType_v = Scene;
+        ::Generic::GameInfo gameInfo;
         ::std::vector<::xx::Shared<::Game1::Player>> players;
         ::std::vector<::xx::Shared<::Game1::Message>> messages;
-        static void WriteTo(xx::Data& d, ::std::vector<::xx::Shared<::Game1::Player>> const& players, ::std::vector<::xx::Shared<::Game1::Message>> const& messages);
+        static void WriteTo(xx::Data& d, ::Generic::GameInfo const& gameInfo, ::std::vector<::xx::Shared<::Game1::Player>> const& players, ::std::vector<::xx::Shared<::Game1::Message>> const& messages);
+#include "pkg_game_client_Game1Scene_.inc"
     };
 }
 namespace Game1_Client {

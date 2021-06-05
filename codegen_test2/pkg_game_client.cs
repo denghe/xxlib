@@ -2,7 +2,7 @@
 
 namespace Game1 {
     [Desc("玩家( 不便下发到 client 的敏感信息不在此列，由服务端自行附加 )")]
-    [TypeId(50)]
+    [TypeId(50), Include_]
     class Player {
         Generic.PlayerInfo info;
     }
@@ -21,8 +21,9 @@ namespace Game1 {
     }
 
     [Desc("游戏场景( 不便下发到 client 的敏感信息不在此列，由服务端自行附加 )")]
-    [TypeId(52)]
+    [TypeId(52), Include_]
     class Scene {
+        Generic.GameInfo gameInfo;
         List<Shared<Player>> players;
         List<Shared<Message>> messages;
     }
