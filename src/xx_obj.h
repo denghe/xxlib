@@ -314,7 +314,7 @@ namespace xx {
 					d.WriteFixed<needReserve>((uint8_t)0);
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T> || IsQueueSeries_v<T>) {
 				d.WriteVarInteger<needReserve>(v.size());
 				if (v.empty()) return;
 				if constexpr (IsVector_v < T> && (sizeof(T) == 1 || std::is_floating_point_v<T>)) {
@@ -517,7 +517,7 @@ namespace xx {
 				}
 				return 0;
 			}
-			else if constexpr (IsSetSeries_v<T>) {
+			else if constexpr (IsSetSeries_v<T> || IsQueueSeries_v<T>) {
 				size_t siz = 0;
 				if (int r = Read_(d, siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
@@ -655,7 +655,7 @@ namespace xx {
 					s.append("null");
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T> || IsQueueSeries_v<T>) {
 				s.push_back('[');
 				if (!v.empty()) {
 					for (auto&& o : v) {
@@ -834,10 +834,14 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsSetSeries_v<T>) {
+			else if constexpr (IsSetSeries_v<T> || IsQueueSeries_v<T>) {
 				out.clear();
 				for (auto&& o : in) {
-					Clone_(o, out.emplace());
+                    if constexpr (IsQueueSeries_v<T>) {
+                        Clone_(o, out.emplace_back());
+                    } else {
+                        Clone_(o, out.emplace());
+                    }
 				}
 			}
 			else if constexpr (IsTuple_v<T>) {
@@ -850,7 +854,7 @@ namespace xx {
 			else if constexpr (IsMapSeries_v<T>) {
 				out.clear();
 				for (auto&& kv : in) {
-					std::pair<typename T::key_type, typename T::value_type> tar;
+					std::pair<std::decay_t<decltype(kv.first)>, std::decay_t<decltype(kv.second)>> tar;
 					Clone_(kv.first, tar.first);
 					Clone_(kv.second, tar.second);
 					out.insert(std::move(tar));
@@ -903,7 +907,7 @@ namespace xx {
 					RecursiveReset_(*v);
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T> || IsQueueSeries_v<T>) {
 				for (auto& o : v) {
 					RecursiveReset_(o);
 				}
@@ -988,7 +992,7 @@ namespace xx {
 					return RecursiveCheck_(*v);
 				}
 			}
-			else if constexpr (IsVector_v<T> || IsSetSeries_v<T>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T> || IsQueueSeries_v<T>) {
 				for (auto& o : v) {
 					if (int r = RecursiveCheck_(o)) return r;
 				}
@@ -1055,7 +1059,7 @@ namespace xx {
 			else if constexpr (IsOptional_v<T>) {
 				v.reset();
 			}
-			else if constexpr (IsVector_v<T> || IsSetSeries_v<T> || IsMapSeries_v<T> || std::is_same_v<T, std::string>) {
+			else if constexpr (IsVector_v<T> || IsSetSeries_v<T> || IsQueueSeries_v<T> || IsMapSeries_v<T> || std::is_same_v<T, std::string>) {
 				v.clear();
 			}
 			else if constexpr (IsTuple_v<T>) {

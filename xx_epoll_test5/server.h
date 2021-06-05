@@ -3,6 +3,7 @@
 #include "xx_dict_mk.h"
 #include "xx_obj.h"
 #include "xx_coro.h"
+#include "pkg_game_client.h"
 namespace EP = xx::Epoll;
 
 // 预声明
@@ -14,7 +15,6 @@ struct DBDialer;
 struct DBPeer;
 struct LDialer;
 struct LPeer;
-struct GameContext;
 
 // 服务本体
 struct Server : EP::Context {
@@ -48,8 +48,8 @@ struct Server : EP::Context {
     // Kick: clientId = --server->autoDecId
     int32_t autoDecId = 0;
 
-    // game context
-    std::unique_ptr<GameContext> gameContext;
+    // game1 scene
+    xx::Shared<Game1::Scene> scene;
 
     // 根据 config 进一步初始化各种成员
     int Init();

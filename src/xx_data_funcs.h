@@ -153,7 +153,7 @@ namespace xx {
 		}
 	};
 
-	// 适配 std::vector, std::array
+	// 适配 std::vector, std::array   // todo: queue / deque
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t< (IsVector_v<T> || IsArray_v<T>)/* && IsBaseDataType_v<T>*/>> {
 		template<bool needReserve = true>
@@ -250,7 +250,7 @@ namespace xx {
 		static inline void Write(Data& d, T const& in) {
 			d.WriteVarInteger<needReserve>(in.size());
 			for (auto&& kv : in) {
-				Write<needReserve>(kv.first, kv.second);
+				d.Write<needReserve>(kv.first, kv.second);
 			}
 		}
 		static inline int Read(Data_r& d, T& out) {
