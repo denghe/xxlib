@@ -157,12 +157,10 @@ namespace Game1{
 }
 namespace Game1{
     void Scene::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->gameInfo);
         d.Write(this->players);
         d.Write(this->messages);
     }
     int Scene::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->gameInfo)) return r;
         if (int r = d.Read(this->players)) return r;
         if (int r = d.Read(this->messages)) return r;
         return 0;
@@ -176,30 +174,25 @@ namespace Game1{
     }
     void Scene::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        om.Append(s, ",\"gameInfo\":", this->gameInfo);
         om.Append(s, ",\"players\":", this->players);
         om.Append(s, ",\"messages\":", this->messages);
 #endif
     }
     void Scene::Clone(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::Game1::Scene*)tar;
-        om.Clone_(this->gameInfo, out->gameInfo);
         om.Clone_(this->players, out->players);
         om.Clone_(this->messages, out->messages);
     }
     int Scene::RecursiveCheck(::xx::ObjManager& om) const {
-        if (int r = om.RecursiveCheck(this->gameInfo)) return r;
         if (int r = om.RecursiveCheck(this->players)) return r;
         if (int r = om.RecursiveCheck(this->messages)) return r;
         return 0;
     }
     void Scene::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->gameInfo);
         om.RecursiveReset(this->players);
         om.RecursiveReset(this->messages);
     }
     void Scene::SetDefaultValue(::xx::ObjManager& om) {
-        om.SetDefaultValue(this->gameInfo);
         om.SetDefaultValue(this->players);
         om.SetDefaultValue(this->messages);
     }

@@ -2,7 +2,7 @@
 #include <pkg_generic.h>
 #include <pkg_game_client.h.inc>
 struct CodeGen_pkg_game_client {
-	inline static const ::std::string md5 = "#*MD5<b40f9cbe9223abdbeb431247cdd45cfe>*#";
+	inline static const ::std::string md5 = "#*MD5<762fc7aa94d127ff70543977f9be04c8>*#";
     static void Register();
     CodeGen_pkg_game_client() { Register(); }
 };
@@ -73,7 +73,6 @@ namespace Game1 {
     // 游戏场景( 不便下发到 client 的敏感信息不在此列，由服务端自行附加 )
     struct Scene : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Scene, ::xx::ObjBase)
-        ::Generic::GameInfo gameInfo;
         ::std::map<int32_t, ::xx::Shared<::Game1::Player>> players;
         ::std::deque<::xx::Shared<::Game1::Message>> messages;
 #include <pkg_game_client_Game1Scene_.inc>

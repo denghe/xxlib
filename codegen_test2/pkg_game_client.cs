@@ -23,7 +23,6 @@ namespace Game1 {
     [Desc("游戏场景( 不便下发到 client 的敏感信息不在此列，由服务端自行附加 )")]
     [TypeId(52), Include_]
     class Scene {
-        Generic.GameInfo gameInfo;
         Dict<int, Shared<Player>> players;
         Deque<Shared<Message>> messages;
     }
