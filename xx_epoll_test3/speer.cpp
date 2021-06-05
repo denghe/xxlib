@@ -65,35 +65,35 @@ void SPeer::ReceiveRequest(int const &serial, xx::ObjBase_s &&ob) {
     else {
         switch(ob.typeId()) {
             CASE(Game_Lobby::Register)
-                // check exists
+                // check serviceId exists
                 if (S->sps.find(o->serviceId) != S->sps.end()) {
-                    auto&& m = S->FromCache<Generic::Error>();
-                    m->errorCode = __LINE__;
-                    m->errorMessage = xx::ToString("duplicate serviceId: ", o->serviceId);
-                    SendResponse(serial, m);
+                    SendResponse<Generic::Error>(serial, __LINE__, xx::ToString("duplicate serviceId: ", o->serviceId));
                     return;
                 }
-                // check gameId has duplicates
+                // check gameId exists
                 for(auto const& gi : o->gameInfos) {
                     if (S->gameIdserviceIdMappings.find(gi.gameId) != S->gameIdserviceIdMappings.end()) {
-                        auto&& m = S->FromCache<Generic::Error>();
-                        m->errorCode = __LINE__;
-                        m->errorMessage = xx::ToString("duplicate gameId: ", gi.gameId);
-                        SendResponse(serial, m);
+                        SendResponse<Generic::Error>(serial, __LINE__, xx::ToString("duplicate gameId: ", o->serviceId));
                         return;
                     }
                 }
-                // combine gameId serviceId mappings
+
+                // combine to mappings
                 for(auto const& gi : o->gameInfos) {
                     S->gameIdserviceIdMappings[gi.gameId] = info->serviceId;
                 }
-                // store this to container
+
+                // store peer
                 S->sps[o->serviceId] = xx::SharedFromThis(this);
+
                 // store info
                 info = std::move(o);
 
-                // refresh cache
+                // regenerate package data
                 S->Fill_data_Lobby_Client_GameOpen();
+
+                // response success
+                SendResponse<Generic::Success>(serial);
                 return;
             CASEEND
             default:

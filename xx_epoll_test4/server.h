@@ -30,7 +30,7 @@ struct Server : EP::Context {
     int Init();
 
     // for coroutine
-    virtual int FrameUpdate() override;
+    int FrameUpdate() override;
 
     /**************************************************************************************/
     // caches

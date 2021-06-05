@@ -3,7 +3,7 @@
 #include "lpeer.h"
 namespace EP = xx::Epoll;
 
-// 连到 db 的拨号器
+// 连到 lobby 的拨号器
 struct LDialer : EP::TcpDialer<LPeer> {
     using EP::TcpDialer<LPeer>::TcpDialer;
 

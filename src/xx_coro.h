@@ -380,11 +380,14 @@ namespace xx {
         return rtv;
     }
 
-    template<typename PKG = xx::ObjBase, typename Rtv, typename ... Args>
-    int CoroSendRequest(Rtv &rtv, Args const &... args) {
-        return SendRequest<PKG>([this, &rtv](int const &serial, xx::ObjBase_s &&ob) {
-            rtv = std::move(ob);
-            coros.FireEvent(serial);
+    template<typename PKG = xx::ObjBase, typename Sender, typename Rtv, typename ... Args>
+    int CoroSendRequest(Sender& sender, Rtv &rtv, Args const &... args) {
+        assert(sender && sender->Alive());
+        return sender->template SendRequest<PKG>([w = xx::SharedFromThis(this).ToWeak(), &rtv](int32_t const &eventKey, xx::ObjBase_s &&ob) {
+            if (auto vp = w.Lock()) {
+                rtv = std::move(ob);
+                vp->coros.FireEvent(eventKey);
+            }
         }, 99.0, args...);
     }
 */
