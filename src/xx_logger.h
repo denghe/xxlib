@@ -351,8 +351,7 @@ namespace xx {
 
     template<size_t size, typename ...TS>
     void WriteTo(FixedData<size>& data, TS const &...vs) {
-        std::initializer_list<int> n{ (BufFuncs<size, TS>::Write(data, vs), 0)... };
-        (void)n;
+        ((BufFuncs<size, TS>::Write(data, vs), 0), ...);
     }
 
     typedef void (*DumpFunc)(std::ostream& o, char*& v);

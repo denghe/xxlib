@@ -38,7 +38,11 @@ namespace xx::Lua {
 	template<typename...Args>
 	int Push(lua_State* const& L, Args &&...args) {
 		if constexpr (sizeof...(Args) == 0) return 0;
-		else return (... + PushToFuncs<Args>::Push(L, std::forward<Args>(args)));
+		else {
+            int n = 0;
+            ((n += PushToFuncs<Args>::Push(L, std::forward<Args>(args)), 0), ...);
+            return n;
+		}
 	}
 
 	// 从栈读数据 填充到变量。多参模式不支持负数 idx. 转正: lua_gettop(L) + 1 - idx
