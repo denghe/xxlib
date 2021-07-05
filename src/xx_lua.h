@@ -15,6 +15,15 @@ extern "C" {
 // 注意：To 系列 批量操作时，不支持负数 idx
 // 注意：这里使用 LUA_VERSION_NUM == 501 来检测是否为 luajit
 
+
+// 启用该宏，lua 低版本不支持 u/int64 的将使用 double 读写 而非 userdata(size=8)
+// 15 位精度 百万亿，业务逻辑需注意. 超出将丢失低位
+#define XX_LUA51_ENABLE_INT64_PUSHTO_DOUBLE false
+
+// 用于路由 Push/To 以实现 lua 低版本 强制使用 double
+using di64_t = int64_t;
+using du64_t = uint64_t;
+
 namespace xx::Lua {
 
 	/****************************************************************************************/
@@ -393,7 +402,11 @@ namespace xx::Lua {
 			else {
 #if LUA_VERSION_NUM == 501
 			    if constexpr (sizeof(T) == 8) {
-                   *(std::decay_t<T>*)lua_newuserdata(L, 8) = in;
+                    if constexpr (XX_LUA51_ENABLE_INT64_PUSHTO_DOUBLE || std::is_same_v<std::decay_t<T>, di64_t> || std::is_same_v<std::decay_t<T>, du64_t>) {
+					    lua_pushnumber(L, (double)in);
+					} else {
+                        *(std::decay_t<T>*)lua_newuserdata(L, 8) = in;
+                    }
 			    }
 			    else
 #endif
@@ -411,9 +424,15 @@ namespace xx::Lua {
 			else {
 #if LUA_VERSION_NUM == 501
                 if constexpr (sizeof(T) == 8) {
-                    if (!lua_isuserdata(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not number(int64 userdata)");
-                    out = *(std::decay_t<T>*)lua_touserdata(L, idx);
-			    }
+                    if constexpr (XX_LUA51_ENABLE_INT64_PUSHTO_DOUBLE || std::is_same_v<std::decay_t<T>, di64_t> || std::is_same_v<std::decay_t<T>, du64_t>) {
+                        int isnum = 0;
+                        out = (T)lua_tonumberx(L, idx, &isnum);
+                        if (!isnum) Error(L, "error! args[", std::to_string(idx), "] is not number");
+                    } else {
+                        if (!lua_isuserdata(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not number(int64 userdata)");
+                        out = *(std::decay_t<T>*)lua_touserdata(L, idx);
+                    }
+				}
 			    else
 #endif
                 {

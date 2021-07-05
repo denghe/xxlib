@@ -617,7 +617,13 @@ namespace xx::Lua::Data {
 		{"Rf_be_at",   R<float, true, true, true>},
 		{"Rd_be_at",   R<double, true, true, true>},
 
-		{nullptr,      nullptr}
+        // for luajit force u/int64 <-> double
+        {"Rvi64d",      R<di64_t, false>},
+        {"Rvu64d",      R<du64_t, false>},
+        {"Wvi64d",      W<di64_t, false>},
+        {"Wvu64d",      W<du64_t, false>},
+
+        {nullptr,      nullptr}
 	};
 }
 
