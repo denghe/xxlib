@@ -366,14 +366,20 @@ namespace xx {
             if (CheckCap && newCap <= cap) return;
 
             auto siz = Round2n(reserveLen + newCap);
-            auto newBuf = (new uint8_t[siz]) + reserveLen;
+            //auto newBuf = (new uint8_t[siz]) + reserveLen;
+            auto newBuf = ((uint8_t*)malloc(siz)) + reserveLen;
             if (len) {
                 memcpy(newBuf, buf, len);
             }
 
             // 这里判断 cap 不判断 buf, 是因为 gcc 优化会导致 if 失效, 无论如何都会执行 free
             if (cap) {
-                delete[](buf - reserveLen);
+                //delete[](buf - reserveLen);
+                free(buf - reserveLen);
+            }
+            else {
+                // let virtual memory -> physics
+                for(size_t i = 0; i < newCap; i += 4096) (newBuf - reserveLen)[i] = 0;
             }
             buf = newBuf;
             cap = siz - reserveLen;
@@ -564,7 +570,8 @@ namespace xx {
         // len 清 0, 可彻底释放 buf
         XX_INLINE void Clear(bool const &freeBuf = false) {
             if (freeBuf && cap) {
-                delete[](buf - reserveLen);
+                //delete[](buf - reserveLen);
+                free(buf - reserveLen);
                 buf = nullptr;
                 cap = 0;
             }

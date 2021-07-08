@@ -13,3 +13,6 @@ include_directories(
 add_executable(xx_string_test1
         main.cpp
         )
+
+#find_package(mimalloc 1.7 REQUIRED)
+#target_link_libraries(xx_string_test1 PUBLIC mimalloc-static)
