@@ -9,39 +9,35 @@ pub fn main() void {
     //gpa.setRequestedMemoryLimit(512);
     const a = &gpa.allocator;
     
-    {
-        var d = Data.inita(a);
-        defer d.deinit();
-        d.reserve(4000000000);
-        var timer = std.time.Timer.start() catch unreachable;
-        const t = timer.lap();
-        var i:i32 = 0;
-        while (i < 1000000000) : (i += 1) {
-            d.writeFixed(@as(u32, 123));
-        }
-        print("elapsed_s = {}\n", .{ @intToFloat(f64, timer.read() - t) / std.time.ns_per_s });
-        print("d.len = {}, d.cap = {}\n", .{ d.len(), d.cap() });
-        //print("d.buf = {any}\n", .{ d.buf });
-    }
-    
     // {
-    //     var list = List(List(i32)).inita(a);
-    //     defer list.deinit();
-    //     const e = list.emplace();
-    //     const ee = e.emplace();
-    //     print("list = {}\n", .{ list });
-    //     print("e = {}\n", .{ e });
-    //     print("ee = {}\n", .{ ee });
-    //     ee.* = 123;
-    //     print("ee.* = {}\n", .{ ee.* });
+    //     var d = Data.inita(a);
+    //     defer d.deinit();
+    //     d.reserve(4000000000);
+    //     var timer = std.time.Timer.start() catch unreachable;
+    //     const t = timer.lap();
+    //     var i:i32 = 0;
+    //     while (i < 1000000000) : (i += 1) {
+    //         d.writeFixed(@as(u32, 123));
+    //     }
+    //     print("elapsed_s = {}\n", .{ @intToFloat(f64, timer.read() - t) / std.time.ns_per_s });
+    //     print("d.len = {}, d.cap = {}\n", .{ d.len(), d.cap() });
+    //     //print("d.buf = {any}\n", .{ d.buf });
     // }
-
+    
     {
         var list = List(i32).inita(a);
         defer list.deinit();
         const e = list.emplace();
         e.* = 123;
-        print("{}", .{list.a.buf.?[0]});
+        print("{}\n", .{list.at(0).*});
+    }
+
+    {
+        var list = List(List(List(Data))).inita(a);
+        defer list.deinit();
+        const d = list.emplace().emplace().emplace();
+        d.writeFixed(@as(u32, 123));
+        print("{}\n", .{list.at(0).at(0).at(0).*});
     }
 }
 
@@ -106,56 +102,59 @@ pub fn Array(comptime T: type) type {
                 }
             }
         }
+
+        pub fn at(this: This, idx: usize) *T {
+            return &this.buf.?[idx];
+        }
     };
 }
 
 pub fn List(comptime T: type) type {
     return struct {
         const This = @This();
-        const A = Array(T);
-        a: A,
-        pub fn cap(this: This) usize { return this.a.cap(); }
-        pub fn len(this: This) usize { return this.a.len; }
-        pub fn reserve(this: *This, newCap: usize) void { this.a.reserve(newCap); }
-        pub fn inita(allo: *std.mem.Allocator) This { return .{ .a = A.inita(allo) }; }
-        pub fn deinit(this: *This) void { this.a.deinit(); }
-        pub fn clear(this: *Data) void { this.a.clear(); }
+        const Base = Array(T);
+        base: Base,
+        pub fn cap(this: This) usize { return this.base.cap(); }
+        pub fn len(this: This) usize { return this.base.len; }
+        pub fn reserve(this: *This, newCap: usize) void { this.base.reserve(newCap); }
+        pub fn inita(allo: *std.mem.Allocator) This { return .{ .base = Base.inita(allo) }; }
+        pub fn deinit(this: *This) void { this.base.deinit(); }
+        pub fn clear(this: *This) void { this.base.clear(); }
+        pub fn at(this: *This, idx: usize) *T { return this.base.at(idx); }
 
         pub fn emplace(this: *This) *T {
-            const a = &this.a;
+            const a = &this.base;
             const newCap = a.len + 1;
             if (a.cap() < newCap) {
                 a.reserve(newCap);
             }
             const r = &a.buf.?[a.len];
             a.len += 1;
-            if (A.tHasInita) {
+            if (Base.tHasInita) {
                 r.* = T.inita(a.allo);
             }
-            else if (A.tHasInit) {
+            else if (Base.tHasInit) {
                 r.* = T.init();
-            }
-            // else {
-            //     print("{s}", .{ @typeName(T) });
-            // }
-            // ...
+            } // ...
             return r;
         }
     };
 }
 
 pub const Data = struct {
+    const T = u8;
     const This = @This();
-    const A = Array(u8);
-    a: A,
-    pub fn cap(this: This) usize { return this.a.cap(); }
-    pub fn len(this: This) usize { return this.a.len; }
-    pub fn reserve(this: *This, newCap: usize) void { this.a.reserve(newCap); }
-    pub fn inita(allo: *std.mem.Allocator) This { return .{ .a = A.inita(allo) }; }
-    pub fn deinit(this: *This) void { this.a.deinit(); }
-    pub fn clear(this: *Data) void { this.a.clear(); }
+    const Base = Array(T);
+    base: Base,
+    pub fn cap(this: This) usize { return this.base.cap(); }
+    pub fn len(this: This) usize { return this.base.len; }
+    pub fn reserve(this: *This, newCap: usize) void { this.base.reserve(newCap); }
+    pub fn inita(allo: *std.mem.Allocator) This { return .{ .base = Base.inita(allo) }; }
+    pub fn deinit(this: *This) void { this.base.deinit(); }
+    pub fn clear(this: *This) void { this.base.clear(); }
+    pub fn at(this: *This, idx: usize) *T { return this.base.at(idx); }
 
-    pub fn writeFixed(this: *Data, v: anytype) void {
+    pub fn writeFixed(this: *This, v: anytype) void {
         const t = @TypeOf(v);
         switch (@typeInfo(t)) {
              .Int, .Float => {
@@ -167,7 +166,7 @@ pub const Data = struct {
                 @compileError("writeFixed unsupported type: " ++ @typeName(@TypeOf(v)));
             },
         }
-        const a = &this.a;
+        const a = &this.base;
         const newCap = a.len + @sizeOf(t);
         if (a.cap() < newCap) {
             a.reserve(newCap);
@@ -177,6 +176,29 @@ pub const Data = struct {
     }
 };
 
+pub const String = struct {
+    const T = u8;
+    const This = @This();
+    const Base = Array(u8);
+    base: Base,
+    pub fn cap(this: This) usize { return this.base.cap(); }
+    pub fn len(this: This) usize { return this.base.len; }
+    pub fn reserve(this: *This, newCap: usize) void { this.base.reserve(newCap); }
+    pub fn inita(allo: *std.mem.Allocator) This { return .{ .base = Base.inita(allo) }; }
+    pub fn deinit(this: *This) void { this.base.deinit(); }
+    pub fn clear(this: *This) void { this.base.clear(); }
+    pub fn at(this: *This, idx: usize) *T { return this.base.at(idx); }
+
+    pub fn append(this: *This, s: anytype) void {
+        // const a = &this.base;
+        // const newCap = a.len + @sizeOf(t);
+        // if (a.cap() < newCap) {
+        //     a.reserve(newCap);
+        // }
+        // @memcpy(@ptrCast([*]u8, &a.buf.?[a.len]), @ptrCast([*] const u8, &v), @sizeOf(t));
+        // a.len += @sizeOf(t);
+    }
+};
 
 
 // pub const Data = struct {
@@ -221,7 +243,7 @@ pub const Data = struct {
 //         }
 //     }
     
-//     pub fn writeFixed(this: *Data, v: anytype) void {
+//     pub fn writeFixed(this: *This, v: anytype) void {
 //         const t = @TypeOf(v);
 //         switch (@typeInfo(t)) {
 //              .Int, .Float => {
@@ -268,7 +290,7 @@ pub const Data = struct {
     //     OutOfMemory,
     //     InvalidRange,
     // };
-    // pub fn reserve(this: *Data, newCap: usize) Error!void {
+    // pub fn reserve(this: *This, newCap: usize) Error!void {
     //     if (this.buf) |b| {
     //         if (b.len < newCap) {
     //             this.buf = this.a.realloc(b, round2n(newCap)) catch |e| {
@@ -281,7 +303,7 @@ pub const Data = struct {
     //         };
     //     }
     // }
-    //pub fn writeFixed(this: *Data, v: anytype) Error!void {
+    //pub fn writeFixed(this: *This, v: anytype) Error!void {
     //     const t = @TypeOf(v);
     //     const ti = @typeInfo(t);
     //     switch (ti) {

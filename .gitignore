@@ -8,3 +8,7 @@ obj
 x64
 Debug
 Release
+zig-cache
+zig-out
+/zig_tests/*.exe
+/zig_tests/*.pdb
