@@ -4,26 +4,18 @@ const print = std.debug.print;
 const assert = std.debug.assert;
 
 pub fn main() void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
-    defer _ = gpa.deinit();
-    //gpa.setRequestedMemoryLimit(512);
-    const a = &gpa.allocator;
-    
-    // {
-    //     var d = Data.inita(a);
-    //     defer d.deinit();
-    //     d.reserve(4000000000);
-    //     var timer = std.time.Timer.start() catch unreachable;
-    //     const t = timer.lap();
-    //     var i:i32 = 0;
-    //     while (i < 1000000000) : (i += 1) {
-    //         d.writeFixed(@as(u32, 123));
-    //     }
-    //     print("elapsed_s = {}\n", .{ @intToFloat(f64, timer.read() - t) / std.time.ns_per_s });
-    //     print("d.len = {}, d.cap = {}\n", .{ d.len(), d.cap() });
-    //     //print("d.buf = {any}\n", .{ d.buf });
-    // }
-    
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
+    // defer _ = gpa.deinit();
+    // //gpa.setRequestedMemoryLimit(512);
+    // const a = &gpa.allocator;
+
+    // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    // defer arena.deinit();
+    // const a = &arena.allocator;
+
+    var buffer: [4096]u8 = undefined;
+    const a = &std.heap.FixedBufferAllocator.init(&buffer).allocator;
+
     {
         var list = List(i32).inita(a);
         defer list.deinit();
@@ -32,22 +24,19 @@ pub fn main() void {
         print("{}\n", .{list.at(0).*});
     }
 
-    {
-        var list = List(List(List(Data))).inita(a);
-        defer list.deinit();
-        const d = list.emplace().emplace().emplace();
-        d.writeFixed(@as(u32, 123));
-        print("{}\n", .{list.at(0).at(0).at(0).*});
-    }
+    // {
+    //     var list = List(List(List(Data))).inita(a);
+    //     defer list.deinit();
+    //     const d = list.emplace().emplace().emplace();
+    //     d.writeFixed(@as(u32, 123));
+    //     print("{}\n", .{list.at(0).at(0).at(0).at(0).*});
+    // }
 }
 
 pub fn Array(comptime T: type) type {
     return struct {
         const This = @This();
-        const tIsStruct = switch (@typeInfo(T)) {
-            .Struct => true,
-            else => false,
-        };
+        const tIsStruct = @typeInfo(T) == .Struct;
         const tHasInit = tIsStruct and @hasDecl(T, "init");
         const tHasInita = tIsStruct and @hasDecl(T, "inita");
         const tHasDeinit = tIsStruct and @hasDecl(T, "deinit");
@@ -189,16 +178,48 @@ pub const String = struct {
     pub fn clear(this: *This) void { this.base.clear(); }
     pub fn at(this: *This, idx: usize) *T { return this.base.at(idx); }
 
-    pub fn append(this: *This, s: anytype) void {
+    pub fn append(this: *This, v: anytype) void {
         // const a = &this.base;
-        // const newCap = a.len + @sizeOf(t);
+        // var siz = std.fmt.count(comptime fmt: []const u8, args: anytype)
+        // const newCap = a.len + siz;
         // if (a.cap() < newCap) {
         //     a.reserve(newCap);
         // }
+        // var buf = @ptrCast([*]u8, .....
+        switch (@typeInfo(T)) {
+            .Array => |info| {
+                //std.fmt.bufPrint(buf: []u8, "{s}", v);
+            },
+            else => {
+                //std.fmt.bufPrint(buf: []u8, "{}", v);
+            }
+        }
         // @memcpy(@ptrCast([*]u8, &a.buf.?[a.len]), @ptrCast([*] const u8, &v), @sizeOf(t));
         // a.len += @sizeOf(t);
     }
 };
+
+
+
+
+
+    // {
+    //     var d = Data.inita(a);
+    //     defer d.deinit();
+    //     d.reserve(4000000000);
+    //     var timer = std.time.Timer.start() catch unreachable;
+    //     const t = timer.lap();
+    //     var i:i32 = 0;
+    //     while (i < 1000000000) : (i += 1) {
+    //         d.writeFixed(@as(u32, 123));
+    //     }
+    //     print("elapsed_s = {}\n", .{ @intToFloat(f64, timer.read() - t) / std.time.ns_per_s });
+    //     print("d.len = {}, d.cap = {}\n", .{ d.len(), d.cap() });
+    //     //print("d.buf = {any}\n", .{ d.buf });
+    // }
+    
+
+
 
 
 // pub const Data = struct {
