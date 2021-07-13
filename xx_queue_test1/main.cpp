@@ -84,10 +84,16 @@ struct I {
 };
 struct J : I {
     static const ptrdiff_t typeId = 1;
+    J() {
+        this->I::typeId = typeId;
+    }
     void Update() { counter++; }
 };
 struct K : I {
     static const ptrdiff_t typeId = 2;
+    K() {
+        this->I::typeId = typeId;
+    }
     void Update() { counter--; }
 };
 struct L {
@@ -103,6 +109,29 @@ struct L {
     ptrdiff_t Sum() {
         ptrdiff_t r = 0;
         for (auto& o : items) r += o->counter;
+        return r;
+    }
+};
+union M {
+    I i;
+    J j;
+    K k;
+};
+using MS = typename std::aligned_storage<sizeof(M), 8>::type;
+
+struct N {
+    std::vector<MS> items;
+    void Update() {
+        for (auto& o : items) {
+            switch ((*(M*)&o).i.typeId) {
+                case J::typeId: (*(M*)&o).j.Update(); break;
+                case K::typeId: (*(M*)&o).k.Update(); break;
+            }
+        }
+    }
+    ptrdiff_t Sum() {
+        ptrdiff_t r = 0;
+        for (auto& o : items) r += (*(M*)&o).i.counter;
         return r;
     }
 };
@@ -154,10 +183,18 @@ void test3() {
 void test4() {
     L c;
     for (int i = 0; i < 1000; ++i) {
-        c.items.emplace_back(std::make_shared<J>())->typeId = J::typeId;
-        c.items.emplace_back(std::make_shared<K>())->typeId = K::typeId;
+        c.items.emplace_back(std::make_shared<J>());
+        c.items.emplace_back(std::make_shared<K>());
     }
     test(c, "test4");
+}
+void test5() {
+    N c;
+    for (int i = 0; i < 1000; ++i) {
+        new (&c.items.emplace_back()) J();
+        new (&c.items.emplace_back()) K();
+    }
+    test(c, "test5");
 }
 
 int main() {
@@ -166,6 +203,7 @@ int main() {
         test2();
         test3();
         test4();
+        test5();
     }
 	return 0;
 }
