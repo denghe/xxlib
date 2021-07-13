@@ -1,16 +1,24 @@
 ﻿#include "xx_string.h"
 
-#define REVERSE_FOR
+#define NUM_ITEMS 100000
+#define UPDATE_TIMES 1000
+
+using TypeId = ptrdiff_t;
+using Counter = ptrdiff_t;
+
 
 struct Base {
-    ptrdiff_t counter = 0;
+    Counter counter = 0;
     virtual void Update() = 0;
     virtual ~Base() = default;
 };
 struct A : Base {
+    //std::string name = "A";
     void Update() override { counter++; }
 };
 struct B : Base {
+    //std::string name = "B";
+    //std::string desc = "BDESC";
     void Update() override { counter--; }
 };
 struct C {
@@ -26,8 +34,8 @@ struct C {
             for (auto &o : items) o->Update();
         }
     }
-    ptrdiff_t Sum() {
-        ptrdiff_t r = 0;
+    Counter Sum() {
+        Counter r = 0;
         for (auto& o : items) r += o->counter;
         return r;
     }
@@ -35,12 +43,15 @@ struct C {
 
 
 struct D {
-    ptrdiff_t counter = 0;
+    Counter counter = 0;
 };
 struct E : D {
+    //std::string name = "E";
     void Update() { counter++; }
 };
 struct F : D {
+    //std::string name = "F";
+    //std::string desc = "FDESC";
     void Update() { counter--; }
 };
 struct G {
@@ -61,12 +72,12 @@ struct G {
                 std::visit(MyVisitor(), *o);
         }
     }
-    ptrdiff_t Sum() {
+    Counter Sum() {
         struct MyVisitor {
-            ptrdiff_t operator()(E& o) const { return o.counter; }
-            ptrdiff_t operator()(F& o) const { return o.counter; }
+            Counter operator()(E& o) const { return o.counter; }
+            Counter operator()(F& o) const { return o.counter; }
         };
-        ptrdiff_t r = 0;
+        Counter r = 0;
         for (auto& o : items) r += std::visit(MyVisitor(), *o);
         return r;
     }
@@ -89,12 +100,12 @@ struct H {
                 std::visit(MyVisitor(), o);
         }
     }
-    ptrdiff_t Sum() {
+    Counter Sum() {
         struct MyVisitor {
-            ptrdiff_t operator()(E& o) const { return o.counter; }
-            ptrdiff_t operator()(F& o) const { return o.counter; }
+            Counter operator()(E& o) const { return o.counter; }
+            Counter operator()(F& o) const { return o.counter; }
         };
-        ptrdiff_t r = 0;
+        Counter r = 0;
         for (auto& o : items) r += std::visit(MyVisitor(), o);
         return r;
     }
@@ -103,18 +114,21 @@ struct H {
 
 
 struct I {
-    ptrdiff_t typeId = 0; // J, K
-    ptrdiff_t counter = 0;
+    TypeId typeId = 0; // J, K
+    Counter counter = 0;
 };
 struct J : I {
-    static const ptrdiff_t typeId = 1;
+    static const TypeId typeId = 1;
+    //std::string name = "J";
     J() {
         this->I::typeId = typeId;
     }
     void Update() { counter++; }
 };
 struct K : I {
-    static const ptrdiff_t typeId = 2;
+    static const TypeId typeId = 2;
+    //std::string name = "K";
+    //std::string desc = "KDESC";
     K() {
         this->I::typeId = typeId;
     }
@@ -142,8 +156,8 @@ struct L {
             }
         }
     }
-    ptrdiff_t Sum() {
-        ptrdiff_t r = 0;
+    Counter Sum() {
+        Counter r = 0;
         for (auto& o : items) r += o->counter;
         return r;
     }
@@ -152,8 +166,33 @@ union M {
     I i;
     J j;
     K k;
+    void Update() {
+        switch (i.typeId) {
+            case J::typeId: j.Update(); break;
+            case K::typeId: k.Update(); break;
+        }
+    }
+    void Dispose() {
+        switch (i.typeId) {
+            case 0: break;
+            case J::typeId: j.~J(); break;
+            case K::typeId: k.~K(); break;
+        }
+    }
 };
-using MS = typename std::aligned_storage<sizeof(M), 8>::type;
+struct MS {
+    std::aligned_storage<sizeof(M), 8>::type store;
+    MS() {
+        memset(&store, 0, sizeof(I::typeId));
+    }
+    M* operator->() const noexcept {
+        return (M*)&store;
+    }
+    ~MS() {
+        (*this)->Dispose();
+        memset(&store, 0, sizeof(I::typeId));
+    }
+};
 
 struct N {
     std::vector<MS> items;
@@ -161,24 +200,17 @@ struct N {
     void Update() {
         if constexpr(reverse) {
             for (int i = (int)items.size() - 1; i >= 0; --i) {
-                auto& o = items[i];
-                switch ((*(M*)&o).i.typeId) {
-                    case J::typeId: (*(M*)&o).j.Update(); break;
-                    case K::typeId: (*(M*)&o).k.Update(); break;
-                }
+                items[i]->Update();
             }
         }
         else {
             for (auto& o : items) {
-                switch ((*(M*)&o).i.typeId) {
-                    case J::typeId: (*(M*)&o).j.Update(); break;
-                    case K::typeId: (*(M*)&o).k.Update(); break;
-                }
+                o->Update();
             }
         }
     }
-    ptrdiff_t Sum() {
-        ptrdiff_t r = 0;
+    Counter Sum() {
+        Counter r = 0;
         for (auto& o : items) r += (*(M*)&o).i.counter;
         return r;
     }
@@ -186,13 +218,63 @@ struct N {
 
 
 
+typedef void(*Func)(void*);
+struct O {
+    ptrdiff_t counter = 0;
+    Func update;
+};
+struct P : O {
+    P() {
+        update = [](void* o){ ((P*)o)->Update(); };
+    }
+    void Update() {
+        counter++;
+    }
+};
+struct Q : O {
+    Q() {
+        update = [](void* o){ ((Q*)o)->Update(); };
+    }
+    void Update() {
+        counter--;
+    }
+};
+union R {
+    O o;
+    P p;
+    Q q;
+};
+using RS = typename std::aligned_storage<sizeof(R), 8>::type;
+struct S {
+    std::vector<RS> items;
+    template<bool reverse = false>
+    void Update() {
+        if constexpr (reverse) {
+            for (int i = (int)items.size() - 1; i >= 0; --i) {
+                auto& o = items[i];
+                (*(*(R*)&o).o.update)(&o);
+            }
+        }
+        else {
+            for (auto& o : items) {
+                (*(*(R*)&o).o.update)(&o);
+            }
+        }
+    }
+    ptrdiff_t Sum() {
+        ptrdiff_t r = 0;
+        for (auto& o : items) r += (*(R*)&o).o.counter;
+        return r;
+    }
+};
+
 
 
 
 template<bool reverse = false, typename T>
 void test(T& c, std::string_view prefix) {
     auto secs = xx::NowEpochSeconds();
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < UPDATE_TIMES; ++i) {
         c.template Update<reverse>();
     }
     xx::CoutN(prefix, xx::NowEpochSeconds() - secs);
@@ -204,27 +286,25 @@ void test(T& c, std::string_view prefix) {
 
 void test1() {
     C c;
-    for (int i = 0; i < 100000; ++i) {
+    for (int i = 0; i < NUM_ITEMS; ++i) {
         c.items.emplace_back(std::make_shared<A>());
         c.items.emplace_back(std::make_shared<B>());
     }
     test(c, "test1");
     test<true>(c, "test1 reverse");
 }
-
 void test2() {
     G c;
-    for (int i = 0; i < 100000; ++i) {
+    for (int i = 0; i < NUM_ITEMS; ++i) {
         c.items.emplace_back(std::make_shared<std::variant<E, F>>(E{}));
         c.items.emplace_back(std::make_shared<std::variant<E, F>>(F{}));
     }
     test(c, "test2");
     test<true>(c, "test2 reverse");
 }
-
 void test3() {
     H c;
-    for (int i = 0; i < 100000; ++i) {
+    for (int i = 0; i < NUM_ITEMS; ++i) {
         c.items.emplace_back(E{});
         c.items.emplace_back(F{});
     }
@@ -233,7 +313,7 @@ void test3() {
 }
 void test4() {
     L c;
-    for (int i = 0; i < 100000; ++i) {
+    for (int i = 0; i < NUM_ITEMS; ++i) {
         c.items.emplace_back(std::make_shared<J>());
         c.items.emplace_back(std::make_shared<K>());
     }
@@ -242,12 +322,23 @@ void test4() {
 }
 void test5() {
     N c;
-    for (int i = 0; i < 100000; ++i) {
+    c.items.reserve(NUM_ITEMS);
+    for (int i = 0; i < NUM_ITEMS; ++i) {
         new (&c.items.emplace_back()) J();
         new (&c.items.emplace_back()) K();
     }
     test(c, "test5");
     test<true>(c, "test5 reverse");
+}
+void test6() {
+    S c;
+    c.items.reserve(NUM_ITEMS);
+    for (int i = 0; i < NUM_ITEMS; ++i) {
+        new (&c.items.emplace_back()) P();
+        new (&c.items.emplace_back()) Q();
+    }
+    test(c, "test6");
+    test<true>(c, "test6 reverse");
 }
 
 int main() {
@@ -257,6 +348,7 @@ int main() {
         test3();
         test4();
         test5();
+        test6();
     }
 	return 0;
 }
