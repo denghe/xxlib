@@ -144,7 +144,7 @@ struct N {
 template<typename T>
 void test(T& c, std::string_view prefix) {
     auto secs = xx::NowEpochSeconds();
-    for (int i = 0; i < 1000000; ++i) {
+    for (int i = 0; i < 10000; ++i) {
         c.Update();
     }
     xx::CoutN(prefix, xx::NowEpochSeconds() - secs);
@@ -156,7 +156,7 @@ void test(T& c, std::string_view prefix) {
 
 void test1() {
     C c;
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 100000; ++i) {
         c.items.emplace_back(std::make_shared<A>());
         c.items.emplace_back(std::make_shared<B>());
     }
@@ -165,7 +165,7 @@ void test1() {
 
 void test2() {
     G c;
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 100000; ++i) {
         c.items.emplace_back(std::make_shared<std::variant<E, F>>(E{}));
         c.items.emplace_back(std::make_shared<std::variant<E, F>>(F{}));
     }
@@ -174,7 +174,7 @@ void test2() {
 
 void test3() {
     H c;
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 100000; ++i) {
         c.items.emplace_back(E{});
         c.items.emplace_back(F{});
     }
@@ -182,7 +182,7 @@ void test3() {
 }
 void test4() {
     L c;
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 100000; ++i) {
         c.items.emplace_back(std::make_shared<J>());
         c.items.emplace_back(std::make_shared<K>());
     }
@@ -190,7 +190,7 @@ void test4() {
 }
 void test5() {
     N c;
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 100000; ++i) {
         new (&c.items.emplace_back()) J();
         new (&c.items.emplace_back()) K();
     }
