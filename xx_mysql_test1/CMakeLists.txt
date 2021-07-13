@@ -19,3 +19,10 @@ add_executable(xx_mysql_test1
         main.cpp
         )
 
+
+if(UNIX)
+	target_link_libraries(xx_mysql_test1
+			pthread
+			mariadb
+			)
+endif()

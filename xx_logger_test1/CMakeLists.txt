@@ -15,6 +15,8 @@ add_executable(xx_logger_test1
         main.cpp
         )
 
+if(UNIX)
 target_link_libraries(xx_logger_test1
-#		pthread
+		pthread
 		)
+endif()

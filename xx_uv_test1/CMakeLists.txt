@@ -18,10 +18,13 @@ include_directories(
 
 add_executable(xx_uv_test1
         main.cpp
+		../3rd/ikcp.c
         )
 
-#target_link_libraries(xx_uv_test1
-		#pthread
-		#readline
-		#
-		#)
+
+if(UNIX)
+	target_link_libraries(xx_uv_test1
+			pthread
+			uv
+			)
+endif()

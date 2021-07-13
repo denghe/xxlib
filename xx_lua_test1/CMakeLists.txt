@@ -74,3 +74,12 @@ include_directories(
 add_executable(xx_lua_test1
         ${srcs}
         )
+
+
+
+if(UNIX)
+    target_link_libraries(xx_lua_test1
+            pthread
+            uv
+            )
+endif()

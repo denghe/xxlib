@@ -13,3 +13,9 @@ include_directories(
 add_executable(xx_threadpool_test1
         main.cpp
         )
+
+if(UNIX)
+	target_link_libraries(xx_threadpool_test1
+			pthread
+			)
+endif()

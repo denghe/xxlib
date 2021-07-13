@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <chrono>
 #include <optional>
+#include <variant>
 #include <array>
 #include <tuple>
 #include <vector>
