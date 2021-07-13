@@ -3,26 +3,103 @@ const native_endian = @import("builtin").target.cpu.arch.endian();
 const print = std.debug.print;
 const assert = std.debug.assert;
 
+
+const C = packed struct {
+    typeId: isize,
+    counter: isize,
+};
+const A = struct {
+    const typeId: isize = 1;
+    base: C,
+    pub fn Update(this: *@This()) void {
+        this.base.counter += 1;
+    }
+};
+const B = struct {
+    const typeId: isize = 2;
+    base: C,
+    pub fn Update(this: *@This()) void {
+        this.base.counter -= 1;
+    }
+};
+const AB = union(enum) {
+    a: A,
+    b: B,
+    pub fn Update(this: *@This()) void {
+        switch(this.*) {
+            AB.a=>|*o|o.Update(),
+            AB.b=>|*o|o.Update(),
+        }
+    }
+    pub fn GetCounter(this: @This()) isize {
+        return switch(this) {
+            AB.a=>|o|o.base.counter,
+            AB.b=>|o|o.base.counter,
+        };
+    }
+};
+
 pub fn main() void {
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
-    // defer _ = gpa.deinit();
-    // //gpa.setRequestedMemoryLimit(512);
-    // const a = &gpa.allocator;
+    var ab = AB{ .a = A{ .base = C{ .typeId = 1, .counter = 0 }} };
+    _=ab;
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
+    defer _ = gpa.deinit();
+    //gpa.setRequestedMemoryLimit(512);
+    const a = &gpa.allocator;
+
+    {
+        var list = List(AB).inita(a);
+        defer list.deinit();
+        var i:usize = 0;
+        var k:usize = 0;
+        while (i<100000):(i+=1) {
+            list.emplace().* = AB{ .a = A{ .base = C{ .typeId = A.typeId, .counter = 0 }} };
+            list.emplace().* = AB{ .b = B{ .base = C{ .typeId = B.typeId, .counter = 0 }} };
+        }
+        var j = list.len();
+        print("j = {}\n", .{j});
+
+        {
+            var timer = std.time.Timer.start() catch unreachable;
+            const t = timer.lap();
+            i = 0;
+            while (i < 1000) : (i += 1) {
+                k = 0;
+                while (k < j) : (k += 1) {
+                    list.at(k).Update();
+                }
+            }
+            print("elapsed_s = {}\n", .{ @intToFloat(f64, timer.read() - t) / std.time.ns_per_s });
+        }
+
+        {
+            var timer = std.time.Timer.start() catch unreachable;
+            const t = timer.lap();
+            i = 0;
+            var counter: isize = 0;
+            while (i < j) : (i += 1) {
+                counter += list.at(i).GetCounter();
+            }
+            print("{} elapsed_s = {}\n", .{ counter, @intToFloat(f64, timer.read() - t) / std.time.ns_per_s });
+        }
+    }
+
 
     // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     // defer arena.deinit();
     // const a = &arena.allocator;
 
-    var buffer: [4096]u8 = undefined;
-    const a = &std.heap.FixedBufferAllocator.init(&buffer).allocator;
+    // var buffer: [4096]u8 = undefined;
+    // const a = &std.heap.FixedBufferAllocator.init(&buffer).allocator;
 
-    {
-        var list = List(i32).inita(a);
-        defer list.deinit();
-        const e = list.emplace();
-        e.* = 123;
-        print("{}\n", .{list.at(0).*});
-    }
+    // {
+    //     var list = List(i32).inita(a);
+    //     defer list.deinit();
+    //     const e = list.emplace();
+    //     e.* = 123;
+    //     print("{}\n", .{list.at(0).*});
+    // }
 
     // {
     //     var list = List(List(List(Data))).inita(a);
