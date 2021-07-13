@@ -1,5 +1,7 @@
 ﻿#include "xx_string.h"
 
+#define REVERSE_FOR
+
 struct Base {
     ptrdiff_t counter = 0;
     virtual void Update() = 0;
@@ -13,8 +15,16 @@ struct B : Base {
 };
 struct C {
     std::vector<std::shared_ptr<Base>> items;
+    template<bool reverse = false>
     void Update() {
-        for(auto& o : items) o->Update();
+        if constexpr(reverse) {
+            for (int i = (int)items.size() - 1; i >= 0; --i) {
+                items[i]->Update();
+            }
+        }
+        else {
+            for (auto &o : items) o->Update();
+        }
     }
     ptrdiff_t Sum() {
         ptrdiff_t r = 0;
@@ -35,13 +45,20 @@ struct F : D {
 };
 struct G {
     std::vector<std::shared_ptr<std::variant<E, F>>> items;
+    template<bool reverse = false>
     void Update() {
         struct MyVisitor {
             void operator()(E& o) const { o.Update(); }
             void operator()(F& o) const { o.Update(); }
         };
-        for (auto& o : items) {
-            std::visit(MyVisitor(), *o);
+        if constexpr(reverse) {
+            for (int i = (int)items.size() - 1; i >= 0; --i) {
+                std::visit(MyVisitor(), *items[i]);
+            }
+        }
+        else {
+            for (auto &o : items)
+                std::visit(MyVisitor(), *o);
         }
     }
     ptrdiff_t Sum() {
@@ -56,13 +73,20 @@ struct G {
 };
 struct H {
     std::vector<std::variant<E, F>> items;
+    template<bool reverse = false>
     void Update() {
         struct MyVisitor {
             void operator()(E& o) const { o.Update(); }
             void operator()(F& o) const { o.Update(); }
         };
-        for (auto& o : items) {
-            std::visit(MyVisitor(), o);
+        if constexpr(reverse) {
+            for (int i = (int)items.size() - 1; i >= 0; --i) {
+                std::visit(MyVisitor(), items[i]);
+            }
+        }
+        else {
+            for (auto &o : items)
+                std::visit(MyVisitor(), o);
         }
     }
     ptrdiff_t Sum() {
@@ -98,11 +122,23 @@ struct K : I {
 };
 struct L {
     std::vector<std::shared_ptr<I>> items;
+    template<bool reverse = false>
     void Update() {
-        for (auto& o : items) {
-            switch (o->typeId) {
-            case J::typeId: ((J*)&*o)->Update(); break;
-            case K::typeId: ((K*)&*o)->Update(); break;
+        if constexpr(reverse) {
+            for (int i = (int)items.size() - 1; i >= 0; --i) {
+                auto& o = items[i];
+                switch (o->typeId) {
+                    case J::typeId: ((J*)&*o)->Update(); break;
+                    case K::typeId: ((K*)&*o)->Update(); break;
+                }
+            }
+        }
+        else {
+            for (auto& o : items) {
+                switch (o->typeId) {
+                    case J::typeId: ((J*)&*o)->Update(); break;
+                    case K::typeId: ((K*)&*o)->Update(); break;
+                }
             }
         }
     }
@@ -121,11 +157,23 @@ using MS = typename std::aligned_storage<sizeof(M), 8>::type;
 
 struct N {
     std::vector<MS> items;
+    template<bool reverse = false>
     void Update() {
-        for (auto& o : items) {
-            switch ((*(M*)&o).i.typeId) {
-                case J::typeId: (*(M*)&o).j.Update(); break;
-                case K::typeId: (*(M*)&o).k.Update(); break;
+        if constexpr(reverse) {
+            for (int i = (int)items.size() - 1; i >= 0; --i) {
+                auto& o = items[i];
+                switch ((*(M*)&o).i.typeId) {
+                    case J::typeId: (*(M*)&o).j.Update(); break;
+                    case K::typeId: (*(M*)&o).k.Update(); break;
+                }
+            }
+        }
+        else {
+            for (auto& o : items) {
+                switch ((*(M*)&o).i.typeId) {
+                    case J::typeId: (*(M*)&o).j.Update(); break;
+                    case K::typeId: (*(M*)&o).k.Update(); break;
+                }
             }
         }
     }
@@ -141,11 +189,11 @@ struct N {
 
 
 
-template<typename T>
+template<bool reverse = false, typename T>
 void test(T& c, std::string_view prefix) {
     auto secs = xx::NowEpochSeconds();
     for (int i = 0; i < 10000; ++i) {
-        c.Update();
+        c.template Update<reverse>();
     }
     xx::CoutN(prefix, xx::NowEpochSeconds() - secs);
 
@@ -161,6 +209,7 @@ void test1() {
         c.items.emplace_back(std::make_shared<B>());
     }
     test(c, "test1");
+    test<true>(c, "test1 reverse");
 }
 
 void test2() {
@@ -170,6 +219,7 @@ void test2() {
         c.items.emplace_back(std::make_shared<std::variant<E, F>>(F{}));
     }
     test(c, "test2");
+    test<true>(c, "test2 reverse");
 }
 
 void test3() {
@@ -179,6 +229,7 @@ void test3() {
         c.items.emplace_back(F{});
     }
     test(c, "test3");
+    test<true>(c, "test3 reverse");
 }
 void test4() {
     L c;
@@ -187,6 +238,7 @@ void test4() {
         c.items.emplace_back(std::make_shared<K>());
     }
     test(c, "test4");
+    test<true>(c, "test4 reverse");
 }
 void test5() {
     N c;
@@ -195,6 +247,7 @@ void test5() {
         new (&c.items.emplace_back()) K();
     }
     test(c, "test5");
+    test<true>(c, "test5 reverse");
 }
 
 int main() {
