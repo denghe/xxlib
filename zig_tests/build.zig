@@ -16,6 +16,9 @@ pub fn build(b: *std.build.Builder) void {
     exe.setBuildMode(mode);
     exe.single_threaded = true;
     //exe.strip = true; // remove debug info
+    //exe.is_linking_libc = true;
+    exe.linkSystemLibrary("c");
+    exe.addIncludeDir("src");
 
     std.debug.print("build mode = {}\n", .{ mode });
     std.debug.print("single_threaded = {}\n", .{ exe.single_threaded });
