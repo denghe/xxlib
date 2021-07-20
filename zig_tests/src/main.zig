@@ -5,18 +5,55 @@ const print = std.debug.print;
 const assert = std.debug.assert;
 const Allo = std.mem.Allocator;
 
+pub fn main() void {
+    print("{}", .{ maxSize(.{ A, B }) });
+    var t:[maxSize(.{ A, B })] u8 align(8) = undefined;
+}
+
+// 利用 extern 布局 struct 指针硬转 模拟下继承
+
+const A = extern struct {
+    typeId:u32,
+    pub fn a(this:*@This()) void {
+        print("A\n", .{});
+    }
+};
+
+const B = extern struct {
+    base:A,
+    pub fn a(this:*@This()) void {
+        this.base.a();
+    }
+    pub fn b(this:*@This()) void {
+        print("B\n", .{});
+    }
+};
+
+pub fn maxSize(comptime args:anytype) usize {
+    comptime {
+        var r:usize = 0;
+        for (args) |a| {
+            if (r < @sizeOf(a)) {
+                r = @sizeOf(a);
+            }
+        }
+        return r;
+    }
+}
+
+
 // zig build-exe .\src\main.zig -O ReleaseSmall --single-threaded --strip --library c -I src
 // zig build-exe .\src\main.zig -O ReleaseSmall --single-threaded --strip --library c -I src -target x86_64-linux -dynamic
 
-const C = @cImport({
-    @cInclude("a.h");
-});
+// const C = @cImport({
+//     @cInclude("a.h");
+// });
 
-pub fn main() void {
-    _=C.printf("hi %s %g\n", "asdf", @as(f32, 1.23));
-    var ptr = C.malloc(1024);
-    print("{s}\n", .{ @typeName(@TypeOf(ptr)) });
-}
+// pub fn main() void {
+//     _=C.printf("hi %s %g\n", "asdf", @as(f32, 1.23));
+//     var ptr = C.malloc(1024);
+//     print("{s}\n", .{ @typeName(@TypeOf(ptr)) });
+// }
 
 // pub fn main() void {
 //     var a = CreateAB(true){};
