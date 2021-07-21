@@ -6,154 +6,75 @@ const assert = std.debug.assert;
 const Allo = std.mem.Allocator;
 
 pub fn main() void {
-    print("{}", .{ maxSize(.{ A, B }) });
-    var t:[maxSize(.{ A, B })] u8 align(8) = undefined;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
+    defer _ = gpa.deinit();
+    //gpa.setRequestedMemoryLimit(512);
+    const allo = &gpa.allocator;
+    
+    var a = AB.create(A, allo);
+    defer a.release(allo);
+    a.asA().func();
+    var b = AB.create(B, allo);
+    defer b.release(allo);
+    b.asA().func();
+    b.asB().func();
 }
 
 // 利用 extern 布局 struct 指针硬转 模拟下继承
 
 const A = extern struct {
-    typeId:u32,
-    pub fn a(this:*@This()) void {
-        print("A\n", .{});
+    const _typeId:u32 = 1;
+    __typeId:u32,
+    pub fn init(this:*@This()) void {
+        this.__typeId = A._typeId;
+        print("A.init()\n", .{});
+    }
+    pub fn deinit(this:*@This()) void {
+        print("A.deinit()\n", .{});
+    }
+    pub fn func(this:*@This()) void {
+        print("A.func()\n", .{});
     }
 };
-
 const B = extern struct {
+    const _typeId:u32 = 2;
     base:A,
-    pub fn a(this:*@This()) void {
-        this.base.a();
+    pub fn init(this:*@This()) void {
+        this.base.__typeId = B._typeId;
+        print("B.init()\n", .{});
     }
-    pub fn b(this:*@This()) void {
-        print("B\n", .{});
+    pub fn deinit(this:*@This()) void {
+        print("B.deinit()\n", .{});
+    }
+    pub fn func(this:*@This()) void {
+        print("B.func()\n", .{});
     }
 };
-
-pub fn maxSize(comptime args:anytype) usize {
-    comptime {
-        var r:usize = 0;
-        for (args) |a| {
-            if (r < @sizeOf(a)) {
-                r = @sizeOf(a);
-            }
-        }
-        return r;
+const AB = extern struct {
+    p:usize,
+    pub fn create(comptime t:type, allo:*Allo) AB {
+        assert( t == A or t == B );
+        return AB{
+            .p = @ptrToInt(RAII(t).new(allo))
+        };
     }
-}
-
-
-// zig build-exe .\src\main.zig -O ReleaseSmall --single-threaded --strip --library c -I src
-// zig build-exe .\src\main.zig -O ReleaseSmall --single-threaded --strip --library c -I src -target x86_64-linux -dynamic
-
-// const C = @cImport({
-//     @cInclude("a.h");
-// });
-
-// pub fn main() void {
-//     _=C.printf("hi %s %g\n", "asdf", @as(f32, 1.23));
-//     var ptr = C.malloc(1024);
-//     print("{s}\n", .{ @typeName(@TypeOf(ptr)) });
-// }
-
-// pub fn main() void {
-//     var a = CreateAB(true){};
-//     var b = CreateAB(false){};
-//     PrintAB(a);
-//     PrintAB(b);
-// }
-
-// const A = struct {
-//     a:i32 = 1,
-// };
-
-// const B = struct {
-//     b:i32 = 2,
-// };
-
-// pub fn CreateAB(comptime b:bool) type {
-//     return if (b) A else B;
-// }
-
-// pub fn PrintAB(v:anytype) void {
-//     const T = @TypeOf(v);
-//     Dump(T);
-//     if (@hasField(T, "a")) {
-//         print("{}\n", .{ v.a });
-//     }
-//     if (@hasField(T, "b")) {
-//         print("{}\n", .{ v.b });
-//     }
-// }
-
-// pub fn Dump(comptime T:type) void {
-//     const fs = std.meta.fields(T);
-//     inline for(fs) |f| {
-//         print("{}\n", .{ f });
-//     }
-//     const ds = std.meta.declarations(T);
-//     inline for(ds) |d| {
-//         print("{}\n", .{ d });
-//     }
-// }
-
-
-
-
-
-
-// const Foo = struct {
-//     const This = @This();
-//     a:i32 = undefined,
-//     b:i32 = undefined,
-//     c:*Bar = undefined,
-//     pub fn inita( this:*This, allo:*Allo ) void {
-//         this.a = 0;
-//         this.b = 1;
-//         this.c = RAII(@TypeOf(this.c.*)).new(allo);
-//     }
-//     pub fn deinita( this:*This, allo:*Allo ) void {
-//         RAII(@TypeOf(this.c.*)).delete(allo, this.c);
-//     }
-// };
-// const Bar = struct {
-//     const This = @This();
-//     a:i32 = undefined,
-//     b:i32 = undefined,
-//     pub fn init( this:*This ) void {
-//         this.a = 2;
-//         this.b = 3;
-//     }
-// };
-
-// pub fn main() void {
-//     // var buffer:[1024*1024*4]u8 = undefined;
-//     // var fba = std.heap.FixedBufferAllocator.init(&buffer);
-//     // defer print("fba.end_index = {}\n", .{ fba.end_index });
-//     // const a = &fba.allocator;
-
-//     var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
-//     defer _ = gpa.deinit();
-//     //gpa.setRequestedMemoryLimit(512);
-//     const a = &gpa.allocator;
-
-//     var foo = RAII(Foo).new(a);
-//     defer RAII(Foo).delete(a, foo);
-//     print("{}\n", .{ foo });
-    
-//     //print("fba.end_index = {}\n", .{ fba.end_index });
-//     pressEnterContinue();
-// }
-
-// pub fn pressEnterContinue() void {
-//     print("press Enter to continue...", .{});
-//     var buf:[1]u8 = undefined;
-//     _ = std.io.getStdIn().read(&buf) catch unreachable;
-// }
-
-// struct 接口规范:
-// pub fn init( this:*T ) void
-// pub fn inita( this:*T, allo:Allo ) void
-// pub fn deinit( this:*T ) void
+    pub fn release(this:@This(), allo:*Allo) void {
+        var base = @intToPtr(*A, this.p);
+        switch (base.__typeId) {
+            A._typeId => { RAII(A).delete(allo, base); },
+            B._typeId => { RAII(B).delete(allo, asB(this)); },
+            else => unreachable
+        }
+    }
+    pub fn asA(this:@This()) *A {
+        assert( @intToPtr(*A, this.p).__typeId == A._typeId or @intToPtr(*A, this.p).__typeId == B._typeId );
+        return @intToPtr(*A, this.p);
+    }
+    pub fn asB(this:@This()) *B {
+        assert( @intToPtr(*A, this.p).__typeId == B._typeId );
+        return @intToPtr(*B, this.p);
+    }
+};
 
 // for pub usingnamespace
 pub fn TypeInfo(comptime T:type) type {
@@ -932,3 +853,137 @@ pub const String = struct {
     // var ss = List(Shared(i32)).inita(a);
     // defer ss.deinit();
     // ss.push(s.clone());
+
+
+
+
+
+
+
+
+    
+// pub fn maxSize(comptime args:anytype) usize {
+//     comptime {
+//         var r:usize = 0;
+//         for (args) |a| {
+//             if (r < @sizeOf(a)) {
+//                 r = @sizeOf(a);
+//             }
+//         }
+//         return r;
+//     }
+// }
+
+
+// zig build-exe .\src\main.zig -O ReleaseSmall --single-threaded --strip --library c -I src
+// zig build-exe .\src\main.zig -O ReleaseSmall --single-threaded --strip --library c -I src -target x86_64-linux -dynamic
+
+// const C = @cImport({
+//     @cInclude("a.h");
+// });
+
+// pub fn main() void {
+//     _=C.printf("hi %s %g\n", "asdf", @as(f32, 1.23));
+//     var ptr = C.malloc(1024);
+//     print("{s}\n", .{ @typeName(@TypeOf(ptr)) });
+// }
+
+// pub fn main() void {
+//     var a = CreateAB(true){};
+//     var b = CreateAB(false){};
+//     PrintAB(a);
+//     PrintAB(b);
+// }
+
+// const A = struct {
+//     a:i32 = 1,
+// };
+
+// const B = struct {
+//     b:i32 = 2,
+// };
+
+// pub fn CreateAB(comptime b:bool) type {
+//     return if (b) A else B;
+// }
+
+// pub fn PrintAB(v:anytype) void {
+//     const T = @TypeOf(v);
+//     Dump(T);
+//     if (@hasField(T, "a")) {
+//         print("{}\n", .{ v.a });
+//     }
+//     if (@hasField(T, "b")) {
+//         print("{}\n", .{ v.b });
+//     }
+// }
+
+// pub fn Dump(comptime T:type) void {
+//     const fs = std.meta.fields(T);
+//     inline for(fs) |f| {
+//         print("{}\n", .{ f });
+//     }
+//     const ds = std.meta.declarations(T);
+//     inline for(ds) |d| {
+//         print("{}\n", .{ d });
+//     }
+// }
+
+
+
+
+
+
+// const Foo = struct {
+//     const This = @This();
+//     a:i32 = undefined,
+//     b:i32 = undefined,
+//     c:*Bar = undefined,
+//     pub fn inita( this:*This, allo:*Allo ) void {
+//         this.a = 0;
+//         this.b = 1;
+//         this.c = RAII(@TypeOf(this.c.*)).new(allo);
+//     }
+//     pub fn deinita( this:*This, allo:*Allo ) void {
+//         RAII(@TypeOf(this.c.*)).delete(allo, this.c);
+//     }
+// };
+// const Bar = struct {
+//     const This = @This();
+//     a:i32 = undefined,
+//     b:i32 = undefined,
+//     pub fn init( this:*This ) void {
+//         this.a = 2;
+//         this.b = 3;
+//     }
+// };
+
+// pub fn main() void {
+//     // var buffer:[1024*1024*4]u8 = undefined;
+//     // var fba = std.heap.FixedBufferAllocator.init(&buffer);
+//     // defer print("fba.end_index = {}\n", .{ fba.end_index });
+//     // const a = &fba.allocator;
+
+//     var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
+//     defer _ = gpa.deinit();
+//     //gpa.setRequestedMemoryLimit(512);
+//     const a = &gpa.allocator;
+
+//     var foo = RAII(Foo).new(a);
+//     defer RAII(Foo).delete(a, foo);
+//     print("{}\n", .{ foo });
+    
+//     //print("fba.end_index = {}\n", .{ fba.end_index });
+//     pressEnterContinue();
+// }
+
+// pub fn pressEnterContinue() void {
+//     print("press Enter to continue...", .{});
+//     var buf:[1]u8 = undefined;
+//     _ = std.io.getStdIn().read(&buf) catch unreachable;
+// }
+
+// struct 接口规范:
+// pub fn init( this:*T ) void
+// pub fn inita( this:*T, allo:Allo ) void
+// pub fn deinit( this:*T ) void
