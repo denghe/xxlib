@@ -13,41 +13,49 @@ pub fn main() void {
     
     var a = AB.create(A, allo);
     defer a.release(allo);
-    a.asA().func();
+    a.as(A).func();
     var b = AB.create(B, allo);
     defer b.release(allo);
-    b.asA().func();
-    b.asB().func();
+    b.as(A).func();
+    b.as(B).func();
 }
 
 // 利用 extern 布局 struct 指针硬转 模拟下继承
 
 const A = extern struct {
+    const This = @This();
     const _typeId:u32 = 1;
     __typeId:u32,
-    pub fn init(this:*@This()) void {
-        this.__typeId = A._typeId;
-        print("A.init()\n", .{});
+    pub fn asCheck(typeId_:usize) bool {
+        return typeId_ == This._typeId or typeId_ == B._typeId; // or ...
     }
-    pub fn deinit(this:*@This()) void {
-        print("A.deinit()\n", .{});
+    pub fn init(this:*This) void {
+        this.__typeId = This._typeId;
+        print("{s}()\n", .{ @src().fn_name });
     }
-    pub fn func(this:*@This()) void {
-        print("A.func()\n", .{});
+    pub fn deinit(this:*This) void {
+        print("{s}()\n", .{ @src().fn_name });
+    }
+    pub fn func(this:*This) void {
+        print("{s}()\n", .{ @src().fn_name });
     }
 };
 const B = extern struct {
+    const This = @This();
     const _typeId:u32 = 2;
     base:A,
-    pub fn init(this:*@This()) void {
-        this.base.__typeId = B._typeId;
-        print("B.init()\n", .{});
+    pub fn asCheck(typeId_:usize) bool {
+        return typeId_ == This._typeId;
     }
-    pub fn deinit(this:*@This()) void {
-        print("B.deinit()\n", .{});
+    pub fn init(this:*This) void {
+        this.base.__typeId = This._typeId;
+        print("{s}()\n", .{ @src().fn_name });
     }
-    pub fn func(this:*@This()) void {
-        print("B.func()\n", .{});
+    pub fn deinit(this:*This) void {
+        print("{s}()\n", .{ @src().fn_name });
+    }
+    pub fn func(this:*This) void {
+        print("{s}()\n", .{ @src().fn_name });
     }
 };
 const AB = extern struct {
@@ -58,21 +66,23 @@ const AB = extern struct {
             .p = @ptrToInt(RAII(t).new(allo))
         };
     }
-    pub fn release(this:@This(), allo:*Allo) void {
+    pub fn release(this:*@This(), allo:*Allo) void {
         var base = @intToPtr(*A, this.p);
         switch (base.__typeId) {
             A._typeId => { RAII(A).delete(allo, base); },
-            B._typeId => { RAII(B).delete(allo, asB(this)); },
+            B._typeId => { RAII(B).delete(allo, this.as(B)); },
             else => unreachable
         }
+        this.p = 0;
     }
-    pub fn asA(this:@This()) *A {
-        assert( @intToPtr(*A, this.p).__typeId == A._typeId or @intToPtr(*A, this.p).__typeId == B._typeId );
-        return @intToPtr(*A, this.p);
+    pub fn is(this:@This(), comptime t:type) bool {
+        assert( this.p != 0 );
+        return @intToPtr(*A, this.p).__typeId == t._typeId;
     }
-    pub fn asB(this:@This()) *B {
-        assert( @intToPtr(*A, this.p).__typeId == B._typeId );
-        return @intToPtr(*B, this.p);
+    pub fn as(this:@This(), comptime t:type) *t {
+        assert( this.p != 0 );
+        assert( t.asCheck( @intToPtr(*A, this.p).__typeId ) );
+        return @intToPtr(*t, this.p);
     }
 };
 
