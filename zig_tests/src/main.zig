@@ -6,85 +6,148 @@ const assert = std.debug.assert;
 const Allo = std.mem.Allocator;
 
 pub fn main() void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
-    defer _ = gpa.deinit();
-    //gpa.setRequestedMemoryLimit(512);
-    const allo = &gpa.allocator;
-    
-    var a = AB.create(A, allo);
-    defer a.release(allo);
-    a.as(A).func();
-    var b = AB.create(B, allo);
-    defer b.release(allo);
-    b.as(A).func();
-    b.as(B).func();
+    var a = AB{ .a = A{} };
+    var b = AB{ .b = B{ .base = A{} } };
+    a.update();
+    b.update();
+    // a.as(A).update();
+    // b.as(A).update();
 }
 
-// 利用 extern 布局 struct 指针硬转 模拟下继承
-
-const A = extern struct {
-    const This = @This();
-    const _typeId:u32 = 1;
-    __typeId:u32,
-    pub fn asCheck(typeId_:usize) bool {
-        return typeId_ == This._typeId or typeId_ == B._typeId; // or ...
-    }
-    pub fn init(this:*This) void {
-        this.__typeId = This._typeId;
-        print("{s}()\n", .{ @src().fn_name });
-    }
-    pub fn deinit(this:*This) void {
-        print("{s}()\n", .{ @src().fn_name });
-    }
-    pub fn func(this:*This) void {
+const A = struct {
+    pub fn update(this:*@This()) void {
         print("{s}()\n", .{ @src().fn_name });
     }
 };
-const B = extern struct {
-    const This = @This();
-    const _typeId:u32 = 2;
+const B = struct {
     base:A,
-    pub fn asCheck(typeId_:usize) bool {
-        return typeId_ == This._typeId;
-    }
-    pub fn init(this:*This) void {
-        this.base.__typeId = This._typeId;
-        print("{s}()\n", .{ @src().fn_name });
-    }
-    pub fn deinit(this:*This) void {
-        print("{s}()\n", .{ @src().fn_name });
-    }
-    pub fn func(this:*This) void {
+    pub fn update(this:*@This()) void {
+        this.base.update();
         print("{s}()\n", .{ @src().fn_name });
     }
 };
-const AB = extern struct {
-    p:usize,
-    pub fn create(comptime t:type, allo:*Allo) AB {
-        assert( t == A or t == B );
-        return AB{
-            .p = @ptrToInt(RAII(t).new(allo))
-        };
-    }
-    pub fn release(this:*@This(), allo:*Allo) void {
-        var base = @intToPtr(*A, this.p);
-        switch (base.__typeId) {
-            A._typeId => { RAII(A).delete(allo, base); },
-            B._typeId => { RAII(B).delete(allo, this.as(B)); },
-            else => unreachable
+const AB = union(enum) {
+    a:A,
+    b:B,
+    pub fn as(this:*@This(), comptime t:type) *t {
+        if (t == A) {
+            return switch(this.*) {
+                AB.a=>|*o| o,
+                AB.b=>|*o| &o.base,
+            };
         }
-        this.p = 0;
+        else if (t == B) {
+            return switch(this.*) {
+                AB.a=>|*o| unreachable,
+                AB.b=>|*o| &o.base,
+            };
+        }
+        else unreachable;
     }
-    pub fn is(this:@This(), comptime t:type) bool {
-        assert( this.p != 0 );
-        return @intToPtr(*A, this.p).__typeId == t._typeId;
-    }
-    pub fn as(this:@This(), comptime t:type) *t {
-        assert( this.p != 0 );
-        assert( t.asCheck( @intToPtr(*A, this.p).__typeId ) );
-        return @intToPtr(*t, this.p);
+    pub fn update(this:*@This()) void {
+        switch(this.*) {
+            AB.a=>|*o|o.update(),
+            AB.b=>|*o|o.update(),
+        }
     }
 };
+
+
+
+
+
+
+// pub fn main() void {
+//     var gpa = std.heap.GeneralPurposeAllocator(.{}){}; // .{ .enable_memory_limit = true }){};
+//     defer _ = gpa.deinit();
+//     //gpa.setRequestedMemoryLimit(512);
+//     const allo = &gpa.allocator;
+    
+//     var a = AB.create(A, allo);
+//     defer a.release(allo);
+//     a.as(A).func();
+//     var b = AB.create(B, allo);
+//     defer b.release(allo);
+//     b.as(A).func();
+//     b.as(B).func();
+// }
+
+// // 利用 extern 布局 struct 指针硬转 模拟下继承. extern 成员不能是函数指针。这样就不好模拟虚函数
+
+// const A = extern struct {
+//     const This = @This();
+//     const _typeId:u32 = 1;
+//     __typeId:u32,
+//     pub fn asCheck(typeId_:usize) bool {
+//         return typeId_ == This._typeId or B.asCheck(typeId_);   // ...
+//     }
+//     pub fn init(this:*This) void {
+//         this.__typeId = This._typeId;
+//         print("{s}()\n", .{ @src().fn_name });
+//     }
+//     pub fn deinit(this:*This) void {
+//         print("{s}()\n", .{ @src().fn_name });
+//     }
+//     pub fn func(this:*This) void {
+//         print("{s}()\n", .{ @src().fn_name });
+//     }
+// };
+// const B = extern struct {
+//     const This = @This();
+//     const _typeId:u32 = 2;
+//     base:A,
+//     pub fn asCheck(typeId_:usize) bool {
+//         return typeId_ == This._typeId; // ...
+//     }
+//     pub fn init(this:*This) void {
+//         this.base.__typeId = This._typeId;
+//         print("{s}()\n", .{ @src().fn_name });
+//     }
+//     pub fn deinit(this:*This) void {
+//         print("{s}()\n", .{ @src().fn_name });
+//     }
+//     pub fn func(this:*This) void {
+//         print("{s}()\n", .{ @src().fn_name });
+//     }
+// };
+// const AB = struct {
+//     const This = @This();
+//     p:usize,
+//     //func:fn(this:*This)void,
+//     pub fn create(comptime t:type, allo:*Allo) AB {
+//         assert( t == A or t == B );
+//         return AB{
+//             .p = @ptrToInt(RAII(t).new(allo))
+//         };
+//     }
+//     pub fn release(this:*This, allo:*Allo) void {
+//         var base = @intToPtr(*A, this.p);
+//         switch (base.__typeId) {
+//             A._typeId => { RAII(A).delete(allo, base); },
+//             B._typeId => { RAII(B).delete(allo, this.as(B)); },
+//             else => unreachable
+//         }
+//         this.p = 0;
+//     }
+//     pub fn is(this:This, comptime t:type) bool {
+//         assert( this.p != 0 );
+//         return @intToPtr(*A, this.p).__typeId == t._typeId;
+//     }
+//     pub fn as(this:This, comptime t:type) *t {
+//         assert( this.p != 0 );
+//         assert( t.asCheck( @intToPtr(*A, this.p).__typeId ) );
+//         return @intToPtr(*t, this.p);
+//     }
+// };
+
+
+
+
+
+
+
+
+
 
 // for pub usingnamespace
 pub fn TypeInfo(comptime T:type) type {
