@@ -13,3 +13,8 @@ include_directories(
 add_executable(xx_queue_test1
         main.cpp
         )
+
+if(UNIX)
+	find_package(mimalloc 1.7 REQUIRED)
+	target_link_libraries(xx_queue_test1 PUBLIC mimalloc-static)
+endif()
