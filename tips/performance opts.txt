@@ -1,0 +1,13 @@
+一些性能优化心得:
+
+mimalloc 对于 msvc 帮助似乎很大, 很多测试项目可以反超 linux 虚拟机, 特别是 std::shared_ptr 非常受益. 否则将比 xx::Shared 慢不少
+增益可能来自于内存分配的物理连续性, 导致 cpu cache 命中提升
+
+linux gcc 下, xx::Shared 比 std::shared_ptr 调用损耗减少 30%
+
+std::unique_ptr 比 std::shared_ptr 调用损耗减少 30%, linux gcc 下和 xx::Shared 差不多
+
+针对一些虚函数 需要减少调用开支的应用场景，可在 类 内置 typeId 并于构造时填充，然后使用 switch case 来替代虚函数的使用。
+2 ~ 10 个 switch 的情况下，调用性能估计提升 2x ~ 1x%. 该方案可与虚函数并存
+
+
