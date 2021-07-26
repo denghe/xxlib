@@ -1,0 +1,7 @@
+https://ubuntuhandbook.org/index.php/2021/06/linux-kernel-5-13-released/
+
+https://ubuntuhandbook.org/index.php/2020/08/mainline-install-latest-kernel-ubuntu-linux-mint/
+
+https://code.launchpad.net/~cappelikan/+archive/ubuntu/ppa
+
+https://www.tipsonunix.com/2021/06/how-to-install-linux-kernel-5-13-in-ubuntu-linux-mint/
