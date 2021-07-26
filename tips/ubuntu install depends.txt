@@ -1,0 +1,23 @@
+recommend: ubuntu 21.04 desktop with vmware latest version, easy install, minimal
+
+
+update kernel by PPA to latest
+
+
+sudo snap install cmake --classic
+sudo apt install gcc-11 g++-11
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
+
+
+https://github.com/microsoft/mimalloc
+
+download latest release zip, extract
+
+mkdir -p out/release
+cd out/release
+cmake ../..
+make
+make install
+
+
+download clion from offical website & install
