@@ -1,0 +1,28 @@
+godot 使用 cpp 开发插件的一些心得
+
+步骤:
+
+0. vs2019 新版 c++ 功能 ready
+
+1. 安装 python 3.0 新版并勾选 path
+
+2. 用 pip 安装 scon
+
+3. git 拉下面两个项目，并同步 submodule( 两个目录要同级放在一起 )
+https://github.com/godotengine/godot-cpp.git
+https://github.com/godotengine/gdnative-demos.git
+
+4. 进到 godot-cpp 目录，修改 SConstruct：替换所有 /MD 为 /MT
+
+5. 下列命令行编译两个版本( -j16 表示 16 线编译, 根据自己 cpu 改 ). 之后会发现 多出 bin 目录 里面有两个文件 libgodot-cpp.windows.???????.64.lib
+scons platform=windows target=debug bits=64 -j16
+scons platform=windows target=release bits=64 -j16
+
+6. 进到 gdnative-demos/cpp/pong 目录,  "全字匹配" 查找所有 godot-cpp, 替换为  ../../../godot-cpp  ( 有一处 libgodot-cpp  别误伤 ), 替换所有 /MD 为 /MT
+
+7. 编译同步骤5, 会多出 build 目录，里面有 libpong.dll 及其 pdb ( 这是官方教程做法 )
+
+要舒服还得在 pong 里就地创建 vs2019 c++ 项目，并配置 debug 联调
+
+待续.....
+
