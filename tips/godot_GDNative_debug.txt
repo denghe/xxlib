@@ -1,5 +1,6 @@
 godot 使用 cpp 开发插件的一些心得
 
+以官方 native demo 中的 pong 为例
 步骤:
 
 0. vs2019 新版 c++ 功能 ready
@@ -15,14 +16,48 @@ https://github.com/godotengine/gdnative-demos.git
 4. 进到 godot-cpp 目录，修改 SConstruct：替换所有 /MD 为 /MT
 
 5. 下列命令行编译两个版本( -j16 表示 16 线编译, 根据自己 cpu 改 ). 之后会发现 多出 bin 目录 里面有两个文件 libgodot-cpp.windows.???????.64.lib
-scons platform=windows target=debug bits=64 -j16
-scons platform=windows target=release bits=64 -j16
+scons platform=windows generate_bindings=yes target=debug bits=64 -j16
+scons platform=windows generate_bindings=yes target=release bits=64 -j16
 
 6. 进到 gdnative-demos/cpp/pong 目录,  "全字匹配" 查找所有 godot-cpp, 替换为  ../../../godot-cpp  ( 有一处 libgodot-cpp  别误伤 ), 替换所有 /MD 为 /MT
 
-7. 编译同步骤5, 会多出 build 目录，里面有 libpong.dll 及其 pdb ( 这是官方教程做法 )
+7. 编译类似步骤5 ( 这是官方教程做法 )
+scons platform=windows target=debug bits=64 -j16
+scons platform=windows target=release bits=64 -j16
 
-要舒服还得在 pong 里就地创建 vs2019 c++ 项目，并配置 debug 联调
+此时, 会多出 build 目录，里面有 libpong.dll 等文件
+以及 pong/project/gdnative/windows 下，也会有类似文件
 
-待续.....
+至此，用 godot.exe 导入项目就可以 run 了。
 
+
+进一步的，如果需要断点调试，以及进一步设置各种优化选项，C++特性啥的，在 pong 里就地创建 vs2019 c++ 项目更加方便
+步骤：
+
+1. 在 pong 下建立 vs c++ 空项目( .sln  .proj 可以都在里面 ), 项目名为 libpong
+2. 修改下列 vs 项目属性
+
+( Configuration: All,  Platform: All )
+
+General -- Output Directory                           : $(SolutionDir)..\build
+General -- Configuration Type                         : Dynamic Library (.dll)
+Debugging -- Command                                  : $(SolutionDir)..\build\pong.exe
+Debugging -- Working Directory                        : $(SolutionDir)..\build
+VC++ Directories -- Include Directories               : $(ProjectDir)..\src;$(ProjectDir)..\..\..\..\godot-cpp\include;$(ProjectDir)..\..\..\..\godot-cpp\include\core;$(ProjectDir)..\..\..\..\godot-cpp\include\gen;$(ProjectDir)..\..\..\..\godot-cpp\godot-headers;$(IncludePath)
+VC++ Directories -- Library Directories               : $(ProjectDir)..\..\..\..\godot-cpp\bin;$(LibraryPath)
+C/C++ -- Generial -- Debug Information Format         : Program Database (/Zi)
+C/C++ -- Generial -- Multi-processor Compilation      : Yes (/MP)
+
+( Configuration: Debug )
+
+C/C++ -- Code Generation -- Runtime Library           : Multi-threaded Debug (/MTd)
+Linker -- Input -- Additional Dependencies            : libgodot-cpp.windows.debug.64.lib;%(AdditionalDependencies)
+
+( Configuration: Release )
+
+C/C++ -- Code Generation -- Runtime Library           : Multi-threaded (/MT)
+Linker -- Input -- Additional Dependencies            : libgodot-cpp.windows.release.64.lib;%(AdditionalDependencies)
+
+3. 从 pong/src 将 *.?pp 添加到 vs 项目
+4. 用 vs 编译. 此时，会在 pong/build 生成 libpong.dll .pdb 等文件
+5. 
