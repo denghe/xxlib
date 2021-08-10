@@ -60,4 +60,5 @@ Linker -- Input -- Additional Dependencies            : libgodot-cpp.windows.rel
 
 3. 从 pong/src 将 *.?pp 添加到 vs 项目
 4. 用 vs 编译. 此时，会在 pong/build 生成 libpong.dll .pdb 等文件
-5. 
+5. 进入 godot.exe, 导入 pong 项目，并生成 win32 发布版代码( 得到 pong.exe. 这一步对应 Debugging -- Command & Working Directory )
+6. 此时，vs 可进行调试( 达成条件：启动器 & dll & pdb 都在一起 )
