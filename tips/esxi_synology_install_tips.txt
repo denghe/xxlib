@@ -1,0 +1,94 @@
+esxi 黑裙 关键点提示
+
+硬件需求：
+cpu: 10400
+内存: 16g+
+网卡：8125b 数张（先不插，用主板自带的）
+其他：大容量 nvme 若干, 1 个 2.5' ssd 系统盘, 1 个 安装u盘
+BIOS: 需要打开 vt-d 啥的
+
+1. 安装 esxi 
+
+	首先找到集成有 8125b 驱动的 esxi 6.7 系统. 如果有能被 esxi 识别的别的网卡，则无需集成驱动
+
+	用 rufus 将 esxi 的 iso 制作到 u 盘，并用 u 盘启动进行安装，一路 next 到重启
+
+	此时可在显示 bios 之后关机，插入别的网卡
+
+	使用浏览器访问 esxi 机器显示的网址. iPad 啥的会在显示虚拟机的时候不可见，别的操作没问题
+
+	转到 管理 -- 硬件 -- PCI设备
+		勾选除了 连接到 esxi 的控制网卡 之外的别的设备，点击“切换直通” 后重启
+		如果这步搞错，那只能通过键盘选择恢复默认设置，密码将变为 空
+
+	顺便的，在 管理 -- 许可 这里，找个序列号填上
+
+2. 安装黑裙
+
+	首先找到黑裙引导盘img, 以及带 8125b, nvme, 集成显卡 驱动的 extra.lzma  extra2.lzma
+	再找到 6.2.3 版本的群晖安装包, 文件名类似 DSM_DS918+_25426.pat ( 官网有下 )
+	
+	用 DiskGenius 之类工具( 断网 )编辑 img, 替换这两个 lzma. 顺便的, 里面的 grub.cfg 的 24 行, 序列号, 找个来填上
+	
+	用 StarWindConverter 将 img 转为 vmdk for esxi 格式( 会有一大一小两个文件 )
+	
+	使用浏览器访问 esxi 机器显示的网址. 
+	
+	转到 存储 -- datastore1 -- 数据存储浏览器 -- 上载
+		依次上载 vmdk 小文件 和 大文件
+		
+	转到 虚拟机 -- 创建/注册虚拟机
+		创建新虚拟机. 名称随意, 客户机操作系统选 linux, 版本选 redhat linux 7 x64
+		进行到第四步 自定义设置:
+			cpu 展开, 每个插槽 6 核心, 勾选 硬件虚拟化
+			内存 展开, RAM 填 4096 MB, 勾选 预留所有
+			硬盘1 展开, 控制器位置 -- SATA 控制器0, SATA(0:1)
+			SCSI 控制器0 最右侧 叉掉
+			USB 控制器1 叉掉
+			网络适配器1 叉掉
+			CD/DVD 叉掉
+			
+			滚动到最顶部, 添加硬盘 -- 现有硬盘 -- 选择 datastore1 -- 上传的 vmdk
+				展开, 控制器位置 -- SATA 控制器0, SATA(0:0)
+				
+			添加其他设备 -- PCI设备( 重复这个步骤多次 )
+				VGA ...
+				Xeon ... Mixture model
+				某些配置给黑裙的 网卡
+				某些配置给黑裙的 nvme
+			
+			下一步, 完成 并启动该虚拟机. 
+			
+	稍后通过浏览器打开地址 find.synology.com 继续安装
+	
+	选择手动安装, 定位到 .pat 文件, 无脑 next 到进入系统
+	
+3. 进阶步骤
+
+	如何通过 putty & winscp 替换系统文件 ( 文章显卡部分不用理会 )
+	https://post.smzdm.com/p/aqxmx9wk/
+	
+	开启 nvme 固态硬盘做存储空间
+	https://wp.gxnas.com/10083.html
+	
+	修复 nvme 高温自动关机
+	https://tieba.baidu.com/p/6883506760
+
+	修复 moments 相册软件的人像识别功能
+	https://www.zhihu.com/question/428454266
+	
+	
+	下面步骤 for 显卡硬解, 通常没必要
+	
+	修复 升级到 update3 报错
+	https://www.qzkyl.cn/post-301.html
+	
+	升级到 6.2.3 update3
+	文件 synology_apollolake_918+.pat ( 官网有下 )
+
+	驱动显卡
+	https://wp.gxnas.com/7952.html
+
+
+
+	
