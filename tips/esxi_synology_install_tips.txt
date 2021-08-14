@@ -7,7 +7,7 @@ cpu: 10400
 其他：大容量 nvme 若干, 1 个 2.5' ssd 系统盘, 1 个 安装u盘
 BIOS: 需要打开 vt-d 啥的
 
-1. 安装 esxi 
+1. 安装 esxi
 
 	首先找到集成有 8125b 驱动的 esxi 6.7 系统. 如果有能被 esxi 识别的别的网卡，则无需集成驱动
 
@@ -56,7 +56,13 @@ esxcfg-vswitch -R
 	如果插有 单卡多口 网卡，可能会出现 直通失败显现（表现为 一直显示 已启用，需要重启）。解决办法：
 		管理 -- 系统 -- 高级设置，最右侧搜索 ACScheck ，定位到 跳过对所有 PCIE 设备的 ACS 功能检查
 		编辑选项，选择 True，保存退出，重启
-	
+		
+	最后, 如果有多的 sata 盘需要"直通", 得走 RDM 模式, 具体如下:
+		存储 -- 设备 -- 定位到目标 sata 盘, 点击入内, 复制 "路径" , 类似 /vmfs/devices/disks/t10.ATA_____M42DCT256M4SSD2__________________________0000000011490323E251 这样
+		开 SSH 连上后, 输入下列命令:
+			vmkfstools -r /vmfs/devices/disks/t10.ATA_____M42DCT256M4SSD2__________________________0000000011490323E251 /vmfs/volumes/datastore1/sas_disk_name.vmdk
+		之后, 虚拟机就可以 添加硬盘 -- 现有 -- 浏览到 datastore1/sas_disk_name.vmdk 来添加整个盘
+		提示: SCSI 控制器 0 类型可改为  VMware Paravirtual 可能性能最佳, 硬盘 控制器位置 可以是 SCSI(0:0)
 
 2. 安装黑裙
 
