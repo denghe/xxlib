@@ -22,6 +22,41 @@ BIOS: 需要打开 vt-d 啥的
 		如果这步搞错，那只能通过键盘选择恢复默认设置，密码将变为 空
 
 	顺便的，在 管理 -- 许可 这里，找个序列号填上
+	
+	如果插有 usb 网卡希望节省出板卡端口来充当管理功用, 则需要进行下列步骤:
+		去下面这个地址下载 esxi 的 usb 网卡驱动, 需选择 ESXi670 版本驱动. 下完改名为 a.zip
+		https://flings.vmware.com/usb-network-native-driver-for-esxi#instructions
+		主机 -- 操作 -- 进入维护模式
+		主机 -- 操作 -- 启用安全 Shell SSH
+		存储 -- datastore1 -- 数据存储浏览器 -- 上载 a.zip
+		用 SSH 终端连上 esxi 之后，输入下面这句
+			esxcli software vib install -d /vmfs/volumes/datastore1/a.zip
+		成功将显示相应提示。此时，可以去将之前用于管理目的的网卡给切直通，最后 重新引导
+		
+		esxi 启动后，通过物理机键盘 F2 进入网络设置修改功能
+			adapter 选择菜单里 勾选 vusb0 并回车 ESC 退出时按 Y 保存，等待 usb 网卡出 IP ( 或自己设置静态 )
+		
+		浏览器通过 usb 网卡 ip 再次连上网页控制台，确保网络畅通。
+		
+		然后编辑 /etc/rc.local.d/local.sh  在最后一行 exit 0 上方 insert 下列代码：
+		
+vusb0_status=$(esxcli network nic get -n vusb0 | grep 'Link Status' | awk '{print $NF}')
+count=0
+while [[ $count -lt 20 && "${vusb0_status}" != "Up" ]]
+do
+    sleep 10
+    count=$(( $count + 1 ))
+    vusb0_status=$(esxcli network nic get -n vusb0 | grep 'Link Status' | awk '{print $NF}')
+done
+
+esxcfg-vswitch -R
+		
+		保存退出，重启 esxi 并观察是否自动启用了 usb 网卡并能网页登录
+		
+	如果插有 单卡多口 网卡，可能会出现 直通失败显现（表现为 一直显示 已启用，需要重启）。解决办法：
+		管理 -- 系统 -- 高级设置，最右侧搜索 ACScheck ，定位到 跳过对所有 PCIE 设备的 ACS 功能检查
+		编辑选项，选择 True，保存退出，重启
+	
 
 2. 安装黑裙
 
