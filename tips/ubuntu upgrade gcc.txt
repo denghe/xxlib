@@ -1,8 +1,7 @@
 ----------------------------------------------------------------------------
 ubuntu 21+:( gcc sub version is newer )
 
-add this line to /etc/apt/sources.list:
-deb http://security.ubuntu.com/ubuntu hirsute-security main universe
+sudo add-apt-repository ppa:cappelikan/ppa
 
 ----------------------------------------------------------------------------
 any version:
