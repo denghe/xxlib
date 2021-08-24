@@ -4,6 +4,9 @@
 
 #include <string>
 
+#include "cpp-httplib/httplib.h"
+
+
 // main 一开始就创建这个对象
 struct Loader {
 	// 是否出错: 显示错误面板
@@ -143,7 +146,7 @@ struct Loader {
 #pragma region engine
 
 #include <d3d9.h>
-#include "ntcvt.hpp"
+#include "ntcvt/ntcvt.hpp"
 
 // 窗口居中
 void PlaceInCenterOfScreen(HWND window, DWORD style, BOOL menu) {

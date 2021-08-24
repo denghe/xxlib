@@ -28,13 +28,16 @@
 
 	json 长相：
 	{
-		"rootUrl":"https://xxxxxxxxxxxx/xxxxx/",
-		"exe":"games.exe"
-		"files":[{ "path":"dir1/dir2/abc.png", "len":12345, "md5":"asdblakdsfjklsdjl12937" }, ... ]
+		"baseUrl":"https://xxxxxxxxxxxx/xxxxx/",
+		"files":[
+			{ "path":"dir1/dir2/abc.png", "len":12345, "md5":"asdblakdsfjklsdjl12937" },
+			{ "path":"dir1/dir2/abc.png", "len":12345, "md5":"asdblakdsfjklsdjl12937" },
+			{ "path":"loader_xxxxxx.exe", "len":423112, "md5":"qwerqwerwqerwrkwerwekrjwelrwejkrljwkler" },
+			...
+		]
 	}
-	rootUrl: 基础下载地址( 用于拼接 )
-	exe: 游戏执行文件名
-	files: 具体文件明细列表
+	baseUrl: 基础下载地址( 用于拼接 )
+	files: 具体文件明细列表( 里面 loader_xxxxx.exe 是二级 loader )
 	path: 文件名（相对路径）。 rootUrl + path = full download url
 	len: 文件长度
 	md5: md5算法校验串

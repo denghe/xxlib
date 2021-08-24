@@ -5,6 +5,13 @@ VisualStudioVersion = 16.0.31613.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "loader", "loader\loader.vcxproj", "{B65EF708-FED9-40C9-82CE-6224A3C6C0F1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "files_idx_maker", "files_idx_maker\files_idx_maker.vcxproj", "{D49E5339-1E07-4A48-A46E-7B3541B00258}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{ECEFDA44-80D6-4978-9A34-656B08A89742}"
+	ProjectSection(SolutionItems) = preProject
+		需求分析.txt = 需求分析.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +28,14 @@ Global
 		{B65EF708-FED9-40C9-82CE-6224A3C6C0F1}.Release|x64.Build.0 = Release|x64
 		{B65EF708-FED9-40C9-82CE-6224A3C6C0F1}.Release|x86.ActiveCfg = Release|Win32
 		{B65EF708-FED9-40C9-82CE-6224A3C6C0F1}.Release|x86.Build.0 = Release|Win32
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Debug|x64.ActiveCfg = Debug|x64
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Debug|x64.Build.0 = Debug|x64
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Debug|x86.ActiveCfg = Debug|Win32
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Debug|x86.Build.0 = Debug|Win32
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Release|x64.ActiveCfg = Release|x64
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Release|x64.Build.0 = Release|x64
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Release|x86.ActiveCfg = Release|Win32
+		{D49E5339-1E07-4A48-A46E-7B3541B00258}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

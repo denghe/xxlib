@@ -49,15 +49,23 @@
     <ClInclude Include="..\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="ntcvt.hpp" />
+    <ClInclude Include="..\ntcvt\ntcvt.hpp">
+      <Filter>ntcvt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cpp-httplib\httplib.h">
+      <Filter>cpp-httplib</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="imgui">
       <UniqueIdentifier>{b7d43234-cd6b-4f3d-ac12-ed71a55fc9a3}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="需求分析.txt" />
+    <Filter Include="ntcvt">
+      <UniqueIdentifier>{9dc1c9dc-d04d-4bac-b37d-19dcacb4948d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cpp-httplib">
+      <UniqueIdentifier>{ae8221de-3579-4d69-a030-cb63c1de7270}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\imgui\imgui.natvis">
