@@ -13,6 +13,8 @@ namespace FS = std::filesystem;
 
 // todo: 自更新逻辑
 
+// todo: 如果直接关闭窗口，似乎会报错，得处理这个关闭事件，让代码正常流程自杀
+
 void ExecuteFile(LPCTSTR lpApplicationName) {
 	// additional information
 	STARTUPINFO si;
@@ -230,6 +232,9 @@ struct Loader {
 			// 初始化下载器
 			dl.SetBaseUrl(fs.baseUrl);
 
+			// 初始化下载起始时间点 for calc download speed
+			beginSeconds = xx::NowEpochSeconds();
+
 			return 1;
 		}
 
@@ -237,6 +242,9 @@ struct Loader {
 		//hasError = true;
 		//errText = "alksdjfljasdlfkjslkf lasj fdlkadsj flkj sdflk jaskdf\n jkl jflkas jdflkja slkfj sakdlf jlksd fjlkds jfa\n";
 		//return 1;
+
+		// 将当前工作目录切到 exe 之所在
+		FS::current_path(FS::path(exeFilePath).parent_path());
 
 		// 执行 exe
 		ExecuteFile(exeFilePath.c_str());
@@ -269,7 +277,7 @@ struct Loader {
 			ImGui::Text(errText.c_str());
 
 			// 上下 留空 的横杠
-			ImGui::Dummy({ 1.0f, 5.0f });
+			ImGui::Dummy({ 0.0f, 5.0f });
 			ImGui::Separator();
 			ImGui::Dummy({ 0.0f, 5.0f });
 
@@ -289,12 +297,14 @@ struct Loader {
 		return rtv;
 	}
 
-
 	// 所有文件已下载字节数( 不包含当前正在下载的. 下载完成才累加 )
 	size_t totalLen = 0;
 
 	// 所有文件总字节数
 	size_t totalCap = 0;
+
+	// totalLenEx = totalLen + currLen
+	size_t totalLenEx = 0;
 
 	// 当前文件下载进度 = len / total
 	float progress = 0.f;
@@ -305,11 +315,20 @@ struct Loader {
 	// 当前正在下载的 File 下标，对应 fs.files[]
 	int currFileIndex = -1;
 
+	// 下载速度计算相关
+	double beginSeconds = 0;
+
+	// 每秒下载字节速度
+	size_t bytesPerSeconds = 0;
+
 	int DrawDownloader() {
 		int rtv = 0;
 
 		// for easy code
 		auto&& ff = fs.files;
+
+		// 当前文件下载字节数
+		size_t currLen = 0;
 
 		// 试获取下载器下载进度，如果正在下载就更新显示，否则就开始下载
 		std::pair<size_t, size_t> LT;
@@ -326,6 +345,7 @@ struct Loader {
 			}
 
 			// 更新进度( total 可能为 0, 如果为 0 就使用 json 中记录的长度 )
+			currLen = LT.first;
 			progress = LT.first / (float)(LT.second == 0 ? ff[currFileIndex].len : LT.second);
 			totalProgress = (totalLen + LT.first) / (float)totalCap;
 		}
@@ -344,9 +364,12 @@ struct Loader {
 					return 0;
 				}
 
-				// 开设存盘。检查目录，如果没有就建。如果已存在( 不管是啥 )，就删
+				// 开始存盘。检查目录，如果没有就建。如果已存在( 不管是啥 )，就删
 				auto p = rootPath / f.path;
 				auto pp = p.parent_path();
+				if (FS::exists(pp) && !FS::is_directory(pp)) {
+					FS::remove_all(pp);
+				}
 				if (!FS::exists(pp)) {
 					if (!FS::create_directories(pp)) {
 						hasError = true;
@@ -364,6 +387,8 @@ struct Loader {
 					return 0;
 				}
 
+				// todo: 写完再读一下校验？
+
 				// 已下载完成的文件总长度 累加到 totalLen
 				progress = 0.f;
 				totalLen += ff[currFileIndex].len;
@@ -375,59 +400,78 @@ struct Loader {
 
 			// 如果当前文件下标超出范围，说明已经下载完毕，准备加载 exe 并退出
 			if (currFileIndex >= ff.size()) {
+				// 将当前工作目录切到 exe 之所在
+				FS::current_path(FS::path(exeFilePath).parent_path());
+
 				// 执行 exe
 				ExecuteFile(exeFilePath.c_str());
 				return 1;
 			}
 
+			// todo: 下前判断文件是否存在？如果存在就校验长度和 md5？如果校验通过就跳过不下载？
+
 			// 开始下载
 			dl.Download(ff[currFileIndex].path);
 		}
 
-
-		// 双进度条带百分比 + 当前文件名 + 下载速度 字节/秒
-
-		ImGui::SetNextWindowPos({ 10, 10 });
-		ImGui::SetNextWindowSize({ wndWidth - 20, wndHeight - 20 });
-		ImGui::Begin("Downloader", nullptr, ImGuiWindowFlags_NoDecoration);
-
-		// 自适应内容宽度并居中. 猜测宽度并在下一帧修正显示
-		ImGui::Dummy({});
-		static float urlWidth = 100.0f;
-		float pos = urlWidth + ImGui::GetStyle().ItemSpacing.x;
-		ImGui::SameLine((ImGui::GetWindowWidth() - pos) / 2);
-		ImGui::Text("http://xxx.xxx.xxx");
-		urlWidth = ImGui::GetItemRectSize().x;
-
-		ImGui::Text("Downloading...");
-
-		ImGui::ProgressBar(totalProgress, { -1.0f, 0.0f });
-
-		ImGui::Text((std::to_string(totalLen) + " bytes / " + std::to_string(totalCap) + " bytes").c_str());
-
-		ImGui::Dummy({ 1.0f, 5.0f });
-		ImGui::Separator();
-		ImGui::Dummy({ 0.0f, 5.0f });
-
-		// todo: set color ?
-		ImGui::Text(ff[currFileIndex].path.c_str());
-
-		// Typically we would use {-1.0f,0.0f) or {-FLT_MIN,0.0f) to use all available width,
-		// or {width,0.0f) for a specified width. {0.0f,0.0f) uses ItemWidth.
-		ImGui::ProgressBar(progress, { -1.0f, 0.0f });
-
-		ImGui::Text("xxx MB / xxxx MB");
-		ImGui::SameLine(ImGui::GetWindowWidth() - (ImGui::GetStyle().ItemSpacing.x + 120));
-		if (ImGui::Button("Cancel", { 120, 35 })) {
-			rtv = 1;
+		// 计算实时已下载总长
+		totalLenEx = totalLen + currLen;
+		auto elapsedSeconds = xx::NowEpochSeconds() - beginSeconds;
+		if (elapsedSeconds > 0) {
+			bytesPerSeconds = totalLenEx / (xx::NowEpochSeconds() - beginSeconds);
 		}
 
-		ImGui::Dummy({ 1.0f, 5.0f });
-		ImGui::Separator();
-		ImGui::Dummy({ 0.0f, 5.0f });
+		{
+			// for easy code
+			auto const& f = ff[currFileIndex];
 
+			// 双进度条带百分比 + 当前文件名 + 下载速度 字节/秒
 
-		ImGui::End();
+			ImGui::SetNextWindowPos({ 10, 10 });
+			ImGui::SetNextWindowSize({ wndWidth - 20, wndHeight - 20 });
+			ImGui::Begin("Downloader", nullptr, ImGuiWindowFlags_NoDecoration);
+
+			// 自适应内容宽度并居中. 猜测宽度并在下一帧修正显示
+			ImGui::Dummy({});
+			static float urlWidth = 100.0f;
+			float pos = urlWidth + ImGui::GetStyle().ItemSpacing.x;
+			ImGui::SameLine((ImGui::GetWindowWidth() - pos) / 2);
+			ImGui::Text("http://xxx.xxx.xxx");
+			urlWidth = ImGui::GetItemRectSize().x;
+
+			ImGui::Text("Downloading...");
+
+			ImGui::ProgressBar(totalProgress, { -1.0f, 0.0f });
+
+			ImGui::Text((std::to_string(totalLen) + " bytes / " + std::to_string(totalCap) + " bytes").c_str());
+
+			ImGui::Dummy({ 0.0f, 5.0f });
+			ImGui::Separator();
+			ImGui::Dummy({ 0.0f, 5.0f });
+
+			// todo: set color ?
+			ImGui::Text(f.path.c_str());
+
+			// Typically we would use {-1.0f,0.0f) or {-FLT_MIN,0.0f) to use all available width,
+			// or {width,0.0f) for a specified width. {0.0f,0.0f) uses ItemWidth.
+			ImGui::ProgressBar(progress, { -1.0f, 0.0f });
+
+			ImGui::Text((std::to_string(currLen) + " bytes / " + std::to_string(f.len) + " bytes").c_str());
+
+			ImGui::Text((std::string("download speed: ") + std::to_string(bytesPerSeconds) + " bytes per seconds").c_str());
+
+			ImGui::Dummy({ 0.0f, 5.0f });
+			ImGui::Separator();
+			ImGui::Dummy({ 0.0f, 5.0f });
+
+			ImGui::Dummy({ 0.0f, 0.0f }); 
+			ImGui::SameLine(ImGui::GetWindowWidth() - (ImGui::GetStyle().ItemSpacing.x + 120));
+			if (ImGui::Button("Cancel", { 120, 35 })) {
+				rtv = 1;
+			}
+
+			ImGui::End();
+		}
 
 		return rtv;
 	}
