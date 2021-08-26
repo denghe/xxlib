@@ -15,34 +15,6 @@ namespace FS = std::filesystem;
 
 // todo: 如果直接关闭窗口，似乎会报错，得处理这个关闭事件，让代码正常流程自杀
 
-void ExecuteFile(LPCTSTR lpApplicationName) {
-	// additional information
-	STARTUPINFO si;
-	PROCESS_INFORMATION pi;
-
-	// set the size of the structures
-	ZeroMemory(&si, sizeof(si));
-	si.cb = sizeof(si);
-	ZeroMemory(&pi, sizeof(pi));
-
-	// start the program up
-	CreateProcess(lpApplicationName,   // the path
-		nullptr,        // Command line
-		NULL,           // Process handle not inheritable
-		NULL,           // Thread handle not inheritable
-		FALSE,          // Set handle inheritance to FALSE
-		0,              // No creation flags
-		NULL,           // Use parent's environment block
-		NULL,           // Use parent's starting directory 
-		&si,            // Pointer to STARTUPINFO structure
-		&pi             // Pointer to PROCESS_INFORMATION structure (removed extra parentheses)
-	);
-	// Close process and thread handles. 
-	CloseHandle(pi.hProcess);
-	CloseHandle(pi.hThread);
-}
-
-
 // main 一开始就创建这个对象
 struct Loader {
 
@@ -247,7 +219,7 @@ struct Loader {
 		FS::current_path(FS::path(exeFilePath).parent_path());
 
 		// 执行 exe
-		ExecuteFile(exeFilePath.c_str());
+		xx::ExecuteFile(exeFilePath.c_str());
 		return 0;
 	}
 
@@ -404,7 +376,7 @@ struct Loader {
 				FS::current_path(FS::path(exeFilePath).parent_path());
 
 				// 执行 exe
-				ExecuteFile(exeFilePath.c_str());
+				xx::ExecuteFile(exeFilePath.c_str());
 				return 1;
 			}
 
