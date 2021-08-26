@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../cpp-httplib/httplib.h"
-#include "xx_data.h"
+#include <httplib.h>
+#include <xx_data.h>
 #include <atomic>
 
 namespace xx {
@@ -13,10 +13,6 @@ namespace xx {
 		Downloader(Downloader const&) = delete;
 		Downloader& operator=(Downloader const&) = delete;
 
-		~Downloader() {
-			Close();
-		}
-
 		// 后台下载线程
 		std::thread t;
 		// 下载器核心组件
@@ -25,8 +21,15 @@ namespace xx {
 		std::string baseUrl, path, pathPrefix;
 		// 下载的数据
 		xx::Data data;
-		// flags: 线程正在执行， 已停止下载, 已取消下载, 已下载完
-		std::atomic<bool> running = false, stoped = true, canceled = false, finished = false;
+		// flags
+		// 线程正在执行
+		std::atomic<bool> running = false;
+		// 已停止下载
+		std::atomic<bool> stoped = true;
+		// 已取消下载
+		std::atomic<bool> canceled = false;
+		// 已下载完
+		std::atomic<bool> finished = false;
 		// 正在下载的文件的 当前长，总长
 		std::atomic<size_t> len, total;
 
@@ -79,7 +82,7 @@ namespace xx {
 		// 非阻塞
 		operator bool() const { return finished; }
 
-		// 取消下载，掐线，销毁所有
+		// 取消下载，掐线，销毁所有( 析构并不会自动调用这个, 以避免杀进程出错 )
 		void Close() {
 			canceled = true;
 			running = false;

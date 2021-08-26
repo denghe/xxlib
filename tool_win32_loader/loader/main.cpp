@@ -2,43 +2,247 @@
 #include "imgui_impl_dx9.h"
 #include "imgui_impl_win32.h"
 
-#include <string>
+#include <xx_helpers.h>
 
-#include "cpp-httplib/httplib.h"
+#include <files_idx_json.h>
+#include <xx_downloader.h>
+#include <get_md5.h>
+#include <ntcvt.hpp>
+#include <xx_file.h>
+namespace FS = std::filesystem;
+
+// todo: 自更新逻辑
+
+void ExecuteFile(LPCTSTR lpApplicationName) {
+	// additional information
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+
+	// set the size of the structures
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	// start the program up
+	CreateProcess(lpApplicationName,   // the path
+		nullptr,        // Command line
+		NULL,           // Process handle not inheritable
+		NULL,           // Thread handle not inheritable
+		FALSE,          // Set handle inheritance to FALSE
+		0,              // No creation flags
+		NULL,           // Use parent's environment block
+		NULL,           // Use parent's starting directory 
+		&si,            // Pointer to STARTUPINFO structure
+		&pi             // Pointer to PROCESS_INFORMATION structure (removed extra parentheses)
+	);
+	// Close process and thread handles. 
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+}
 
 
 // main 一开始就创建这个对象
 struct Loader {
-	// 是否出错: 显示错误面板
-	bool hasError = true;
-	std::string errText = "alksdjfljasdlfkjslkf lasj fdlkadsj flkj sdflk jaskdf\n jkl jflkas jdflkja slkfj sakdlf jlksd fjlkds jfa\n";
-	bool popuped = false;
 
-	// 显示相关参数
-	std::wstring wndName = L"game loader";
-	std::wstring wndTitle = L"game loader";
+	// 索引文件下载路径( 通常从索引服务下载 而非指向 CDN 或静态文件, 当然, 从索引服务跳转到实际下载路径也行 )
+	std::string filesIdxJsonUrl = "http://192.168.1.200/www/files_idx.json";
+
+	// 窗口注册类名。同时也是 ProgramData 目录下的子目录名
+	std::wstring wndName = L"xxx_game_loader";
+
+	// 窗口标题
+	std::wstring wndTitle = L"xxx game loader";
+
+	// 窗口内容设计尺寸（受 DPI 缩放影响，实际可能不止）
 	float wndWidth = 1280, wndHeight = 720;
+
+	// 默认字体名
 	std::wstring fontName = L"consola";
+
+	// 默认字号
 	float fontSize = 32.f;
+
+	// 背景色
 	ImVec4 clearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-	// todo: 文件上下文
+	// flag 用于弹出窗口状态记录
+	bool popuped = false;
+
+	// 是否出错
+	bool hasError = false;
+
+	// 错误文本
+	std::string errText;
+
+	// 防多开互斥
+	HANDLE hm = nullptr;
+
+	// 下载器
+	xx::Downloader dl;
+
+	// json 上下文
+	FilesIndexJson::Files fs;
+
+	// 临时数据容器
+	xx::Data d;
+
+	// 指向 ProgramData\xxxxxxxxxxxx 目录
+	FS::path rootPath;
+
+	// 指向下一步要加载的执行文件路径
+	std::wstring exeFilePath;
+
+	// 当前文件已下载字节数
+	int64_t currLen = 0;
+
+	// 当前文件总长
+	int64_t currCap = 0;
+
+	// 所有文件已下载字节数( 不包含当前正在下载的. 下载完成才累加 )
+	int64_t totalLen = 0;
+
+	// 所有文件总字节数
+	int64_t totalCap = 0;
+
+	// 当前文件下载进度 = currLen / currCap
 	float progress = 0.f;
+
+	// 总下载进度 = (totalLen + currLen) / totalCap
 	float totalProgress = 0.f;
 
-	//
-	Loader() {
+
+	Loader() = default;
+	~Loader() {
+		if (hm) {
+			CloseHandle(hm);
+		}
 	}
 
 	// 返回 0: 加载成功，程序退出
 	int Load() {
 		// 参看 需求分析.txt
 
-		// todo: run exe
-		//finished = true;
-		//return 0;
+		// 先检查进程互斥. 多开直接退出
+		auto hm = CreateMutex(nullptr, true, wndName.c_str());
+		if (GetLastError() == ERROR_ALREADY_EXISTS) {
+			assert(!hm);
+			return 0;
+		}
 
-		return 1;
+		// 拼接出存储区 root 路径
+		auto ad = xx::GetPath_ProgramData();
+		rootPath = ad / wndName;
+
+		// 如果目录不存在就创建之
+		if (!FS::exists(rootPath)) {
+
+			// 如果创建失败就弹错误提示，OK退出
+			if (!FS::create_directory(rootPath)) {
+				hasError = true;
+				errText = std::string("create directory failed at:\n") + rootPath.string();
+				return 1;
+			}
+		}
+
+		// 下载 files_idx.json
+		dl.SetBaseUrl(filesIdxJsonUrl);
+		dl.Download("");
+		while (!dl.stoped) Sleep(1);
+
+		// 如果下载失败，判断下，报错退出( 或者弹窗进度条下载? )
+		if (!dl) {
+			hasError = true;
+			errText = "network error! please try again!\n";
+			return 1;
+		}
+
+		// 下载的 json 读入到 fs	// todo: 这句要 try 防止出错?
+		ajson::load_from_buff(fs, (char*)dl.data.buf, dl.data.len);
+		auto& ff = fs.files;
+
+		// 停止下载线程
+		dl.Close();
+
+		// 如果没有文件??? 
+		if (ff.empty()) {
+			hasError = true;
+			errText = "network error! bad index file! please try again!";
+		}
+
+		// 找出一会儿要加载的 xxxx.exe
+		for (auto const& f : ff) {
+			if (f.path.ends_with(".exe")) {
+				exeFilePath = ntcvt::from_chars(f.path);
+				break;
+			}
+		}
+
+		// 如果没有 loader_xxxx.exe 找到，报错退出
+		if (exeFilePath.empty()) {
+			hasError = true;
+			errText = "network error! bad loader file! please try again!";
+		}
+
+		
+		// todo: 估算一下校验规模？文件数？总字节数？如果大于多少就直接显示 UI ?
+		// 正常情况下 loader 要确保的文件 比较少，校验应该瞬间完成
+
+
+		// 倒序遍历 fs, 校验长度和 md5. 通过一条删一条. 剩下的就是没通过的
+		for (int i = ff.size() - 1; i >= 0; --i) {
+			auto& f = ff[i];
+			auto p = rootPath / f.path;
+
+			// 文件不存在：继续
+			if (!FS::exists(p)) continue;
+
+			// 不是文件？删掉并继续					// todo: 不确定是否奏效
+			if (!FS::is_regular_file(p)) {
+				FS::remove_all(p);
+				continue;
+			}
+
+			// 字节数对不上? 删掉并继续
+			if (FS::file_size(p) != f.len) {
+				FS::remove(p);
+				continue;
+			}
+
+			// 数据读取错误? 报错 OK 退出
+			if (xx::ReadAllBytes(p, d)) {
+				hasError = true;
+				errText = std::string("bad file at:\n") + p.string();
+				return 1;
+			}
+
+			// 算出来的 md5 对不上？删掉并继续
+			auto md5 = GetDataMD5Hash(d);
+			if (f.md5 != md5) {
+				FS::remove(p);
+				continue;
+			}
+
+			// 校验通过：移除当前条目( 用最后一条覆盖 )
+			if (auto last = ff.size() - 1; i < last) {
+				ff[i] = ff[last];
+			}
+			ff.pop_back();
+		}
+
+		// 如果 fs 有数据剩余, 就进入到 UI 下载环节, 否则就加载 exe 并退出
+		if (!ff.empty()) return 1;
+
+		// for test
+		//hasError = true;
+		//errText = "alksdjfljasdlfkjslkf lasj fdlkadsj flkj sdflk jaskdf\n jkl jflkas jdflkja slkfj sakdlf jlksd fjlkds jfa\n";
+		//return 1;
+
+		// 拼凑为完整路径
+		exeFilePath = (rootPath / exeFilePath).wstring();
+
+		// 执行 exe
+		ExecuteFile(exeFilePath.c_str());
+		return 0;
 	}
 
 	// 返回非 0: 程序退出
@@ -89,6 +293,9 @@ struct Loader {
 
 	int DrawDownloader() {
 		int rtv = 0;
+
+		// todo: 状态管理
+
 
 		// todo: 下载 + 绘制
 		// todo: 双进度条带百分比 + 当前文件名 + 下载速度 字节/秒
@@ -147,6 +354,7 @@ struct Loader {
 
 #include <d3d9.h>
 #include "ntcvt/ntcvt.hpp"
+
 
 // 窗口居中
 void PlaceInCenterOfScreen(HWND window, DWORD style, BOOL menu) {

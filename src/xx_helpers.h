@@ -32,12 +32,13 @@
 #ifdef _WIN32
 #	define NOMINMAX
 #	define NODRAWTEXT
-#	define NOGDI
+//#	define NOGDI            // d3d9 need it
 #	define NOBITMAP
 #	define NOMCX
 #	define NOSERVICE
 #	define NOHELP
 #	define WIN32_LEAN_AND_MEAN
+#   include <WinSock2.h>
 #	include <Windows.h>
 #else
 #	include <unistd.h>    // for usleep

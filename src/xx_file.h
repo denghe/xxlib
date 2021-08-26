@@ -3,6 +3,10 @@
 #include "xx_helpers.h"
 #include <fstream>
 #include <filesystem>
+#ifdef _WIN32
+#include <ShlObj.h>
+#endif
+
 
 namespace xx
 {
@@ -59,8 +63,20 @@ namespace xx
 		return WriteAllBytes(path, s, len - 1);
 	}
 
-	inline std::filesystem::path GetCurrentPath() {
+	inline std::filesystem::path GetPath_Current() {
 		return std::filesystem::absolute("./");
+	}
+
+	inline std::filesystem::path GetPath_ProgramData() {
+#ifdef _WIN32
+		PWSTR path_tmp;
+		auto r = SHGetKnownFolderPath(FOLDERID_ProgramData, 0, nullptr, &path_tmp);
+		auto sg = xx::MakeScopeGuard([&] { CoTaskMemFree(path_tmp); });
+		if (r != S_OK) return {};
+		return path_tmp;
+#else
+		return GetCurrentPath();
+#endif
 	}
 
 

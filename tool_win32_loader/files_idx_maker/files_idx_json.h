@@ -1,6 +1,6 @@
 #pragma once
-#include "ajson.hpp"
 #include "xx_helpers.h"
+#include "ajson.hpp"
 #include <filesystem>
 
 namespace FilesIndexJson {
@@ -18,24 +18,6 @@ namespace FilesIndexJson {
 		XX_SIMPLE_STRUCT_DEFAULT_CODES(Files);
 		std::string baseUrl;
 		std::vector<File> files;
-
-		// 用以查找 prefix 打头的首个出现的 File
-		File const* FirstFile_PathStartWith(std::string_view prefix) {
-			for (auto const& f : files) {
-				if (f.path.starts_with(prefix)) return &f;
-			}
-			return nullptr;
-		}
-
-		static Files LoadFromFile(std::string const& path);
 	};
 }
 AJSON(FilesIndexJson::Files, baseUrl, files);
-
-namespace FilesIndexJson {
-	Files Files::LoadFromFile(std::string const& path) {
-		Files rtv;
-		ajson::load_from_file(rtv, path.c_str());
-		return rtv;
-	}
-}
