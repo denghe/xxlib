@@ -28,13 +28,15 @@ struct Loader {
 	std::wstring wndTitle = L"xxx game loader";
 
 	// 窗口内容设计尺寸（受 DPI 缩放影响，实际可能不止）
-	float wndWidth = 1280, wndHeight = 720;
+	float wndWidth = 640, wndHeight = 300;
+	//float wndWidth = 1280, wndHeight = 720;
 
 	// 默认字体名
 	std::wstring fontName = L"consola";
 
 	// 默认字号
-	float fontSize = 32.f;
+	float fontSize = 16.f;
+	//float fontSize = 32.f;
 
 	// 背景色
 	ImVec4 clearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -415,7 +417,7 @@ struct Loader {
 
 			ImGui::ProgressBar(totalProgress, { -1.0f, 0.0f });
 
-			ImGui::Text((std::to_string(totalLen) + " bytes / " + std::to_string(totalCap) + " bytes").c_str());
+			ImGui::Text((std::to_string(totalLen / 1024) + " KB / " + std::to_string(totalCap / 1024) + " KB").c_str());
 
 			ImGui::Dummy({ 0.0f, 5.0f });
 			ImGui::Separator();
@@ -428,9 +430,9 @@ struct Loader {
 			// or {width,0.0f) for a specified width. {0.0f,0.0f) uses ItemWidth.
 			ImGui::ProgressBar(progress, { -1.0f, 0.0f });
 
-			ImGui::Text((std::to_string(currLen) + " bytes / " + std::to_string(f.len) + " bytes").c_str());
+			ImGui::Text((std::to_string(currLen / 1024) + " KB / " + std::to_string(f.len / 1024) + " KB").c_str());
 
-			ImGui::Text((std::string("download speed: ") + std::to_string(bytesPerSeconds) + " bytes per seconds").c_str());
+			ImGui::Text((std::string("download speed: ") + std::to_string(bytesPerSeconds / 1024) + " KB per seconds").c_str());
 
 			ImGui::Dummy({ 0.0f, 5.0f });
 			ImGui::Separator();
