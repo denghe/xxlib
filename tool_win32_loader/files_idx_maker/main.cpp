@@ -82,14 +82,14 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 			std::cout << "begin download " << (fs.baseUrl + f.path) << std::endl;
 			dl.Download(f.path);
 			std::pair<size_t, size_t> curr, bak;
-			while (!dl.TryGetProgress(curr)) {
+			while (dl.TryGetProgress(curr)) {
 				if (bak != curr) {
 					bak = curr;
 					std::cout << "downloading... " << curr.first << " / " << curr.second << std::endl;
 				}
 			}
 
-			if (!dl) {
+			if (dl.Finished()) {
 				std::cout << "url: " << (fs.baseUrl + f.path) << " download error." << std::endl;
 				return -5;
 			}

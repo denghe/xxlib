@@ -83,32 +83,11 @@ struct Loader {
 	// json 上下文
 	FilesIndexJson::Files fs;
 
-	// 临时数据容器
-	xx::Data d;
-
 	// 指向 ProgramData\xxxxxxxxxxxx 目录
 	FS::path rootPath;
 
 	// 指向下一步要加载的执行文件路径
 	std::wstring exeFilePath;
-
-	// 当前文件已下载字节数
-	int64_t currLen = 0;
-
-	// 当前文件总长
-	int64_t currCap = 0;
-
-	// 所有文件已下载字节数( 不包含当前正在下载的. 下载完成才累加 )
-	int64_t totalLen = 0;
-
-	// 所有文件总字节数
-	int64_t totalCap = 0;
-
-	// 当前文件下载进度 = currLen / currCap
-	float progress = 0.f;
-
-	// 总下载进度 = (totalLen + currLen) / totalCap
-	float totalProgress = 0.f;
 
 
 	Loader() = default;
@@ -144,13 +123,13 @@ struct Loader {
 			}
 		}
 
-		// 下载 files_idx.json
+		// 阻塞下载 files_idx.json
 		dl.SetBaseUrl(filesIdxJsonUrl);
 		dl.Download("");
-		while (!dl.stoped) Sleep(1);
+		while (dl.Busy()) Sleep(1);
 
 		// 如果下载失败，判断下，报错退出( 或者弹窗进度条下载? )
-		if (!dl) {
+		if (!dl.Finished()) {
 			hasError = true;
 			errText = "network error! please try again!\n";
 			return 1;
@@ -166,7 +145,7 @@ struct Loader {
 		// 如果没有文件??? 
 		if (ff.empty()) {
 			hasError = true;
-			errText = "network error! bad index file! please try again!";
+			errText = "bad index file! please try again!";
 		}
 
 		// 找出一会儿要加载的 xxxx.exe
@@ -177,16 +156,21 @@ struct Loader {
 			}
 		}
 
-		// 如果没有 loader_xxxx.exe 找到，报错退出
+		// 如果没有 xxxxxxxxx.exe 找到，报错退出
 		if (exeFilePath.empty()) {
 			hasError = true;
-			errText = "network error! bad loader file! please try again!";
+			errText = "can't found exe file! please try again!";
 		}
 
-		
+		// 拼凑为完整路径
+		exeFilePath = (rootPath / exeFilePath).wstring();
+
+
 		// todo: 估算一下校验规模？文件数？总字节数？如果大于多少就直接显示 UI ?
 		// 正常情况下 loader 要确保的文件 比较少，校验应该瞬间完成
 
+		// 临时读文件容器
+		xx::Data d;
 
 		// 倒序遍历 fs, 校验长度和 md5. 通过一条删一条. 剩下的就是没通过的
 		for (int i = ff.size() - 1; i >= 0; --i) {
@@ -230,15 +214,29 @@ struct Loader {
 		}
 
 		// 如果 fs 有数据剩余, 就进入到 UI 下载环节, 否则就加载 exe 并退出
-		if (!ff.empty()) return 1;
+		if (!ff.empty()) {
+
+			// 统计
+			for (auto const& f : ff) {
+				totalCap += f.len;
+			}
+
+			if (totalCap == 0) {
+				hasError = true;
+				errText = "bad files len! please try again!";
+				return 1;
+			}
+
+			// 初始化下载器
+			dl.SetBaseUrl(fs.baseUrl);
+
+			return 1;
+		}
 
 		// for test
 		//hasError = true;
 		//errText = "alksdjfljasdlfkjslkf lasj fdlkadsj flkj sdflk jaskdf\n jkl jflkas jdflkja slkfj sakdlf jlksd fjlkds jfa\n";
 		//return 1;
-
-		// 拼凑为完整路径
-		exeFilePath = (rootPath / exeFilePath).wstring();
 
 		// 执行 exe
 		ExecuteFile(exeFilePath.c_str());
@@ -291,14 +289,103 @@ struct Loader {
 		return rtv;
 	}
 
+
+	// 所有文件已下载字节数( 不包含当前正在下载的. 下载完成才累加 )
+	size_t totalLen = 0;
+
+	// 所有文件总字节数
+	size_t totalCap = 0;
+
+	// 当前文件下载进度 = len / total
+	float progress = 0.f;
+
+	// 总下载进度 = (totalLen + len) / totalCap
+	float totalProgress = 0.f;
+
+	// 当前正在下载的 File 下标，对应 fs.files[]
+	int currFileIndex = -1;
+
 	int DrawDownloader() {
 		int rtv = 0;
 
-		// todo: 状态管理
+		// for easy code
+		auto&& ff = fs.files;
+
+		// 试获取下载器下载进度，如果正在下载就更新显示，否则就开始下载
+		std::pair<size_t, size_t> LT;
+		if (dl.TryGetProgress(LT)) {
+			auto const& f = ff[currFileIndex];
+
+			// 如果文件长度校验失败，停止下载并报错
+			if (LT.second && LT.second != f.len) {
+				dl.Close();
+
+				hasError = true;
+				errText = "bad files len! please try again!";
+				return 0;
+			}
+
+			// 更新进度( total 可能为 0, 如果为 0 就使用 json 中记录的长度 )
+			progress = LT.first / (float)(LT.second == 0 ? ff[currFileIndex].len : LT.second);
+			totalProgress = (totalLen + LT.first) / (float)totalCap;
+		}
+		else {
+			// 之前有文件正在下载
+			if (currFileIndex >= 0) {
+				auto const& f = ff[currFileIndex];
+
+				// 校验 md5 如果校验不过，停止下载并报错。 todo: 反复下载都校验不过，间隔一段时间再下?
+				auto md5 = GetDataMD5Hash(dl.data);
+				if (ff[currFileIndex].md5 != md5) {
+					dl.Close();
+
+					hasError = true;
+					errText = "bad files md5! please try again!";
+					return 0;
+				}
+
+				// 开设存盘。检查目录，如果没有就建。如果已存在( 不管是啥 )，就删
+				auto p = rootPath / f.path;
+				auto pp = p.parent_path();
+				if (!FS::exists(pp)) {
+					if (!FS::create_directories(pp)) {
+						hasError = true;
+						errText = "create directory error! please try again!";
+						return 0;
+					}
+				}
+
+				// 如果文件写盘失败，报错
+				if (int r = xx::WriteAllBytes(rootPath / f.path, dl.data)) {
+					dl.Close();
+
+					hasError = true;
+					errText = "write files to desk error! please try again!";
+					return 0;
+				}
+
+				// 已下载完成的文件总长度 累加到 totalLen
+				progress = 0.f;
+				totalLen += ff[currFileIndex].len;
+				totalProgress = totalLen / (float)totalCap;
+			}
+
+			// 指向下一个要下载的文件
+			++currFileIndex;
+
+			// 如果当前文件下标超出范围，说明已经下载完毕，准备加载 exe 并退出
+			if (currFileIndex >= ff.size()) {
+				// 执行 exe
+				ExecuteFile(exeFilePath.c_str());
+				return 1;
+			}
+
+			// 开始下载
+			dl.Download(ff[currFileIndex].path);
+		}
 
 
-		// todo: 下载 + 绘制
-		// todo: 双进度条带百分比 + 当前文件名 + 下载速度 字节/秒
+		// 双进度条带百分比 + 当前文件名 + 下载速度 字节/秒
 
 		ImGui::SetNextWindowPos({ 10, 10 });
 		ImGui::SetNextWindowSize({ wndWidth - 20, wndHeight - 20 });
@@ -315,23 +402,19 @@ struct Loader {
 		ImGui::Text("Downloading...");
 
 		ImGui::ProgressBar(totalProgress, { -1.0f, 0.0f });
-		totalProgress += 0.001f;
-		if (totalProgress > 1) totalProgress -= 1;
 
-		ImGui::Text("xxxx MB / xxxxx MB");
+		ImGui::Text((std::to_string(totalLen) + " bytes / " + std::to_string(totalCap) + " bytes").c_str());
 
 		ImGui::Dummy({ 1.0f, 5.0f });
 		ImGui::Separator();
 		ImGui::Dummy({ 0.0f, 5.0f });
 
 		// todo: set color ?
-		ImGui::Text("abcde.png");
+		ImGui::Text(ff[currFileIndex].path.c_str());
 
 		// Typically we would use {-1.0f,0.0f) or {-FLT_MIN,0.0f) to use all available width,
 		// or {width,0.0f) for a specified width. {0.0f,0.0f) uses ItemWidth.
 		ImGui::ProgressBar(progress, { -1.0f, 0.0f });
-		progress += 0.01f;
-		if (progress > 1) progress -= 1;
 
 		ImGui::Text("xxx MB / xxxx MB");
 		ImGui::SameLine(ImGui::GetWindowWidth() - (ImGui::GetStyle().ItemSpacing.x + 120));

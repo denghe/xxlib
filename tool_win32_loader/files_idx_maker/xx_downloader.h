@@ -69,18 +69,26 @@ namespace xx {
 			}
 		}
 
-		// 读取当前下载进度 pair: len, total. 返回是否已停止下载( 是否下载完成要判断 finished )
+		// 读取当前下载进度 pair: len, total. 返回是否正在下载( 是否下载完成要判断 finished )
 		// 注意：首个 total 可能为 0
 		// 非阻塞
 		bool TryGetProgress(std::pair<size_t, size_t>& lenTotal) const {
 			lenTotal.first = len;
 			lenTotal.second = total;
-			return stoped;
+			return !stoped;
 		}
 
-		// 返回是否下载完成
+		// 返回是否正在下载
 		// 非阻塞
-		operator bool() const { return finished; }
+		bool Busy() const { return !stoped; }
+
+		// 返回是否已停止下载
+		// 非阻塞
+		bool Stoped() const { return stoped; }
+
+		// 返回是否下载 "完整" ( 不是完成 )
+		// 非阻塞
+		bool Finished() const { return finished; }
 
 		// 取消下载，掐线，销毁所有( 析构并不会自动调用这个, 以避免杀进程出错 )
 		void Close() {
