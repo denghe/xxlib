@@ -15,11 +15,18 @@ namespace FS = std::filesystem;
 
 // todo: 如果直接关闭窗口，似乎会报错，得处理这个关闭事件，让代码正常流程自杀
 
+// todo: 多线程下载??，支持代理??  https?? gzip??
+// todo: 未来支持走 kcp 啥的协议从网关下载？
+
+
 // main 一开始就创建这个对象
 struct Loader {
 
 	// 索引文件下载路径( 通常从索引服务下载 而非指向 CDN 或静态文件, 当然, 从索引服务跳转到实际下载路径也行 )
-	std::string filesIdxJsonUrl = "http://192.168.1.200/www/files_idx.json";
+	std::string filesIdxJsonUrl = "http://192.168.1.101/www/files_idx.json";
+
+	// 并行校验线程数
+	static const size_t numThreads = 8;
 
 	// 窗口注册类名。同时也是 ProgramData 目录下的子目录名
 	std::wstring wndName = L"xxx_game_loader";
@@ -142,51 +149,83 @@ struct Loader {
 		exeFilePath = (rootPath / exeFilePath).wstring();
 
 
-		// todo: 估算一下校验规模？文件数？总字节数？如果大于多少就直接显示 UI ?
-		// 正常情况下 loader 要确保的文件 比较少，校验应该瞬间完成
-
 		// 临时读文件容器
-		xx::Data d;
+		std::array<xx::Data, numThreads> ds;
 
-		// 倒序遍历 fs, 校验长度和 md5. 通过一条删一条. 剩下的就是没通过的
-		for (int i = ff.size() - 1; i >= 0; --i) {
-			auto& f = ff[i];
-			auto p = rootPath / f.path;
+		// 分线程记录有问题的 file, 最后合并 回写到 ff
+		std::array<std::vector<FilesIndexJson::File>, numThreads> fss;
 
-			// 文件不存在：继续
-			if (!FS::exists(p)) continue;
+		// 线程池
+		std::array<std::thread, numThreads> ts;
 
-			// 不是文件？删掉并继续					// todo: 不确定是否奏效
-			if (!FS::is_regular_file(p)) {
-				FS::remove_all(p);
-				continue;
-			}
+		// 等待所有线程完工的条件变量
+		std::atomic<int> counter;
 
-			// 字节数对不上? 删掉并继续
-			if (FS::file_size(p) != f.len) {
-				FS::remove(p);
-				continue;
-			}
+		// 产生线程下标, 便于每个线程定位到自己的上下文容器
+		for (size_t i = 0; i < numThreads; ++i) {
+			// 第 i 个线程使用下标 i 的 ds & dls
+			ts[i] = std::thread([&, i = i] {
+				auto& d = ds[i];
+				auto& fs = fss[i];
+				
+				// 每线程起始下标错开，类似隔行扫描
+				for (size_t j = i; j < ff.size(); j += numThreads) {
+					auto& f = ff[j];
+					auto p = rootPath / f.path;
 
-			// 数据读取错误? 报错 OK 退出
-			if (xx::ReadAllBytes(p, d)) {
-				hasError = true;
-				errText = std::string("bad file at:\n") + p.string();
-				return 1;
-			}
+					// 文件不存在：继续
+					if (!FS::exists(p)) {
+						fs.push_back(f);
+						continue;
+					}
 
-			// 算出来的 md5 对不上？删掉并继续
-			auto md5 = GetDataMD5Hash(d);
-			if (f.md5 != md5) {
-				FS::remove(p);
-				continue;
-			}
+					// 不是文件？删掉并继续					// todo: 不确定是否奏效
+					if (!FS::is_regular_file(p)) {
+						FS::remove_all(p);
+						fs.push_back(f);
+						continue;
+					}
 
-			// 校验通过：移除当前条目( 用最后一条覆盖 )
-			if (auto last = ff.size() - 1; i < last) {
-				ff[i] = ff[last];
-			}
-			ff.pop_back();
+					// 字节数对不上? 删掉并继续
+					if (FS::file_size(p) != f.len) {
+						FS::remove(p);
+						fs.push_back(f);
+						continue;
+					}
+
+					// 数据读取错误? 报错 OK 退出
+					if (xx::ReadAllBytes(p, d)) {
+						hasError = true;
+						errText = std::string("bad file at:\n") + p.string();
+						return;
+					}
+
+					// 算出来的 md5 对不上？删掉并继续
+					auto md5 = GetDataMD5Hash(d);
+					if (f.md5 != md5) {
+						FS::remove(p);
+						fs.push_back(f);
+						continue;
+					}
+				}
+
+				// 更新条件变量
+				++counter;
+			});
+			ts[i].detach();
+		}
+
+		// 等所有线程完成
+		while (counter < numThreads) Sleep(1);
+
+		// 如果出错了，直接退出
+		if (hasError) return 1;
+
+		// 合并错误集合
+		ff.clear();
+		for (auto& fs : fss) {
+			for (auto& f : fs)
+				ff.push_back(std::move(f));
 		}
 
 		// 如果 fs 有数据剩余, 就进入到 UI 下载环节, 否则就加载 exe 并退出
@@ -441,6 +480,7 @@ struct Loader {
 			ImGui::Dummy({ 0.0f, 0.0f }); 
 			ImGui::SameLine(ImGui::GetWindowWidth() - (ImGui::GetStyle().ItemSpacing.x + 120));
 			if (ImGui::Button("Cancel", { 120, 35 })) {
+				dl.Close();
 				rtv = 1;
 			}
 
@@ -552,7 +592,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
-	auto frameInterval = (LONGLONG)(1000. * (double)freq.QuadPart / 64.);
+	auto frameInterval = (LONGLONG)(1000. * (double)freq.QuadPart / 300.);
 
 	LARGE_INTEGER nLast;
 	QueryPerformanceCounter(&nLast);

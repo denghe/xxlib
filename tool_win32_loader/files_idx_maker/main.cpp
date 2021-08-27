@@ -22,7 +22,7 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 	}
 
 	// 参数转储
-	FS::path tar(args[1]);
+	FS::path rootPath(args[1]);
 	std::string_view baseUrl(args[2]);
 	std::string_view verify;
 	if (numArgs > 3) {
@@ -30,7 +30,7 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 	}
 
 	// 检查目录是否存在
-	if (!FS::exists(tar) && !FS::is_directory(tar)) {
+	if (!FS::exists(rootPath) && !FS::is_directory(rootPath)) {
 		std::cout << "error: arg1 target is not a directory.\n" << std::endl;
 		return -2;
 	}
@@ -46,79 +46,118 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 
 	// 准备数据容器 下载器啥的
 	FilesIndexJson::Files fs;
-	xx::Data d;
-	auto rootPathLen = tar.string().size() + 1;	// 用来切割相对路径
-	xx::Downloader dl;
-	dl.SetBaseUrl(baseUrl);
-
 	// 写 url
 	fs.baseUrl = baseUrl;
+	// 用来切割相对路径
+	auto rootPathLen = rootPath.string().size() + 1;
+
+	// for easy code
+	auto& ff = fs.files;
 
 	// 开始递归遍历并生成
-	for (auto&& o : FS::recursive_directory_iterator(tar)) {
+	for (auto&& o : FS::recursive_directory_iterator(rootPath)) {
 		auto&& p = o.path();
 
 		// 不是文件, 没有文件名, 0字节 就跳过
 		if (!o.is_regular_file() || !p.has_filename()) continue;
 
-		// 输出开始处理的文件名
-		std::cout << "file: " << p << std::endl;
-
 		// 创建一个 File 实例，开始填充
-		auto& f = fs.files.emplace_back();
+		auto& f = ff.emplace_back();
 
 		// 写入 path 并换 \\ 为 /
 		f.path = p.string().substr(rootPathLen);
 		for (auto& c : f.path) if (c == '\\') c = '/';
 
-		// 读出文件所有数据( 这里比较粗暴，如果文件体积大于可用内存，那就没法搞了 )
-		if (int r = xx::ReadAllBytes(p, d)) {
-			std::cout << "file read error: r = " << r << std::endl;
-			return -4;
-		}
-
-		// 按需校验
-		if (needVerify) {
-			std::cout << "begin download " << (fs.baseUrl + f.path) << std::endl;
-			dl.Download(f.path);
-			std::pair<size_t, size_t> curr, bak;
-			while (dl.TryGetProgress(curr)) {
-				if (bak != curr) {
-					bak = curr;
-					std::cout << "downloading... " << curr.first << " / " << curr.second << std::endl;
-				}
-			}
-
-			if (dl.Finished()) {
-				std::cout << "url: " << (fs.baseUrl + f.path) << " download error." << std::endl;
-				return -5;
-			}
-
-			if (d != dl.data) {
-				std::cout << "file: " << o.path() << " verify failed. the file content is different." << std::endl;
-				return -6;
-			}
-
-			std::cout << "verify success!" << std::endl;
-		}
-
-		// 写入 len
-		f.len = d.len;
-
-		// 写入 md5
-		f.md5 = GetDataMD5Hash(d);
-
-		// 输出一下 f 的 json
-		std::cout << "json: ";
-		ajson::save_to(std::cout, f);
-		std::cout << std::endl << std::endl;
 	}
+
+	// 并行校验线程数
+	static const size_t numThreads = 8;
+
+	// 临时读文件容器
+	std::array<xx::Data, numThreads> ds;
+
+	// 下载器
+	std::array<xx::Downloader, numThreads> dls;
+
+	// 初始化下载器基础 url
+	for (auto& dl : dls) dl.SetBaseUrl(baseUrl);
+
+	// 线程池
+	std::array<std::thread, numThreads> ts;
+
+	// 等待所有线程完工的条件变量
+	std::atomic<int> counter;
+
+	// 产生线程下标, 便于每个线程定位到自己的上下文容器
+	for (size_t i = 0; i < numThreads; ++i) {
+
+		// 第 i 个线程使用下标 i 的 ds & dls
+		ts[i] = std::thread([&, i = i] {
+			auto& d = ds[i];
+			auto& dl = dls[i];
+
+			// 每线程起始下标错开，类似隔行扫描
+			for (size_t j = i; j < ff.size(); j += numThreads) {
+				auto& f = ff[j];
+				auto p = rootPath / f.path;
+
+				// 读出文件所有数据( 这里比较粗暴，如果文件体积大于可用内存，那就没法搞了 )
+				if (int r = xx::ReadAllBytes(p, d)) {
+					std::cout << "file read error: r = " << r << std::endl;
+					return;
+				}
+
+				// 按需校验
+				if (needVerify) {
+					//std::cout << "begin download " << (fs.baseUrl + f.path) << std::endl;
+					dl.Download(f.path);
+					//std::pair<size_t, size_t> curr, bak;
+					//while (dl.TryGetProgress(curr)) {
+					//	if (bak != curr) {
+					//		bak = curr;
+					//		std::cout << "downloading... " << curr.first << " / " << curr.second << std::endl;
+					//	}
+					//}
+					while (dl.Busy()) Sleep(1);
+
+					if (!dl.Finished()) {
+						std::cout << "url: " << (fs.baseUrl + f.path) << " download error." << std::endl;
+						return;
+					}
+
+					if (d != dl.data) {
+						std::cout << "file: " << p << " verify failed. the file content is different." << std::endl;
+						return;
+					}
+
+					std::cout << "+";
+				}
+
+				// 写入 len
+				f.len = d.len;
+
+				// 写入 md5
+				f.md5 = GetDataMD5Hash(d);
+
+				std::cout << ".";
+			}
+
+			// 更新条件变量
+			++counter;
+		});
+		ts[i].detach();
+	}
+
+	// 等所有线程完成
+	while (counter < numThreads) Sleep(1);
+
+	std::cout << std::endl;
 
 	// 文件写入当前工作目录
 	auto outFilePath = FS::current_path() / "files_idx.json";
 	ajson::save_to_file(fs, outFilePath.string().c_str());
 
-	std::cout << "success! handled " << fs.files.size() << " files!" << std::endl;
+	std::cout << "success! handled " << ff.size() << " files!" << std::endl;
 	std::cin.get();
 	return 0;
 }
