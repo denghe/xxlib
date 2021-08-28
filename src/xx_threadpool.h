@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <vector>
+#include <array>
 #include <queue>
 #include <memory>
 #include <thread>
@@ -13,10 +14,10 @@ using namespace std::chrono_literals;
 namespace xx {
 
     // 常规线程池
-    template<typename JT = std::function<void()>>
+    template<typename Job = std::function<void()>>
     class ThreadPool {
         std::vector<std::thread> threads;
-        std::queue<JT> jobs;
+        std::queue<Job> jobs;
         std::mutex mtx;
         std::condition_variable cond;
         bool stop = false;
@@ -26,17 +27,17 @@ namespace xx {
             for (int i = 0; i < numThreads; ++i) {
                 threads.emplace_back([this] {
                     while (true) {
-                        JT job;
+                        Job j;
                         {
                             std::unique_lock<std::mutex> lock(this->mtx);
                             this->cond.wait(lock, [this] {
                                 return this->stop || !this->jobs.empty();
                                 });
                             if (this->stop && this->jobs.empty()) return;
-                            job = std::move(this->jobs.front());
+                            j = std::move(this->jobs.front());
                             this->jobs.pop();
                         }
-                        job();
+                        j();
                     }
                     });
             }
@@ -77,36 +78,57 @@ namespace xx {
     };
 
 
+
+
+    // SFINAE test 检查目标类型是否带有 operator() 函数
+    template <typename T>
+    class has_OperatorParentheses {
+        typedef char one;
+        struct two { char x[2]; };
+
+        template <typename C> static one test(decltype(&C::operator()));
+        template <typename C> static two test(...);
+
+    public:
+        enum { value = sizeof(test<T>(0)) == sizeof(char) };
+    };
+
+
     // 带执行环境的版本
     template<typename Env, size_t numThreads>
     struct ThreadPool2 {
-        std::vector<Env> envs;
+        std::array<Env, numThreads> envs;
     protected:
-        using JT = std::function<void(Env&)>;
-        std::vector<std::thread> threads;
-        std::queue<JT> jobs;
+        using Job = std::function<void(Env&)>;
+        std::array<std::thread, numThreads> threads;
+        std::queue<Job> jobs;
         std::mutex mtx;
         std::condition_variable cond;
         bool stop = false;
 
     public:
         explicit ThreadPool2() {
-            envs.resize(numThreads);
             for (int i = 0; i < numThreads; ++i) {
-                threads.emplace_back([this, i = i] {
-                    auto& t = envs[i];
+                threads[i] = std::thread([this, i = i] {
+                    auto& e = envs[i];
                     while (true) {
-                        JT job;
+                        Job j;
                         {
                             std::unique_lock<std::mutex> lock(this->mtx);
                             this->cond.wait(lock, [this] {
                                 return this->stop || !this->jobs.empty();
                                 });
                             if (this->stop && this->jobs.empty()) return;
-                            job = std::move(this->jobs.front());
+                            j = std::move(this->jobs.front());
                             this->jobs.pop();
                         }
-                        t(job);
+                        // 检测 Env 是否存在 operator(). 如果没有这个函数，就执行 j(e);
+                        if constexpr (has_OperatorParentheses<Env>::value) {
+                            e(j);
+                        }
+                        else {
+                            j(e);
+                        }
                     }
                     });
             }
@@ -146,10 +168,16 @@ namespace xx {
         }
     };
 
+
+    
+
+
     /*
+    // 池里的线程的公用环境
     struct Env {
         // ...
 
+        // 如果提供了这个函数，就会被调用。可以写一些重复出现的代码在此
         void operator()(std::function<void(Env&)>& job) {
             try {
                 job(*this);

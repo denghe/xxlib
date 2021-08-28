@@ -12,6 +12,7 @@ namespace xx {
 		Downloader() = default;
 		Downloader(Downloader const&) = delete;
 		Downloader& operator=(Downloader const&) = delete;
+		~Downloader() { Close(); }
 
 		// 后台下载线程
 		std::thread t;

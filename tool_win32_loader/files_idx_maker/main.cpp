@@ -71,94 +71,100 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 
 	}
 
-	// 并行校验线程数
-	static const size_t numThreads = 8;
+	// 起个线程池搞事情
+	{
+		// 线程池共享上下文
+		struct Ctx {
+			XX_SIMPLE_STRUCT_DEFAULT_CODES(Ctx);
+			xx::Downloader dl;
+			xx::Data d;
+		};
 
-	// 临时读文件容器
-	std::array<xx::Data, numThreads> ds;
+		// 起个线程池
+		xx::ThreadPool2<Ctx, 8> tp;
 
-	// 下载器
-	std::array<xx::Downloader, numThreads> dls;
+		// 初始化上下文
+		for (auto& c : tp.envs) {
+			c.dl.SetBaseUrl(baseUrl);
+		}
 
-	// 初始化下载器基础 url
-	for (auto& dl : dls) dl.SetBaseUrl(baseUrl);
+		// 往线程池压任务, 等结束. 中途发生错误, 利用 f.len == 0 来表达, 错误文本在 md5
+		for (auto& f : ff) {
 
-	// 线程池
-	std::array<std::thread, numThreads> ts;
+			// 拷贝捕获 f 的指针到线程函数。f 不可直接& ( 每次 for 变化 并且出 for 就没了 )
+			tp.Add([&, f = &f](Ctx& c) {
 
-	// 等待所有线程完工的条件变量
-	std::atomic<int> counter;
-
-	// 产生线程下标, 便于每个线程定位到自己的上下文容器
-	for (size_t i = 0; i < numThreads; ++i) {
-
-		// 第 i 个线程使用下标 i 的 ds & dls
-		ts[i] = std::thread([&, i = i] {
-			auto& d = ds[i];
-			auto& dl = dls[i];
-
-			// 每线程起始下标错开，类似隔行扫描
-			for (size_t j = i; j < ff.size(); j += numThreads) {
-				auto& f = ff[j];
-				auto p = rootPath / f.path;
+				// 计算文件完整路径
+				auto p = rootPath / f->path;
 
 				// 读出文件所有数据( 这里比较粗暴，如果文件体积大于可用内存，那就没法搞了 )
-				if (int r = xx::ReadAllBytes(p, d)) {
-					std::cout << "file read error: r = " << r << std::endl;
+				if (int r = xx::ReadAllBytes(p, c.d)) {
+					f->md5 = std::string("file read error: r = ") + std::to_string(r);
+					std::cout << "#";
 					return;
 				}
 
 				// 按需校验
 				if (needVerify) {
-					//std::cout << "begin download " << (fs.baseUrl + f.path) << std::endl;
-					dl.Download(f.path);
-					//std::pair<size_t, size_t> curr, bak;
-					//while (dl.TryGetProgress(curr)) {
-					//	if (bak != curr) {
-					//		bak = curr;
-					//		std::cout << "downloading... " << curr.first << " / " << curr.second << std::endl;
-					//	}
-					//}
-					while (dl.Busy()) Sleep(1);
+					c.dl.Download(f->path);
+					while (c.dl.Busy()) Sleep(1);
 
-					if (!dl.Finished()) {
-						std::cout << "url: " << (fs.baseUrl + f.path) << " download error." << std::endl;
+					if (!c.dl.Finished()) {
+						f->md5 = std::string("url: ") + (fs.baseUrl + f->path) + " download error";
+						std::cout << "!";
 						return;
 					}
 
-					if (d != dl.data) {
-						std::cout << "file: " << p << " verify failed. the file content is different." << std::endl;
+					if (c.d != c.dl.data) {
+						f->md5 = std::string("file: ") + p.string() + " verify failed. the file content is different";
+						std::cout << "*";
 						return;
 					}
 
-					std::cout << "+";
+					// 随便输出点啥 显得进程没死
+					std::cout << ",";
 				}
 
 				// 写入 len
-				f.len = d.len;
+				f->len = c.d.len;
 
 				// 写入 md5
-				f.md5 = GetDataMD5Hash(d);
+				f->md5 = GetDataMD5Hash(c.d);
 
+				// 随便输出点啥 显得进程没死
 				std::cout << ".";
-			}
-
-			// 更新条件变量
-			++counter;
-		});
-		ts[i].detach();
+			});
+		}
 	}
 
-	// 等所有线程完成
-	while (counter < numThreads) Sleep(1);
-
+	// 执行到此处时，线程池已完结
 	std::cout << std::endl;
+
+
+	// 如果扫描到出错, 打印 & 退出
+	bool ok = true;
+	for (auto& f : ff) {
+		if (!f.len) {
+			if (f.md5.empty()) {
+				std::cout << f.path << std::endl << "warning!!! this file's len == 0" << std::endl << std::endl;
+			}
+			else {
+				ok = false;
+				std::cout << f.path << std::endl << f.md5 << std::endl << std::endl;
+			}
+		}
+	}
+	if (!ok) {
+		std::cout << "failed! data not save!!! press any to continue..." << std::endl;
+		std::cin.get();
+		return 1;
+	}
 
 	// 文件写入当前工作目录
 	auto outFilePath = FS::current_path() / "files_idx.json";
 	ajson::save_to_file(fs, outFilePath.string().c_str());
 
-	std::cout << "success! handled " << ff.size() << " files!" << std::endl;
+	std::cout << "success! handled " << ff.size() << " files! data saved to " << outFilePath << "!!! press any to continue..." << std::endl;
 	std::cin.get();
 	return 0;
 }
