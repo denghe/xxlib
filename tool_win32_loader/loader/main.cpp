@@ -9,6 +9,7 @@
 #include <get_md5.h>
 #include <ntcvt.hpp>
 #include <xx_file.h>
+#include <xx_threadpool.h>
 namespace FS = std::filesystem;
 
 // todo: 自更新逻辑
@@ -145,87 +146,64 @@ struct Loader {
 			errText = "can't found exe file! please try again!";
 		}
 
-		// 拼凑为完整路径
+		// 拼凑为完整路径备用
 		exeFilePath = (rootPath / exeFilePath).wstring();
 
 
-		// 临时读文件容器
-		std::array<xx::Data, numThreads> ds;
+		// 起个线程池搞事情. 校验所有文件的 md5
+		{
+			xx::ThreadPool2<xx::Data, 8> tp;
 
-		// 分线程记录有问题的 file, 最后合并 回写到 ff
-		std::array<std::vector<FilesIndexJson::File>, numThreads> fss;
+			// 往线程池压任务, 等结束. 中途发生错误, 利用 !f.ok 来表达
+			for (auto& f : ff) {
 
-		// 线程池
-		std::array<std::thread, numThreads> ts;
+				// 拷贝捕获 f 的指针到线程函数。f 不可直接& ( 每次 for 变化 并且出 for 就没了 )
+				tp.Add([&, f = &f](xx::Data& d) {
 
-		// 等待所有线程完工的条件变量
-		std::atomic<int> counter;
+					// 计算文件完整路径
+					auto p = rootPath / f->path;
 
-		// 产生线程下标, 便于每个线程定位到自己的上下文容器
-		for (size_t i = 0; i < numThreads; ++i) {
-			// 第 i 个线程使用下标 i 的 ds & dls
-			ts[i] = std::thread([&, i = i] {
-				auto& d = ds[i];
-				auto& fs = fss[i];
-				
-				// 每线程起始下标错开，类似隔行扫描
-				for (size_t j = i; j < ff.size(); j += numThreads) {
-					auto& f = ff[j];
-					auto p = rootPath / f.path;
+					// 异常: 文件不存在
+					if (!FS::exists(p)) return;
 
-					// 文件不存在：继续
-					if (!FS::exists(p)) {
-						fs.push_back(f);
-						continue;
-					}
-
-					// 不是文件？删掉并继续					// todo: 不确定是否奏效
+					// 异常: 不是文件？删掉
 					if (!FS::is_regular_file(p)) {
 						FS::remove_all(p);
-						fs.push_back(f);
-						continue;
-					}
-
-					// 字节数对不上? 删掉并继续
-					if (FS::file_size(p) != f.len) {
-						FS::remove(p);
-						fs.push_back(f);
-						continue;
-					}
-
-					// 数据读取错误? 报错 OK 退出
-					if (xx::ReadAllBytes(p, d)) {
-						hasError = true;
-						errText = std::string("bad file at:\n") + p.string();
 						return;
 					}
 
-					// 算出来的 md5 对不上？删掉并继续
-					auto md5 = GetDataMD5Hash(d);
-					if (f.md5 != md5) {
+					// 异常: 字节数对不上? 删掉
+					if (FS::file_size(p) != f->len) {
 						FS::remove(p);
-						fs.push_back(f);
-						continue;
+						return;
+					}
+
+					// 异常: 数据读取错误
+					if (xx::ReadAllBytes(p, d)) return;
+
+					// 异常: 算出来的 md5 对不上？删掉
+					if (f->md5 != GetDataMD5Hash(d)) {
+						FS::remove(p);
+						return;
+					}
+
+					// 通过
+					f->ok = true;
+				});
+			}
+		}
+		// 执行到此处时，线程池已完结
+
+		// 倒序删除 ok 的条目
+		if (!ff.empty()) {
+			for (int i = ff.size() - 1; i >= 0; --i) {
+				if (ff[i].ok) {
+					if (auto last = ff.size() - 1; i < last) {
+						ff[i] = ff[last];
+						ff.pop_back();
 					}
 				}
-
-				// 更新条件变量
-				++counter;
-			});
-			ts[i].detach();
-		}
-
-		// 等所有线程完成
-		while (counter < numThreads) Sleep(1);
-
-		// 如果出错了，直接退出
-		if (hasError) return 1;
-
-		// 合并错误集合
-		ff.clear();
-		for (auto& fs : fss) {
-			for (auto& f : fs)
-				ff.push_back(std::move(f));
+			}
 		}
 
 		// 如果 fs 有数据剩余, 就进入到 UI 下载环节, 否则就加载 exe 并退出
@@ -477,7 +455,7 @@ struct Loader {
 			ImGui::Separator();
 			ImGui::Dummy({ 0.0f, 5.0f });
 
-			ImGui::Dummy({ 0.0f, 0.0f }); 
+			ImGui::Dummy({ 0.0f, 0.0f });
 			ImGui::SameLine(ImGui::GetWindowWidth() - (ImGui::GetStyle().ItemSpacing.x + 120));
 			if (ImGui::Button("Cancel", { 120, 35 })) {
 				dl.Close();

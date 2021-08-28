@@ -93,9 +93,11 @@ namespace xx {
 
 		// 取消下载，掐线，销毁所有( 析构并不会自动调用这个, 以避免杀进程出错 )
 		void Close() {
-			canceled = true;
-			running = false;
-			t.join();
+			if (t.joinable()) {
+				canceled = true;
+				running = false;
+				t.join();
+			}
 
 			cli.reset();
 			baseUrl.shrink_to_fit();

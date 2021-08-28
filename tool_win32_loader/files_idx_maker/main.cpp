@@ -76,7 +76,9 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 		// 线程池共享上下文
 		struct Ctx {
 			XX_SIMPLE_STRUCT_DEFAULT_CODES(Ctx);
+			// 下载器
 			xx::Downloader dl;
+			// 临时读文件容器
 			xx::Data d;
 		};
 
@@ -106,15 +108,19 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 
 				// 按需校验
 				if (needVerify) {
+
+					// 下载并等待下完
 					c.dl.Download(f->path);
 					while (c.dl.Busy()) Sleep(1);
 
+					// 异常: 下载出错
 					if (!c.dl.Finished()) {
 						f->md5 = std::string("url: ") + (fs.baseUrl + f->path) + " download error";
 						std::cout << "!";
 						return;
 					}
 
+					// 异常: 内容对不上
 					if (c.d != c.dl.data) {
 						f->md5 = std::string("file: ") + p.string() + " verify failed. the file content is different";
 						std::cout << "*";
@@ -131,27 +137,30 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 				// 写入 md5
 				f->md5 = GetDataMD5Hash(c.d);
 
+				// 标记为通过
+				f->ok = true;
+
 				// 随便输出点啥 显得进程没死
 				std::cout << ".";
 			});
 		}
 	}
-
 	// 执行到此处时，线程池已完结
+
+	// 空一行
 	std::cout << std::endl;
 
-
-	// 如果扫描到出错, 打印 & 退出
+	// 如果出错, 打印 & 退出
 	bool ok = true;
 	for (auto& f : ff) {
+		// 警告下 0 长文件( 不属于出错 )
 		if (!f.len) {
-			if (f.md5.empty()) {
-				std::cout << f.path << std::endl << "warning!!! this file's len == 0" << std::endl << std::endl;
-			}
-			else {
-				ok = false;
-				std::cout << f.path << std::endl << f.md5 << std::endl << std::endl;
-			}
+			std::cout << f.path << std::endl << "warning!!! this file's len == 0" << std::endl << std::endl;
+		}
+		// 出错了
+		if (!f.ok) {
+			ok = false;
+			std::cout << f.path << std::endl << f.md5 << std::endl << std::endl;
 		}
 	}
 	if (!ok) {
@@ -164,6 +173,7 @@ example: files_idx_maker.exe C:\res\files http://abc.def/files/ verify
 	auto outFilePath = FS::current_path() / "files_idx.json";
 	ajson::save_to_file(fs, outFilePath.string().c_str());
 
+	// 打印成功，退出
 	std::cout << "success! handled " << ff.size() << " files! data saved to " << outFilePath << "!!! press any to continue..." << std::endl;
 	std::cin.get();
 	return 0;

@@ -9,6 +9,7 @@ namespace FilesIndexJson {
 		std::string path;
 		uint64_t len = 0;
 		std::string md5;
+		bool ok = false;	// 辅助变量，不计入 json 文件
 	};
 }
 AJSON(FilesIndexJson::File, path, len, md5);
