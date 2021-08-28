@@ -1,6 +1,7 @@
 // 扫描指定目录下所有文件，生成文件索引 json
 
 #include <iostream>
+#include <xx_threadpool.h>
 #include "files_idx_json.h"
 #include "xx_downloader.h"
 #include "get_md5.h"

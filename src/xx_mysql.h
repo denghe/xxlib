@@ -404,11 +404,19 @@ namespace xx::MySql {
         if (ctx) {
             Throw(-__LINE__, "Connection Open connection already opened.");
         }
+        ctx = (MYSQL*)malloc(sizeof(MYSQL));
+        if (!ctx) {
+            Throw(-__LINE__, "Connection Open ctx malloc failed.");
+        }
+        void* tmp;
         {
             std::lock_guard<std::mutex> lg(mutex_connOpen);
-            ctx = mysql_init(nullptr);
+            tmp = mysql_init(ctx);
         }
-        if (!ctx) {
+        assert(tmp == ctx);
+        if (!tmp) {
+            free(ctx);
+            ctx = nullptr;
             Throw(-__LINE__, "Connection Open mysql_init failed.");
         }
         my_bool reconnect = 1;
@@ -426,6 +434,7 @@ namespace xx::MySql {
     inline void Connection::Close() {
         if (ctx) {
             mysql_close(ctx);
+            free(ctx);
             ctx = nullptr;
         }
     }
