@@ -12,180 +12,62 @@
 	双击启动, 一开始没有任何 UI 显示，就像 chrome 浏览器安装文件那样的风格。
 	根据事件需求，显示进度条 UI（有任何下载需求产生时）( 双进度条带百分比 + 当前文件名 + 下载速度 字节/秒 )
 	
-	检查环境，判断自身应采取何种行为。
-	检查内存中是否存在多份 loader.exe，想办法避免多开（跨进程 mutex 走起？）
+	检查环境，判断自身应采取何种行为。想办法避免多开（跨进程 mutex 走起）
 	
 	现状：当前 cocos 的 win32 版本，对 含有中文的目录 不支持（ win7 下测试崩溃 ）, 尚不确定具体是哪个组件不支持，不太好修复。
 	故决定先将安装目录设定到 ProgramData 下面。
 	
-	检查 ProgramData\loader_files 目录是否存在，没有就创建。
-	访问内置域名 URL, 从 索引服务 下载 二级加载器 的基本信息：版本号，长度，md5  网页返回这样一串 逗号分隔 的 string 就好
-	
-	检查 ProgramData\loader_files\loader_版本号.exe 是否存在
-		不存在：下载之，下完检查 len & md5. 如果检查失败，删掉重下 并适当 sleep 延迟一下，延迟时长和 当前文件下载出错次数 成正比
-		存在：走“不存在”流程所描述的检查步骤
-	启动 ProgramData\loader_files\loader_版本号.exe, 当前进程退出
+	访问内置域名 URL, 从 索引服务 下载 files_idx.json，解析填充到文件列表备用
 
-	json 长相：
-	{
-		"baseUrl":"https://xxxxxxxxxxxx/xxxxx/",
-		"files":[
-			{ "path":"dir1/dir2/abc.png", "len":12345, "md5":"asdblakdsfjklsdjl12937" },
-			{ "path":"dir1/dir2/abc.png", "len":12345, "md5":"asdblakdsfjklsdjl12937" },
-			{ "path":"loader_xxxxxx.exe", "len":423112, "md5":"qwerqwerwqerwrkwerwekrjwelrwejkrljwkler" },
-			...
-		]
-	}
-	baseUrl: 基础下载地址( 用于拼接 )
-	files: 具体文件明细列表( 里面 loader_xxxxx.exe 是二级 loader )
-	path: 文件名（相对路径）。 rootUrl + path = full download url
-	len: 文件长度
-	md5: md5算法校验串
+	检查 ProgramData\xxx_game_loader 目录是否存在，没有就创建。
 	
-	访问内置域名 URL, 从 索引服务 下载 基础文件 索引数据，网页返回上述 json 格式。 
+	查找 ProgramData\xxx_game_loader 下 是否存在 啥啥.exe（可能位于子目录 ) 并记录
+
+	遍历 文件列表, 检查所有文件的 len & md5. 检查失败的，安排下载，直到检查通过
+
+	启动 啥啥.exe, 当前进程退出
+
 	异常：如果网络故障，显示 UI 并报错( 显示 OK 版错误 message box，点击 OK 关闭退出 ）
 	
-	判断磁盘剩余空间是否足够。 不够 则报错 OK退出
-	遍历 json/files，逐个下载：
-		如果文件已存在，则直接跳转到 校验 步骤
-		如果有多级目录就递归创建。 创建失败 则报错 OK退出
-		
-		根据下载进度（按所有文件总长度结合当前文件已下载长度来估算），更新进度显示
-		网络异常：断网、拥堵或下载URL访问不了，导致无法继续下载，提供简单重试机制，断点续传啥的。 但是不报错，只是体现为卡进度。
-		磁盘异常：报错 OK退出( 空间不足, 创建/写入失败啥的 )
-		
-		下载完毕之后，校验 len & md5
-		异常：如果文件校验不过，删掉重下 并适当 sleep 延迟一下，延迟时长和 当前文件下载出错次数 成正比
-		
-	最后 启动 游戏执行文件名, 当前进程退出
-		
-4. 相关工具
-
-	填写打包文件白名单，生成下载用 json 的 md5 工具
-	
-5. 具体代码分析
-
-	cocos 获取可写目录的函数在此: ( 精简加备注版 )
-
-string FileUtilsWin32::getWritablePath() {
-
-    // 获取当前 exe 完整路径。 等价于 main( 第一个参数 )
-    WCHAR full_path[CC_MAX_PATH + 1] = { 0 };
-    ::GetModuleFileName(nullptr, full_path, CC_MAX_PATH + 1);
-
-    // 切割出 "\文件名.exe"
-    WCHAR *base_name = wcsrchr(full_path, '\\');
-	
-    wstring retPath;
-	
-	// 防范一下找不到 \ 的情况( 真有必要? )
-    if (base_name) {
-	
-        // 得到程序本地数据目录 "C:\Users\xxxx\AppData\Local"
-        WCHAR app_data_path[CC_MAX_PATH + 1];
-        if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, app_data_path))) {
-		
-            wstring ret(app_data_path);
-
-            // 拼接为 "C:\Users\xxxx\AppData\Local\文件名.exe"
-            ret += base_name;
-
-            // 去掉 ".扩展名" 后得到 "C:\Users\xxxx\AppData\Local\文件名"
-            ret = ret.substr(0, ret.rfind(L"."));
-
-			// 屁股后面加个 \, 成为目录名，创建之
-            ret += L"\\";
-            if (SUCCEEDED(SHCreateDirectoryEx(nullptr, ret.c_str(), nullptr))) {
-                retPath = ret;
-            }
-        }
-    }
-	
-	// 如果目录创建失败: 凑合使用 当前 exe 所在目录作为 可写目录
-    if (retPath.empty()) {
-        // If fetching of local app data directory fails, use the executable one
-        retPath = full_path;
-
-        // remove xxx.exe
-        retPath = retPath.substr(0, retPath.rfind(L"\\") + 1);
-    }
-
-	// WCHAR -> utf8 char -> unix style ( \ 变 / ) 返回
-    return convertPathFormatToUnixStyle(StringWideCharToUtf8(retPath));
-}
-
-	具体的，当项目开始执行后，C:\Users\用户名\AppData\Local\exe文件名目录\ 下面会有几个目录或文件：
-	
-		download  				目录
-		GAME_LOG.txt			[LUA-print] [带时间戳] 的那种才会输出到这个文件
-		UserDefault.xml			cocos 内部用户数据存储
-		recharged_event.json	估计是当前游戏逻辑要用到的一些东西
-
-	上述路径在 win7 & win10 下经过观察，都是这个路径。 win7 下也存在 ProgramData。 xp 系统不打算支持。
-	
-	考虑到有部分核心 lua 文件作为基础入口，需要准备 且能被热更?? 
-	
-	网上找到的一段参考代码：
-	https://stackoverflow.com/questions/5920853/how-to-open-a-folder-in-appdata-with-c
-	
-	
-#include <filesystem>
-#include <iostream>
-
-int main(void)
-{
-    std::filesystem::path path;
-    PWSTR path_tmp;
-
-    /* Attempt to get user's AppData folder
-     *
-     * Microsoft Docs:
-     * https://docs.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath
-     * https://docs.microsoft.com/en-us/windows/win32/shell/knownfolderid
-     */
-    auto get_folder_path_ret = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &path_tmp);
-
-    /* Error check */
-    if (get_folder_path_ret != S_OK) {
-        CoTaskMemFree(path_tmp);
-        return 1;
-    }
-
-    /* Convert the Windows path type to a C++ path */
-    path = path_tmp;
-
-    /* Free memory :) */
-    CoTaskMemFree(path_tmp);
-
-    std::cout << path << std::endl;
-
-    return 0;
-}
-	
-
-
-
-
-6. 其他
+4. 其他
 
 	由功能性调整产生的残留文件，会造成哪些影响？是否应该移除？如何移除？
 	已知的，由于 search path 机制的存在，资源加载可能优先加载到残留文件从而造成运行时错误。
-	如果要做移除，则需要有 完整的 文件列表（不只是下载的东西，还包括运行时产生的文件等），遍历目录，不在这个列表里面的就干掉
-	这个文件得工具扫描 + 手动添加 来提供下载。 下载方式为 索引服务( 不走 CDN )
-	进一步的，这个文件的内容似乎可以和 
+	如果要做移除，则需要有 完整的 文件列表（不只是下载的东西，还包括运行时产生的文件等），遍历目录，不在这个列表里面的就干掉？
+
+
+5. 相关工具
+
+	files_idx_maker: 扫描 指定目录，从指定 URL 下载文件并校验，生成 files_idx.json
 	
+	工具用法：
+
+		指定三个参数。 1: 目标目录       2: 资源URL      3: 下载并校验内容( verify )
+
+	目录内容来自 win32 release 编译的 exe + dll + 各种资源目录
+
+
+	目录结构方面，可以维护一个 带版本管理的 大而全 目录，并行建立多个 同级目录，应对  win32 最小下载 和 apk 打包 需求
+
+	进一步的，目录可以按 游戏 或 板块 或 模块 分开， 例如 exe 开始执行后， login + lobby 部分，需求哪些文件，就单独复制到一个目录，保持和 大而全 相同目录结构 & 层次，最后用工具扫描得到 json
+
+	理论上讲，游戏每一步 执行之前，都应该有 文件完整性检查&下载 的步骤，以确保功能无碍：
+
+		exe 执行后，确保 入口lua 没问题。
+		入口lua 确保 login 没问题。
+		login 确保 lobby 没问题。
+		lobby 根据 玩家点击的图标，确保 即将进入的 game 没问题。
+
+	上述环节，每一步应该都需求该工具产生的 json。
+
+	这些 json 可即时的从 网关 内部的 json下载服务（或者叫文件索引版本管理服务？） 拉取 以保证下载效率。 exe 以及 入口 lua 这部分 的 json 可走 暴露在公网的 类似服务 ( http 协议 )
+
+	大而全 目录，为确保 CDN 命中率，采取 不覆盖，只追加 的形式，可无脑同步到 s3桶 啥的。
+
+	game 有升级，最方便的办法，是整个目录换用，旧文件拷过来。这要求 game 加载时，需要按照 lobby 的指示，定位到正确的目录名，
+	同时，也可能烙下很多 垃圾，需要思考 如何处理旧目录，理论上讲可以直接将旧目录改名， 并 使用下载器检查文件 并升级 这样最快最省。如何 定位 并 找出 旧目录，需要提前规划，制定固定前缀，便于找寻，避免误伤。
 
 
 
-
-
-
-
-
-	判断当前目录是否适合游戏运行( 不含非 ascii < 127 的字符 且 可写 )。
-		适合：确定 安装目录 为当前目录
-		不适合：确定 安装目录 为用户私有目录
-	考虑到有可能 loader.exe 被移动了位置，故仍然需要检查 用户私有目录下面 是否已存在 loader_files 目录
-		已存在：确定 安装目录 为用户私有目录
-	进一步检查 安装目录 所在分区 空间是否足够。 保底 100M ？ 不够报错？
-	如果 安装目录 下没有 loader_files 目录, 则创建（ 初期版本可无脑安装到 用户私有目录, 防止出各种古怪 )
+	外网 files_idx.json 下载服务：可自写，也可自架 nginx 之类，每次更新文件之后 重启下服务 确保输出没有被 cache.
+	内网 可依附在 lobby 等服务上，用 包 来收发。
