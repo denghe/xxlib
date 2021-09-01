@@ -278,8 +278,7 @@ struct Loader {
 			if (ImGui::Button("OK", { 80, 35 })) {
 				ImGui::CloseCurrentPopup();
 				popuped = false;
-				//rtv = 1;
-				hasError = false;
+				rtv = 1;
 			}
 
 			// 结束声明弹出窗口
