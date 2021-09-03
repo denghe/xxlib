@@ -15,18 +15,17 @@ https://github.com/godotengine/gdnative-demos.git
 
 4. 进到 godot-cpp 目录，修改 SConstruct：替换所有 /MD 为 /MT
 
-5. 下列命令行编译两个版本( -j16 表示 16 线编译, 根据自己 cpu 改 ). 之后会发现 多出 bin 目录 里面有两个文件 libgodot-cpp.windows.???????.64.lib
-scons platform=windows generate_bindings=yes target=debug bits=64 -j16
-scons platform=windows generate_bindings=yes target=release bits=64 -j16
+5. 下列命令行编译两个版本( -j32 表示 32 线编译, 根据自己 cpu 改 ). 之后会发现 多出 bin 目录 里面有两个文件 libgodot-cpp.windows.???????.64.lib
+scons platform=windows generate_bindings=yes target=debug bits=64 -j32
+scons platform=windows generate_bindings=yes target=release bits=64 -j32
 
-6. 进到 gdnative-demos/cpp/pong 目录,  "全字匹配" 查找所有 godot-cpp, 替换为  ../../../godot-cpp  ( 有一处 libgodot-cpp  别误伤 ), 替换所有 /MD 为 /MT
+6. 进到 gdnative-demos/cpp/pong 目录,  "全字匹配" 查找所有 godot-cpp, 替换为  ../../../godot-cpp  ( 有一处 libgodot-cpp  别误伤 ), 替换所有 MD 为 MT
 
 7. 编译类似步骤5 ( 这是官方教程做法 )
-scons platform=windows target=debug bits=64 -j16
-scons platform=windows target=release bits=64 -j16
+scons platform=windows target=debug bits=64 -j32
+scons platform=windows target=release bits=64 -j32
 
-此时, 会多出 build 目录，里面有 libpong.dll 等文件
-以及 pong/project/gdnative/windows 下，也会有类似文件
+此时,  pong/project/gdnative/windows 下，会有 libpong.dll exp lib 文件生成
 
 至此，用 godot.exe 导入项目就可以 run 了。
 
