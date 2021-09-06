@@ -447,13 +447,13 @@ namespace xx {
 
     // 日志级别
     enum class LogLevels : int {
-        TRACE, DEBUG, INFO, WARN, ERROR
+        TRACE, DEBUG, INFO, WARN, ERR
     };
     inline char const* logLevelNames[] = {
-        "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
+        "TRACE", "DEBUG", "INFO", "WARN", "ERR"
     };
 
-    // 带颜色的 日志级别串（ERROR 那个是红色，别的乱来的）
+    // 带颜色的 日志级别串（ERR 那个是红色，别的乱来的）
     inline char const* logLevelColorNames[] = {
             "\033[35mTRACE\033[37m", "\033[32mDEBUG\033[37m", "\033[33mINFO\033[37m", "\033[34mWARN\033[37m",
             "\033[31mERROR\033[37m"
@@ -685,7 +685,7 @@ namespace xx {
 
             ofs.open(oldName, std::ios_base::app);
             if (ofs.fail()) {
-                std::cerr << "ERROR!!! open log file failed: \"" << oldName << "\", forget mkdir ??" << std::endl;
+                std::cerr << "ERR!!! open log file failed: \"" << oldName << "\", forget mkdir ??" << std::endl;
             }
         }
 
@@ -722,7 +722,7 @@ namespace xx {
 
             ofs.open(currLogFileName, std::ios_base::app);
             if (ofs.fail()) {
-                std::cerr << "ERROR!!! open log file failed: \"" << currLogFileName << "\", forget mkdir ??" << std::endl;
+                std::cerr << "ERR!!! open log file failed: \"" << currLogFileName << "\", forget mkdir ??" << std::endl;
             }
         }
 
@@ -806,8 +806,8 @@ inline xx::Logger __xxLogger;
 #else
 #   define LOG_INFO(...) __xxLogger.Log(xx::LogLevels::INFO, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_WARN(...) __xxLogger.Log(xx::LogLevels::WARN, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
-#   define LOG_ERROR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
-#   define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_ERROR(...) __xxLogger.Log(xx::LogLevels::ERR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_TRACE(...) __xxLogger.Log(xx::LogLevels::TRACE, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_DEBUG(...) __xxLogger.Log(xx::LogLevels::DEBUG, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #endif

@@ -1,8 +1,8 @@
 ﻿#include "xx_string.h"
 #include "xx_ptr.h"
-#ifdef _WIN32
-#include <mimalloc-new-delete.h>
-#endif
+//#ifdef _WIN32
+//#include <mimalloc-new-delete.h>
+//#endif
 
 #define NUM_ITEMS 100000
 #define UPDATE_TIMES 1000

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(xx_queue_test1)
+project(xx_math_test1)
 
 set(CMAKE_CXX_STANDARD 20)
 if(UNIX)
@@ -8,14 +8,8 @@ endif()
 
 include_directories(
 	../src
-	../../mimalloc/include
 )
 
-add_executable(xx_queue_test1
+add_executable(xx_math_test1
         main.cpp
         )
-
-if(UNIX)
-	find_package(mimalloc 1.7 REQUIRED)
-	target_link_libraries(xx_queue_test1 PUBLIC mimalloc-static)
-endif()

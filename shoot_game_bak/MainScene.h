@@ -5,19 +5,23 @@
 #include <vector>
 #include <memory>
 
+struct XY {
+	int x, y;
+};
+
 class MainScene;
 struct Bullet;
 struct Shooter {
-	Shooter(MainScene* mainScene, cocos2d::Point pos);
+	Shooter(MainScene* mainScene, XY pos);
 	~Shooter();
 	MainScene* mainScene;
 	cocos2d::Sprite* body;
 	cocos2d::Sprite* gun;
 	float bodyAngle = 0.f;
-	cocos2d::Point pos;
+	XY pos;
 	float moveDistancePerFrame = 10;
 
-	cocos2d::Point aimPos;
+	XY aimPos;
 	bool moveLeft = false;
 	bool moveRight = false;
 	bool moveUp = false;
@@ -29,12 +33,12 @@ struct Shooter {
 };
 
 struct Bullet {
-	Bullet(Shooter* shooter, cocos2d::Point pos, cocos2d::Point inc, int life);
+	Bullet(Shooter* shooter, XY pos, XY inc, int life);
 	~Bullet();
 	Shooter* shooter;
 	MainScene* mainScene;
 	int life;
-	cocos2d::Point pos, inc;
+	XY pos, inc;
 	// target? ¸ú×Ù?
 	cocos2d::Sprite* body;
 	int Update();
@@ -45,7 +49,7 @@ public:
 	bool init() override;
 	void update(float delta) override;
 
-	float zoom = 1.0f;
+	float zoom = 0.5f;
 	cocos2d::Node* container = nullptr;
 	cocos2d::Sprite* cursor = nullptr;
 

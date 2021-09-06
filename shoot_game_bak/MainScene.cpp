@@ -1,30 +1,73 @@
 #include "AppDelegate.h"
 #include "MainScene.h"
+#include <iostream>
 
-// 计算直线的弧度
+/***********************************************************************************************/
+// 整数坐标系游戏常用函数/查表库。主要意图为确保跨硬件计算结果的一致性( 附带性能有一定提升 )
+
+static const double pi2 = 3.14159265358979323846264338328 * 2;
+
+// 设定计算坐标系 x, y 值范围 为 正负 table_xy_range
+static const int table_xy_range = 2048, table_xy_range2 = table_xy_range * 2;
+
+// 角度分割精度。256 对应 uint8_t，65536 对应 uint16_t, ... 对于整数坐标系来说，角度继续细分意义不大。增量体现不出来
+static const int table_num_angles = 256;
+using table_angle_element_type = uint8_t;
+
+// 构造一个查表数组，下标是 +- table_xy_range 二维坐标值。内容是以 table_num_angles 为切割单位的自定义角度值( 并非 360 或 弧度 )
+inline std::array<table_angle_element_type, table_xy_range2* table_xy_range2> table_angle;
+
+// 基于 table_num_angles 个角度，查表 sin cos 值 ( 通常作为移动增量 ). 该值放大了 32768 倍
+inline std::array<int, table_num_angles> table_sin;
+inline std::array<int, table_num_angles> table_cos;
+
+
+// 程序启动时自动填表
+struct TableFiller {
+	TableFiller() {
+		for (int y = -table_xy_range; y < table_xy_range; ++y) {
+			for (int x = -table_xy_range; x < table_xy_range; ++x) {
+				auto idx = (y + table_xy_range) * table_xy_range2 + (x + table_xy_range);
+				auto a = atan2((double)y, (double)x);
+				if (a < 0) a += pi2;
+				table_angle[idx] = a / pi2 * table_num_angles;
+			}
+		}
+		// fix same x,y
+		table_angle[(0 + table_xy_range) * table_xy_range2 + (0 + table_xy_range)] = 0;
+
+		for (int i = 0; i < table_num_angles; ++i) {
+			auto s = sin((double)i / table_num_angles * pi2);
+			table_sin[i] = (int)(s * 32768);
+			auto c = cos((double)i / table_num_angles * pi2);
+			table_cos[i] = (int)(c * 32768);
+		}
+	}
+};
+inline TableFiller tableFiller__;
+
+// 传入坐标，返回角度值( 0 ~ table_num_angles )
+table_angle_element_type GetAngleXY(int const& x, int const& y) noexcept {
+	assert(x >= -table_xy_range && x < table_xy_range&& y >= -table_xy_range && y < table_xy_range);
+	return table_angle[(y + table_xy_range) * table_xy_range2 + x + table_xy_range];
+}
+table_angle_element_type GetAngleXYXY(int const& x1, int const& y1, int const& x2, int const& y2) noexcept {
+	return GetAngleXY(x2 - x1, y2 - y1);
+}
 template<typename Point1, typename Point2>
-float GetAngle(Point1 const& from, Point2 const& to) noexcept {
-	if (from.x == to.x && from.y == to.y) return 0.0f;
-	auto&& len_y = to.y - from.y;
-	auto&& len_x = to.x - from.x;
-	return atan2f(len_y, len_x);
+table_angle_element_type GetAngle(Point1 const& from, Point2 const& to) noexcept {
+	return GetAngleXY(to.x - from.x, to.y - from.y);
 }
 
-// 计算距离
-template<typename Point1, typename Point2>
-float GetDistance(Point1 const& a, Point2 const& b) noexcept {
-	float dx = a.x - b.x;
-	float dy = a.y - b.y;
-	return sqrtf(dx * dx + dy * dy);
+// 计算点旋转后的坐标
+inline XY Rotate(XY const& p, table_angle_element_type const& a) noexcept {
+	auto s = (int64_t)table_sin[a];
+	auto c = (int64_t)table_cos[a];
+	return { (int)(p.x * c / 32768 - p.y * s / 32768), (int)(p.x * s / 32768 + p.y * c / 32768) };
 }
 
-// 点围绕 0,0 为中心旋转 a 弧度   ( 角度 * (float(M_PI) / 180.0f) )
-template<typename Point>
-inline Point Rotate(Point const& pos, float const& a) noexcept {
-	auto&& sinA = sinf(a);
-	auto&& cosA = cosf(a);
-	return Point{ pos.x * cosA - pos.y * sinA, pos.x * sinA + pos.y * cosA };
-}
+/***********************************************************************************************/
+
 
 
 bool MainScene::init() {
@@ -37,6 +80,7 @@ bool MainScene::init() {
 	// create container
 	container = cocos2d::Node::create();
 	container->setPosition(dw_2, dh_2);
+	container->setScale(zoom);
 	this->addChild(container);
 
 	// create cursor
@@ -46,7 +90,7 @@ bool MainScene::init() {
 	this->addChild(cursor);
 
 	// create shooter instance
-	shooter = std::make_shared<Shooter>(this, cocos2d::Point{ 0,0 });
+	shooter = std::make_shared<Shooter>(this, XY{ 0,0 });
 
 	// enable every frame call update
 	scheduleUpdate();
@@ -127,7 +171,7 @@ void MainScene::update(float delta) {
 
 	shooter->button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
 	shooter->button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
-	shooter->aimPos = mousePos;
+	shooter->aimPos = XY{ (int)mousePos.x, (int)mousePos.y };
 
 	// keep 60 fps call update
 	totalDelta += delta;
@@ -141,18 +185,18 @@ void MainScene::update(float delta) {
 	}
 }
 
-Shooter::Shooter(MainScene* mainScene, cocos2d::Point pos)
+Shooter::Shooter(MainScene* mainScene, XY pos)
 	: mainScene(mainScene), pos(pos) {
 	// draw
 	body = cocos2d::Sprite::create("c.png");
 	assert(body);
-	body->setPosition(pos);
+	body->setPosition(pos.x, pos.y);
 	mainScene->container->addChild(body);
 
 	gun = cocos2d::Sprite::create("c.png");
 	assert(gun);
 	gun->setScale(0.3f);
-	gun->setPosition(pos + cocos2d::Point(147, 0));
+	gun->setPosition(pos.x + 147, pos.y);
 	mainScene->container->addChild(gun);
 }
 Shooter::~Shooter() {
@@ -188,13 +232,14 @@ int Shooter::Update() {
 	if (moveDown) {
 		pos.y -= moveDistancePerFrame;
 	}
-	body->setPosition(pos);
+	body->setPosition(pos.x, pos.y);
 
 	// sync gun pos 
 	auto angle = GetAngle(pos, aimPos);
-	auto gunPosOffset = Rotate(cocos2d::Point{ 147, 0 }, angle);
-	auto gunPos = pos + gunPosOffset;
-	gun->setPosition(pos + gunPosOffset);
+	auto gunPosOffset = Rotate(XY{ 147, 0 }, angle);
+	auto gunPos = XY{ pos.x + gunPosOffset.x, pos.y + gunPosOffset.y };
+	std::cout << (uint32_t)angle << ", " << gunPosOffset.x << ", " << gunPosOffset.y << std::endl;
+	gun->setPosition(gunPos.x, gunPos.y);
 
 	// bullets
 	for (int i = (int)bullets.size() - 1; i >= 0; --i) {
@@ -210,14 +255,14 @@ int Shooter::Update() {
 	// emit bullets
 	if (button1) {
 		auto&& b = bullets.emplace_back();
-		auto inc = Rotate(cocos2d::Point{ 30, 0 }, angle);
+		auto inc = Rotate(XY{ 30, 0 }, angle);
 		b = std::make_shared<Bullet>(this, gunPos, inc, 40);
 	}
 
 	return 0;
 }
 
-Bullet::Bullet(Shooter* shooter, cocos2d::Point pos, cocos2d::Point inc, int life)
+Bullet::Bullet(Shooter* shooter, XY pos, XY inc, int life)
 	: shooter(shooter)
 	, mainScene(shooter->mainScene)
 	, pos(pos)
@@ -226,15 +271,16 @@ Bullet::Bullet(Shooter* shooter, cocos2d::Point pos, cocos2d::Point inc, int lif
 	// draw
 	body = cocos2d::Sprite::create("b.png");
 	assert(body);
-	body->setPosition(pos);
+	body->setPosition(pos.x, pos.y);
 	mainScene->container->addChild(body);
 }
 
 int Bullet::Update() {
 	if (life < 0) return 1;
 	--life;
-	pos += inc;
-	body->setPosition(pos);
+	pos.x += inc.x;
+	pos.y += inc.y;
+	body->setPosition(pos.x, pos.y);
 	return 0;
 }
 
