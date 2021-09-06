@@ -6,7 +6,10 @@
 #include <memory>
 
 struct XY {
-	int x, y;
+	int x = 0, y = 0;
+	operator cocos2d::Point() {
+		return { (float)x, (float)y };
+	}
 };
 
 class MainScene;
@@ -19,7 +22,7 @@ struct Shooter {
 	cocos2d::Sprite* gun;
 	float bodyAngle = 0.f;
 	XY pos;
-	float moveDistancePerFrame = 10;
+	int moveDistancePerFrame = 10;
 
 	XY aimPos;
 	bool moveLeft = false;
