@@ -12,12 +12,18 @@ struct Shooter {
 	~Shooter();
 	MainScene* mainScene;
 	cocos2d::Sprite* body;
+	cocos2d::Sprite* gun;
+	float bodyAngle = 0.f;
 	cocos2d::Point pos;
+	float moveDistancePerFrame = 10;
+
+	cocos2d::Point aimPos;
 	bool moveLeft = false;
 	bool moveRight = false;
 	bool moveUp = false;
 	bool moveDown = false;
-	std::optional<cocos2d::Point> touchPos;
+	bool button1 = false;
+	bool button2 = false;
 	std::vector<std::shared_ptr<Bullet>> bullets;
 	int Update();
 };
@@ -39,11 +45,14 @@ public:
 	bool init() override;
 	void update(float delta) override;
 
-	// todo: texture cache
+	float zoom = 1.0f;
+	cocos2d::Node* container = nullptr;
+	cocos2d::Sprite* cursor = nullptr;
 
 	float totalDelta = 0.f;
-	std::optional<cocos2d::Point> touchPos;
-	std::array<bool, 166> keys;
+	cocos2d::Point mousePos;
+	std::array<bool, 9> mouseKeys;
+	std::array<bool, 166> keyboards;
 
 	std::shared_ptr<Shooter> shooter;
 };

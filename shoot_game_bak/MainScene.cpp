@@ -34,38 +34,77 @@ bool MainScene::init() {
 	float dw = AppDelegate::designWidth, dh = AppDelegate::designHeight;
 	float dw_2 = dw / 2, dh_2 = dh / 2;
 
+	// create container
+	container = cocos2d::Node::create();
+	container->setPosition(dw_2, dh_2);
+	this->addChild(container);
+
+	// create cursor
+	cursor = cocos2d::Sprite::create("a.png");
+	cursor->setPosition(dw_2, dh_2);
+	cursor->setScale(3);
+	this->addChild(cursor);
+
 	// create shooter instance
-	shooter = std::make_shared<Shooter>(this, cocos2d::Point{ dw_2, dh_2 });
+	shooter = std::make_shared<Shooter>(this, cocos2d::Point{ 0,0 });
 
 	// enable every frame call update
 	scheduleUpdate();
 
-	// move control
-	keys.fill(false);
-	auto listener = cocos2d::EventListenerKeyboard::create();
-	listener->onKeyPressed = [this](cocos2d::EventKeyboard::KeyCode keyCode, cocos2d::Event* event) {
-		keys[(int)keyCode] = true;
-	};
-	listener->onKeyReleased = [this](cocos2d::EventKeyboard::KeyCode keyCode, cocos2d::Event* event) {
-		keys[(int)keyCode] = false;
-	};
-	_eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
+	// init keyboard event listener
+	{
+		keyboards.fill(false);
+		auto L = cocos2d::EventListenerKeyboard::create();
+		L->onKeyPressed = [this](cocos2d::EventKeyboard::KeyCode keyCode, cocos2d::Event* event) {
+			keyboards[(int)keyCode] = true;
+		};
+		L->onKeyReleased = [this](cocos2d::EventKeyboard::KeyCode keyCode, cocos2d::Event* event) {
+			keyboards[(int)keyCode] = false;
+		};
+		_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
+	}
 
-	// mouse shoot
-	auto listener2 = cocos2d::EventListenerTouchOneByOne::create();
-	listener2->onTouchBegan = [this](cocos2d::Touch* t, cocos2d::Event*)->bool {
-		touchPos = t->getLocation();
-		return true;
-	};
-	listener2->onTouchMoved = [this](cocos2d::Touch* t, cocos2d::Event*) {
-		if (touchPos.has_value()) {
-			touchPos = t->getLocation();
-		}
-	};
-	listener2->onTouchEnded = listener2->onTouchCancelled = [this](cocos2d::Touch*, cocos2d::Event*) {
-		touchPos.reset();
-	};
-	_eventDispatcher->addEventListenerWithSceneGraphPriority(listener2, this);
+	// init touch event listener
+	//{
+	//	auto L = cocos2d::EventListenerTouchOneByOne::create();
+	//	L->onTouchBegan = [this](cocos2d::Touch* t, cocos2d::Event*)->bool {
+	//		touchPos = container->convertToNodeSpace(t->getLocation());
+	//		return true;
+	//	};
+	//	L->onTouchMoved = [this](cocos2d::Touch* t, cocos2d::Event*) {
+	//		if (touchPos.has_value()) {
+	//			touchPos = container->convertToNodeSpace(t->getLocation());
+	//		}
+	//	};
+	//	L->onTouchEnded = L->onTouchCancelled = [this](cocos2d::Touch*, cocos2d::Event*) {
+	//		touchPos.reset();
+	//	};
+	//	_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
+	//}
+
+	// init mouse event listener
+	{
+		mouseKeys.fill(false);
+		auto L = cocos2d::EventListenerMouse::create();
+		L->onMouseMove = [this](cocos2d::EventMouse* e) {
+			cocos2d::Point p(e->getCursorX(), e->getCursorY());
+			cursor->setPosition(p);
+			mousePos = container->convertToNodeSpace(p);
+		};
+		L->onMouseUp = [this](cocos2d::EventMouse* e) {
+			mouseKeys[(int)e->getMouseButton() + 1] = false;
+		};
+		L->onMouseDown = [this](cocos2d::EventMouse* e) {
+			mouseKeys[(int)e->getMouseButton() + 1] = true;
+		};
+		L->onMouseScroll = [this](cocos2d::EventMouse* e) {
+			//e->getScrollY()
+		};
+		_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
+	}
+
+	// hide mouse
+	cocos2d::Director::getInstance()->getOpenGLView()->setCursorVisible(false);
 
 	// success
 	return true;
@@ -73,16 +112,27 @@ bool MainScene::init() {
 
 void MainScene::update(float delta) {
 	// handle input
-	shooter->moveLeft = keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
-	shooter->moveRight = keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
-	shooter->moveUp = keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
-	shooter->moveDown = keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keys[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
-	shooter->touchPos = touchPos;
+	if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_Z] && zoom > 0.02f) {
+		zoom -= 0.005f;
+	}
+	if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_X] && zoom < 1.f) {
+		zoom += 0.005f;
+	}
+	container->setScale(zoom);
 
-	// keep 40 fps call update
+	shooter->moveLeft = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
+	shooter->moveRight = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
+	shooter->moveUp = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
+	shooter->moveDown = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
+
+	shooter->button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
+	shooter->button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
+	shooter->aimPos = mousePos;
+
+	// keep 60 fps call update
 	totalDelta += delta;
-	while (totalDelta > 0.025f) {
-		totalDelta -= 0.025f;
+	while (totalDelta > (1.f / 60.f)) {
+		totalDelta -= (1.f / 60.f);
 		if (shooter->Update()) {
 			shooter.reset();
 			// todo: show game over
@@ -97,30 +147,56 @@ Shooter::Shooter(MainScene* mainScene, cocos2d::Point pos)
 	body = cocos2d::Sprite::create("c.png");
 	assert(body);
 	body->setPosition(pos);
-	mainScene->addChild(body);
+	mainScene->container->addChild(body);
+
+	gun = cocos2d::Sprite::create("c.png");
+	assert(gun);
+	gun->setScale(0.3f);
+	gun->setPosition(pos + cocos2d::Point(147, 0));
+	mainScene->container->addChild(gun);
 }
 Shooter::~Shooter() {
 	if (body) {
 		body->removeFromParent();
 		body = nullptr;
 	}
+	if (gun) {
+		gun->removeFromParent();
+		gun = nullptr;
+	}
 }
 
 int Shooter::Update() {
+	// rotate
+	bodyAngle += 1.f;
+	if (bodyAngle > 360.f) {
+		bodyAngle -= 360.f;
+	}
+	body->setRotation(bodyAngle);
+	gun->setRotation(360.f - bodyAngle * 3.333f);
+
+	// move shooter
 	if (moveLeft) {
-		pos.x -= 2;
+		pos.x -= moveDistancePerFrame;
 	}
 	if (moveRight) {
-		pos.x += 2;
+		pos.x += moveDistancePerFrame;
 	}
 	if (moveUp) {
-		pos.y += 2;
+		pos.y += moveDistancePerFrame;
 	}
 	if (moveDown) {
-		pos.y -= 2;
+		pos.y -= moveDistancePerFrame;
 	}
 	body->setPosition(pos);
 
+	// sync gun pos 
+	auto angle = GetAngle(pos, aimPos);
+	auto gunPosOffset = Rotate(cocos2d::Point{ 147, 0 }, angle);
+	auto gunPos = pos + gunPosOffset;
+	gun->setPosition(pos + gunPosOffset);
+
+	// bullets
 	for (int i = (int)bullets.size() - 1; i >= 0; --i) {
 		auto& b = bullets[i];
 		if (b->Update()) {
@@ -131,13 +207,11 @@ int Shooter::Update() {
 		}
 	}
 
-	if (touchPos) {
+	// emit bullets
+	if (button1) {
 		auto&& b = bullets.emplace_back();
-
-		auto angle = GetAngle(pos, touchPos.value());
-		auto inc1 = Rotate(cocos2d::Point{ 147, 0 }, angle);
-		auto inc2 = Rotate(cocos2d::Point{ 30, 0 }, angle);
-		b = std::make_shared<Bullet>(this, pos + inc1, inc2, 40);
+		auto inc = Rotate(cocos2d::Point{ 30, 0 }, angle);
+		b = std::make_shared<Bullet>(this, gunPos, inc, 40);
 	}
 
 	return 0;
@@ -153,7 +227,7 @@ Bullet::Bullet(Shooter* shooter, cocos2d::Point pos, cocos2d::Point inc, int lif
 	body = cocos2d::Sprite::create("b.png");
 	assert(body);
 	body->setPosition(pos);
-	mainScene->addChild(body);
+	mainScene->container->addChild(body);
 }
 
 int Bullet::Update() {
