@@ -1,5 +1,5 @@
-﻿#include "xx_asiokcpclient.h"
-#include "ss.h"
+﻿#include "ss.h"
+#include "xx_asiokcpclient.h"
 
 struct Logic {
     xx::AsioKcpClient c;
@@ -13,7 +13,7 @@ struct Logic {
 
         COR_BEGIN
                 // 初始化拨号地址
-                c.SetDomainPort("192.168.1.95", 12345);
+                c.SetDomainPort("10.0.0.87", 12345);
 
             LabBegin:
                 xx::CoutTN("LabBegin");
@@ -73,6 +73,16 @@ struct Logic {
                 // 如果断线就重连
                 do {
                     COR_YIELD;
+
+                    {
+                        auto o = xx::Make<SS::Bullet>();
+                        c.Send(o);
+                    }
+                    if (auto siz = c.receivedPackages.size()) {
+                        xx::CoutN(siz);
+                    }
+
+
                 } while (c.Alive());
                 goto LabBegin;
         COR_END
@@ -84,6 +94,6 @@ int main() {
     do {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));
     } while(c.lineNumber = c.Update());
-    std::cout << "end." << std::endl;
+    xx::CoutN("end.");
     return 0;
 }

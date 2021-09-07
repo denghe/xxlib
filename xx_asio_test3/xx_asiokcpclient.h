@@ -211,12 +211,11 @@ namespace xx {
                             // 读包头 / 数据长
                             dataLen = buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
-                            // 计算包总长( 包头长 + 数据长 )
-                            auto totalLen = sizeof(dataLen) + dataLen;
+                            // 数据未接收完 就 跳出
+                            if (buf + sizeof(dataLen) + dataLen > end) break;
 
-                            // 如果包不完整 就 跳出
-                            if (buf + totalLen > end) break;
-
+                            // 跳到数据区开始调用处理回调
+                            buf += sizeof(dataLen);
                             {
                                 // 解包 & 存队列
                                 xx::Data_r dr(buf, dataLen);
@@ -224,12 +223,13 @@ namespace xx {
                                 if (int r = client->om.ReadFrom(dr, ob)) {
                                     client->om.KillRecursive(ob);
                                 } else {
+                                    //client->om.CoutN("recv = ", ob);
                                     client->receivedPackages.push_back(std::move(ob));
                                 }
                             }
 
                             // 跳到下一个包的开头
-                            buf += totalLen;
+                            buf += dataLen;
                         }
 
                         // 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
@@ -259,6 +259,9 @@ namespace xx {
                         // 先 update 来一发 确保 Flush 生效( 和 kcp 内部实现的一个标志位有关 )
                         ikcp_update(kcp, 0);
 
+                        // 通过 kcp 发 accept 触发包
+                        Send((uint8_t*)"\1\0\0\0\0", 5);
+
                         // 返回拨号成功( 接下来需要立刻给 server 发点啥以触发逻辑 accept )
                         return 1;
                     }
@@ -269,7 +272,7 @@ namespace xx {
 
         // 基础发送函数
         int Send(uint8_t const *const &buf, size_t const &len) {
-            //xx::CoutN("Send data = ", xx::Span(buf, len));
+            //xx::CoutN("ikcp_send data = ", xx::Span(buf, len));
             if (int r = ikcp_send(kcp, (char *) buf, (int) len)) return r;
             ikcp_flush(kcp);
             return 0;
