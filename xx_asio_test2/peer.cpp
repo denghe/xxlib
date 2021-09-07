@@ -1,12 +1,12 @@
 ﻿#include "peer.h"
 #include "server.h"
+#include "ss.h"
 
 void Peer::Receive() {
     // 取出指针备用
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
     uint32_t dataLen = 0;
-    uint32_t addr = 0;
 
     // 确保包头长度充足
     while (buf + sizeof(dataLen) <= end) {
@@ -25,8 +25,18 @@ void Peer::Receive() {
         // 跳到数据区开始调用处理回调
         buf += sizeof(dataLen);
         {
-            // todo: unpack buf + dataLen, store to recvs
-            xx::CoutN("recv data. len = ", dataLen);
+//            // unpack buf + dataLen, store to recvs
+//            xx::Data_r dr(buf, dataLen);
+//            xx::ObjBase_s  o;
+//            if (int r = ((Server *)ec)->om.ReadFrom(dr, o)) {
+//                Close(-__LINE__, xx::ToString(" Peer Receive om.ReadFrom r = ", r));
+//                return;
+//            }
+//            recvs.push(std::move(o));
+
+            // echo
+            Send(buf - sizeof(dataLen), dataLen + sizeof(dataLen));
+            Flush();
 
             // 如果当前类实例 fd 已 close 则退出
             if (!Alive()) return;

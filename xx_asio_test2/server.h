@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "xx_epoll.h"
+#include "xx_obj.h"
 namespace EP = xx::Epoll;
 
 // 预声明
@@ -19,6 +20,9 @@ struct Server : EP::Context {
 
     // client peers
     tsl::hopscotch_map<uint32_t, xx::Shared<Peer>> ps;
+
+    // package serde
+    xx::ObjManager om;
 
     // init members
     int Init();
