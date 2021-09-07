@@ -8,6 +8,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 include_directories(
 	../src
 	../3rd
+	../codegen_test3/cpp
 )
 
 add_executable(xx_asio_test2
@@ -16,6 +17,7 @@ add_executable(xx_asio_test2
 		listener.cpp
 		peer.cpp
 		../3rd/ikcp.c
+		../codegen_test3/cpp/ss.cpp
 		)
 
 target_link_libraries(xx_asio_test2
