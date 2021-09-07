@@ -1,4 +1,5 @@
 ﻿#include "xx_asiokcpclient.h"
+#include "ss.h"
 
 struct Logic {
     xx::AsioKcpClient c;
@@ -63,8 +64,10 @@ struct Logic {
 
                 xx::CoutTN("Send");
                 // 发点啥？
-                //c.Send(o);
-                c.peer->Send((uint8_t*)"abc", 3);
+                {
+                    auto o = xx::Make<SS::Bullet>();
+                    c.Send(o);
+                }
 
                 xx::CoutTN("keep alive");
                 // 如果断线就重连

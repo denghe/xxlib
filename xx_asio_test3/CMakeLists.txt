@@ -22,11 +22,12 @@ list(APPEND dirs
 		../src
 		../3rd
 		../asio_include
-		../codegen_test2/cpp
+		../codegen_test3/cpp
 		)
 list(APPEND srcs
 		main.cpp
 		../3rd/ikcp.c
+		../codegen_test3/cpp/ss.cpp
 		)
 
 
