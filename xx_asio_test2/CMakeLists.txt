@@ -13,14 +13,8 @@ include_directories(
 add_executable(xx_asio_test2
 		main.cpp
 		server.cpp
-		peer.cpp
 		listener.cpp
-		dialer.cpp
-		cpeer.cpp
-		speer.cpp
-		pingtimer.cpp
-		tasktimer.cpp
-		kpeer.cpp
+		peer.cpp
 		../3rd/ikcp.c
 		)
 
