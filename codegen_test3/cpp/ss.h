@@ -2,24 +2,26 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<16653a56703dfa1b1ca1e55cd578d14b>*#";
+	inline static const ::std::string md5 = "#*MD5<ac5afb1ff10bf02b7abfc97652e85927>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };
 inline CodeGen_ss __CodeGen_ss;
-namespace SS { struct Bullet; }
-namespace SS { struct Shooter; }
 namespace SS { struct Scene; }
+namespace SS { struct Shooter; }
+namespace SS { struct Bullet; }
 namespace SS_S2C { struct Sync; }
 namespace SS_S2C { struct Event; }
+namespace SS_C2S { struct Enter; }
 namespace SS_C2S { struct Cmd; }
 namespace xx {
-    template<> struct TypeId<::SS::Bullet> { static const uint16_t value = 3; };
-    template<> struct TypeId<::SS::Shooter> { static const uint16_t value = 2; };
     template<> struct TypeId<::SS::Scene> { static const uint16_t value = 1; };
+    template<> struct TypeId<::SS::Shooter> { static const uint16_t value = 2; };
+    template<> struct TypeId<::SS::Bullet> { static const uint16_t value = 3; };
     template<> struct TypeId<::SS_S2C::Sync> { static const uint16_t value = 20; };
     template<> struct TypeId<::SS_S2C::Event> { static const uint16_t value = 21; };
-    template<> struct TypeId<::SS_C2S::Cmd> { static const uint16_t value = 10; };
+    template<> struct TypeId<::SS_C2S::Enter> { static const uint16_t value = 10; };
+    template<> struct TypeId<::SS_C2S::Cmd> { static const uint16_t value = 11; };
 }
 
 namespace SS {
@@ -45,21 +47,19 @@ namespace SS {
     };
 }
 namespace SS {
-    struct Bullet : ::xx::ObjBase {
-        XX_OBJ_OBJECT_H(Bullet, ::xx::ObjBase)
-        using IsSimpleType_v = Bullet;
-#include <ss_SSBullet.inc>
-        int32_t life = 0;
-        ::SS::XY pos;
-        ::SS::XY inc;
-        static void WriteTo(xx::Data& d, int32_t const& life, ::SS::XY const& pos, ::SS::XY const& inc);
-#include <ss_SSBullet_.inc>
+    struct Scene : ::xx::ObjBase {
+        XX_OBJ_OBJECT_H(Scene, ::xx::ObjBase)
+#include <ss_SSScene.inc>
+        int32_t frameNumber = 0;
+        ::xx::Shared<::SS::Shooter> shooter;
+#include <ss_SSScene_.inc>
     };
 }
 namespace SS {
     struct Shooter : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Shooter, ::xx::ObjBase)
 #include <ss_SSShooter.inc>
+        ::xx::Weak<::SS::Scene> scene;
         float bodyAngle = 0.0f;
         int32_t moveDistancePerFrame = 10;
         ::SS::XY pos;
@@ -69,12 +69,14 @@ namespace SS {
     };
 }
 namespace SS {
-    struct Scene : ::xx::ObjBase {
-        XX_OBJ_OBJECT_H(Scene, ::xx::ObjBase)
-#include <ss_SSScene.inc>
-        int32_t frameNumber = 0;
-        ::xx::Shared<::SS::Shooter> shooter;
-#include <ss_SSScene_.inc>
+    struct Bullet : ::xx::ObjBase {
+        XX_OBJ_OBJECT_H(Bullet, ::xx::ObjBase)
+#include <ss_SSBullet.inc>
+        ::xx::Weak<::SS::Shooter> shooter;
+        int32_t life = 0;
+        ::SS::XY pos;
+        ::SS::XY inc;
+#include <ss_SSBullet_.inc>
     };
 }
 namespace SS_S2C {
@@ -90,6 +92,13 @@ namespace SS_S2C {
         int32_t frameNumber = 0;
         ::SS::ControlState cs;
         static void WriteTo(xx::Data& d, int32_t const& frameNumber, ::SS::ControlState const& cs);
+    };
+}
+namespace SS_C2S {
+    struct Enter : ::xx::ObjBase {
+        XX_OBJ_OBJECT_H(Enter, ::xx::ObjBase)
+        using IsSimpleType_v = Enter;
+        static void WriteTo(xx::Data& d);
     };
 }
 namespace SS_C2S {

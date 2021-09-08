@@ -15,6 +15,7 @@ namespace SS {
 
     [TypeId(2), Include, Include_]
     class Shooter {
+		Weak<Scene> scene;
         float bodyAngle;
         int moveDistancePerFrame = 10;
         XY pos;
@@ -35,14 +36,18 @@ namespace SS {
 
     [TypeId(3), Include, Include_]
     class Bullet {
+		Weak<Shooter> shooter;
         int life;
         XY pos, inc;
     };
-
 }
 
 namespace SS_C2S {
     [TypeId(10)]
+    class Enter {
+		// todo: info
+    };
+    [TypeId(11)]
     class Cmd {
         SS.ControlState cs;
     };
