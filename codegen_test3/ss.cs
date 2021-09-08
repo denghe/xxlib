@@ -2,6 +2,7 @@
 
 namespace SS {
 
+    [Include]
     struct XY {
         int x, y;
     }

@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<029fd1c90d3eb1ecde776b885e608cb3>*#";
+	inline static const ::std::string md5 = "#*MD5<16653a56703dfa1b1ca1e55cd578d14b>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };
@@ -26,6 +26,7 @@ namespace SS {
     struct XY {
         XX_OBJ_STRUCT_H(XY)
         using IsSimpleType_v = XY;
+#include <ss_SSXY.inc>
         int32_t x = 0;
         int32_t y = 0;
     };

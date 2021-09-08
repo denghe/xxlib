@@ -334,7 +334,7 @@ namespace xx {
         }
     }
 
-    int AsioKcpClient::Send(xx::ObjBase_s const &o) {
+    inline int AsioKcpClient::Send(xx::ObjBase_s const &o) {
         if (!Alive()) return -1;
         d.Clear();
         auto bak = d.WriteJump<false>(sizeof(uint32_t));
