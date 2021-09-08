@@ -1,89 +1,7 @@
 #include "AppDelegate.h"
 #include "MainScene.h"
 #include <iostream>
-
-/***********************************************************************************************/
-// 整数坐标系游戏常用函数/查表库。主要意图为确保跨硬件计算结果的一致性( 附带性能有一定提升 )
-
-static const double pi2 = 3.14159265358979323846264338328 * 2;
-
-// 设定计算坐标系 x, y 值范围 为 正负 table_xy_range
-static const int table_xy_range = 2048, table_xy_range2 = table_xy_range * 2, table_xy_rangePOW2 = table_xy_range * table_xy_range;
-
-// 角度分割精度。256 对应 uint8_t，65536 对应 uint16_t, ... 对于整数坐标系来说，角度继续细分意义不大。增量体现不出来
-static const int table_num_angles = 65536;
-using table_angle_element_type = uint16_t;
-
-// 查表 sin cos 整数值 放大系数
-static const int64_t table_sincos_ratio = 10000;
-
-// 构造一个查表数组，下标是 +- table_xy_range 二维坐标值。内容是以 table_num_angles 为切割单位的自定义角度值( 并非 360 或 弧度 )
-inline std::array<table_angle_element_type, table_xy_range2* table_xy_range2> table_angle;
-
-// 基于 table_num_angles 个角度，查表 sin cos 值 ( 通常作为移动增量 )
-inline std::array<int, table_num_angles> table_sin;
-inline std::array<int, table_num_angles> table_cos;
-
-
-// 程序启动时自动填表
-struct TableFiller {
-	TableFiller() {
-		// todo: 多线程计算提速
-		for (int y = -table_xy_range; y < table_xy_range; ++y) {
-			for (int x = -table_xy_range; x < table_xy_range; ++x) {
-				auto idx = (y + table_xy_range) * table_xy_range2 + (x + table_xy_range);
-				auto a = atan2((double)y, (double)x);
-				if (a < 0) a += pi2;
-				table_angle[idx] = (table_angle_element_type)(a / pi2 * table_num_angles);
-			}
-		}
-		// fix same x,y
-		table_angle[(0 + table_xy_range) * table_xy_range2 + (0 + table_xy_range)] = 0;
-
-		for (int i = 0; i < table_num_angles; ++i) {
-			auto s = sin((double)i / table_num_angles * pi2);
-			table_sin[i] = (int)(s * table_sincos_ratio);
-			auto c = cos((double)i / table_num_angles * pi2);
-			table_cos[i] = (int)(c * table_sincos_ratio);
-		}
-	}
-};
-inline TableFiller tableFiller__;
-
-// 传入坐标，返回角度值( 0 ~ table_num_angles )  safeMode: 支持大于查表尺寸的 xy 值 ( 慢几倍 )
-template<bool safeMode = true>
-table_angle_element_type GetAngleXY(int x, int y) noexcept {
-	if constexpr (safeMode) {
-		while (x < -table_xy_range || x >= table_xy_range || y < -table_xy_range || y >= table_xy_range) {
-			x /= 8;
-			y /= 8;
-		}
-	}
-	else {
-		assert(x >= -table_xy_range && x < table_xy_range&& y >= -table_xy_range && y < table_xy_range);
-	}
-	return table_angle[(y + table_xy_range) * table_xy_range2 + x + table_xy_range];
-}
-template<bool safeMode = true>
-table_angle_element_type GetAngleXYXY(int const& x1, int const& y1, int const& x2, int const& y2) noexcept {
-	return GetAngleXY<safeMode>(x2 - x1, y2 - y1);
-}
-template<bool safeMode = true, typename Point1, typename Point2>
-table_angle_element_type GetAngle(Point1 const& from, Point2 const& to) noexcept {
-	return GetAngleXY<safeMode>(to.x - from.x, to.y - from.y);
-}
-
-// 计算点旋转后的坐标
-inline XY Rotate(XY const& p, table_angle_element_type const& a) noexcept {
-	auto s = (int64_t)table_sin[a];
-	auto c = (int64_t)table_cos[a];
-	//return { (int)(p.x * c / table_sincos_ratio - p.y * s / table_sincos_ratio), (int)(p.x * s / table_sincos_ratio + p.y * c / table_sincos_ratio) };
-	return { (int)((p.x * c - p.y * s) / table_sincos_ratio), (int)((p.x * s + p.y * c) / table_sincos_ratio) };
-}
-
-/***********************************************************************************************/
-
-
+#include <xx_math.h>
 
 bool MainScene::init() {
 	if (!Scene::init()) return false;
@@ -98,14 +16,21 @@ bool MainScene::init() {
 	container->setScale(zoom);
 	this->addChild(container);
 
+	// create ui
+	ui = cocos2d::Node::create();
+	ui->setPosition(dw_2, dh_2);
+	ui->setScale(zoom);
+	this->addChild(ui);
+
 	// create cursor
 	cursor = cocos2d::Sprite::create("a.png");
-	cursor->setPosition(dw_2, dh_2);
+	cursor->setPosition(dw_2, 0);
 	cursor->setScale(3);
 	this->addChild(cursor);
 
-	// create shooter instance
-	shooter = std::make_shared<Shooter>(this, XY{ 0,0 });
+	// create cache packages
+	cmd.Emplace();
+	// ...
 
 	// enable every frame call update
 	scheduleUpdate();
@@ -122,24 +47,6 @@ bool MainScene::init() {
 		};
 		_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
 	}
-
-	// init touch event listener
-	//{
-	//	auto L = cocos2d::EventListenerTouchOneByOne::create();
-	//	L->onTouchBegan = [this](cocos2d::Touch* t, cocos2d::Event*)->bool {
-	//		touchPos = container->convertToNodeSpace(t->getLocation());
-	//		return true;
-	//	};
-	//	L->onTouchMoved = [this](cocos2d::Touch* t, cocos2d::Event*) {
-	//		if (touchPos.has_value()) {
-	//			touchPos = container->convertToNodeSpace(t->getLocation());
-	//		}
-	//	};
-	//	L->onTouchEnded = L->onTouchCancelled = [this](cocos2d::Touch*, cocos2d::Event*) {
-	//		touchPos.reset();
-	//	};
-	//	_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
-	//}
 
 	// init mouse event listener
 	{
@@ -170,7 +77,15 @@ bool MainScene::init() {
 }
 
 void MainScene::update(float delta) {
-	// handle input
+
+	// 先执行主线协程
+	lineNumber = Update();
+	assert(lineNumber);
+
+	// 如果没有进入到 玩 状态 就直接短路退出
+	if (!playing) return;
+
+	// 缩放处理( 本地行为 )
 	if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_Z] && zoom > 0.05f) {
 		zoom -= 0.005f;
 	}
@@ -179,129 +94,304 @@ void MainScene::update(float delta) {
 	}
 	container->setScale(zoom);
 
-	shooter->moveLeft = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
-	shooter->moveRight = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
-	shooter->moveUp = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
-	shooter->moveDown = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
+	// 生成当前控制状态
+	SS::ControlState newCS;
+	newCS.aimPos = { (int)mousePos.x, (int)mousePos.y };
+	newCS.moveLeft = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
+	newCS.moveRight = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
+	newCS.moveUp = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
+	newCS.moveDown = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
+	newCS.button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
+	newCS.button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
 
-	shooter->button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
-	shooter->button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
-	shooter->aimPos = XY{ (int)mousePos.x, (int)mousePos.y };
+	// 如果和备份不一致，就发包到 server
+	if (cmd->cs != newCS) {
+		cmd->cs = newCS;
+		c.Send(cmd);
+	}
+}
 
-	// keep 60 fps call update
-	totalDelta += delta;
-	while (totalDelta > (1.f / 60.f)) {
-		totalDelta -= (1.f / 60.f);
-		if (shooter->Update()) {
-			shooter.reset();
-			// todo: show game over
-			break;
+int MainScene::Update() {
+	c.Update();
+
+	COR_BEGIN;
+
+	// 初始化拨号地址
+	c.SetDomainPort("192.168.1.95", 12345);
+
+LabBegin:
+
+	DrawInit();
+	// 无脑重置一发
+	c.Reset();
+	cmd.Emplace();
+	playing = false;
+
+	// 睡一秒
+	secs = xx::NowEpochSeconds() + 1;
+	do {
+		COR_YIELD;
+	} while (secs > xx::NowEpochSeconds());
+
+
+	DrawResolve();
+	// 开始域名解析
+	c.Resolve();
+
+	// 等 3 秒, 如果解析完成就停止等待
+	secs = xx::NowEpochSeconds() + 3;
+	do {
+		COR_YIELD;
+		if (!c.Busy()) break;
+	} while (secs > xx::NowEpochSeconds());
+
+	// 解析失败: 重来
+	if (!c.IsResolved()) goto LabBegin;
+
+	//// 打印下 ip 列表
+	//for (auto& ip : c.GetIPList()) {
+	//	xx::CoutTN(ip);
+	//}
+
+	DrawDial();
+	// 开始拨号
+	if (int r = c.Dial()) {
+		xx::CoutTN("c.Dial() = ", r);
+		goto LabBegin;
+	}
+
+	// 等 3 秒, 如果拨号完成就停止等待
+	secs = xx::NowEpochSeconds() + 3;
+	do {
+		COR_YIELD;
+		if (!c.Busy()) break;
+	} while (secs > xx::NowEpochSeconds());
+
+	// 没连上: 重来
+	if (!c.Alive()) goto LabBegin;
+
+
+	// 发一个默认值 cmd 作为进入请求。服务器 返回 Sync。
+	synced = false;
+	c.Send(cmd);
+
+	// 等 3 秒, 如果没有收到 sync 就掐线重连
+	secs = xx::NowEpochSeconds() + 3;
+	do {
+		COR_YIELD;
+		
+		// 尝试从收包队列获取包
+		xx::ObjBase_s o;
+		if (c.TryGetPackage(o)) {
+			// 如果为 空 或 不是 sync 包 就掐线重连
+			if (!o || o.typeId() != xx::TypeId_v<SS_S2C::Sync>) goto LabBegin;
+			auto&& sync = o.ReinterpretCast<SS_S2C::Sync>();
+			scene = std::move(sync->scene);
+			synced = true;
 		}
-	}
-}
 
-Shooter::Shooter(MainScene* mainScene, XY pos)
-	: mainScene(mainScene), pos(pos) {
-	// draw
-	body = cocos2d::Sprite::create("c.png");
-	assert(body);
-	body->setPosition(pos);
-	mainScene->container->addChild(body);
+	} while (secs > xx::NowEpochSeconds());
+	if (!synced) goto LabBegin;
 
-	gun = cocos2d::Sprite::create("c.png");
-	assert(gun);
-	gun->setScale(0.3f);
-	gun->setPosition((float)(pos.x + 147), (float)pos.y);
-	mainScene->container->addChild(gun);
-}
-Shooter::~Shooter() {
-	if (body) {
-		body->removeFromParent();
-		body = nullptr;
-	}
-	if (gun) {
-		gun->removeFromParent();
-		gun = nullptr;
-	}
-}
 
-int Shooter::Update() {
-	// rotate
-	bodyAngle += 1.f;
-	if (bodyAngle > 360.f) {
-		bodyAngle -= 360.f;
-	}
-	body->setRotation(bodyAngle);
-	gun->setRotation(360.f - bodyAngle * 3.333f);
+	DrawPlay();
+	playing = true;
+	// 开始游戏。如果断线就重连
+	do {
+		COR_YIELD;
 
-	// move shooter
-	if (moveLeft) {
-		pos.x -= moveDistancePerFrame;
-	}
-	if (moveRight) {
-		pos.x += moveDistancePerFrame;
-	}
-	if (moveUp) {
-		pos.y += moveDistancePerFrame;
-	}
-	if (moveDown) {
-		pos.y -= moveDistancePerFrame;
-	}
-	body->setPosition(pos);
+		// 继续处理 events 直到没有
+		xx::ObjBase_s o;
+		// 尝试从收包队列获取包
+		if (c.TryGetPackage(o)) {
+			// 类型应该就是 Event
+			assert(o && o.typeId() == xx::TypeId_v<SS_S2C::Event>);
+			auto&& e = o.ReinterpretCast<SS_S2C::Event>();
+			assert(e->frameNumber > scene->frameNumber);
 
-	// sync gun pos 
-	auto angle = GetAngle(pos, aimPos);
-	auto gunPosOffset = Rotate(XY{ 147, 0 }, angle);
-	auto gunPos = XY{ pos.x + gunPosOffset.x, pos.y + gunPosOffset.y };
-	std::cout << (uint32_t)angle << ", " << gunPosOffset.x << ", " << gunPosOffset.y << std::endl;
-	gun->setPosition(gunPos);
-
-	// bullets
-	for (int i = (int)bullets.size() - 1; i >= 0; --i) {
-		auto& b = bullets[i];
-		if (b->Update()) {
-			if (auto n = (int)bullets.size() - 1; i < n) {
-				b = std::move(bullets[n]);
-			}
-			bullets.pop_back();
+			// 追帧
+			do {
+				// todo: 传递 e->cs 到 Update
+				scene->Update();
+			} while (e->frameNumber == scene->frameNumber);
 		}
-	}
+		else {
+			scene->Update();
+		}
 
-	// emit bullets
-	if (button1) {
-		auto&& b = bullets.emplace_back();
-		auto inc = Rotate(XY{ 30, 0 }, angle);
-		b = std::make_shared<Bullet>(this, gunPos, inc, 1000);
-	}
+	} while (c.Alive());
+	goto LabBegin;
 
-	return 0;
+	COR_END;
 }
 
-Bullet::Bullet(Shooter* shooter, XY pos, XY inc, int life)
-	: shooter(shooter)
-	, mainScene(shooter->mainScene)
-	, pos(pos)
-	, inc(inc)
-	, life(life) {
-	// draw
-	body = cocos2d::Sprite::create("b.png");
-	assert(body);
-	body->setPosition(pos);
-	mainScene->container->addChild(body);
+void MainScene::DrawInit() {
+	ui->removeAllChildrenWithCleanup(true);
+	auto lbl = cocos2d::Label::createWithSystemFont("init", "", 64);
+	ui->addChild(lbl);
+}
+void MainScene::DrawResolve() {
+	ui->removeAllChildrenWithCleanup(true);
+	auto lbl = cocos2d::Label::createWithSystemFont("resolve domain...", "", 64);
+	ui->addChild(lbl);
+}
+void MainScene::DrawDial() {
+	ui->removeAllChildrenWithCleanup(true);
+	auto lbl = cocos2d::Label::createWithSystemFont("dial...", "", 64);
+	ui->addChild(lbl);
+}
+void MainScene::DrawPlay() {
+	ui->removeAllChildrenWithCleanup(true);
+	// todo: draw scene
 }
 
-int Bullet::Update() {
-	if (life < 0) return 1;
-	--life;
-	pos.x += inc.x;
-	pos.y += inc.y;
-	body->setPosition(pos);
-	return 0;
-}
+//Shooter::Shooter(MainScene* mainScene, XY pos)
+//	: mainScene(mainScene), pos(pos) {
+//	// draw
+//	body = cocos2d::Sprite::create("c.png");
+//	assert(body);
+//	body->setPosition(pos);
+//	mainScene->container->addChild(body);
+//
+//	gun = cocos2d::Sprite::create("c.png");
+//	assert(gun);
+//	gun->setScale(0.3f);
+//	gun->setPosition((float)(pos.x + 147), (float)pos.y);
+//	mainScene->container->addChild(gun);
+//}
+//Shooter::~Shooter() {
+//	if (body) {
+//		body->removeFromParent();
+//		body = nullptr;
+//	}
+//	if (gun) {
+//		gun->removeFromParent();
+//		gun = nullptr;
+//	}
+//}
+//
+//int Shooter::Update() {
+//	// rotate
+//	bodyAngle += 1.f;
+//	if (bodyAngle > 360.f) {
+//		bodyAngle -= 360.f;
+//	}
+//	body->setRotation(bodyAngle);
+//	gun->setRotation(360.f - bodyAngle * 3.333f);
+//
+//	// move shooter
+//	if (moveLeft) {
+//		pos.x -= moveDistancePerFrame;
+//	}
+//	if (moveRight) {
+//		pos.x += moveDistancePerFrame;
+//	}
+//	if (moveUp) {
+//		pos.y += moveDistancePerFrame;
+//	}
+//	if (moveDown) {
+//		pos.y -= moveDistancePerFrame;
+//	}
+//	body->setPosition(pos);
+//
+//	// sync gun pos 
+//	auto angle = GetAngle(pos, aimPos);
+//	auto gunPosOffset = Rotate(XY{ 147, 0 }, angle);
+//	auto gunPos = XY{ pos.x + gunPosOffset.x, pos.y + gunPosOffset.y };
+//	std::cout << (uint32_t)angle << ", " << gunPosOffset.x << ", " << gunPosOffset.y << std::endl;
+//	gun->setPosition(gunPos);
+//
+//	// bullets
+//	for (int i = (int)bullets.size() - 1; i >= 0; --i) {
+//		auto& b = bullets[i];
+//		if (b->Update()) {
+//			if (auto n = (int)bullets.size() - 1; i < n) {
+//				b = std::move(bullets[n]);
+//			}
+//			bullets.pop_back();
+//		}
+//	}
+//
+//	// emit bullets
+//	if (button1) {
+//		auto&& b = bullets.emplace_back();
+//		auto inc = Rotate(XY{ 30, 0 }, angle);
+//		b = std::make_shared<Bullet>(this, gunPos, inc, 1000);
+//	}
+//
+//	return 0;
+//}
+//
+//Bullet::Bullet(Shooter* shooter, XY pos, XY inc, int life)
+//	: shooter(shooter)
+//	, mainScene(shooter->mainScene)
+//	, pos(pos)
+//	, inc(inc)
+//	, life(life) {
+//	// draw
+//	body = cocos2d::Sprite::create("b.png");
+//	assert(body);
+//	body->setPosition(pos);
+//	mainScene->container->addChild(body);
+//}
+//
+//int Bullet::Update() {
+//	if (life < 0) return 1;
+//	--life;
+//	pos.x += inc.x;
+//	pos.y += inc.y;
+//	body->setPosition(pos);
+//	return 0;
+//}
+//
+//Bullet::~Bullet() {
+//	if (body) {
+//		body->removeFromParent();
+//		body = nullptr;
+//	}
+//}
 
-Bullet::~Bullet() {
-	if (body) {
-		body->removeFromParent();
-		body = nullptr;
-	}
-}
+
+
+	// init touch event listener
+	//{
+	//	auto L = cocos2d::EventListenerTouchOneByOne::create();
+	//	L->onTouchBegan = [this](cocos2d::Touch* t, cocos2d::Event*)->bool {
+	//		touchPos = container->convertToNodeSpace(t->getLocation());
+	//		return true;
+	//	};
+	//	L->onTouchMoved = [this](cocos2d::Touch* t, cocos2d::Event*) {
+	//		if (touchPos.has_value()) {
+	//			touchPos = container->convertToNodeSpace(t->getLocation());
+	//		}
+	//	};
+	//	L->onTouchEnded = L->onTouchCancelled = [this](cocos2d::Touch*, cocos2d::Event*) {
+	//		touchPos.reset();
+	//	};
+	//	_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
+	//}
+
+
+
+			// todo: 默认情况下，按稳定帧率继续计算。
+			//// keep 60 fps call update
+	//totalDelta += delta;
+	//while (totalDelta > (1.f / 60.f)) {
+	//	totalDelta -= (1.f / 60.f);
+	//	if (shooter->Update()) {
+	//		shooter.reset();
+	//		// todo: show game over
+	//		break;
+	//	}
+	//}
+
+
+
+
+		//{
+		//    auto o = xx::Make<SS::Bullet>();
+		//    c.Send(o);
+		//}
+		//if (auto siz = c.receivedPackages.size()) {
+		//	xx::CoutN(siz);
+		//}

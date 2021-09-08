@@ -2,6 +2,10 @@
 #include "xx_math.h"
 // todo: #if is client draw xxxxxxxxxx
 
+int SS::Scene::Update() {
+    return shooter->Update();
+}
+
 int SS::Shooter::Update() {
     // rotate
     bodyAngle += 1.f;
