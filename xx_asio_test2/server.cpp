@@ -1,6 +1,7 @@
 ﻿#include "server.h"
 #include "listener.h"
 #include "xx_logger.h"
+#include "ss.h"
 
 int Server::Init() {
     // kcp 需要更高帧率运行以提供及时的响应
@@ -18,6 +19,16 @@ int Server::Init() {
 }
 
 int Server::FrameUpdate() {
+    // every 1 seconds timer
+    if (nowMS > lastMS) {
+        lastMS = nowMS + 1000;
+        for(auto& kv : ps) {
+            auto& p = *kv.second;
+            assert(p.Alive());
+            auto o = xx::Make<SS_S2C::Event>();
+            p.Send(o);
+        }
+    }
     //xx::CoutN(".");
     return 0;
 }

@@ -24,6 +24,12 @@ struct Server : EP::Context {
     // package serde
     xx::ObjManager om;
 
+    // for timer
+    int64_t lastMS = 0;
+
+    // for send Obj
+    xx::Data tmp;
+
     // init members
     int Init();
 

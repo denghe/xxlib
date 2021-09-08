@@ -1134,6 +1134,8 @@ namespace xx::Epoll {
         frameRate = frameRate_;
         // 计算帧时间间隔
         ticksPerFrame = 10000000.0 / frameRate_;
+        // 更新一下逻辑可能用到的时间戳
+        nowMS = xx::NowSteadyEpochMilliseconds();
         return 0;
     }
 

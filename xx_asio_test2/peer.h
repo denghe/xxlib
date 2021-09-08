@@ -22,4 +22,7 @@ struct Peer : EP::KcpPeer {
 
     // 从容器移除变野,  DelayUnhold 自杀
     bool Close(int const& reason, std::string_view const& desc) override;
+
+    // server.om.WriteTo(o, tmp); send(tmp)
+    void Send(xx::ObjBase_s const& o);
 };

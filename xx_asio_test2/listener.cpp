@@ -22,7 +22,5 @@ void Listener::Accept(xx::Shared<Peer> const &p) {
     // 设置自动断线超时时间
     p->SetTimeoutSeconds(15);
 
-    // todo: game logic here
-
     LOG_INFO("success. ip = ", p->addr, ", clientId = ", p->clientId);
 }
