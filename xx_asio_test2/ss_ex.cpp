@@ -1,6 +1,12 @@
 ﻿#include "ss.h"
 #include "xx_math.h"
-// todo: #if is client draw xxxxxxxxxx
+
+#ifdef COCOS2D_VERSION
+#   include "MainScene.h"
+#else
+#   include "server.h"
+#   include "peer.h"
+#endif
 
 int SS::Scene::Update() {
     return shooter->Update();

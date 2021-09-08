@@ -25,18 +25,20 @@ void Peer::Receive() {
         // 跳到数据区开始调用处理回调
         buf += sizeof(dataLen);
         {
-            // unpack buf + dataLen, store to recvs
+            // unpack & handle
             xx::Data_r dr(buf, dataLen);
-            xx::ObjBase_s  o;
-            if (int r = ((Server *)ec)->om.ReadFrom(dr, o)) {
+            xx::ObjBase_s o;
+            int r = ((Server *)ec)->om.ReadFrom(dr, o);
+            if (r || !o) {
                 Close(-__LINE__, xx::ToString(" Peer Receive om.ReadFrom r = ", r));
                 return;
             }
-            recvs.push(std::move(o));
-
-//            // echo
-//            Send(buf - sizeof(dataLen), dataLen + sizeof(dataLen));
-//            Flush();
+            r = ((Server *)ec)->HandlePackage(*this, o);
+            if (r) {
+                ((Server *)ec)->om.RecursiveReset(o);
+                Close(-__LINE__, xx::ToString(" Peer Receive HandlePackage error. r = ", r));
+                return;
+            }
 
             // 如果当前类实例 fd 已 close 则退出
             if (!Alive()) return;
@@ -61,13 +63,12 @@ bool Peer::Close(int const& reason, std::string_view const& desc) {
 }
 
 void Peer::Send(xx::ObjBase_s const& o) {
-    auto& om = ((Server *)ec)->om;
     auto& d = ((Server *)ec)->tmp;
-    d.Clear();
-    d.Reserve(8192);
-    auto bak = d.WriteJump<false>(sizeof(uint32_t));
-    om.WriteTo(d, o);
-    d.WriteFixedAt(bak, (uint32_t)(d.len - sizeof(uint32_t)));
+    ((Server *)ec)->WriteTo(d, o);
+    Send(d);
+}
+
+void Peer::Send(xx::Data const& d) {
     BaseType::Send(d.buf, d.len);
     Flush();
 }
