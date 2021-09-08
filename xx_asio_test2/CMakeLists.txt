@@ -18,6 +18,7 @@ add_executable(xx_asio_test2
 		peer.cpp
 		../3rd/ikcp.c
 		../codegen_test3/cpp/ss.cpp
+		ss_ex.cpp
 		)
 
 target_link_libraries(xx_asio_test2

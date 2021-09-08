@@ -15,20 +15,31 @@ int Server::Init() {
         return r;
     }
 
+    // init game context
+    auto scene = xx::Make<SS::Scene>();
+    gctx = scene;
+    // init shooter
+    auto &&shooter = scene->shooter.Emplace();
+
     return 0;
 }
 
 int Server::FrameUpdate() {
-    // every 1 seconds timer
-    if (nowMS > lastMS) {
-        lastMS = nowMS + 1000;
-        for(auto& kv : ps) {
-            auto& p = *kv.second;
-            assert(p.Alive());
-            auto o = xx::Make<SS_S2C::Event>();
-            p.Send(o);
-        }
+    auto &&scene = gctx.ReinterpretCast<SS::Scene>();
+    if (int r = scene->shooter->Update()) {
+        // todo: dispose shooter?
     }
+
+//    // every 1 seconds timer
+//    if (nowMS > lastMS) {
+//        lastMS = nowMS + 1000;
+//        for(auto& kv : ps) {
+//            auto& p = *kv.second;
+//            assert(p.Alive());
+//            auto o = xx::Make<SS_S2C::Event>();
+//            p.Send(o);
+//        }
+//    }
     //xx::CoutN(".");
     return 0;
 }

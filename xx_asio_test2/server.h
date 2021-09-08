@@ -30,6 +30,9 @@ struct Server : EP::Context {
     // for send Obj
     xx::Data tmp;
 
+    // game context
+    xx::ObjBase_s gctx;
+
     // init members
     int Init();
 
