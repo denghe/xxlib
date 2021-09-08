@@ -4,7 +4,7 @@
 #include "ss.h"
 
 int Server::Init() {
-    // kcp 需要更高帧率运行以提供及时的响应
+    // kcp 需要高帧率运行以提供及时的响应
     SetFrameRate(100);
 
     // 初始化监听器
@@ -25,6 +25,8 @@ int Server::Init() {
 }
 
 int Server::FrameUpdate() {
+    // todo: frame limit to ??? call update, every frame send events
+
     auto &&scene = gctx.ReinterpretCast<SS::Scene>();
     if (int r = scene->shooter->Update()) {
         // todo: dispose shooter?
