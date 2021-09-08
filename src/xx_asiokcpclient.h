@@ -8,7 +8,7 @@
 #include <xx_ptr.h>
 #include <xx_obj.h>
 
-// simple asio udp + kcp client
+// simple asio udp + kcp client ( cpp only )
 
 namespace xx {
     // 适配 asio::ip::address
@@ -45,11 +45,13 @@ namespace xx {
         // 包管理器( 提供序列化功能 )
         ObjManager om;
         // for send
-        Data tmp;
+        Data d;
         // 所有已收到的包队列
         std::deque<xx::ObjBase_s> receivedPackages;
 
-        AsioKcpClient() : ioc(1), resolver(ioc) {}
+        AsioKcpClient() : ioc(1), resolver(ioc) {
+            d.Reserve(8192);
+        }
 
         // 每帧来一发, 以驱动底层收发，消息放入队列
         void Update();
@@ -156,7 +158,7 @@ namespace xx {
                 auto sentLen = socket.send_to(asio::buffer(buf, len), ep);
                 return sentLen == len ? 0 : __LINE__;
             }
-            catch (asio::system_error const &e) {
+            catch (asio::system_error const &/* e */) {
                 // todo: log?
                 return __LINE__;
             }
@@ -179,6 +181,7 @@ namespace xx {
             asio::ip::udp::endpoint p;
             // 如果有 udp 数据收到
             if (auto recvLen = socket.receive_from(asio::buffer(udpRecvBuf), p, 0, e)) {
+                // xx::CoutN("udp recvLen = ", recvLen);
                 if (kcp) {
                     // 准备向 kcp 灌数据并收包放入 recvs
                     // 前置检查. 如果数据长度不足( kcp header ), 或 conv 对不上就 忽略
@@ -277,6 +280,13 @@ namespace xx {
             ikcp_flush(kcp);
             return 0;
         }
+
+        // 立刻发出
+        int Flush() {
+            if (!kcp) return __LINE__;
+            ikcp_flush(kcp);
+            return 0;
+        }
     };
 
     [[nodiscard]] inline bool AsioKcpClient::TryGetPackage(xx::ObjBase_s &pkg) {
@@ -326,11 +336,11 @@ namespace xx {
 
     int AsioKcpClient::Send(xx::ObjBase_s const &o) {
         if (!Alive()) return -1;
-        tmp.Clear();
-        tmp.Reserve(8192);
-        auto bak = tmp.WriteJump<false>(sizeof(uint32_t));
-        om.WriteTo(tmp, o);
-        tmp.WriteFixedAt(bak, (uint32_t) (tmp.len - 4));
-        return peer->Send(tmp.buf, tmp.len);
+        d.Clear();
+        auto bak = d.WriteJump<false>(sizeof(uint32_t));
+        om.WriteTo(d, o);
+        d.WriteFixedAt(bak, (uint32_t) (d.len - sizeof(uint32_t)));
+        if (int r = peer->Send(d.buf, d.len)) return r;
+        return peer->Flush();
     }
 }
