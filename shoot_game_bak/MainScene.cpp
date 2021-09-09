@@ -201,6 +201,7 @@ LabBegin:
 			auto&& sync = o.ReinterpretCast<SS_S2C::Sync>();
 			scene = std::move(sync->scene);
 			synced = true;
+			break;
 		}
 
 	} while (secs > xx::NowEpochSeconds());
