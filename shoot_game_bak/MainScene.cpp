@@ -72,6 +72,9 @@ bool MainScene::init() {
 	// hide mouse
 	cocos2d::Director::getInstance()->getOpenGLView()->setCursorVisible(false);
 
+	// store singleton
+	instance = this;
+
 	// success
 	return true;
 }
@@ -171,15 +174,15 @@ LabBegin:
 	if (!c.Alive()) goto LabBegin;
 
 
-	// 发一个默认值 cmd 作为进入请求。服务器 返回 Sync。
+	// 发 进入 请求。服务器 返回 Sync。
 	synced = false;
-	c.Send(cmd);
+	c.Send(xx::Make<SS_C2S::Enter>());
 
 	// 等 3 秒, 如果没有收到 sync 就掐线重连
 	secs = xx::NowEpochSeconds() + 3;
 	do {
 		COR_YIELD;
-		
+
 		// 尝试从收包队列获取包
 		xx::ObjBase_s o;
 		if (c.TryGetPackage(o)) {
@@ -208,15 +211,16 @@ LabBegin:
 			assert(o && o.typeId() == xx::TypeId_v<SS_S2C::Event>);
 			auto&& e = o.ReinterpretCast<SS_S2C::Event>();
 			assert(e->frameNumber > scene->frameNumber);
+			xx::CoutN(e->frameNumber , scene->frameNumber);
 
 			// 追帧
 			do {
 				// todo: 传递 e->cs 到 Update
 				scene->Update();
 			} while (e->frameNumber == scene->frameNumber);
-		}
-		else {
+		} else {
 			scene->Update();
+			// todo: backup
 		}
 
 	} while (c.Alive());
@@ -229,6 +233,7 @@ void MainScene::DrawInit() {
 	ui->removeAllChildrenWithCleanup(true);
 	auto lbl = cocos2d::Label::createWithSystemFont("init", "", 64);
 	ui->addChild(lbl);
+	scene.Reset();
 }
 void MainScene::DrawResolve() {
 	ui->removeAllChildrenWithCleanup(true);
@@ -242,156 +247,124 @@ void MainScene::DrawDial() {
 }
 void MainScene::DrawPlay() {
 	ui->removeAllChildrenWithCleanup(true);
-	// todo: draw scene
+	scene->DrawInit();
 }
 
-//Shooter::Shooter(MainScene* mainScene, XY pos)
-//	: mainScene(mainScene), pos(pos) {
-//	// draw
-//	body = cocos2d::Sprite::create("c.png");
-//	assert(body);
-//	body->setPosition(pos);
-//	mainScene->container->addChild(body);
-//
-//	gun = cocos2d::Sprite::create("c.png");
-//	assert(gun);
-//	gun->setScale(0.3f);
-//	gun->setPosition((float)(pos.x + 147), (float)pos.y);
-//	mainScene->container->addChild(gun);
-//}
-//Shooter::~Shooter() {
-//	if (body) {
-//		body->removeFromParent();
-//		body = nullptr;
-//	}
-//	if (gun) {
-//		gun->removeFromParent();
-//		gun = nullptr;
-//	}
-//}
-//
-//int Shooter::Update() {
-//	// rotate
-//	bodyAngle += 1.f;
-//	if (bodyAngle > 360.f) {
-//		bodyAngle -= 360.f;
-//	}
-//	body->setRotation(bodyAngle);
-//	gun->setRotation(360.f - bodyAngle * 3.333f);
-//
-//	// move shooter
-//	if (moveLeft) {
-//		pos.x -= moveDistancePerFrame;
-//	}
-//	if (moveRight) {
-//		pos.x += moveDistancePerFrame;
-//	}
-//	if (moveUp) {
-//		pos.y += moveDistancePerFrame;
-//	}
-//	if (moveDown) {
-//		pos.y -= moveDistancePerFrame;
-//	}
-//	body->setPosition(pos);
-//
-//	// sync gun pos 
-//	auto angle = GetAngle(pos, aimPos);
-//	auto gunPosOffset = Rotate(XY{ 147, 0 }, angle);
-//	auto gunPos = XY{ pos.x + gunPosOffset.x, pos.y + gunPosOffset.y };
-//	std::cout << (uint32_t)angle << ", " << gunPosOffset.x << ", " << gunPosOffset.y << std::endl;
-//	gun->setPosition(gunPos);
-//
-//	// bullets
-//	for (int i = (int)bullets.size() - 1; i >= 0; --i) {
-//		auto& b = bullets[i];
-//		if (b->Update()) {
-//			if (auto n = (int)bullets.size() - 1; i < n) {
-//				b = std::move(bullets[n]);
-//			}
-//			bullets.pop_back();
+
+
+void SS::Scene::DrawInit() {
+	shooter->DrawInit();
+}
+void SS::Scene::DrawUpdate() {
+	shooter->DrawUpdate();
+}
+void SS::Scene::DrawDispose() {
+	shooter->DrawDispose();
+}
+SS::Scene::~Scene() { DrawDispose(); }
+
+
+void SS::Shooter::DrawInit() {
+	assert(!body);
+	body = cocos2d::Sprite::create("c.png");
+	assert(body);
+	body->setPosition(pos);
+	MainScene::instance->container->addChild(body);
+
+	assert(!gun);
+	gun = cocos2d::Sprite::create("c.png");
+	assert(gun);
+	gun->setScale(0.3f);
+	gun->setPosition((float)(pos.x + 147), (float)pos.y);
+	MainScene::instance->container->addChild(gun);
+
+	for (auto& b : bullets) {
+		b->DrawInit();
+	}
+}
+void SS::Shooter::DrawUpdate() {
+	body->setRotation(bodyAngle);
+	body->setPosition(pos);
+
+	auto angle = xx::GetAngle(pos, cs.aimPos);
+	auto gunPosOffset = xx::Rotate(XY{ 147, 0 }, angle);
+	auto gunPos = XY{ pos.x + gunPosOffset.x, pos.y + gunPosOffset.y };
+	gun->setPosition(gunPos);
+	gun->setRotation(360.f - bodyAngle * 3.333f);
+}
+void SS::Shooter::DrawDispose() {
+	if (body) {
+		body->removeFromParent();
+		body = nullptr;
+	}
+	if (gun) {
+		gun->removeFromParent();
+		gun = nullptr;
+	}
+}
+SS::Shooter::~Shooter() { DrawDispose(); }
+
+
+void SS::Bullet::DrawInit() {
+	assert(!body);
+	body = cocos2d::Sprite::create("b.png");
+	assert(body);
+	body->setPosition(pos);
+	MainScene::instance->container->addChild(body);
+}
+void SS::Bullet::DrawUpdate() {
+	body->setPosition(pos);
+}
+void SS::Bullet::DrawDispose() {
+	if (body) {
+		body->removeFromParent();
+		body = nullptr;
+	}
+}
+SS::Bullet::~Bullet() { DrawDispose(); }
+
+
+
+
+// init touch event listener
+//{
+//	auto L = cocos2d::EventListenerTouchOneByOne::create();
+//	L->onTouchBegan = [this](cocos2d::Touch* t, cocos2d::Event*)->bool {
+//		touchPos = container->convertToNodeSpace(t->getLocation());
+//		return true;
+//	};
+//	L->onTouchMoved = [this](cocos2d::Touch* t, cocos2d::Event*) {
+//		if (touchPos.has_value()) {
+//			touchPos = container->convertToNodeSpace(t->getLocation());
 //		}
-//	}
-//
-//	// emit bullets
-//	if (button1) {
-//		auto&& b = bullets.emplace_back();
-//		auto inc = Rotate(XY{ 30, 0 }, angle);
-//		b = std::make_shared<Bullet>(this, gunPos, inc, 1000);
-//	}
-//
-//	return 0;
+//	};
+//	L->onTouchEnded = L->onTouchCancelled = [this](cocos2d::Touch*, cocos2d::Event*) {
+//		touchPos.reset();
+//	};
+//	_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
 //}
-//
-//Bullet::Bullet(Shooter* shooter, XY pos, XY inc, int life)
-//	: shooter(shooter)
-//	, mainScene(shooter->mainScene)
-//	, pos(pos)
-//	, inc(inc)
-//	, life(life) {
-//	// draw
-//	body = cocos2d::Sprite::create("b.png");
-//	assert(body);
-//	body->setPosition(pos);
-//	mainScene->container->addChild(body);
-//}
-//
-//int Bullet::Update() {
-//	if (life < 0) return 1;
-//	--life;
-//	pos.x += inc.x;
-//	pos.y += inc.y;
-//	body->setPosition(pos);
-//	return 0;
-//}
-//
-//Bullet::~Bullet() {
-//	if (body) {
-//		body->removeFromParent();
-//		body = nullptr;
+
+
+
+		// todo: 默认情况下，按稳定帧率继续计算。
+		//// keep 60 fps call update
+//totalDelta += delta;
+//while (totalDelta > (1.f / 60.f)) {
+//	totalDelta -= (1.f / 60.f);
+//	if (shooter->Update()) {
+//		shooter.reset();
+//		// todo: show game over
+//		break;
 //	}
 //}
 
 
 
-	// init touch event listener
+
 	//{
-	//	auto L = cocos2d::EventListenerTouchOneByOne::create();
-	//	L->onTouchBegan = [this](cocos2d::Touch* t, cocos2d::Event*)->bool {
-	//		touchPos = container->convertToNodeSpace(t->getLocation());
-	//		return true;
-	//	};
-	//	L->onTouchMoved = [this](cocos2d::Touch* t, cocos2d::Event*) {
-	//		if (touchPos.has_value()) {
-	//			touchPos = container->convertToNodeSpace(t->getLocation());
-	//		}
-	//	};
-	//	L->onTouchEnded = L->onTouchCancelled = [this](cocos2d::Touch*, cocos2d::Event*) {
-	//		touchPos.reset();
-	//	};
-	//	_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
+	//    auto o = xx::Make<SS::Bullet>();
+	//    c.Send(o);
 	//}
-
-
-
-			// todo: 默认情况下，按稳定帧率继续计算。
-			//// keep 60 fps call update
-	//totalDelta += delta;
-	//while (totalDelta > (1.f / 60.f)) {
-	//	totalDelta -= (1.f / 60.f);
-	//	if (shooter->Update()) {
-	//		shooter.reset();
-	//		// todo: show game over
-	//		break;
-	//	}
+	//if (auto siz = c.receivedPackages.size()) {
+	//	xx::CoutN(siz);
 	//}
-
-
-
-
-		//{
-		//    auto o = xx::Make<SS::Bullet>();
-		//    c.Send(o);
-		//}
-		//if (auto siz = c.receivedPackages.size()) {
-		//	xx::CoutN(siz);
-		//}

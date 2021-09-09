@@ -9,6 +9,9 @@
 
 class MainScene : public cocos2d::Scene {
 public:
+	// singleton
+	inline static MainScene* instance = nullptr;
+
 	// ≥ı ºªØ
 	bool init() override;
 

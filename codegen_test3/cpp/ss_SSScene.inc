@@ -1,2 +1,8 @@
-﻿// todo: client InitDraw  UpdateDraw  DisposeDraw  ~Shooter()
-int Update();
+﻿int Update();
+
+#ifdef _WIN32
+void DrawInit();
+void DrawUpdate();
+void DrawDispose();
+~Scene();
+#endif

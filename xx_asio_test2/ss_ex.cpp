@@ -1,13 +1,6 @@
 ﻿#include "ss.h"
 #include "xx_math.h"
 
-#ifdef COCOS2D_VERSION
-#   include "MainScene.h"
-#else
-#   include "server.h"
-#   include "peer.h"
-#endif
-
 int SS::Scene::Update() {
     ++frameNumber;
     return shooter->Update();
