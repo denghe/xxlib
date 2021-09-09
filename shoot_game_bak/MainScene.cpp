@@ -223,6 +223,7 @@ LabBegin:
 				auto&& e = o.ReinterpretCast<SS_S2C::Event>();
 
 				if (e->frameNumber > scene->frameNumber) {
+					xx::CoutTN("fast forward from ", scene->frameNumber, " to ", e->frameNumber);
 					do {
 						// 追帧并备份
 						scene->Update();
@@ -271,10 +272,10 @@ void MainScene::Backup() {
 }
 
 int MainScene::Rollback(int const& frameNumber) {
-	auto n = frameBackups.Count();
+	xx::CoutTN("rollback from ", scene->frameNumber, " to ", frameNumber);
 
-	// 范围检查
-	assert(frameNumber < frameBackupsFirstFrameNumber + n);
+	// 核查
+	assert(frameNumber < frameBackupsFirstFrameNumber + frameBackups.Count());
 
 	// 如果超出范围就返回失败( 过期了 )
 	if (frameNumber < frameBackupsFirstFrameNumber) return -1;
