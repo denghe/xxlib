@@ -6,6 +6,7 @@
 #include <memory>
 #include <ss.h>
 #include <xx_asiokcpclient.h>
+#include <xx_queue.h>
 
 class MainScene : public cocos2d::Scene {
 public:
@@ -38,7 +39,6 @@ public:
 	xx::AsioKcpClient c;
 	bool synced = false;
 	bool playing = false;
-	xx::ObjManager om;
 	int lineNumber = 0;
 	int Update();
 
@@ -52,13 +52,19 @@ public:
 	xx::Shared<SS::Scene> scene;
 
 	// 每一帧 update 后的本地备份, 当收到的 events 小于 scene.frameNumber 时，从这里回滚
-	std::deque<xx::Data> frameBackups;
+	xx::Queue<xx::Data> frameBackups;
 
-	// 每帧备份 的 第一帧 的编号
+	// 队列头部备份编号
 	int frameBackupsFirstFrameNumber = 0;
 
 	// 最大备份长度
-	int maxBackupCount = 300;
+	int maxBackupCount = 600;
+
+	// 备份
+	void Backup();
+
+	// 还原到指定帧. 失败返回 非0
+	int Rollback(int const& frameNumber);
 };
 
 

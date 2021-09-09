@@ -80,43 +80,53 @@ bool MainScene::init() {
 }
 
 void MainScene::update(float delta) {
+	// 网络收发
+	c.Update();
 
-	// 先执行主线协程
-	lineNumber = Update();
-	assert(lineNumber);
+	// frame limit
+	totalDelta += delta;
+	while (totalDelta > (1.f / 60.f)) {
+		totalDelta -= (1.f / 60.f);
 
-	// 如果没有进入到 玩 状态 就直接短路退出
-	if (!playing) return;
+		// 先执行主线协程
+		lineNumber = Update();
+		assert(lineNumber);
 
-	// 缩放处理( 本地行为 )
-	if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_Z] && zoom > 0.05f) {
-		zoom -= 0.005f;
+		// 如果没有进入到 玩 状态 就直接短路退出
+		if (!playing) return;
+
+		// 缩放处理( 本地行为 )
+		if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_Z] && zoom > 0.05f) {
+			zoom -= 0.005f;
+		}
+		if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_X] && zoom < 1.f) {
+			zoom += 0.005f;
+		}
+		container->setScale(zoom);
+
+		// 生成当前控制状态
+		SS::ControlState newCS;
+		newCS.aimPos = { (int)mousePos.x, (int)mousePos.y };
+		newCS.moveLeft = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
+		newCS.moveRight = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
+		newCS.moveUp = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
+		newCS.moveDown = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
+		newCS.button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
+		newCS.button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
+
+		// 如果和备份不一致，就发包到 server
+		if (cmd->cs != newCS) {
+			cmd->cs = newCS;
+			c.Send(cmd);
+		}
+
 	}
-	if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_X] && zoom < 1.f) {
-		zoom += 0.005f;
-	}
-	container->setScale(zoom);
 
-	// 生成当前控制状态
-	SS::ControlState newCS;
-	newCS.aimPos = { (int)mousePos.x, (int)mousePos.y };
-	newCS.moveLeft = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
-	newCS.moveRight = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
-	newCS.moveUp = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
-	newCS.moveDown = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
-	newCS.button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
-	newCS.button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
-
-	// 如果和备份不一致，就发包到 server
-	if (cmd->cs != newCS) {
-		cmd->cs = newCS;
-		c.Send(cmd);
-	}
+	// 网络收发( 再来一次. 否则可能收不完 )
+	c.Update();
 }
 
 int MainScene::Update() {
-	c.Update();
-
 	COR_BEGIN;
 
 	// 初始化拨号地址
@@ -163,8 +173,8 @@ LabBegin:
 		goto LabBegin;
 	}
 
-	// 等 3 秒, 如果拨号完成就停止等待
-	secs = xx::NowEpochSeconds() + 3;
+	// 等 10 秒, 如果拨号完成就停止等待
+	secs = xx::NowEpochSeconds() + 10;
 	do {
 		COR_YIELD;
 		if (!c.Busy()) break;
@@ -178,8 +188,8 @@ LabBegin:
 	synced = false;
 	c.Send(xx::Make<SS_C2S::Enter>());
 
-	// 等 3 秒, 如果没有收到 sync 就掐线重连
-	secs = xx::NowEpochSeconds() + 3;
+	// 等 5 秒, 如果没有收到 sync 就掐线重连
+	secs = xx::NowEpochSeconds() + 5;
 	do {
 		COR_YIELD;
 
@@ -203,27 +213,36 @@ LabBegin:
 	do {
 		COR_YIELD;
 
-		// 继续处理 events 直到没有
-		xx::ObjBase_s o;
-		// 尝试从收包队列获取包
-		if (c.TryGetPackage(o)) {
-			// 类型应该就是 Event
-			assert(o && o.typeId() == xx::TypeId_v<SS_S2C::Event>);
-			auto&& e = o.ReinterpretCast<SS_S2C::Event>();
+		if (!c.receivedPackages.empty()) {
+			// 继续处理 events 直到没有
+			xx::ObjBase_s o;
+			// 尝试从收包队列获取包
+			while (c.TryGetPackage(o)) {
+				// 类型应该就是 Event
+				assert(o && o.typeId() == xx::TypeId_v<SS_S2C::Event>);
+				auto&& e = o.ReinterpretCast<SS_S2C::Event>();
 
-			if (e->frameNumber > scene->frameNumber) {
-				// 追帧
-				do {
-					scene->Update();
-				} while (e->frameNumber == scene->frameNumber);
+				if (e->frameNumber > scene->frameNumber) {
+					do {
+						// 追帧并备份
+						scene->Update();
+						Backup();
+					} while (e->frameNumber == scene->frameNumber);
+				} else if (e->frameNumber < scene->frameNumber) {
+					// 回滚。失败则重新拨号
+					if (int r = Rollback(e->frameNumber)) goto LabBegin;
+				}
+				// 应用 event
+				scene->shooter->cs = e->cs;
+				// 更新场景并备份
+				scene->Update();
+				Backup();
 			}
-			else if (e->frameNumber < scene->frameNumber) {
-				// todo: 回滚
-			}
-			scene->shooter->cs = e->cs;
+		} else {
+			// 更新场景并备份
+			scene->Update();
+			Backup();
 		}
-		scene->Update();
-		// todo: backup
 		scene->Draw();
 
 	} while (c.Alive());
@@ -232,7 +251,50 @@ LabBegin:
 	COR_END;
 }
 
+void MainScene::Backup() {
+	// 首次备份: 记录帧编号
+	if (frameBackups.Empty()) {
+		frameBackupsFirstFrameNumber = scene->frameNumber;
+	} else {
+		// 如果队列超出限定长度就 pop 一个并同步 [0] 的 frameNumber
+		if (frameBackups.Count() == maxBackupCount) {
+			frameBackups.Pop();
+			++frameBackupsFirstFrameNumber;
+		}
+	}
+	// 备份
+	auto& d = frameBackups.Emplace();
+	c.om.WriteTo(d, scene);
 
+	// 核查
+	assert(scene->frameNumber + 1 == frameBackupsFirstFrameNumber + frameBackups.Count());
+}
+
+int MainScene::Rollback(int const& frameNumber) {
+	auto n = frameBackups.Count();
+
+	// 范围检查
+	assert(frameNumber < frameBackupsFirstFrameNumber + n);
+
+	// 如果超出范围就返回失败( 过期了 )
+	if (frameNumber < frameBackupsFirstFrameNumber) return -1;
+
+	// 计算出目标帧的下标
+	auto idx = frameNumber - frameBackupsFirstFrameNumber;
+
+	// 将数据挪出来
+	auto d = std::move(frameBackups[idx]);
+
+	// 回滚( 相当于收到 sync )
+	c.om.ReadFrom(d, scene);
+
+	// 清空队列，将 d 放入，同步 [0] 的 frameNumber
+	frameBackups.Clear();
+	frameBackups.Push(std::move(d));
+	frameBackupsFirstFrameNumber = frameNumber;
+
+	return 0;
+}
 
 void MainScene::DrawInit() {
 	ui->removeAllChildrenWithCleanup(true);
@@ -269,7 +331,7 @@ void SS::Shooter::Draw() {
 		assert(body);
 		MainScene::instance->container->addChild(body);
 	}
-	body->setRotation(bodyAngle);
+	body->setRotation((float)bodyAngle);
 	body->setPosition(pos);
 
 	if (!gun) {
@@ -317,7 +379,6 @@ SS::Bullet::~Bullet() {
 
 
 
-
 // init touch event listener
 //{
 //	auto L = cocos2d::EventListenerTouchOneByOne::create();
@@ -335,28 +396,3 @@ SS::Bullet::~Bullet() {
 //	};
 //	_eventDispatcher->addEventListenerWithSceneGraphPriority(L, container);
 //}
-
-
-
-		// todo: 默认情况下，按稳定帧率继续计算。
-		//// keep 60 fps call update
-//totalDelta += delta;
-//while (totalDelta > (1.f / 60.f)) {
-//	totalDelta -= (1.f / 60.f);
-//	if (shooter->Update()) {
-//		shooter.reset();
-//		// todo: show game over
-//		break;
-//	}
-//}
-
-
-
-
-	//{
-	//    auto o = xx::Make<SS::Bullet>();
-	//    c.Send(o);
-	//}
-	//if (auto siz = c.receivedPackages.size()) {
-	//	xx::CoutN(siz);
-	//}
