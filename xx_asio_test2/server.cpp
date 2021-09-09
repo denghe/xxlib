@@ -32,7 +32,7 @@ int Server::Init() {
 }
 
 int Server::FrameUpdate() {
-    // frame limit to 60 fps
+    // frame limit
     totalDelta += (double) (nowMS - lastMS) / 1000.;
     lastMS = nowMS;
     while (totalDelta > (1.f / 60.f)) {
@@ -57,7 +57,7 @@ int Server::FrameUpdate() {
                             WriteTo(syncData, sync);
                         }
                         p.Send(syncData);
-                        p.SetTimeoutSeconds(15);
+                        p.SetTimeoutSeconds(150);
                         LOG_INFO("clientId = ", p.clientId, " recv Enter: ", om.ToString(o));
                         break;
                     }
@@ -66,7 +66,7 @@ int Server::FrameUpdate() {
                         if (!p.synced) break;   // todo: error handle
                         auto &m = o.ReinterpretCast<SS_C2S::Cmd>();
                         cs = m->cs;
-                        p.SetTimeoutSeconds(15);
+                        p.SetTimeoutSeconds(150);
                         LOG_INFO("clientId = ", p.clientId, " recv Cmd: ", om.ToString(m));
                         break;
                     }

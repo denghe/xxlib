@@ -20,7 +20,7 @@ void Listener::Accept(xx::Shared<Peer> const &p) {
     s.ps[p->clientId] = p;
 
     // 设置自动断线超时时间
-    p->SetTimeoutSeconds(15);
+    p->SetTimeoutSeconds(150);
 
     LOG_INFO("success. ip = ", p->addr, ", clientId = ", p->clientId);
 }
