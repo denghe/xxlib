@@ -140,11 +140,11 @@ namespace xx {
 namespace SS{
     void Scene::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         d.Write(this->frameNumber);
-        d.Write(this->shooter);
+        om.Write(d, this->shooter);
     }
     int Scene::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = d.Read(this->frameNumber)) return r;
-        if (int r = d.Read(this->shooter)) return r;
+        if (int r = om.Read(d, this->shooter)) return r;
         return 0;
     }
     void Scene::Append(::xx::ObjManager& om, std::string& s) const {
@@ -181,19 +181,19 @@ namespace SS{
 }
 namespace SS{
     void Shooter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->scene);
+        om.Write(d, this->scene);
         d.Write(this->bodyAngle);
         d.Write(this->moveDistancePerFrame);
         d.Write(this->pos);
-        d.Write(this->bullets);
+        om.Write(d, this->bullets);
         d.Write(this->cs);
     }
     int Shooter::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->scene)) return r;
+        if (int r = om.Read(d, this->scene)) return r;
         if (int r = d.Read(this->bodyAngle)) return r;
         if (int r = d.Read(this->moveDistancePerFrame)) return r;
         if (int r = d.Read(this->pos)) return r;
-        if (int r = d.Read(this->bullets)) return r;
+        if (int r = om.Read(d, this->bullets)) return r;
         if (int r = d.Read(this->cs)) return r;
         return 0;
     }
@@ -251,13 +251,13 @@ namespace SS{
 }
 namespace SS{
     void Bullet::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->shooter);
+        om.Write(d, this->shooter);
         d.Write(this->life);
         d.Write(this->pos);
         d.Write(this->inc);
     }
     int Bullet::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->shooter)) return r;
+        if (int r = om.Read(d, this->shooter)) return r;
         if (int r = d.Read(this->life)) return r;
         if (int r = d.Read(this->pos)) return r;
         if (int r = d.Read(this->inc)) return r;
@@ -307,10 +307,10 @@ namespace SS{
 }
 namespace SS_S2C{
     void Sync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->scene);
+        om.Write(d, this->scene);
     }
     int Sync::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->scene)) return r;
+        if (int r = om.Read(d, this->scene)) return r;
         return 0;
     }
     void Sync::Append(::xx::ObjManager& om, std::string& s) const {
