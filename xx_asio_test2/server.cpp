@@ -21,6 +21,7 @@ int Server::Init() {
     sync.Emplace();
     sync->scene = scene;
     WriteTo(syncData, sync);
+    event.Emplace();
     totalDelta = 0;
     lastMS = nowMS;
 
@@ -38,14 +39,14 @@ int Server::FrameUpdate() {
         totalDelta -= (1.f / 60.f);
 
         // cs store
-        SS::ControlState cs;
+        auto cs = scene->shooter->cs;
 
         // handle packages( change cs )
         for (auto &kv : ps) {
             auto &p = *kv.second;
             auto &recvs = p.recvs;
             // every time handle 1 package
-            if (!recvs.empty()) {
+            while (!recvs.empty()) {
                 auto &o = recvs.front();
                 switch (o.typeId()) {
                     case xx::TypeId_v<SS_C2S::Enter>: {
@@ -74,12 +75,20 @@ int Server::FrameUpdate() {
             }
         }
 
-        // set shooter cs
-        scene->shooter->cs = cs;
+        // if cs changed, send event
+        if (scene->shooter->cs != cs) {
+            scene->shooter->cs = cs;
+            event->cs = cs;
+            event->frameNumber = scene->frameNumber;
+            WriteTo(eventData, event);
+            for(auto& kv : ps) {
+                kv.second->Send(eventData);
+            }
+        }
 
         // logic update
         if (int r = scene->Update()) {
-            // todo
+            // todo: game over?
             break;
         }
 
@@ -107,15 +116,3 @@ void Server::WriteTo(xx::Data &d, xx::ObjBase_s const &o) {
     om.WriteTo(d, o);
     d.WriteFixedAt(bak, (uint32_t) (d.len - sizeof(uint32_t)));
 }
-
-//    // every 1 seconds timer
-//    if (nowMS > lastMS) {
-//        lastMS = nowMS + 1000;
-//        for(auto& kv : ps) {
-//            auto& p = *kv.second;
-//            assert(p.Alive());
-//            auto o = xx::Make<SS_S2C::Event>();
-//            p.Send(o);
-//        }
-//    }
-//xx::CoutN(".");

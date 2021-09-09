@@ -32,7 +32,7 @@ struct Server : EP::Context {
     double totalDelta = 0;
     int64_t lastMS = 0;
 
-    // for send Obj
+    // for peer.Send
     xx::Data tmp;
 
     // game context
@@ -41,6 +41,8 @@ struct Server : EP::Context {
     // package cache
     xx::Shared<SS_S2C::Sync> sync;
     xx::Data syncData;
+    xx::Shared<SS_S2C::Event> event;
+    xx::Data eventData;
 
     // fill send data to d ( contains len header )
     void WriteTo(xx::Data& d,xx::ObjBase_s const& o);
