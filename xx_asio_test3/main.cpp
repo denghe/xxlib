@@ -63,9 +63,9 @@ struct Logic {
                 if (!c.Alive()) goto LabBegin;
 
                 xx::CoutTN("Send");
-                // 发点啥？
+                // 发 进入 请求
                 {
-                    auto o = xx::Make<SS::Bullet>();
+                    auto o = xx::Make<SS_C2S::Enter>();
                     c.Send(o);
                 }
 
@@ -74,14 +74,10 @@ struct Logic {
                 do {
                     COR_YIELD;
 
-//                    {
-//                        auto o = xx::Make<SS::Bullet>();
-//                        c.Send(o);
-//                    }
-                    if (auto siz = c.receivedPackages.size()) {
-                        xx::CoutN(siz);
-                    }
-
+                        xx::ObjBase_s  o;
+                        if (c.TryGetPackage(o)) {
+                            c.om.CoutN(o);
+                        }
 
                 } while (c.Alive());
                 goto LabBegin;

@@ -16,7 +16,7 @@ namespace SS {
     [TypeId(2), Include, Include_]
     class Shooter {
 		Weak<Scene> scene;
-        float bodyAngle;
+        int bodyAngle;
         int moveDistancePerFrame = 10;
         XY pos;
         List<Shared<Bullet>> bullets;

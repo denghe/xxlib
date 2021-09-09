@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<ac5afb1ff10bf02b7abfc97652e85927>*#";
+	inline static const ::std::string md5 = "#*MD5<1c6e3881becb0bf94e762f4b851988e5>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };
@@ -60,7 +60,7 @@ namespace SS {
         XX_OBJ_OBJECT_H(Shooter, ::xx::ObjBase)
 #include <ss_SSShooter.inc>
         ::xx::Weak<::SS::Scene> scene;
-        float bodyAngle = 0.0f;
+        int32_t bodyAngle = 0;
         int32_t moveDistancePerFrame = 10;
         ::SS::XY pos;
         ::std::vector<::xx::Shared<::SS::Bullet>> bullets;

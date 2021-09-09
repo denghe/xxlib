@@ -242,7 +242,7 @@ namespace SS{
     }
     void Shooter::SetDefaultValue(::xx::ObjManager& om) {
         om.SetDefaultValue(this->scene);
-        this->bodyAngle = 0.0f;
+        this->bodyAngle = 0;
         this->moveDistancePerFrame = 10;
         om.SetDefaultValue(this->pos);
         om.SetDefaultValue(this->bullets);
