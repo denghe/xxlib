@@ -7,7 +7,7 @@ int main() {
 	xx::IgnoreSignal();
 
 	// 创建类实例
-	Server s;
+	Server s(1u << 15u);
 
     if (int r = s.Init()) return r;
 
