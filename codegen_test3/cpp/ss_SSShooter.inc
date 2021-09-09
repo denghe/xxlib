@@ -4,8 +4,6 @@
 cocos2d::Sprite* body = nullptr;
 cocos2d::Sprite* gun = nullptr;
 
-void DrawInit();
-void DrawUpdate();
-void DrawDispose();
+void Draw();
 ~Shooter();
 #endif

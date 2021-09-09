@@ -210,24 +210,29 @@ LabBegin:
 			// 类型应该就是 Event
 			assert(o && o.typeId() == xx::TypeId_v<SS_S2C::Event>);
 			auto&& e = o.ReinterpretCast<SS_S2C::Event>();
-			assert(e->frameNumber > scene->frameNumber);
-			xx::CoutN(e->frameNumber , scene->frameNumber);
 
-			// 追帧
-			do {
-				// todo: 传递 e->cs 到 Update
-				scene->Update();
-			} while (e->frameNumber == scene->frameNumber);
-		} else {
-			scene->Update();
-			// todo: backup
+			if (e->frameNumber > scene->frameNumber) {
+				// 追帧
+				do {
+					scene->Update();
+				} while (e->frameNumber == scene->frameNumber);
+			}
+			else if (e->frameNumber < scene->frameNumber) {
+				// todo: 回滚
+			}
+			scene->shooter->cs = e->cs;
 		}
+		scene->Update();
+		// todo: backup
+		scene->Draw();
 
 	} while (c.Alive());
 	goto LabBegin;
 
 	COR_END;
 }
+
+
 
 void MainScene::DrawInit() {
 	ui->removeAllChildrenWithCleanup(true);
@@ -247,52 +252,43 @@ void MainScene::DrawDial() {
 }
 void MainScene::DrawPlay() {
 	ui->removeAllChildrenWithCleanup(true);
-	scene->DrawInit();
+	scene->Draw();
 }
 
 
 
-void SS::Scene::DrawInit() {
-	shooter->DrawInit();
+void SS::Scene::Draw() {
+	shooter->Draw();
 }
-void SS::Scene::DrawUpdate() {
-	shooter->DrawUpdate();
-}
-void SS::Scene::DrawDispose() {
-	shooter->DrawDispose();
-}
-SS::Scene::~Scene() { DrawDispose(); }
 
 
-void SS::Shooter::DrawInit() {
-	assert(!body);
-	body = cocos2d::Sprite::create("c.png");
-	assert(body);
-	body->setPosition(pos);
-	MainScene::instance->container->addChild(body);
+void SS::Shooter::Draw() {
 
-	assert(!gun);
-	gun = cocos2d::Sprite::create("c.png");
-	assert(gun);
-	gun->setScale(0.3f);
-	gun->setPosition((float)(pos.x + 147), (float)pos.y);
-	MainScene::instance->container->addChild(gun);
-
-	for (auto& b : bullets) {
-		b->DrawInit();
+	if (!body) {
+		body = cocos2d::Sprite::create("c.png");
+		assert(body);
+		MainScene::instance->container->addChild(body);
 	}
-}
-void SS::Shooter::DrawUpdate() {
 	body->setRotation(bodyAngle);
 	body->setPosition(pos);
 
+	if (!gun) {
+		gun = cocos2d::Sprite::create("c.png");
+		assert(gun);
+		gun->setScale(0.3f);
+		MainScene::instance->container->addChild(gun);
+	}
 	auto angle = xx::GetAngle(pos, cs.aimPos);
 	auto gunPosOffset = xx::Rotate(XY{ 147, 0 }, angle);
 	auto gunPos = XY{ pos.x + gunPosOffset.x, pos.y + gunPosOffset.y };
 	gun->setPosition(gunPos);
 	gun->setRotation(360.f - bodyAngle * 3.333f);
+
+	for (auto& b : bullets) {
+		b->Draw();
+	}
 }
-void SS::Shooter::DrawDispose() {
+SS::Shooter::~Shooter() {
 	if (body) {
 		body->removeFromParent();
 		body = nullptr;
@@ -302,26 +298,22 @@ void SS::Shooter::DrawDispose() {
 		gun = nullptr;
 	}
 }
-SS::Shooter::~Shooter() { DrawDispose(); }
 
 
-void SS::Bullet::DrawInit() {
-	assert(!body);
-	body = cocos2d::Sprite::create("b.png");
-	assert(body);
-	body->setPosition(pos);
-	MainScene::instance->container->addChild(body);
-}
-void SS::Bullet::DrawUpdate() {
+void SS::Bullet::Draw() {
+	if (!body) {
+		body = cocos2d::Sprite::create("b.png");
+		assert(body);
+		MainScene::instance->container->addChild(body);
+	}
 	body->setPosition(pos);
 }
-void SS::Bullet::DrawDispose() {
+SS::Bullet::~Bullet() {
 	if (body) {
 		body->removeFromParent();
 		body = nullptr;
 	}
 }
-SS::Bullet::~Bullet() { DrawDispose(); }
 
 
 

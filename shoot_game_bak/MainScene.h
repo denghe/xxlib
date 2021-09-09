@@ -56,6 +56,9 @@ public:
 
 	// 每帧备份 的 第一帧 的编号
 	int frameBackupsFirstFrameNumber = 0;
+
+	// 最大备份长度
+	int maxBackupCount = 300;
 };
 
 
