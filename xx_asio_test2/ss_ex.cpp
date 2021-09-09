@@ -9,14 +9,15 @@
 #endif
 
 int SS::Scene::Update() {
+    ++frameNumber;
     return shooter->Update();
 }
 
 int SS::Shooter::Update() {
     // rotate
-    bodyAngle += 1.f;
-    if (bodyAngle > 360.f) {
-        bodyAngle = 1.f;
+    bodyAngle += 1;
+    if (bodyAngle >= 360) {
+        bodyAngle = 0;
     }
 
     // move shooter
@@ -52,10 +53,10 @@ int SS::Shooter::Update() {
     // emit bullets
     if (cs.button1) {
         auto &&b = *bullets.emplace_back().Emplace();
+        b.shooter = WeakFromThis<Shooter>();
         b.inc = xx::Rotate({30, 0}, angle);
         b.life = 1000;
         b.pos = gunPos;
-        //b.owner = this;
     }
 
     // success

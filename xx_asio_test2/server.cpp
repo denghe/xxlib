@@ -17,12 +17,16 @@ int Server::Init() {
 
     // init game context & cache
     scene.Emplace()->shooter.Emplace();
+    scene->shooter->scene = scene;
     sync.Emplace();
     sync->scene = scene;
     WriteTo(syncData, sync);
+    totalDelta = 0;
+    lastMS = nowMS;
 
     // store singleton instance for SS visit
     instance = this;
+
     return 0;
 }
 
@@ -32,45 +36,66 @@ int Server::FrameUpdate() {
     lastMS = nowMS;
     while (totalDelta > (1.f / 60.f)) {
         totalDelta -= (1.f / 60.f);
-        // fill syncData
-        WriteTo(syncData, sync);
-        // handle packages
+
+        // cs store
+        SS::ControlState cs;
+
+        // handle packages( change cs )
         for (auto &kv : ps) {
             auto &p = *kv.second;
             auto &recvs = p.recvs;
             // every time handle 1 package
             if (!recvs.empty()) {
-
                 auto &o = recvs.front();
                 switch (o.typeId()) {
+                    case xx::TypeId_v<SS_C2S::Enter>: {
+                        // enter should be the first package
+                        if (p.synced) break;    // todo: error handle
+                        p.synced = true;
+                        if (!syncData.len) {
+                            WriteTo(syncData, sync);
+                        }
+                        p.Send(syncData);
+                        p.SetTimeoutSeconds(15);
+                        LOG_INFO("clientId = ", p.clientId, " recv Enter: ", om.ToString(o));
+                        break;
+                    }
                     case xx::TypeId_v<SS_C2S::Cmd>: {
+                        // cmd should be after enter
+                        if (!p.synced) break;   // todo: error handle
                         auto &m = o.ReinterpretCast<SS_C2S::Cmd>();
-                        scene->shooter->cs = m->cs;
+                        cs = m->cs;
+                        p.SetTimeoutSeconds(15);
+                        LOG_INFO("clientId = ", p.clientId, " recv Cmd: ", om.ToString(m));
                         break;
                     }
                 }
                 recvs.pop();
             }
         }
+
+        // set shooter cs
+        scene->shooter->cs = cs;
+
+        // logic update
         if (int r = scene->Update()) {
             // todo
             break;
         }
+
+        // clear sync cache
+        syncData.Clear();
     }
     return 0;
 }
 
 int Server::HandlePackage(Peer &p, xx::ObjBase_s &o) {
     switch (o.typeId()) {
-        case xx::TypeId_v<SS_C2S::Enter>: {
-            p.Send(syncData);
-            return 0;
-        }
-        case xx::TypeId_v<SS_C2S::Cmd>: {
+        case xx::TypeId_v<SS_C2S::Enter>:
+        case xx::TypeId_v<SS_C2S::Cmd>:
             p.recvs.push(std::move(o));
             if (p.recvs.size() > 30) return -2;
             return 0;
-        }
     }
     return -1;
 }
