@@ -23,7 +23,14 @@ void Test1() {
     lua_pushlightuserdata(L, nullptr);
     lua_setglobal(L, "NULL");
 
-    luaL_dofile(L, "test3.lua");
+    xx::CoutN(lua_gettop(L));
+    if (luaL_dofile(L, "test3.lua") != LUA_OK) {
+        std::string s;
+        xx::Lua::To(L, -1, s);
+        xx::CoutN(s);
+        lua_pop(L, 1);
+    }
+    xx::CoutN(lua_gettop(L));
 }
 
 
@@ -296,12 +303,12 @@ print(rnd2:NextDouble())
 }
 
 int main() {
-    //Test1();
+    Test1();
     //Test2();
     //TestUv();
     //TestLuaBind1();
     //TestLuaBind2();
-    TestTableToData();
+    //TestTableToData();
     std::cout << "end." << std::endl;
     return 0;
 }

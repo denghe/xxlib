@@ -370,7 +370,7 @@ namespace xx {
 			else if constexpr (IsMapSeries_v<T>) {
 				d.WriteVarInteger<needReserve>(v.size());
 				for (auto&& kv : v) {
-					Write<needReserve>(kv.first, kv.second);
+					Write<needReserve>(d, kv.first, kv.second);
 				}
 			}
 			else {
