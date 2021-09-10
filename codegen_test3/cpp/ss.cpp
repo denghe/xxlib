@@ -4,10 +4,9 @@ void CodeGen_ss::Register() {
 	::xx::ObjManager::Register<::SS::Scene>();
 	::xx::ObjManager::Register<::SS::Shooter>();
 	::xx::ObjManager::Register<::SS::Bullet>();
-	::xx::ObjManager::Register<::SS_S2C::Event>();
+	::xx::ObjManager::Register<::SS_S2C::EnterResult>();
 	::xx::ObjManager::Register<::SS_S2C::Sync>();
-	::xx::ObjManager::Register<::SS_S2C::Event_Enter>();
-	::xx::ObjManager::Register<::SS_S2C::Event_Cmd>();
+	::xx::ObjManager::Register<::SS_S2C::Event>();
 	::xx::ObjManager::Register<::SS_C2S::Enter>();
 	::xx::ObjManager::Register<::SS_C2S::Cmd>();
 	::xx::ObjManager::Register<::SS::Bullet_Straight>();
@@ -317,42 +316,42 @@ namespace SS{
     }
 }
 namespace SS_S2C{
-    void Event::WriteTo(xx::Data& d, int32_t const& frameNumber) {
-        d.Write(xx::TypeId_v<Event>);
-        d.Write(frameNumber);
+    void EnterResult::WriteTo(xx::Data& d, uint32_t const& clientId) {
+        d.Write(xx::TypeId_v<EnterResult>);
+        d.Write(clientId);
     }
-    void Event::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->frameNumber);
+    void EnterResult::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+        d.Write(this->clientId);
     }
-    int Event::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->frameNumber)) return r;
+    int EnterResult::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
+        if (int r = d.Read(this->clientId)) return r;
         return 0;
     }
-    void Event::Append(::xx::ObjManager& om, std::string& s) const {
+    void EnterResult::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":51");
+        ::xx::Append(s, "{\"__typeId__\":50");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif
     }
-    void Event::AppendCore(::xx::ObjManager& om, std::string& s) const {
+    void EnterResult::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        om.Append(s, ",\"frameNumber\":", this->frameNumber);
+        om.Append(s, ",\"clientId\":", this->clientId);
 #endif
     }
-    void Event::Clone(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::SS_S2C::Event*)tar;
-        om.Clone_(this->frameNumber, out->frameNumber);
+    void EnterResult::Clone(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::SS_S2C::EnterResult*)tar;
+        om.Clone_(this->clientId, out->clientId);
     }
-    int Event::RecursiveCheck(::xx::ObjManager& om) const {
-        if (int r = om.RecursiveCheck(this->frameNumber)) return r;
+    int EnterResult::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->clientId)) return r;
         return 0;
     }
-    void Event::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->frameNumber);
+    void EnterResult::RecursiveReset(::xx::ObjManager& om) {
+        om.RecursiveReset(this->clientId);
     }
-    void Event::SetDefaultValue(::xx::ObjManager& om) {
-        this->frameNumber = 0;
+    void EnterResult::SetDefaultValue(::xx::ObjManager& om) {
+        this->clientId = 0;
     }
 }
 namespace SS_S2C{
@@ -365,7 +364,7 @@ namespace SS_S2C{
     }
     void Sync::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":50");
+        ::xx::Append(s, "{\"__typeId__\":51");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif
@@ -391,92 +390,52 @@ namespace SS_S2C{
     }
 }
 namespace SS_S2C{
-    void Event_Enter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        this->BaseType::Write(om, d);
-        om.Write(d, this->shooter);
+    void Event::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+        d.Write(this->frameNumber);
+        om.Write(d, this->shooters);
+        d.Write(this->css);
     }
-    int Event_Enter::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = this->BaseType::Read(om, d)) return r;
-        if (int r = om.Read(d, this->shooter)) return r;
+    int Event::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
+        if (int r = d.Read(this->frameNumber)) return r;
+        if (int r = om.Read(d, this->shooters)) return r;
+        if (int r = d.Read(this->css)) return r;
         return 0;
     }
-    void Event_Enter::Append(::xx::ObjManager& om, std::string& s) const {
+    void Event::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
         ::xx::Append(s, "{\"__typeId__\":52");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif
     }
-    void Event_Enter::AppendCore(::xx::ObjManager& om, std::string& s) const {
+    void Event::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        this->BaseType::AppendCore(om, s);
-        om.Append(s, ",\"shooter\":", this->shooter);
+        om.Append(s, ",\"frameNumber\":", this->frameNumber);
+        om.Append(s, ",\"shooters\":", this->shooters);
+        om.Append(s, ",\"css\":", this->css);
 #endif
     }
-    void Event_Enter::Clone(::xx::ObjManager& om, void* const &tar) const {
-        this->BaseType::Clone(om, tar);
-        auto out = (::SS_S2C::Event_Enter*)tar;
-        om.Clone_(this->shooter, out->shooter);
+    void Event::Clone(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::SS_S2C::Event*)tar;
+        om.Clone_(this->frameNumber, out->frameNumber);
+        om.Clone_(this->shooters, out->shooters);
+        om.Clone_(this->css, out->css);
     }
-    int Event_Enter::RecursiveCheck(::xx::ObjManager& om) const {
-        if (int r = this->BaseType::RecursiveCheck(om)) return r;
-        if (int r = om.RecursiveCheck(this->shooter)) return r;
+    int Event::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->frameNumber)) return r;
+        if (int r = om.RecursiveCheck(this->shooters)) return r;
+        if (int r = om.RecursiveCheck(this->css)) return r;
         return 0;
     }
-    void Event_Enter::RecursiveReset(::xx::ObjManager& om) {
-        this->BaseType::RecursiveReset(om);
-        om.RecursiveReset(this->shooter);
+    void Event::RecursiveReset(::xx::ObjManager& om) {
+        om.RecursiveReset(this->frameNumber);
+        om.RecursiveReset(this->shooters);
+        om.RecursiveReset(this->css);
     }
-    void Event_Enter::SetDefaultValue(::xx::ObjManager& om) {
-        this->BaseType::SetDefaultValue(om);
-        om.SetDefaultValue(this->shooter);
-    }
-}
-namespace SS_S2C{
-    void Event_Cmd::WriteTo(xx::Data& d, int32_t const& frameNumber, ::SS::ControlState const& cs) {
-        d.Write(xx::TypeId_v<Event_Cmd>);
-        d.Write(frameNumber);
-        d.Write(cs);
-    }
-    void Event_Cmd::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        this->BaseType::Write(om, d);
-        d.Write(this->cs);
-    }
-    int Event_Cmd::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = this->BaseType::Read(om, d)) return r;
-        if (int r = d.Read(this->cs)) return r;
-        return 0;
-    }
-    void Event_Cmd::Append(::xx::ObjManager& om, std::string& s) const {
-#ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":53");
-        this->AppendCore(om, s);
-        s.push_back('}');
-#endif
-    }
-    void Event_Cmd::AppendCore(::xx::ObjManager& om, std::string& s) const {
-#ifndef XX_DISABLE_APPEND
-        this->BaseType::AppendCore(om, s);
-        om.Append(s, ",\"cs\":", this->cs);
-#endif
-    }
-    void Event_Cmd::Clone(::xx::ObjManager& om, void* const &tar) const {
-        this->BaseType::Clone(om, tar);
-        auto out = (::SS_S2C::Event_Cmd*)tar;
-        om.Clone_(this->cs, out->cs);
-    }
-    int Event_Cmd::RecursiveCheck(::xx::ObjManager& om) const {
-        if (int r = this->BaseType::RecursiveCheck(om)) return r;
-        if (int r = om.RecursiveCheck(this->cs)) return r;
-        return 0;
-    }
-    void Event_Cmd::RecursiveReset(::xx::ObjManager& om) {
-        this->BaseType::RecursiveReset(om);
-        om.RecursiveReset(this->cs);
-    }
-    void Event_Cmd::SetDefaultValue(::xx::ObjManager& om) {
-        this->BaseType::SetDefaultValue(om);
-        om.SetDefaultValue(this->cs);
+    void Event::SetDefaultValue(::xx::ObjManager& om) {
+        this->frameNumber = 0;
+        om.SetDefaultValue(this->shooters);
+        om.SetDefaultValue(this->css);
     }
 }
 namespace SS_C2S{

@@ -693,7 +693,7 @@ namespace xx {
 			else if constexpr (IsTuple_v<T>) {
 				s.push_back('[');
 				std::apply([&](auto const &... args) {
-					Append(args..., ',');
+					Append(s, args..., ',');
 					if constexpr (sizeof...(args) > 0) {
 						s.resize(s.size() - 1);
 					}
@@ -758,7 +758,7 @@ namespace xx {
 		struct TupleForeachClone {
 			XX_INLINE static void Clone(ObjManager& self, Tuple const& in, Tuple& out) {
 				self.Clone_(std::get<N - 1>(in), std::get<N - 1>(out));
-				TupleForeachClone<Tuple, N - 1>::Clone_(in, out);
+				TupleForeachClone<Tuple, N - 1>::Clone(self, in, out);
 			}
 		};
 
@@ -959,12 +959,12 @@ namespace xx {
 
 	protected:
 		template<std::size_t I = 0, typename... Tp>
-		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...> const& t) {
 			return RecursiveCheck_(std::get<I>(t));
 		}
 
 		template<std::size_t I = 0, typename... Tp>
-		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
+		XX_INLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...> const& t) {
 			if (int r = RecursiveCheck_(std::get<I>(t))) return r;
 			return RecursiveCheckTuple<I + 1, Tp...>(t);
 		}

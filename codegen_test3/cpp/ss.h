@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<34e14fb4c5045cd987dd73dbdee61d1a>*#";
+	inline static const ::std::string md5 = "#*MD5<e110a6170dbf8ff6c3630b538ac00058>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };
@@ -10,10 +10,9 @@ inline CodeGen_ss __CodeGen_ss;
 namespace SS { struct Scene; }
 namespace SS { struct Shooter; }
 namespace SS { struct Bullet; }
-namespace SS_S2C { struct Event; }
+namespace SS_S2C { struct EnterResult; }
 namespace SS_S2C { struct Sync; }
-namespace SS_S2C { struct Event_Enter; }
-namespace SS_S2C { struct Event_Cmd; }
+namespace SS_S2C { struct Event; }
 namespace SS_C2S { struct Enter; }
 namespace SS_C2S { struct Cmd; }
 namespace SS { struct Bullet_Straight; }
@@ -22,10 +21,9 @@ namespace xx {
     template<> struct TypeId<::SS::Scene> { static const uint16_t value = 10; };
     template<> struct TypeId<::SS::Shooter> { static const uint16_t value = 20; };
     template<> struct TypeId<::SS::Bullet> { static const uint16_t value = 30; };
-    template<> struct TypeId<::SS_S2C::Event> { static const uint16_t value = 51; };
-    template<> struct TypeId<::SS_S2C::Sync> { static const uint16_t value = 50; };
-    template<> struct TypeId<::SS_S2C::Event_Enter> { static const uint16_t value = 52; };
-    template<> struct TypeId<::SS_S2C::Event_Cmd> { static const uint16_t value = 53; };
+    template<> struct TypeId<::SS_S2C::EnterResult> { static const uint16_t value = 50; };
+    template<> struct TypeId<::SS_S2C::Sync> { static const uint16_t value = 51; };
+    template<> struct TypeId<::SS_S2C::Event> { static const uint16_t value = 52; };
     template<> struct TypeId<::SS_C2S::Enter> { static const uint16_t value = 40; };
     template<> struct TypeId<::SS_C2S::Cmd> { static const uint16_t value = 41; };
     template<> struct TypeId<::SS::Bullet_Straight> { static const uint16_t value = 31; };
@@ -111,35 +109,33 @@ namespace SS {
     };
 }
 namespace SS_S2C {
-    // 事件通知( 基类 )
-    struct Event : ::xx::ObjBase {
-        XX_OBJ_OBJECT_H(Event, ::xx::ObjBase)
-        using IsSimpleType_v = Event;
-        int32_t frameNumber = 0;
-        static void WriteTo(xx::Data& d, int32_t const& frameNumber);
+    // 进入结果( 这应该是客户端发 Enter 之后，收到的 首包 )
+    struct EnterResult : ::xx::ObjBase {
+        XX_OBJ_OBJECT_H(EnterResult, ::xx::ObjBase)
+        using IsSimpleType_v = EnterResult;
+        // 客户端编号, 存下来用于在 Sync.scene.shooters 中查找自身
+        uint32_t clientId = 0;
+        static void WriteTo(xx::Data& d, uint32_t const& clientId);
     };
 }
 namespace SS_S2C {
     // 完整同步
     struct Sync : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Sync, ::xx::ObjBase)
+        // 整个场景数据( 后于 EnterResult 收到，但先于所有 Event )
         ::xx::Shared<::SS::Scene> scene;
     };
 }
 namespace SS_S2C {
-    // 玩家进入事件
-    struct Event_Enter : ::SS_S2C::Event {
-        XX_OBJ_OBJECT_H(Event_Enter, ::SS_S2C::Event)
-        ::xx::Shared<::SS::Shooter> shooter;
-    };
-}
-namespace SS_S2C {
-    // 玩家控制事件
-    struct Event_Cmd : ::SS_S2C::Event {
-        XX_OBJ_OBJECT_H(Event_Cmd, ::SS_S2C::Event)
-        using IsSimpleType_v = Event_Cmd;
-        ::SS::ControlState cs;
-        static void WriteTo(xx::Data& d, int32_t const& frameNumber, ::SS::ControlState const& cs);
+    // 事件通知
+    struct Event : ::xx::ObjBase {
+        XX_OBJ_OBJECT_H(Event, ::xx::ObjBase)
+        // 对应的帧编号( 客户端收到后，如果慢于它就需要快进，快于它就需要回滚 )
+        int32_t frameNumber = 0;
+        // 玩家进入事件( 第一优先处理 )
+        ::std::vector<::xx::Shared<::SS::Shooter>> shooters;
+        // 玩家控制事件. uint: 用来定位 shooter 的 clientId
+        ::std::vector<::std::tuple<uint32_t, ::SS::ControlState>> css;
     };
 }
 namespace SS_C2S {
@@ -173,6 +169,7 @@ namespace SS {
     struct Bullet_Track : ::SS::Bullet {
         XX_OBJ_OBJECT_H(Bullet_Track, ::SS::Bullet)
 #include <ss_SSBullet_Track.inc>
+        // 跟踪目标
         ::xx::Weak<::SS::Shooter> target;
     };
 }

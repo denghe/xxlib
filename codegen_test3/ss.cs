@@ -93,6 +93,7 @@ namespace SS {
     [TypeId(32), Include]
     [Desc("射击者的子弹--跟踪")]
     class Bullet_Track : Bullet {
+        [Desc("跟踪目标")]
         Weak<Shooter> target;
     };
 
@@ -105,7 +106,7 @@ namespace SS_C2S {
     [TypeId(40)]
     [Desc("请求进入游戏")]
     class Enter {
-		// todo: login info?
+        // todo: login info?
     };
 
     [TypeId(41)]
@@ -120,26 +121,29 @@ namespace SS_C2S {
 namespace SS_S2C {
 
     [TypeId(50)]
-    [Desc("完整同步")]
-    class Sync {
-        Shared<SS.Scene> scene;
+    [Desc("进入结果( 这应该是客户端发 Enter 之后，收到的 首包 )")]
+    class EnterResult {
+        [Desc("客户端编号, 存下来用于在 Sync.scene.shooters 中查找自身")]
+        uint clientId;
     };
 
     [TypeId(51)]
-    [Desc("事件通知( 基类 )")]
-    class Event {
-        int frameNumber;
+    [Desc("完整同步")]
+    class Sync {
+        [Desc("整个场景数据( 后于 EnterResult 收到，但先于所有 Event )")]
+        Shared<SS.Scene> scene;
     };
 
     [TypeId(52)]
-    [Desc("玩家进入事件")]
-    class Event_Enter : Event {
-        Shared<SS.Shooter> shooter;
-    };
+    [Desc("事件通知")]
+    class Event {
+        [Desc("对应的帧编号( 客户端收到后，如果慢于它就需要快进，快于它就需要回滚 )")]
+        int frameNumber;
 
-    [TypeId(53)]
-    [Desc("玩家控制事件")]
-    class Event_Cmd : Event {
-        SS.ControlState cs;
+        [Desc("玩家进入事件( 第一优先处理 )")]
+        List<Shared<SS.Shooter>> shooters;
+
+        [Desc("玩家控制事件. uint: 用来定位 shooter 的 clientId")]
+        List<Tuple<uint, SS.ControlState>> css;
     };
 }

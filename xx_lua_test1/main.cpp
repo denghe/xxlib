@@ -36,6 +36,8 @@ void Test1() {
 
 void Test2() {
     xx::Lua::State L;
+    //lua_State *L = lua_newstate( xxxxxmalloc , NULL);
+    //luaL_openlibs(L);
 
     xx::CoutN("test Push NilType");
     {
@@ -157,20 +159,20 @@ void Test2() {
         xx::CoutN(f.Call<int>(3, 4));
     }
 
-    xx::CoutN("test Lambda");
-    {
-        xx::Lua::SetGlobal(L, "xxx", [](int const &a, int const &b) { return a + b; });
-        luaL_dostring(L, R"===(
-local add = xxx
-local starttime = os.clock()
-local r
-for i = 1, 30000000 do
-    r = xxx(1, i)
-end
-print(r)
-print(os.clock() - starttime)
-    )===");
-    }
+//    xx::CoutN("test Lambda");
+//    {
+//        xx::Lua::SetGlobal(L, "xxx", [](int const &a, int const &b) { return a + b; });
+//        luaL_dostring(L, R"===(
+//local add = xxx
+//local starttime = os.clock()
+//local r
+//for i = 1, 30000000 do
+//    r = xxx(1, i)
+//end
+//print(r)
+//print(os.clock() - starttime)
+//    )===");
+//    }
 
     assert(lua_gettop(L) == 0);
 }
@@ -303,8 +305,8 @@ print(rnd2:NextDouble())
 }
 
 int main() {
-    Test1();
-    //Test2();
+    //Test1();
+    Test2();
     //TestUv();
     //TestLuaBind1();
     //TestLuaBind2();
