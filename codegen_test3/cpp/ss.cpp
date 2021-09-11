@@ -390,14 +390,20 @@ namespace SS_S2C{
     }
 }
 namespace SS_S2C{
+    void Event::WriteTo(xx::Data& d, int32_t const& frameNumber, ::std::vector<uint32_t> const& joins, ::std::vector<::std::tuple<uint32_t, ::SS::ControlState>> const& css) {
+        d.Write(xx::TypeId_v<Event>);
+        d.Write(frameNumber);
+        d.Write(joins);
+        d.Write(css);
+    }
     void Event::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         d.Write(this->frameNumber);
-        om.Write(d, this->shooters);
+        d.Write(this->joins);
         d.Write(this->css);
     }
     int Event::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = d.Read(this->frameNumber)) return r;
-        if (int r = om.Read(d, this->shooters)) return r;
+        if (int r = d.Read(this->joins)) return r;
         if (int r = d.Read(this->css)) return r;
         return 0;
     }
@@ -411,30 +417,30 @@ namespace SS_S2C{
     void Event::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
         om.Append(s, ",\"frameNumber\":", this->frameNumber);
-        om.Append(s, ",\"shooters\":", this->shooters);
+        om.Append(s, ",\"joins\":", this->joins);
         om.Append(s, ",\"css\":", this->css);
 #endif
     }
     void Event::Clone(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::SS_S2C::Event*)tar;
         om.Clone_(this->frameNumber, out->frameNumber);
-        om.Clone_(this->shooters, out->shooters);
+        om.Clone_(this->joins, out->joins);
         om.Clone_(this->css, out->css);
     }
     int Event::RecursiveCheck(::xx::ObjManager& om) const {
         if (int r = om.RecursiveCheck(this->frameNumber)) return r;
-        if (int r = om.RecursiveCheck(this->shooters)) return r;
+        if (int r = om.RecursiveCheck(this->joins)) return r;
         if (int r = om.RecursiveCheck(this->css)) return r;
         return 0;
     }
     void Event::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->frameNumber);
-        om.RecursiveReset(this->shooters);
+        om.RecursiveReset(this->joins);
         om.RecursiveReset(this->css);
     }
     void Event::SetDefaultValue(::xx::ObjManager& om) {
         this->frameNumber = 0;
-        om.SetDefaultValue(this->shooters);
+        om.SetDefaultValue(this->joins);
         om.SetDefaultValue(this->css);
     }
 }

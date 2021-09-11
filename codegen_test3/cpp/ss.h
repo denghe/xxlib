@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<e110a6170dbf8ff6c3630b538ac00058>*#";
+	inline static const ::std::string md5 = "#*MD5<82d1ba7494e3a289d5432662efca0709>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };
@@ -130,12 +130,14 @@ namespace SS_S2C {
     // 事件通知
     struct Event : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Event, ::xx::ObjBase)
+        using IsSimpleType_v = Event;
         // 对应的帧编号( 客户端收到后，如果慢于它就需要快进，快于它就需要回滚 )
         int32_t frameNumber = 0;
-        // 玩家进入事件( 第一优先处理 )
-        ::std::vector<::xx::Shared<::SS::Shooter>> shooters;
+        // 本次刚进入的玩家 clientId 列表
+        ::std::vector<uint32_t> joins;
         // 玩家控制事件. uint: 用来定位 shooter 的 clientId
         ::std::vector<::std::tuple<uint32_t, ::SS::ControlState>> css;
+        static void WriteTo(xx::Data& d, int32_t const& frameNumber, ::std::vector<uint32_t> const& joins, ::std::vector<::std::tuple<uint32_t, ::SS::ControlState>> const& css);
     };
 }
 namespace SS_C2S {
