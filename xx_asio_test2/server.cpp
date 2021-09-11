@@ -57,7 +57,7 @@ int Server::FrameUpdate() {
             // todo: set random pos & angle
 
             // make event
-            event->shooters.push_back(shooter);
+            event->enters.push_back(shooter);
         }
 
         // handle shooters cs
@@ -93,20 +93,20 @@ int Server::FrameUpdate() {
             }
         };
 
-        if (!event->shooters.empty()) {
+        if (!event->enters.empty()) {
             // temp clear new enter's scene ref, avoid send huge scene data
-            for (auto &s : event->shooters) {
+            for (auto &s : event->enters) {
                 s->scene.Reset();
             }
 
             MakeSendEvent();
 
             // restore scene ref
-            for (auto &s : event->shooters) {
+            for (auto &s : event->enters) {
                 s->scene = scene;
             }
         }
-        else if (!event->css.empty()) {
+        else if (!event->css.empty() || !event->quits.empty()) {
             MakeSendEvent();
         }
 
@@ -121,7 +121,7 @@ int Server::FrameUpdate() {
         eventData.Clear();
         newEnters.clear();
         event->quits.clear();
-        event->shooters.clear();
+        event->enters.clear();
         event->css.clear();
     }
     return 0;
