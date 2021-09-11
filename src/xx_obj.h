@@ -399,7 +399,8 @@ namespace xx {
 			if constexpr (!IsSimpleType_v<T>) {
 				ptrs.clear();
 				for (auto& p : ptrs2) {
-					if (--((PtrHeader*)p - 1)->useCount == 0) {
+					if (((PtrHeader*)p - 1)->useCount == 1) {
+						--((PtrHeader*)p - 1)->useCount;
 						((ObjBase*)p)->~ObjBase();
 					}
 				}

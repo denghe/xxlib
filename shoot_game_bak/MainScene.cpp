@@ -355,6 +355,9 @@ int MainScene::Rollback(int const& frameNumber) {
 	// 回滚( 相当于收到 sync )
 	c.om.ReadFrom(d, scene);
 
+	// 重新定位一下 self
+	self = scene->shooters[selfId];
+
 	// 清空队列，将 d 放入，同步 [0] 的 frameNumber
 	frameBackups.Clear();
 	frameBackups.Push(std::move(d));
