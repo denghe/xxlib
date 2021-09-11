@@ -140,8 +140,8 @@ namespace SS_S2C {
         [Desc("对应的帧编号( 客户端收到后，如果慢于它就需要快进，快于它就需要回滚 )")]
         int frameNumber;
 
-        [Desc("本次刚进入的玩家 clientId 列表")]
-        List<uint> joins;
+        [Desc("玩家进入事件( 第一优先处理 )")]
+        List<Shared<SS.Shooter>> shooters;
 
         [Desc("玩家控制事件. uint: 用来定位 shooter 的 clientId")]
         List<Tuple<uint, SS.ControlState>> css;
