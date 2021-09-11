@@ -248,8 +248,9 @@ LabBegin:
 	if (!ok) goto LabBegin;
 
 	DrawPlay();
-	// 开始游戏。如果断线就重连
+	// 开始游戏。如果断线( xx秒内没收到数据就认为断线 )就重连
 	playing = true;
+	secs = xx::NowEpochSeconds() + 15;
 	do {
 		COR_YIELD;
 
@@ -311,7 +312,13 @@ LabBegin:
 				scene->Update();
 				Backup();
 			}
+
+			// 有收到包就 重置超时时长
+			secs = xx::NowEpochSeconds() + 15;
 		} else {
+			// 超时：认为断线了
+			if (secs < xx::NowEpochSeconds()) goto LabBegin;
+
 			// 更新场景并备份
 			scene->Update();
 			Backup();
