@@ -281,8 +281,14 @@ LabBegin:
 					if (int r = Rollback(e->frameNumber)) goto LabBegin;
 				}
 
-				// 将 shooters 添加到场景
+				// 处理玩家退出
+				for (auto& cid : e->quits) {
+					scene->shooters.erase(cid);
+				}
+
+				// 处理玩家进入
 				for (auto& s : e->shooters) {
+					// 将 shooters 添加到场景
 					auto cid = s->clientId;
 					auto r = scene->shooters.try_emplace(cid, s);
 					assert(r.second);

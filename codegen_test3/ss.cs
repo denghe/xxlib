@@ -140,10 +140,13 @@ namespace SS_S2C {
         [Desc("对应的帧编号( 客户端收到后，如果慢于它就需要快进，快于它就需要回滚 )")]
         int frameNumber;
 
-        [Desc("玩家进入事件( 第一优先处理 )")]
+        [Desc("所有退出的玩家id列表. 客户端收到后遍历并从 shooters 中移除相应对象( 优先级:1 )")]
+        List<uint> quits;
+
+        [Desc("所有进入的玩家的数据. 客户端收到后遍历挪进 shooters 并初始化( 优先级:2 )")]
         List<Shared<SS.Shooter>> shooters;
 
-        [Desc("玩家控制事件. uint: 用来定位 shooter 的 clientId")]
+        [Desc("所有发生控制行为的玩家的 控制指令. uint: 用来定位 shooter 的 clientId")]
         List<Tuple<uint, SS.ControlState>> css;
     };
 }

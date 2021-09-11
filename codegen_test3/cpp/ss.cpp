@@ -392,11 +392,13 @@ namespace SS_S2C{
 namespace SS_S2C{
     void Event::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         d.Write(this->frameNumber);
+        d.Write(this->quits);
         om.Write(d, this->shooters);
         d.Write(this->css);
     }
     int Event::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = d.Read(this->frameNumber)) return r;
+        if (int r = d.Read(this->quits)) return r;
         if (int r = om.Read(d, this->shooters)) return r;
         if (int r = d.Read(this->css)) return r;
         return 0;
@@ -411,6 +413,7 @@ namespace SS_S2C{
     void Event::AppendCore(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
         om.Append(s, ",\"frameNumber\":", this->frameNumber);
+        om.Append(s, ",\"quits\":", this->quits);
         om.Append(s, ",\"shooters\":", this->shooters);
         om.Append(s, ",\"css\":", this->css);
 #endif
@@ -418,22 +421,26 @@ namespace SS_S2C{
     void Event::Clone(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::SS_S2C::Event*)tar;
         om.Clone_(this->frameNumber, out->frameNumber);
+        om.Clone_(this->quits, out->quits);
         om.Clone_(this->shooters, out->shooters);
         om.Clone_(this->css, out->css);
     }
     int Event::RecursiveCheck(::xx::ObjManager& om) const {
         if (int r = om.RecursiveCheck(this->frameNumber)) return r;
+        if (int r = om.RecursiveCheck(this->quits)) return r;
         if (int r = om.RecursiveCheck(this->shooters)) return r;
         if (int r = om.RecursiveCheck(this->css)) return r;
         return 0;
     }
     void Event::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->frameNumber);
+        om.RecursiveReset(this->quits);
         om.RecursiveReset(this->shooters);
         om.RecursiveReset(this->css);
     }
     void Event::SetDefaultValue(::xx::ObjManager& om) {
         this->frameNumber = 0;
+        om.SetDefaultValue(this->quits);
         om.SetDefaultValue(this->shooters);
         om.SetDefaultValue(this->css);
     }
