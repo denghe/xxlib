@@ -693,7 +693,7 @@ namespace xx {
 			else if constexpr (IsTuple_v<T>) {
 				s.push_back('[');
 				std::apply([&](auto const &... args) {
-					Append(s, args..., ',');
+				    (Append(s, args, ','), ...);
 					if constexpr (sizeof...(args) > 0) {
 						s.resize(s.size() - 1);
 					}

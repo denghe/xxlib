@@ -1,7 +1,9 @@
 ﻿#pragma once
+
 #include "xx_epoll.h"
 #include "xx_obj.h"
 #include "ss.h"
+
 namespace EP = xx::Epoll;
 
 // 预声明
@@ -14,7 +16,7 @@ struct Server : EP::Context {
     using EP::Context::Context;
 
     // singleton usage
-    inline static Server* instance = nullptr;
+    inline static Server *instance = nullptr;
 
     // 客户端连接id 自增量, 产生 peer 时++填充
     uint32_t pid = 0;
@@ -49,14 +51,20 @@ struct Server : EP::Context {
     tsl::hopscotch_map<uint32_t, xx::Shared<SS_C2S::Enter>> newEnters;
 
     // fill send data to d ( contains len header )
-    void WriteTo(xx::Data& d,xx::ObjBase_s const& o);
+    void WriteTo(xx::Data &d, xx::ObjBase_s const &o);
 
     // return 0: handled. -1: error. kick peer?
-    int HandlePackage(Peer& p, xx::ObjBase_s& o);
+    int HandlePackage(Peer &p, xx::ObjBase_s &o);
 
     // init members
     int Init();
 
     // game logic here
     int FrameUpdate() override;
+
+    // call by listener accept. return 0: success
+    int Accept(xx::Shared<Peer> const &p);
+
+    // call by peer close
+    void Kick(uint32_t const &clientId);
 };

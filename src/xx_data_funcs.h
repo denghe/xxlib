@@ -159,7 +159,7 @@ namespace xx {
 	    template<bool needReserve = true>
         static inline void Write(Data& d, T const& in) {
             std::apply([&](auto const &... args) {
-                (d.Write<needReserve>(d, args), ...);
+                d.Write<needReserve>(args...);
             }, in);
         }
 

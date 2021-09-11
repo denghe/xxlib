@@ -158,3 +158,28 @@ void Server::WriteTo(xx::Data &d, xx::ObjBase_s const &o) {
     om.WriteTo(d, o);
     d.WriteFixedAt(bak, (uint32_t) (d.len - sizeof(uint32_t)));
 }
+
+
+int Server::Accept(xx::Shared<Peer> const& p) {
+    // 填充自增id
+    p->clientId = ++pid;
+
+    // 放入容器
+    ps[p->clientId] = p;
+
+    // 设置自动断线超时时间
+    p->SetTimeoutSeconds(150);
+
+    LOG_INFO("Accept success. ip = ", p->addr, ", clientId = ", p->clientId);
+
+    // return success
+    return 0;
+}
+
+void Server::Kick(const uint32_t &clientId) {
+    // remove from container
+    ps.erase(clientId);
+
+    // remove shooter
+    scene->shooters.erase(clientId);
+}

@@ -55,10 +55,10 @@ bool Peer::Close(int const& reason, std::string_view const& desc) {
     // 防重入( 同时关闭 fd )
     if (!this->BaseType::Close(reason, desc)) return false;
     LOG_INFO("ip = ", addr, ", clientId = ", clientId ,", reason = ", reason, ", desc = ", desc);
-    // 从容器移除( 减持 )
-    ((Server *)ec)->ps.erase(clientId);
     // 延迟减持
     DelayUnhold();
+    // call server logic
+    ((Server *)ec)->Kick(clientId);
     return true;
 }
 
