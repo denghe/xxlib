@@ -38,8 +38,6 @@ int Server::FrameUpdate() {
     lastMS = nowMS;
 
     if (totalDelta > (1.f / 60.f)) {
-        keepAliveMS = nowMS + 1000;
-
         // send sync to new enters
         if (!newEnters.empty()) {
 
@@ -119,7 +117,6 @@ int Server::FrameUpdate() {
 
     // every 1 seconds send keep alive empty event package
     if (nowMS > keepAliveMS) {
-        keepAliveMS = nowMS + 1000;
         MakeSendEvent(false);
     }
 
@@ -127,13 +124,15 @@ int Server::FrameUpdate() {
 }
 
 void Server::MakeSendEvent(bool clear) {
-    // make event data
-    event->frameNumber = scene->frameNumber;
-    WriteTo(eventData, event);
+    if (!ps.empty()) {
+        // make event data
+        event->frameNumber = scene->frameNumber;
+        WriteTo(eventData, event);
 
-    // send event
-    for (auto &kv : ps) {
-        kv.second->Send(eventData);
+        // send event
+        for (auto &kv : ps) {
+            kv.second->Send(eventData);
+        }
     }
 
     // clear cache
@@ -143,6 +142,9 @@ void Server::MakeSendEvent(bool clear) {
         event->css.clear();
         eventData.Clear();
     }
+
+    // reset keep alive delay
+    keepAliveMS = nowMS + 1000;
 };
 
 int Server::HandlePackage(Peer &p, xx::ObjBase_s &o) {
