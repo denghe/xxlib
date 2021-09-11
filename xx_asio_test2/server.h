@@ -34,6 +34,9 @@ struct Server : EP::Context {
     double totalDelta = 0;
     int64_t lastMS = 0;
 
+    // for peer timeout
+    double peerTimeoutSecs = 15;
+
     // for peer.Send
     xx::Data tmp;
 

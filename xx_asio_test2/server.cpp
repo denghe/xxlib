@@ -137,14 +137,14 @@ int Server::HandlePackage(Peer &p, xx::ObjBase_s &o) {
             assert(r.second);
             enterResult->clientId = p.clientId;
             p.Send(enterResult);
-            p.SetTimeoutSeconds(150);
+            p.SetTimeoutSeconds(peerTimeoutSecs);
 //            LOG_INFO("clientId = ", p.clientId, " recv Enter: ", om.ToString(o));
             return 0;
         }
         case xx::TypeId_v<SS_C2S::Cmd>: {
             p.recvs.push(std::move(o));
             if (p.recvs.size() > 30) return -2;
-            p.SetTimeoutSeconds(150);
+            p.SetTimeoutSeconds(peerTimeoutSecs);
 //            LOG_INFO("clientId = ", p.clientId, " recv Cmd: ", om.ToString(m));
             return 0;
         }
@@ -169,7 +169,7 @@ int Server::Accept(xx::Shared<Peer> const& p) {
     ps[p->clientId] = p;
 
     // 设置自动断线超时时间
-    p->SetTimeoutSeconds(150);
+    p->SetTimeoutSeconds(peerTimeoutSecs);
 
     LOG_INFO("Accept success. ip = ", p->addr, ", clientId = ", p->clientId);
 
