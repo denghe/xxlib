@@ -144,7 +144,7 @@ namespace SS_S2C {
         List<uint> quits;
 
         [Desc("所有进入的玩家的数据. 客户端收到后遍历挪进 shooters 并初始化( 优先级:2 )")]
-        List<Shared<SS.Shooter>> shooters;
+        List<Shared<SS.Shooter>> enters;
 
         [Desc("所有发生控制行为的玩家的 控制指令. uint: 用来定位 shooter 的 clientId")]
         List<Tuple<uint, SS.ControlState>> css;

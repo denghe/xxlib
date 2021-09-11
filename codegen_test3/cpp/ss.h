@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<c0b394be8ebfcfcd89fdc258a97e5be1>*#";
+	inline static const ::std::string md5 = "#*MD5<e48eef38c0a68a5a5a354a79c62f2d97>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };
@@ -135,7 +135,7 @@ namespace SS_S2C {
         // 所有退出的玩家id列表. 客户端收到后遍历并从 shooters 中移除相应对象( 优先级:1 )
         ::std::vector<uint32_t> quits;
         // 所有进入的玩家的数据. 客户端收到后遍历挪进 shooters 并初始化( 优先级:2 )
-        ::std::vector<::xx::Shared<::SS::Shooter>> shooters;
+        ::std::vector<::xx::Shared<::SS::Shooter>> enters;
         // 所有发生控制行为的玩家的 控制指令. uint: 用来定位 shooter 的 clientId
         ::std::vector<::std::tuple<uint32_t, ::SS::ControlState>> css;
     };

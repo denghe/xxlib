@@ -287,7 +287,7 @@ LabBegin:
 				}
 
 				// 处理玩家进入
-				for (auto& s : e->shooters) {
+				for (auto& s : e->enters) {
 					// 将 shooters 添加到场景
 					auto cid = s->clientId;
 					auto r = scene->shooters.try_emplace(cid, s);
