@@ -400,7 +400,7 @@ namespace xx {
 				ptrs.clear();
 				for (auto& p : ptrs2) {
 					if (((PtrHeader*)p - 1)->useCount == 1) {
-						--((PtrHeader*)p - 1)->useCount;
+						((PtrHeader*)p - 1)->useCount = 0;
 						((ObjBase*)p)->~ObjBase();
 					}
 				}
