@@ -117,13 +117,34 @@ void MainScene::update(float delta) {
 		// 如果和备份不一致，就发包到 server
 		if (cmd->cs != newCS) {
 			cmd->cs = newCS;
+			// todo: 控制发包频率. 否则每秒发 60 个包，对于非局域网来说，很不科学
+			// 如果限定到 1/10 秒一个控制指令，则需要想办法合并, 时间按本次操作开始时间点对齐
+			// 将按键状态分为 点击 和 翻转 两种状态，对于 1/10 内按下又放开的操作，翻译为 点击。
+			// 跨频率未放开，则视为 翻转（也就是和当前策略一样）
+			// 鼠标位置跳跃问题，大概只能结合策划案来处理，约定 shooter 转身速度不能超过每秒多少角度
+			// 这样就可以让 shooter 多用几帧来转身，最终面向鼠标，达到平滑插值的效果
 			c.Send(cmd);
 		}
-
 	}
+
+	// todo: 超时发送个防掉线包，避免 server kick
 
 	// 网络收发( 再来一次. 否则可能收不完 )
 	c.Update();
+}
+
+void MainScene::Reset() {
+	cmd.Emplace();
+	totalDelta = 0;
+	secs = 0;
+	c.Reset();
+	ok = false;
+	playing = false;
+	selfId = 0;
+	self = nullptr;
+	scene.Reset();
+	frameBackups.Clear();
+	frameBackupsFirstFrameNumber = 0;
 }
 
 int MainScene::Update() {
@@ -136,9 +157,7 @@ LabBegin:
 
 	DrawInit();
 	// 无脑重置一发
-	c.Reset();
-	cmd.Emplace();
-	playing = false;
+	Reset();
 
 	// 睡一秒
 	secs = xx::NowEpochSeconds() + 1;
@@ -184,12 +203,33 @@ LabBegin:
 	if (!c.Alive()) goto LabBegin;
 
 
-	// 发 进入 请求。服务器 返回 Sync。
-	synced = false;
+	// 发 进入 请求。服务器 返回 EnterResult + Sync( 如果成功的化 )。
 	c.Send(xx::Make<SS_C2S::Enter>());
+
+	// 等 5 秒, 如果没有收到 EnterResult 就掐线重连
+	secs = xx::NowEpochSeconds() + 5;
+	ok = false;
+	do {
+		COR_YIELD;
+
+		// 尝试从收包队列获取包
+		xx::ObjBase_s o;
+		if (c.TryGetPackage(o)) {
+			// 如果为 空 或 不是 sync 包 就掐线重连
+			if (!o || o.typeId() != xx::TypeId_v<SS_S2C::EnterResult>) goto LabBegin;
+			auto&& m = o.ReinterpretCast<SS_S2C::EnterResult>();
+			selfId = m->clientId;
+			assert(selfId);
+			ok = true;
+			break;
+		}
+
+	} while (secs > xx::NowEpochSeconds());
+	if (!ok) goto LabBegin;
 
 	// 等 5 秒, 如果没有收到 sync 就掐线重连
 	secs = xx::NowEpochSeconds() + 5;
+	ok = false;
 	do {
 		COR_YIELD;
 
@@ -200,29 +240,33 @@ LabBegin:
 			if (!o || o.typeId() != xx::TypeId_v<SS_S2C::Sync>) goto LabBegin;
 			auto&& sync = o.ReinterpretCast<SS_S2C::Sync>();
 			scene = std::move(sync->scene);
-			synced = true;
+			ok = true;
 			break;
 		}
 
 	} while (secs > xx::NowEpochSeconds());
-	if (!synced) goto LabBegin;
-
+	if (!ok) goto LabBegin;
 
 	DrawPlay();
-	playing = true;
 	// 开始游戏。如果断线就重连
+	playing = true;
 	do {
 		COR_YIELD;
 
 		if (!c.receivedPackages.empty()) {
+
 			// 继续处理 events 直到没有
 			xx::ObjBase_s o;
+
 			// 尝试从收包队列获取包
 			while (c.TryGetPackage(o)) {
-				// 类型应该就是 Event
-				assert(o && o.typeId() == xx::TypeId_v<SS_S2C::Event>);
+				auto tid = o.typeId();
+
+				// 类型应该是 Event 基类
+				assert(o && c.om.IsBaseOf<SS_S2C::Event>(tid));
 				auto&& e = o.ReinterpretCast<SS_S2C::Event>();
 
+				// 看看要不要追帧
 				if (e->frameNumber > scene->frameNumber) {
 					xx::CoutTN("fast forward from ", scene->frameNumber, " to ", e->frameNumber);
 					do {
@@ -230,12 +274,33 @@ LabBegin:
 						scene->Update();
 						Backup();
 					} while (e->frameNumber == scene->frameNumber);
+
+					// 看看要不要回滚
 				} else if (e->frameNumber < scene->frameNumber) {
-					// 回滚。失败则重新拨号
+					// 回滚。不需要拨号。失败（网络太卡？已定位不到历史数据）则重新拨号
 					if (int r = Rollback(e->frameNumber)) goto LabBegin;
 				}
-				// 应用 event
-				scene->shooter->cs = e->cs;
+
+				// 将 shooters 添加到场景
+				for (auto& s : e->shooters) {
+					auto cid = s->clientId;
+					auto r = scene->shooters.try_emplace(cid, s);
+					assert(r.second);
+					s->scene = scene;
+
+					// 找 self
+					if (selfId == cid) {
+						self = s;
+					}
+				}
+
+				// 查找 shooters 并应用 cs
+				for (auto& c : e->css) {
+					auto iter = scene->shooters.find(std::get<0>(c));
+					assert(iter != scene->shooters.end());
+					iter->second->cs = std::get<1>(c);
+				}
+
 				// 更新场景并备份
 				scene->Update();
 				Backup();
@@ -322,7 +387,12 @@ void MainScene::DrawPlay() {
 
 
 void SS::Scene::Draw() {
-	shooter->Draw();
+	for (auto& kv : shooters) {
+		kv.second->Draw();
+	}
+
+	// todo: 调整 container 的 pos, 令 self 居中?
+
 }
 
 

@@ -33,12 +33,25 @@ public:
 	// 备份当前控制状态. 每次根据输入产生一个新的，并和这个比较，不一致就发包
 	xx::Shared<SS_C2S::Cmd> cmd;
 
-	// 主线协程( 驱动 网络, UI 等 )
+	// 累计时间池( 用来稳帧 )
 	double totalDelta = 0;
+
+	// 临时 timer 计数器
 	double secs = 0;
+
+	// kcp 拨号客户端, 通信层
 	xx::AsioKcpClient c;
-	bool synced = false;
+
+	// 状态标识
+	bool ok = false;
 	bool playing = false;
+
+	// 指向玩家自己的 clientId ( 收到 EnterResult 时填充 )
+	uint32_t selfId = 0;
+	// 指向玩家自己的 shooter( 收到 Sync 时定位填充 )
+	SS::Shooter* self = nullptr;
+
+	// 协程行号
 	int lineNumber = 0;
 	int Update();
 
@@ -65,4 +78,7 @@ public:
 
 	// 还原到指定帧. 失败返回 非0
 	int Rollback(int const& frameNumber);
+
+	// 复位各种上下文
+	void Reset();
 };
