@@ -19,10 +19,12 @@ int Server::Init() {
     scene.Emplace();
     sync.Emplace();
     event.Emplace();
+    emptyEvent.Emplace();
     enterResult.Emplace();
     sync->scene = scene;
     totalDelta = 0;
     lastMS = nowMS;
+    keepAliveMS = nowMS + 1000;
 
     // store singleton instance for SS visit
     instance = this;
@@ -34,31 +36,40 @@ int Server::FrameUpdate() {
     // frame limit
     totalDelta += (double) (nowMS - lastMS) / 1000.;
     lastMS = nowMS;
-    while (totalDelta > (1.f / 60.f)) {
-        totalDelta -= (1.f / 60.f);
+
+    if (totalDelta > (1.f / 60.f)) {
+        keepAliveMS = nowMS + 1000;
 
         // send sync to new enters
         if (!newEnters.empty()) {
+
             WriteTo(syncData, sync);
+
             for (auto &kv : newEnters) {
                 assert(ps.contains(kv.first));
                 auto &p = ps[kv.first];
                 p->Send(syncData);
                 break;
             }
-        }
+            syncData.Clear();
 
-        // handle new enters
-        for (auto &kv : newEnters) {
-            // create shooter
-            auto &&shooter = scene->shooters[kv.first].Emplace();
-            shooter->scene = scene;
-            shooter->clientId = kv.first;
-            // todo: set random pos & angle
+            // handle new enters
+            for (auto &kv : newEnters) {
+                // create shooter
+                auto &&shooter = scene->shooters[kv.first].Emplace();
+                shooter->scene = scene;
+                shooter->clientId = kv.first;
+                // todo: set random pos & angle
 
-            // make event
-            event->enters.push_back(shooter);
+                // make event
+                event->enters.push_back(shooter);
+            }
+            newEnters.clear();
         }
+    }
+
+    while (totalDelta > (1.f / 60.f)) {
+        totalDelta -= (1.f / 60.f);
 
         // handle shooters cs
         for (auto &kv : ps) {
@@ -82,17 +93,6 @@ int Server::FrameUpdate() {
             }
         }
 
-        auto MakeSendEvent = [&]{
-            // make event data
-            event->frameNumber = scene->frameNumber;
-            WriteTo(eventData, event);
-
-            // send event
-            for (auto &kv : ps) {
-                kv.second->Send(eventData);
-            }
-        };
-
         if (!event->enters.empty()) {
             // temp clear new enter's scene ref, avoid send huge scene data
             for (auto &s : event->enters) {
@@ -115,17 +115,35 @@ int Server::FrameUpdate() {
             // todo: game over?
             break;
         }
+    }
 
-        // clear cache
-        syncData.Clear();
-        eventData.Clear();
-        newEnters.clear();
+    // every 1 seconds send keep alive empty event package
+    if (nowMS > keepAliveMS) {
+        keepAliveMS = nowMS + 1000;
+        MakeSendEvent(false);
+    }
+
+    return 0;
+}
+
+void Server::MakeSendEvent(bool clear) {
+    // make event data
+    event->frameNumber = scene->frameNumber;
+    WriteTo(eventData, event);
+
+    // send event
+    for (auto &kv : ps) {
+        kv.second->Send(eventData);
+    }
+
+    // clear cache
+    if (clear) {
         event->quits.clear();
         event->enters.clear();
         event->css.clear();
+        eventData.Clear();
     }
-    return 0;
-}
+};
 
 int Server::HandlePackage(Peer &p, xx::ObjBase_s &o) {
     switch (o.typeId()) {

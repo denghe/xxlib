@@ -33,6 +33,7 @@ struct Server : EP::Context {
     // for timer
     double totalDelta = 0;
     int64_t lastMS = 0;
+    int64_t keepAliveMS = 0;
 
     // for peer timeout
     double peerTimeoutSecs = 15;
@@ -47,6 +48,7 @@ struct Server : EP::Context {
     xx::Shared<SS_S2C::Sync> sync;
     xx::Data syncData;
     xx::Shared<SS_S2C::Event> event;
+    xx::Shared<SS_S2C::Event> emptyEvent;
     xx::Data eventData;
     xx::Shared<SS_S2C::EnterResult> enterResult;
 
@@ -64,6 +66,9 @@ struct Server : EP::Context {
 
     // game logic here
     int FrameUpdate() override;
+
+    // make & send event data to peers
+    void MakeSendEvent(bool clear = true);
 
     // call by listener accept. return 0: success
     int Accept(xx::Shared<Peer> const &p);
