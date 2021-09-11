@@ -159,8 +159,8 @@ LabBegin:
 	// 无脑重置一发
 	Reset();
 
-	// 睡一秒
-	secs = xx::NowEpochSeconds() + 1;
+	// 睡 0.2 秒
+	secs = xx::NowEpochSeconds() + 0.2;
 	do {
 		COR_YIELD;
 	} while (secs > xx::NowEpochSeconds());

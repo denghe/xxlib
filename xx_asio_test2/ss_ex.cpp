@@ -4,8 +4,14 @@
 int SS::Scene::Update() {
     ++frameNumber;
 
-    //return shooter->Update();
-    return 0;
+    // todo: update 过程中移除
+    for (auto& kv : shooters) {
+        if (int r = kv.second->Update()) {
+            // ...
+        }
+    }
+
+    return shooters.empty() ? 1 : 0;
 }
 
 int SS::Shooter::Update() {
