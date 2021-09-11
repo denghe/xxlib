@@ -120,6 +120,7 @@ int Server::FrameUpdate() {
         syncData.Clear();
         eventData.Clear();
         newEnters.clear();
+        event->quits.clear();
         event->shooters.clear();
         event->css.clear();
     }
@@ -182,4 +183,7 @@ void Server::Kick(const uint32_t &clientId) {
 
     // remove shooter
     scene->shooters.erase(clientId);
+
+    // add to event
+    event->quits.push_back(clientId);
 }
