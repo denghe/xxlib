@@ -17,9 +17,6 @@ struct Peer : EP::KcpPeer {
     // received packages
     std::queue<xx::ObjBase_s> recvs;
 
-    // flags
-    bool synced = false;
-
     // 收到数据: unpack & store to recvs
     void Receive() override;
 

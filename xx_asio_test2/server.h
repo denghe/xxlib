@@ -43,6 +43,10 @@ struct Server : EP::Context {
     xx::Data syncData;
     xx::Shared<SS_S2C::Event> event;
     xx::Data eventData;
+    xx::Shared<SS_S2C::EnterResult> enterResult;
+
+    // current frame c2s cache
+    tsl::hopscotch_map<uint32_t, xx::Shared<SS_C2S::Enter>> newEnters;
 
     // fill send data to d ( contains len header )
     void WriteTo(xx::Data& d,xx::ObjBase_s const& o);

@@ -16,12 +16,11 @@ int Server::Init() {
     }
 
     // init game context & cache
-    scene.Emplace()->shooter.Emplace();
-    scene->shooter->scene = scene;
+    scene.Emplace();
     sync.Emplace();
-    sync->scene = scene;
-    WriteTo(syncData, sync);
     event.Emplace();
+    enterResult.Emplace();
+    sync->scene = scene;
     totalDelta = 0;
     lastMS = nowMS;
 
@@ -38,52 +37,77 @@ int Server::FrameUpdate() {
     while (totalDelta > (1.f / 60.f)) {
         totalDelta -= (1.f / 60.f);
 
-        // cs store
-        auto cs = scene->shooter->cs;
-
-        // handle packages( change cs )
-        for (auto &kv : ps) {
-            auto &p = *kv.second;
-            auto &recvs = p.recvs;
-            // every time handle 1 package
-            while (!recvs.empty()) {
-                auto &o = recvs.front();
-                switch (o.typeId()) {
-                    case xx::TypeId_v<SS_C2S::Enter>: {
-                        // enter should be the first package
-                        if (p.synced) break;    // todo: error handle
-                        p.synced = true;
-                        if (!syncData.len) {
-                            WriteTo(syncData, sync);
-                        }
-                        p.Send(syncData);
-                        p.SetTimeoutSeconds(150);
-                        LOG_INFO("clientId = ", p.clientId, " recv Enter: ", om.ToString(o));
-                        break;
-                    }
-                    case xx::TypeId_v<SS_C2S::Cmd>: {
-                        // cmd should be after enter
-                        if (!p.synced) break;   // todo: error handle
-                        auto &m = o.ReinterpretCast<SS_C2S::Cmd>();
-                        cs = m->cs;
-                        p.SetTimeoutSeconds(150);
-                        LOG_INFO("clientId = ", p.clientId, " recv Cmd: ", om.ToString(m));
-                        break;
-                    }
-                }
-                recvs.pop();
+        // send sync to new enters
+        if (!newEnters.empty()) {
+            WriteTo(syncData, sync);
+            for (auto &kv : newEnters) {
+                assert(ps.contains(kv.first));
+                auto &p = ps[kv.first];
+                p->Send(syncData);
+                break;
             }
         }
 
-        // if cs changed, send event
-        if (scene->shooter->cs != cs) {
-            scene->shooter->cs = cs;
-            event->cs = cs;
+        // handle new enters
+        for (auto &kv : newEnters) {
+            // create shooter
+            auto &&shooter = scene->shooters[kv.first].Emplace();
+            shooter->scene = scene;
+            shooter->clientId = kv.first;
+            // todo: set random pos & angle
+
+            // make event
+            event->shooters.push_back(shooter);
+        }
+
+        // handle shooters cs
+        for (auto &kv : ps) {
+            auto &rs = kv.second->recvs;
+            // every time handle 1 package
+            if (!rs.empty()) {
+                auto &o = rs.front();
+                assert(o.typeId() == xx::TypeId_v<SS_C2S::Cmd>);
+                auto &m = o.ReinterpretCast<SS_C2S::Cmd>();
+
+                // find shooter
+                assert(scene->shooters.contains(kv.first));
+                auto &shooter = scene->shooters[kv.first];
+
+                // make event if cs changed
+                if (shooter->cs != m->cs) {
+                    shooter->cs = m->cs;
+                    event->css.emplace_back(kv.first, m->cs);
+                }
+                rs.pop();
+            }
+        }
+
+        auto MakeSendEvent = [&]{
+            // make event data
             event->frameNumber = scene->frameNumber;
             WriteTo(eventData, event);
-            for(auto& kv : ps) {
+
+            // send event
+            for (auto &kv : ps) {
                 kv.second->Send(eventData);
             }
+        };
+
+        if (!event->shooters.empty()) {
+            // temp clear new enter's scene ref, avoid send huge scene data
+            for (auto &s : event->shooters) {
+                s->scene.Reset();
+            }
+
+            MakeSendEvent();
+
+            // restore scene ref
+            for (auto &s : event->shooters) {
+                s->scene = scene;
+            }
+        }
+        else if (!event->css.empty()) {
+            MakeSendEvent();
         }
 
         // logic update
@@ -92,19 +116,37 @@ int Server::FrameUpdate() {
             break;
         }
 
-        // clear sync cache
+        // clear cache
         syncData.Clear();
+        eventData.Clear();
+        newEnters.clear();
+        event->shooters.clear();
+        event->css.clear();
     }
     return 0;
 }
 
 int Server::HandlePackage(Peer &p, xx::ObjBase_s &o) {
     switch (o.typeId()) {
-        case xx::TypeId_v<SS_C2S::Enter>:
-        case xx::TypeId_v<SS_C2S::Cmd>:
+        case xx::TypeId_v<SS_C2S::Enter>: {
+            assert(ps.contains(p.clientId));
+            assert(!scene->shooters.contains(p.clientId));
+            auto &&m = o.ReinterpretCast<SS_C2S::Enter>();
+            auto &&r = newEnters.try_emplace(p.clientId, std::move(m));
+            assert(r.second);
+            enterResult->clientId = p.clientId;
+            p.Send(enterResult);
+//            p.SetTimeoutSeconds(150);
+//            LOG_INFO("clientId = ", p.clientId, " recv Enter: ", om.ToString(o));
+            return 0;
+        }
+        case xx::TypeId_v<SS_C2S::Cmd>: {
             p.recvs.push(std::move(o));
             if (p.recvs.size() > 30) return -2;
+//            p.SetTimeoutSeconds(150);
+//            LOG_INFO("clientId = ", p.clientId, " recv Cmd: ", om.ToString(m));
             return 0;
+        }
     }
     return -1;
 }
