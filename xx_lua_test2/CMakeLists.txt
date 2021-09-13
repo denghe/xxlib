@@ -12,7 +12,6 @@ set(libdirs)
 list(APPEND dirs
         ../src
         ../3rd
-        "../libuv/include"
         ../lua-5.4.x/src
         )
 list(APPEND srcs
@@ -34,9 +33,7 @@ add_executable(xx_lua_test2
         ${srcs}
         )
 
-if(UNIX)
-    target_link_libraries(xx_lua_test2
-            pthread
-            uv
-            )
-endif()
+#if(UNIX)
+#    find_package(mimalloc 1.7 REQUIRED)
+#    target_link_libraries(xx_lua_test2 PUBLIC mimalloc-static)
+#endif()
