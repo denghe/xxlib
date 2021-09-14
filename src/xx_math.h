@@ -87,4 +87,10 @@ namespace xx {
         rtv.y = (int) ((p.x * s + p.y * c) / table_sincos_ratio);
         return rtv;
     }
+
+    // distance^2 = (x1 - x1)^2 + (y1 - y2)^2
+    // return (r1^2 + r2^2 >= distance^2)
+    inline bool DistanceNear(int const& r1, int const& r2, SS::XY const& p1, SS::XY const& p2) {
+        return r1 * r1 + r2 * r2 >= ((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
+    }
 }

@@ -5,7 +5,7 @@ int SS::Scene::Update() {
     ++frameNumber;
 
     // todo: update 过程中移除
-    for (auto& kv : shooters) {
+    for (auto &kv : shooters) {
         if (int r = kv.second->Update()) {
             // ...
         }
@@ -35,6 +35,8 @@ int SS::Shooter::Update() {
         pos.y -= speed;
     }
 
+    // todo: move area limit
+
     // 同步枪的坐标
     auto angle = xx::GetAngle(pos, cs.aimPos);
     auto gunPosOffset = xx::Rotate({147, 0}, angle);
@@ -53,22 +55,35 @@ int SS::Shooter::Update() {
 
     // 发射直线子弹
     if (cs.button1) {
-        auto&& b = xx::Make<SS::Bullet_Straight>();
+        auto &&b = xx::Make<SS::Bullet_Straight>();
         b->shooter = WeakFromThis<Shooter>();
         b->life = 1000;
         b->pos = gunPos;
         b->inc = xx::Rotate({30, 0}, angle);
-        bullets.push_back(std::move(b));
+        bullets.emplace_back(std::move(b));
     }
 
     // 发射跟踪子弹
     if (cs.button2) {
-        auto&& b = xx::Make<SS::Bullet_Track>();
-        b->shooter = WeakFromThis<Shooter>();
-        b->life = 1000;
-        b->pos = gunPos;
-        //b->target = ??????????  // todo: 查找距离 鼠标 一段距离内的 其他 shooter
-        bullets.push_back(std::move(b));
+        // 查找距离 鼠标 一段距离内的 其他 shooter
+        xx::Weak<Shooter> tar;
+        assert(scene);
+        for (auto &kv : scene->shooters) {
+            // skip self
+            if (kv.first == clientId) continue;
+            // pickup check: distance < r1 + r2
+            if (xx::DistanceNear(50, 100, cs.aimPos, kv.second->pos)) {     // todo: + field: radius to bullet & shooter & mouse
+                tar = kv.second;
+            }
+        }
+        if (tar) {
+            auto &&b = xx::Make<SS::Bullet_Track>();
+            b->shooter = WeakFromThis<Shooter>();
+            b->life = 1000;
+            b->pos = gunPos;
+            b->target = tar;
+            bullets.emplace_back(std::move(b));
+        }
     }
 
     // success
@@ -78,14 +93,23 @@ int SS::Shooter::Update() {
 int SS::Bullet_Straight::Update() {
     if (life < 0) return 1;
     --life;
-    pos.x += inc.x;
-    pos.y += inc.y;
+    // todo: collision detect. b2b: all die. b2s: b die. s change color a while.
+
+    pos += inc;
     return 0;
 }
 
 int SS::Bullet_Track::Update() {
     if (life < 0) return 1;
     --life;
-    // todo
+    auto tar = target.Lock();
+    if (!tar) return 2;
+
+    // todo: collision detect. b2b: all die. b2s: b die. s change color a while.
+
+    // aim target, get inc by speed
+    auto a = xx::GetAngle(pos, tar->pos);
+    auto inc = xx::Rotate({speed, 0}, a);
+    pos += inc;
     return 0;
 }
