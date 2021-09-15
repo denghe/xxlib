@@ -1,6 +1,6 @@
 ﻿int Update();
 
-#ifdef _WIN32
+#ifdef CC_STATIC
 cocos2d::Sprite* body = nullptr;
 cocos2d::Sprite* gun = nullptr;
 

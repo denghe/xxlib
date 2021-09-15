@@ -79,10 +79,11 @@ namespace xx {
     }
 
     // 计算点旋转后的坐标
-    inline SS::XY Rotate(SS::XY const &p, table_angle_element_type const &a) noexcept {
+    template<typename XY>
+    inline XY Rotate(XY const &p, table_angle_element_type const &a) noexcept {
         auto s = (int64_t) table_sin[a];
         auto c = (int64_t) table_cos[a];
-        SS::XY rtv;
+        XY rtv;
         rtv.x = (int) ((p.x * c - p.y * s) / table_sincos_ratio);
         rtv.y = (int) ((p.x * s + p.y * c) / table_sincos_ratio);
         return rtv;
@@ -90,7 +91,8 @@ namespace xx {
 
     // distance^2 = (x1 - x1)^2 + (y1 - y2)^2
     // return (r1^2 + r2^2 >= distance^2)
-    inline bool DistanceNear(int const& r1, int const& r2, SS::XY const& p1, SS::XY const& p2) {
+    template<typename XY>
+    inline bool DistanceNear(int const& r1, int const& r2, XY const& p1, XY const& p2) {
         return r1 * r1 + r2 * r2 >= ((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
     }
 }

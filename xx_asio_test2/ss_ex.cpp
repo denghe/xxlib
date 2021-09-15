@@ -39,7 +39,7 @@ int SS::Shooter::Update() {
 
     // 同步枪的坐标
     auto angle = xx::GetAngle(pos, cs.aimPos);
-    auto gunPosOffset = xx::Rotate({147, 0}, angle);
+    auto gunPosOffset = xx::Rotate(SS::XY{147, 0}, angle);
     auto gunPos = SS::XY{pos.x + gunPosOffset.x, pos.y + gunPosOffset.y};
 
     // 推进子弹逻辑
@@ -59,7 +59,7 @@ int SS::Shooter::Update() {
         b->shooter = WeakFromThis<Shooter>();
         b->life = 1000;
         b->pos = gunPos;
-        b->inc = xx::Rotate({30, 0}, angle);
+        b->inc = xx::Rotate(SS::XY{30, 0}, angle);
         bullets.emplace_back(std::move(b));
     }
 
@@ -109,7 +109,7 @@ int SS::Bullet_Track::Update() {
 
     // aim target, get inc by speed
     auto a = xx::GetAngle(pos, tar->pos);
-    auto inc = xx::Rotate({speed, 0}, a);
+    auto inc = xx::Rotate(SS::XY{speed, 0}, a);
     pos += inc;
     return 0;
 }

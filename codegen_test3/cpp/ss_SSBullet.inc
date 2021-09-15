@@ -3,7 +3,7 @@
 	return -1;
 };
 
-#ifdef _WIN32
+#ifdef CC_STATIC
 cocos2d::Sprite* body = nullptr;
 
 void Draw();

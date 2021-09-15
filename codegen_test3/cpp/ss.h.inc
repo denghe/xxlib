@@ -1,4 +1,4 @@
-﻿#ifdef _WIN32
+﻿#ifdef CC_STATIC
 #include "cocos2d.h"
 #endif
 

@@ -93,6 +93,7 @@
   <ItemGroup>
     <ClCompile Include="..\3rd\ikcp.c" />
     <ClCompile Include="..\codegen_test3\cpp\ss.cpp" />
+    <ClCompile Include="..\xx_asio_test2\ss_ex.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

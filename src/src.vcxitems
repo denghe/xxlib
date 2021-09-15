@@ -33,6 +33,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_uv_client.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_macro.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_macro_ext.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_math.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_mysql.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_nodepool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_obj.h" />

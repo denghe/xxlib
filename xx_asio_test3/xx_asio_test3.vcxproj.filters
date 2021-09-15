@@ -4,5 +4,6 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="..\3rd\ikcp.c" />
     <ClCompile Include="..\codegen_test3\cpp\ss.cpp" />
+    <ClCompile Include="..\xx_asio_test2\ss_ex.cpp" />
   </ItemGroup>
 </Project>
