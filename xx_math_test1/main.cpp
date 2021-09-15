@@ -1,5 +1,7 @@
 ﻿#include "xx_helpers.h"
 
+// 可想象为 格子字典。key 为 格子坐标
+// 代码经由 xx::Dict 简化而来，备注参考它
 template <typename T>
 struct Grid {
     struct Node {
@@ -22,7 +24,6 @@ private:
 
 
     void DeleteVs() noexcept {
-        assert(buckets);
         for (int i = 0; i < count; ++i) {
             if (items[i].prev != -2) {
                 items[i].value.~T();
@@ -34,7 +35,6 @@ public:
     Grid(Grid const& o) = delete;
     Grid& operator=(Grid const& o) = delete;
 
-    // 代码经由 xx::Dict 简化而来，备注参考它
 
     explicit Grid(int const& rowCount, int const& columnCount, int const& capacity = 0)
     : rowCount(rowCount)
@@ -87,7 +87,7 @@ public:
 
     // 返回 items 下标
     template<typename V>
-    int Add(int const& rowIndex, int const& columnIndex, V&& v) {
+    int Add(int const& rowNumber, int const& columnNumber, V&& v) {
         // alloc
         int index;
         if (freeCount > 0) {
@@ -103,7 +103,7 @@ public:
         }
 
         // calc
-        auto cellIndex = rowIndex * rowCount + columnIndex;
+        auto cellIndex = rowNumber * rowCount + columnNumber;
 
         // link
         items[index].next = buckets[cellIndex];
@@ -139,32 +139,75 @@ public:
         items[idx].prev = -2;
     }
 
+    // 移动 items[idx] 的所在 buckets 到 [ rowNumber * rowCount + columnNumber ]
+    void Update(int const& idx, int const& rowNumber, int const& columnNumber) {
+        // todo
+    }
+
+    // 查找某个格子含有哪些 idx, 填充到 out, 返回填充个数
+    template<typename Container>
+    int Fill(int const& rowNumber, int const& columnNumber, Container& out) {
+        // todo
+        return 0;
+    }
+
     T& operator[](int const& idx) {
         return items[idx].value;
     }
     T const& operator[](int const& idx) const {
         return items[idx].value;
     }
+
+    int Count() const {
+        return count - freeCount;
+    }
+    bool Empty() const {
+        return Count() == 0;
+    }
 };
+
+#include "xx_ptr.h"
+#include "xx_string.h"
 
 struct XY {
     int x, y;
 };
 struct Foo {
     XY xy;
+
+    Grid<Foo*>* g;
+    int idx;
+
+    ~Foo() {
+        g->Remove(idx);
+    }
 };
 
 int main() {
-    std::vector<Foo> foos;
-    foos.emplace_back().xy = { 1, 1 };
-    foos.emplace_back().xy = { 2, 2 };
-    foos.emplace_back().xy = { 3, 3 };
-
     Grid<Foo*> g(5000, 5000);
+    std::vector<xx::Shared<Foo>> foos;
+
+    auto NewFoo = [&](int x, int y) {
+        auto&& f = foos.emplace_back().Emplace();
+        f->xy = { x, y };
+        f->g = &g;
+        f->idx = g.Add(f->xy.x, f->xy.y, &*f);
+    };
+    NewFoo(1, 1);
+    NewFoo(1, 1);
+    NewFoo(2, 2);
+    NewFoo(3, 3);
+
+    xx::CoutN("foos.size() = ", foos.size());
+    xx::CoutN("g.Count() = ", g.Count());
+
     for (auto& f : foos) {
-        g.Add(f.xy.x, f.xy.y, &f);
+        xx::CoutN("f->idx = ", f->idx);
     }
+    foos.clear();
+
+    xx::CoutN("foos.size() = ", foos.size());
+    xx::CoutN("g.Count() = ", g.Count());
 
     return 0;
 }
-
