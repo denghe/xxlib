@@ -5,18 +5,20 @@
 template <typename T>
 struct Grid {
     struct Node {
-        int             prev;
+        int             prev;                   // todo: prev, next 用 uint16_t ?
         int             next;
-        T               value;
+        int             index;                  // 指向 items 下标      // todo: 填充
+        T               value;                  // 用户数据容器
     };
+
+    int                 rowCount;               // 行数
+    int                 columnCount;            // 列数
 
 private:
     int                 freeList;               // 自由空间链表头( next 指向下一个未使用单元 )
     int                 freeCount;              // 自由空间链长
     int                 count;                  // 已使用空间数
 
-    int                 rowCount;               // 行数
-    int                 columnCount;            // 列数
     int*                buckets;                // 桶 / 二维格子数组( 长度 = columnCount * rowCount )
 
     int                 itemsCapacity;          // 节点数组长度
@@ -35,7 +37,7 @@ public:
     Grid(Grid const& o) = delete;
     Grid& operator=(Grid const& o) = delete;
 
-
+    // buckets 所需空间会立刻分配, 行列数不可变
     explicit Grid(int const& rowCount, int const& columnCount, int const& capacity = 0)
     : rowCount(rowCount)
     , columnCount(columnCount)
@@ -68,6 +70,7 @@ public:
         count = 0;
     }
 
+    // 预分配 items 空间
     void Reserve(int const& capacity) {
         assert(capacity > 0);
         if (capacity <= itemsCapacity) return;
@@ -141,26 +144,45 @@ public:
 
     // 移动 items[idx] 的所在 buckets 到 [ rowNumber * rowCount + columnNumber ]
     void Update(int const& idx, int const& rowNumber, int const& columnNumber) {
-        // todo
+        // todo: remove part 1 + add part 2
+        // unlink
+
     }
 
-    // 查找某个格子含有哪些 idx, 填充到 out, 返回填充个数
+    // 查找某个格子含有哪些 idx, 填充到 out( 不清除旧数据 ), 返回填充个数
     template<typename Container>
     int Fill(int const& rowNumber, int const& columnNumber, Container& out) {
-        // todo
-        return 0;
+        auto idx = Header(rowNumber, columnNumber);
+        if (idx == -1) return 0;
+        int n = 0;
+        do {
+            out.push_back(idx);
+            idx = items[idx].next;
+            ++n;
+        } while (idx != -1);
+        return n;
     }
 
-    T& operator[](int const& idx) {
-        return items[idx].value;
-    }
-    T const& operator[](int const& idx) const {
-        return items[idx].value;
+    // 返回链表头 idx. -1 表示没有. 手动遍历参考 Fill
+    int Header(int const& rowNumber, int const& columnNumber) const {
+        return buckets[rowNumber * rowCount + columnNumber];
     }
 
+    // 下标访问
+    Node& operator[](int const& idx) {
+        assert(items[idx].prev != -2);
+        return items[idx];
+    }
+    Node const& operator[](int const& idx) const {
+        assert(items[idx].prev != -2);
+        return items[idx];
+    }
+
+    // 返回 items 实际个数
     int Count() const {
         return count - freeCount;
     }
+
     bool Empty() const {
         return Count() == 0;
     }
@@ -200,6 +222,20 @@ int main() {
 
     xx::CoutN("foos.size() = ", foos.size());
     xx::CoutN("g.Count() = ", g.Count());
+
+    std::vector<int> idxs;
+    auto n = g.Fill(1, 1, idxs);
+    xx::CoutN("n = ", n);
+    for (auto& idx : idxs) {
+        xx::CoutN("idx = ", idx);
+    }
+
+    idxs.clear();
+    n = g.Fill(2, 2, idxs);
+    xx::CoutN("n = ", n);
+    for (auto& idx : idxs) {
+        xx::CoutN("idx = ", idx);
+    }
 
     for (auto& f : foos) {
         xx::CoutN("f->idx = ", f->idx);
