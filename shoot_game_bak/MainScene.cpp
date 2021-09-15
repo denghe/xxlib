@@ -104,6 +104,8 @@ void MainScene::update(float delta) {
 		}
 		container->setScale(zoom);
 
+		// todo: 自动 zoom ? 默认以当前 shooter 为中心点显示，当鼠标靠近屏幕边缘时，自动缩小显示并令 shooter 往相反方向偏移？( 本地行为 )
+
 		// 生成当前控制状态
 		SS::ControlState newCS;
 		newCS.aimPos = { (int)mousePos.x, (int)mousePos.y };

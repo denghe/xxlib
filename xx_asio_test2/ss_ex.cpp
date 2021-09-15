@@ -35,7 +35,7 @@ int SS::Shooter::Update() {
         pos.y -= speed;
     }
 
-    // todo: move area limit
+    // todo: 移动范围限定
 
     // 同步枪的坐标
     auto angle = xx::GetAngle(pos, cs.aimPos);
@@ -72,7 +72,7 @@ int SS::Shooter::Update() {
             // skip self
             if (kv.first == clientId) continue;
             // pickup check: distance < r1 + r2
-            if (xx::DistanceNear(50, 100, cs.aimPos, kv.second->pos)) {     // todo: + field: radius to bullet & shooter & mouse
+            if (xx::DistanceNear(50, 100, cs.aimPos, kv.second->pos)) {     // todo: 给 bullet 和 shooter 加上 半径 参数. 鼠标拾取半径为 常量
                 tar = kv.second;
             }
         }
