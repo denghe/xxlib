@@ -1,0 +1,77 @@
+// 测试结论：查表比现算快几倍( safe mode ) 到 几十倍
+
+#include "xx_string.h"
+//#ifdef _WIN32
+//#include <mimalloc-new-delete.h>
+//#endif
+#include "xx_math.h"
+
+// 计算直线的弧度
+template<typename Point1, typename Point2>
+float GetAngle(Point1 const& from, Point2 const& to) noexcept {
+	if (from.x == to.x && from.y == to.y) return 0.0f;
+	auto&& len_y = to.y - from.y;
+	auto&& len_x = to.x - from.x;
+	return atan2f(len_y, len_x);
+}
+
+// 计算距离
+template<typename Point1, typename Point2>
+float GetDistance(Point1 const& a, Point2 const& b) noexcept {
+	float dx = a.x - b.x;
+	float dy = a.y - b.y;
+	return sqrtf(dx * dx + dy * dy);
+}
+
+// 点围绕 0,0 为中心旋转 a 弧度   ( 角度 * (float(M_PI) / 180.0f) )
+template<typename Point>
+inline Point Rotate(Point const& pos, float const& a) noexcept {
+	auto&& sinA = sinf(a);
+	auto&& cosA = cosf(a);
+	return Point{ pos.x * cosA - pos.y * sinA, pos.x * sinA + pos.y * cosA };
+}
+
+
+
+struct XY {
+	int x, y;
+};
+
+int main() {
+	{
+		auto secs = xx::NowEpochSeconds();
+		double count = 0;
+		for (int k = 0; k < 50; ++k) {
+			for (int y = -1024; y < 1024; ++y) {
+				for (int x = -1024; x < 1024; ++x) {
+					count += atan2f((float)y, (float)x);
+				}
+			}
+		}
+		xx::CoutN(count);
+		xx::CoutN(xx::NowEpochSeconds() - secs);
+	}
+
+	auto secs = xx::NowEpochSeconds();
+	int64_t count = 0;
+	for (int k = 0; k < 50; ++k) {
+		for (int y = -1024; y < 1024; ++y) {
+			for (int x = -1024; x < 1024; ++x) {
+				//count += table_angle[(y + 1024) * 2048 + x + 1024];
+				count += xx::GetAngleXY<true>(x, y);
+			}
+		}
+	}
+	xx::CoutN(count);
+	xx::CoutN(xx::NowEpochSeconds() - secs);
+
+	//for(auto& o : table_sin) {
+	//    xx::Cout(o, " ");
+	//}
+	//xx::CoutN();
+	//for(auto& o : table_cos) {
+	//    xx::Cout(o, " ");
+	//}
+	//xx::CoutN();
+	return 0;
+}

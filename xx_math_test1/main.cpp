@@ -20,6 +20,16 @@ private:
 	int					itemsCapacity;			// 节点数组长度
 	Node*				items;                  // 节点数组
 
+
+	void DeleteVs() noexcept {
+		assert(buckets);
+		for (int i = 0; i < count; ++i) {
+			if (items[i].prev != -2) {
+				items[i].value.~T();
+				items[i].prev = -2;
+			}
+		}
+	}
 public:
 	Grid(Grid const& o) = delete;
 	Grid& operator=(Grid const& o) = delete;
@@ -48,7 +58,17 @@ public:
 		free(items);
 	}
 
-	void Reserve(int const& capacity) noexcept {
+	void Clear() noexcept {
+		if (!count) return;
+		DeleteVs();
+		auto bucketsLen = rowCount * columnCount;
+		memset(buckets, -1, bucketsLen * sizeof(int));
+		freeList = -1;
+		freeCount = 0;
+		count = 0;
+	}
+
+	void Reserve(int const& capacity) {
 		assert(capacity > 0);
 		if (capacity <= itemsCapacity) return;
 		if constexpr (std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
@@ -65,9 +85,10 @@ public:
 		itemsCapacity = capacity;
 	}
 
-	// return items 下标
+	// 返回 items 下标
 	template<typename V>
-	int Add(int const& cellIndex, V&& v) {
+	int Add(int const& rowIndex, int const& columnIndex, V&& v) {
+		// alloc
 		int index;
 		if (freeCount > 0) {
 			index = freeList;
@@ -81,20 +102,24 @@ public:
 			count++;
 		}
 
+		// calc
+		auto cellIndex = rowIndex * rowCount + columnIndex;
+
+		// link
 		items[index].next = buckets[cellIndex];
 		if (buckets[cellIndex] >= 0) {
-			buckets[buckets[cellIndex]].prev = index;
+			items[buckets[cellIndex]].prev = index;
 		}
 		buckets[cellIndex] = index;
-
-		new (&items[index].value) T(std::forward<V>(v));
 		items[index].prev = -1;
 
+		// assign
+		new (&items[index].value) T(std::forward<V>(v));
 		return index;
 	}
 
-	// 根据 items 下标移除一个单元
-	void RemoveAt(int const& idx) noexcept {
+	// 根据 items 下标 移除
+	void Remove(int const& idx) {
 		assert(idx >= 0 && idx < count && items[idx].prev != -2);
 
 		if (items[idx].prev < 0) {
@@ -114,24 +139,11 @@ public:
 		items[idx].prev = -2;
 	}
 
-	void Clear() noexcept {
-		if (!count) return;
-		DeleteVs();
-		auto bucketsLen = rowCount * columnCount;
-		memset(buckets, -1, bucketsLen * sizeof(int));
-		freeList = -1;
-		freeCount = 0;
-		count = 0;
+	T& operator[](int const& idx) {
+		return items[idx].value;
 	}
-
-	void DeleteVs() noexcept {
-		assert(buckets);
-		for (int i = 0; i < count; ++i) {
-			if (items[i].prev != -2) {
-				items[i].value.~T();
-				items[i].prev = -2;
-			}
-		}
+	T const& operator[](int const& idx) const {
+		return items[idx].value;
 	}
 };
 
@@ -149,93 +161,10 @@ int main() {
 	foos.emplace_back().xy = { 3, 3 };
 
 	Grid<Foo*> g(5000, 5000);
+	for (auto& f : foos) {
+		g.Add(f.xy.x, f.xy.y, &f);
+	}
 
 	return 0;
 }
 
-
-
-
-
-
-
-
-
-
-// 测试结论：查表比现算快几倍( safe mode ) 到 几十倍
-
-//#include "xx_string.h"
-////#ifdef _WIN32
-////#include <mimalloc-new-delete.h>
-////#endif
-//#include "xx_math.h"
-//
-//// 计算直线的弧度
-//template<typename Point1, typename Point2>
-//float GetAngle(Point1 const& from, Point2 const& to) noexcept {
-//	if (from.x == to.x && from.y == to.y) return 0.0f;
-//	auto&& len_y = to.y - from.y;
-//	auto&& len_x = to.x - from.x;
-//	return atan2f(len_y, len_x);
-//}
-//
-//// 计算距离
-//template<typename Point1, typename Point2>
-//float GetDistance(Point1 const& a, Point2 const& b) noexcept {
-//	float dx = a.x - b.x;
-//	float dy = a.y - b.y;
-//	return sqrtf(dx * dx + dy * dy);
-//}
-//
-//// 点围绕 0,0 为中心旋转 a 弧度   ( 角度 * (float(M_PI) / 180.0f) )
-//template<typename Point>
-//inline Point Rotate(Point const& pos, float const& a) noexcept {
-//	auto&& sinA = sinf(a);
-//	auto&& cosA = cosf(a);
-//	return Point{ pos.x * cosA - pos.y * sinA, pos.x * sinA + pos.y * cosA };
-//}
-//
-//
-//
-//struct XY {
-//	int x, y;
-//};
-//
-//int main() {
-//	{
-//		auto secs = xx::NowEpochSeconds();
-//		double count = 0;
-//		for (int k = 0; k < 50; ++k) {
-//			for (int y = -1024; y < 1024; ++y) {
-//				for (int x = -1024; x < 1024; ++x) {
-//					count += atan2f((float)y, (float)x);
-//				}
-//			}
-//		}
-//		xx::CoutN(count);
-//		xx::CoutN(xx::NowEpochSeconds() - secs);
-//	}
-//
-//	auto secs = xx::NowEpochSeconds();
-//	int64_t count = 0;
-//	for (int k = 0; k < 50; ++k) {
-//		for (int y = -1024; y < 1024; ++y) {
-//			for (int x = -1024; x < 1024; ++x) {
-//				//count += table_angle[(y + 1024) * 2048 + x + 1024];
-//				count += xx::GetAngleXY<true>(x, y);
-//			}
-//		}
-//	}
-//	xx::CoutN(count);
-//	xx::CoutN(xx::NowEpochSeconds() - secs);
-//
-//	//for(auto& o : table_sin) {
-//	//    xx::Cout(o, " ");
-//	//}
-//	//xx::CoutN();
-//	//for(auto& o : table_cos) {
-//	//    xx::Cout(o, " ");
-//	//}
-//	//xx::CoutN();
-//	return 0;
-//}
