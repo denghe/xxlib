@@ -67,9 +67,6 @@ struct Server : EP::Context {
     // game logic here
     int FrameUpdate() override;
 
-    // make & send event data to peers
-    void MakeSendEvent(bool clear = true);
-
     // call by listener accept. return 0: success
     int Accept(xx::Shared<Peer> const &p);
 

@@ -38,11 +38,13 @@ int Server::FrameUpdate() {
     lastMS = nowMS;
 
     if (totalDelta > (1.f / 60.f)) {
-        // send sync to new enters
+
         if (!newEnters.empty()) {
 
+            // prefill send data
             WriteTo(syncData, sync);
 
+            // send to new enters
             for (auto &kv : newEnters) {
                 assert(ps.contains(kv.first));
                 auto &p = ps[kv.first];
@@ -55,7 +57,7 @@ int Server::FrameUpdate() {
             for (auto &kv : newEnters) {
                 // create shooter
                 auto &&shooter = scene->shooters[kv.first].Emplace();
-                shooter->scene = scene;
+                // do not fill scene ref here ( for send event data )   // shooter->scene = scene;
                 shooter->clientId = kv.first;
                 // todo: set random pos & angle
 
@@ -65,6 +67,18 @@ int Server::FrameUpdate() {
             newEnters.clear();
         }
     }
+
+    auto SendEvent = [&]{
+        // make event data for send
+        event->frameNumber = scene->frameNumber;
+        WriteTo(eventData, event);
+        // send to all
+        for (auto &kv : ps) {
+            kv.second->Send(eventData);
+        }
+        // cleanup
+        eventData.Clear();
+    };
 
     while (totalDelta > (1.f / 60.f)) {
         totalDelta -= (1.f / 60.f);
@@ -77,6 +91,8 @@ int Server::FrameUpdate() {
                 auto &o = rs.front();
                 assert(o.typeId() == xx::TypeId_v<SS_C2S::Cmd>);
                 auto &m = o.ReinterpretCast<SS_C2S::Cmd>();
+
+                // todo: cmd data verify
 
                 // find shooter
                 assert(scene->shooters.contains(kv.first));
@@ -91,21 +107,19 @@ int Server::FrameUpdate() {
             }
         }
 
-        if (!event->enters.empty()) {
-            // temp clear new enter's scene ref, avoid send huge scene data
-            for (auto &s : event->enters) {
-                s->scene.Reset();
-            }
+        if (!event->enters.empty() || !event->css.empty() || !event->quits.empty()) {
+            SendEvent();
 
-            MakeSendEvent();
-
-            // restore scene ref
+            // fill new enters scene refs
             for (auto &s : event->enters) {
                 s->scene = scene;
             }
-        }
-        else if (!event->css.empty() || !event->quits.empty()) {
-            MakeSendEvent();
+            // cleanup
+            event->quits.clear();
+            event->enters.clear();
+            event->css.clear();
+            // reset keep alive delay
+            keepAliveMS = nowMS + 1000;
         }
 
         // logic update
@@ -116,36 +130,12 @@ int Server::FrameUpdate() {
     }
 
     // every 1 seconds send keep alive empty event package
-    if (nowMS > keepAliveMS) {
-        MakeSendEvent(false);
+    if (nowMS > keepAliveMS && !ps.empty()) {
+        SendEvent();
     }
 
     return 0;
 }
-
-void Server::MakeSendEvent(bool clear) {
-    if (!ps.empty()) {
-        // make event data
-        event->frameNumber = scene->frameNumber;
-        WriteTo(eventData, event);
-
-        // send event
-        for (auto &kv : ps) {
-            kv.second->Send(eventData);
-        }
-    }
-
-    // clear cache
-    if (clear) {
-        event->quits.clear();
-        event->enters.clear();
-        event->css.clear();
-        eventData.Clear();
-    }
-
-    // reset keep alive delay
-    keepAliveMS = nowMS + 1000;
-};
 
 int Server::HandlePackage(Peer &p, xx::ObjBase_s &o) {
     switch (o.typeId()) {
