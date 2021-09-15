@@ -1,7 +1,5 @@
 ﻿#include "xx_helpers.h"
 
-// todo: compress int
-
 // 可想象为 格子字典。key 为 格子坐标
 // 代码经由 xx::Dict 简化而来，备注参考它
 template <typename T, typename Index_t = int16_t>
