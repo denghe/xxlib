@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <array>
 #include <cmath>
+#include <cassert>
 
 // 整数坐标系游戏常用函数/查表库。主要意图为确保跨硬件计算结果的一致性( 附带性能有一定提升 )
 
@@ -95,4 +96,235 @@ namespace xx {
     inline bool DistanceNear(int const& r1, int const& r2, XY const& p1, XY const& p2) {
         return r1 * r1 + r2 * r2 >= ((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
     }
+
+
+
+
+
+	// 2d 格子检索系统，相当于 桶 为 格子坐标 的字典( 代码经由 xx::Dict 简化而来 )
+	template <typename T, typename Index_t = int16_t>
+	struct Grid2d {
+		struct Node {
+			Index_t         next;
+			Index_t         prev;
+			int             bucketsIndex;           // 所在 buckets 下标
+			T               value;                  // 用户数据容器
+		};
+
+		int                 rowCount;               // 行数
+		int                 columnCount;            // 列数
+	private:
+		int                 freeList;               // 自由空间链表头( next 指向下一个未使用单元 )
+		int                 freeCount;              // 自由空间链长
+		int                 count;                  // 已使用空间数
+		int                 itemsCapacity;          // 节点数组长度
+		Node*               items;                  // 节点数组
+		Index_t*            buckets;                // 桶 / 二维格子数组( 长度 = columnCount * rowCount )
+
+	public:
+		Grid2d(Grid2d const& o) = delete;
+		Grid2d& operator=(Grid2d const& o) = delete;
+
+		// buckets 所需空间会立刻分配, 行列数不可变
+		explicit Grid2d(int const& rowCount, int const& columnCount, int const& capacity = 0)
+			: rowCount(rowCount)
+			, columnCount(columnCount)
+			, itemsCapacity(capacity) {
+			assert(rowCount);
+			assert(columnCount);
+			assert(capacity >= 0);
+			freeList = -1;
+			freeCount = 0;
+			count = 0;
+			auto bucketsLen = rowCount * columnCount;
+			buckets = (Index_t*)malloc(bucketsLen * sizeof(Index_t));
+			memset(buckets, -1, bucketsLen * sizeof(Index_t));
+			items = capacity ? (Node*)malloc(capacity * sizeof(Node)) : nullptr;
+		}
+
+		~Grid2d() {
+			Clear();
+			free(items);
+			items = nullptr;
+			free(buckets);
+			buckets = nullptr;
+		}
+
+		void Clear() {
+			if (!count) return;
+			for (int i = 0; i < count; ++i) {
+				auto& o = items[i];
+				if (o.bucketsIndex != -1) {
+					buckets[o.bucketsIndex] = -1;
+					o.bucketsIndex = -1;
+					o.value.~T();
+				}
+			}
+			freeList = -1;
+			freeCount = 0;
+			count = 0;
+		}
+
+		// 预分配 items 空间
+		void Reserve(int const& capacity) {
+			assert(capacity > 0);
+			if (capacity <= itemsCapacity) return;
+			if constexpr (std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
+				items = (Node*)realloc((void*)items, capacity * sizeof(Node));
+			} else {
+				auto newNodes = (Node*)malloc(capacity * sizeof(Node));
+				for (int i = 0; i < count; ++i) {
+					new (&newNodes[i].value) T((T&&)items[i].value);
+					items[i].value.T::~T();
+				}
+				free(items);
+				items = newNodes;
+			}
+			itemsCapacity = capacity;
+		}
+
+		// 返回 items 下标
+		template<typename V>
+		int Add(int const& rowNumber, int const& columnNumber, V&& v) {
+			assert(rowNumber >= 0 && rowNumber < rowCount);
+			assert(columnNumber >= 0 && columnNumber < columnCount);
+
+			// alloc
+			int idx;
+			if (freeCount > 0) {
+				idx = freeList;
+				freeList = items[idx].next;
+				freeCount--;
+			} else {
+				if (count == itemsCapacity) {
+					Reserve(count ? count * 2 : 16);
+				}
+				idx = count;
+				count++;
+			}
+
+			// calc
+			auto bucketsIndex = rowNumber * rowCount + columnNumber;
+
+			// link
+			items[idx].next = buckets[bucketsIndex];
+			if (buckets[bucketsIndex] >= 0) {
+				items[buckets[bucketsIndex]].prev = idx;
+			}
+			buckets[bucketsIndex] = idx;
+			items[idx].prev = -1;
+			items[idx].bucketsIndex = bucketsIndex;
+
+			// assign
+			new (&items[idx].value) T(std::forward<V>(v));
+			return idx;
+		}
+
+		// 根据 items 下标 移除
+		void Remove(int const& idx) {
+			assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
+
+			// unlink
+			if (items[idx].prev < 0) {
+				buckets[items[idx].bucketsIndex] = items[idx].next;
+			} else {
+				items[items[idx].prev].next = items[idx].next;
+			}
+			if (items[idx].next >= 0) {
+				items[items[idx].next].prev = items[idx].prev;
+			}
+
+			// free
+			items[idx].next = freeList;
+			items[idx].prev = -1;
+			items[idx].bucketsIndex = -1;
+			freeList = idx;
+			freeCount++;
+
+			// cleanup
+			items[idx].value.~T();
+		}
+
+		// 移动 items[idx] 的所在 buckets 到 [ rowNumber * rowCount + columnNumber ]
+		void Update(int const& idx, int const& rowNumber, int const& columnNumber) {
+			assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
+			assert(rowNumber >= 0 && rowNumber < rowCount);
+			assert(columnNumber >= 0 && columnNumber < columnCount);
+
+			// unlink
+			if (items[idx].prev < 0) {
+				buckets[items[idx].bucketsIndex] = items[idx].next;
+			} else {
+				items[items[idx].prev].next = items[idx].next;
+			}
+			if (items[idx].next >= 0) {
+				items[items[idx].next].prev = items[idx].prev;
+			}
+
+			// calc
+			auto bucketsIndex = rowNumber * rowCount + columnNumber;
+
+			// link
+			items[idx].next = buckets[bucketsIndex];
+			if (buckets[bucketsIndex] >= 0) {
+				items[buckets[bucketsIndex]].prev = idx;
+			}
+			buckets[bucketsIndex] = idx;
+			items[idx].prev = -1;
+			items[idx].bucketsIndex = bucketsIndex;
+		}
+
+		// 下标访问
+		Node& operator[](int const& idx) {
+			assert(items[idx].bucketsIndex != -1);
+			return items[idx];
+		}
+		Node const& operator[](int const& idx) const {
+			assert(items[idx].bucketsIndex != -1);
+			return items[idx];
+		}
+
+		// 返回 items 实际个数
+		[[nodiscard]] int Count() const {
+			return count - freeCount;
+		}
+
+		[[nodiscard]] bool Empty() const {
+			return Count() == 0;
+		}
+
+		// 返回链表头 idx. -1 表示没有( for 手动遍历 )
+		[[nodiscard]] int Header(int const& rowNumber, int const& columnNumber) const {
+			return buckets[rowNumber * rowCount + columnNumber];
+		}
+
+		// 遍历某个格子所有 Node 并回调 func(node.value)
+		template<typename Func>
+		void Any(int const& rowNumber, int const& columnNumber, Func&& func) {
+			auto idx = Header(rowNumber, columnNumber);
+			if (idx == -1) return;
+			do {
+				func(items[idx].value);
+				idx = items[idx].next;
+			} while (idx != -1);
+		}
+
+		// 遍历某个格子( 不可以是最边缘的) + 周围 8 格 含有哪些 Node 并回调 func(node.value)
+		template<typename Func>
+		void AnyNeighbor(int const& rowNumber, int const& columnNumber, Func&& func) {
+			assert(rowNumber && columnNumber && rowNumber + 1 < rowCount && columnNumber + 1 < columnCount);
+			Any(rowNumber, columnNumber, func);
+			Any(rowNumber + 1, columnNumber, func);
+			Any(rowNumber - 1, columnNumber, func);
+			Any(rowNumber, columnNumber + 1, func);
+			Any(rowNumber, columnNumber - 1, func);
+			Any(rowNumber + 1, columnNumber + 1, func);
+			Any(rowNumber + 1, columnNumber - 1, func);
+			Any(rowNumber - 1, columnNumber + 1, func);
+			Any(rowNumber - 1, columnNumber - 1, func);
+		}
+
+		// todo: more any
+	};
+
 }
