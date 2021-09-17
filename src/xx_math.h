@@ -125,24 +125,39 @@ namespace xx {
 		Grid2d(Grid2d const& o) = delete;
 		Grid2d& operator=(Grid2d const& o) = delete;
 
-		// buckets 所需空间会立刻分配, 行列数不可变
-		explicit Grid2d(int const& rowCount, int const& columnCount, int const& capacity = 0)
-			: rowCount(rowCount)
-			, columnCount(columnCount)
-			, itemsCapacity(capacity) {
+		// 允许默认构造，但如果要调用任意成员函数，必须初始化( 这是为了方便某些初始化流程，一开始不确定尺寸 )
+		explicit Grid2d()
+			: rowCount(0)
+			, columnCount(0)
+			, freeList(-1)
+			, freeCount(0)
+			, count(0)
+			, itemsCapacity(0)
+			, items(nullptr)
+			, buckets(nullptr) {}
+
+		// 允许默认构造 + Init 事后初始化. 不可反复初始化
+		void Init(int const& rowCount, int const& columnCount, int const& capacity = 0) {
+			assert(!buckets);
 			assert(rowCount);
 			assert(columnCount);
 			assert(capacity >= 0);
-			freeList = -1;
-			freeCount = 0;
-			count = 0;
+			this->rowCount = rowCount;
+			this->columnCount = rowCount;
+			this->itemsCapacity = capacity;
+			items = capacity ? (Node*)malloc(capacity * sizeof(Node)) : nullptr;
 			auto bucketsLen = rowCount * columnCount;
 			buckets = (Index_t*)malloc(bucketsLen * sizeof(Index_t));
 			memset(buckets, -1, bucketsLen * sizeof(Index_t));
-			items = capacity ? (Node*)malloc(capacity * sizeof(Node)) : nullptr;
+		}
+
+		// buckets 所需空间会立刻分配, 行列数不可变
+		explicit Grid2d(int const& rowCount, int const& columnCount, int const& capacity = 0) : Grid2d() {
+			Init(rowCount, columnCount, capacity);
 		}
 
 		~Grid2d() {
+			if (!buckets) return;
 			Clear();
 			free(items);
 			items = nullptr;
@@ -151,6 +166,7 @@ namespace xx {
 		}
 
 		void Clear() {
+			assert(buckets);
 			if (!count) return;
 			for (int i = 0; i < count; ++i) {
 				auto& o = items[i];
@@ -167,6 +183,7 @@ namespace xx {
 
 		// 预分配 items 空间
 		void Reserve(int const& capacity) {
+			assert(buckets);
 			assert(capacity > 0);
 			if (capacity <= itemsCapacity) return;
 			if constexpr (std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
@@ -186,6 +203,7 @@ namespace xx {
 		// 返回 items 下标
 		template<typename V>
 		int Add(int const& rowNumber, int const& columnNumber, V&& v) {
+			assert(buckets);
 			assert(rowNumber >= 0 && rowNumber < rowCount);
 			assert(columnNumber >= 0 && columnNumber < columnCount);
 
@@ -222,6 +240,7 @@ namespace xx {
 
 		// 根据 items 下标 移除
 		void Remove(int const& idx) {
+			assert(buckets);
 			assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
 
 			// unlink
@@ -247,6 +266,7 @@ namespace xx {
 
 		// 移动 items[idx] 的所在 buckets 到 [ rowNumber * rowCount + columnNumber ]
 		void Update(int const& idx, int const& rowNumber, int const& columnNumber) {
+			assert(buckets);
 			assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
 			assert(rowNumber >= 0 && rowNumber < rowCount);
 			assert(columnNumber >= 0 && columnNumber < columnCount);
@@ -276,31 +296,37 @@ namespace xx {
 
 		// 下标访问
 		Node& operator[](int const& idx) {
+			assert(buckets);
 			assert(items[idx].bucketsIndex != -1);
 			return items[idx];
 		}
 		Node const& operator[](int const& idx) const {
+			assert(buckets);
 			assert(items[idx].bucketsIndex != -1);
 			return items[idx];
 		}
 
 		// 返回 items 实际个数
 		[[nodiscard]] int Count() const {
+			assert(buckets);
 			return count - freeCount;
 		}
 
 		[[nodiscard]] bool Empty() const {
+			assert(buckets);
 			return Count() == 0;
 		}
 
 		// 返回链表头 idx. -1 表示没有( for 手动遍历 )
 		[[nodiscard]] int Header(int const& rowNumber, int const& columnNumber) const {
+			assert(buckets);
 			return buckets[rowNumber * rowCount + columnNumber];
 		}
 
 		// 遍历某个格子所有 Node 并回调 func(node.value)
 		template<typename Func>
-		void Any(int const& rowNumber, int const& columnNumber, Func&& func) {
+		void Find(int const& rowNumber, int const& columnNumber, Func&& func) {
+			assert(buckets);
 			auto idx = Header(rowNumber, columnNumber);
 			if (idx == -1) return;
 			do {
@@ -311,17 +337,18 @@ namespace xx {
 
 		// 遍历某个格子( 不可以是最边缘的) + 周围 8 格 含有哪些 Node 并回调 func(node.value)
 		template<typename Func>
-		void AnyNeighbor(int const& rowNumber, int const& columnNumber, Func&& func) {
+		void FindNeighbor(int const& rowNumber, int const& columnNumber, Func&& func) {
+			assert(buckets);
 			assert(rowNumber && columnNumber && rowNumber + 1 < rowCount && columnNumber + 1 < columnCount);
-			Any(rowNumber, columnNumber, func);
-			Any(rowNumber + 1, columnNumber, func);
-			Any(rowNumber - 1, columnNumber, func);
-			Any(rowNumber, columnNumber + 1, func);
-			Any(rowNumber, columnNumber - 1, func);
-			Any(rowNumber + 1, columnNumber + 1, func);
-			Any(rowNumber + 1, columnNumber - 1, func);
-			Any(rowNumber - 1, columnNumber + 1, func);
-			Any(rowNumber - 1, columnNumber - 1, func);
+			Find(rowNumber, columnNumber, func);
+			Find(rowNumber + 1, columnNumber, func);
+			Find(rowNumber - 1, columnNumber, func);
+			Find(rowNumber, columnNumber + 1, func);
+			Find(rowNumber, columnNumber - 1, func);
+			Find(rowNumber + 1, columnNumber + 1, func);
+			Find(rowNumber + 1, columnNumber - 1, func);
+			Find(rowNumber - 1, columnNumber + 1, func);
+			Find(rowNumber - 1, columnNumber - 1, func);
 		}
 
 		// todo: more any
