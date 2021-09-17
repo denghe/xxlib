@@ -351,7 +351,36 @@ namespace xx {
 			Find(rowNumber - 1, columnNumber - 1, func);
 		}
 
-		// todo: more any
+		// 有限遍历某个格子所有 Node 并回调 func(node.value). 每次回调之后会 -- limit。当 <= 0 时，停止遍历
+		template<typename Func>
+		bool LimitFind(int& limit, int const& rowNumber, int const& columnNumber, Func&& func) {
+			assert(buckets);
+			auto idx = Header(rowNumber, columnNumber);
+			if (idx == -1) return;
+			do {
+				func(items[idx].value);
+				if (--limit <= 0) return true;
+				idx = items[idx].next;
+			} while (idx != -1);
+			return false;
+		}
+
+		// 有限遍历某个格子( 不可以是最边缘的) + 周围 8 格 含有哪些 Node 并回调 func(node.value). 每次回调之后会 -- limit。当 <= 0 时，停止遍历
+		template<typename Func>
+		void LimitFindNeighbor(int& limit, int const& rowNumber, int const& columnNumber, Func&& func) {
+			assert(buckets);
+			assert(rowNumber && columnNumber && rowNumber + 1 < rowCount && columnNumber + 1 < columnCount);
+			if (LimitFind(rowNumber, columnNumber, func)) return;
+			if (LimitFind(rowNumber + 1, columnNumber, func) return;
+			if (LimitFind(rowNumber - 1, columnNumber, func) return;
+			if (LimitFind(rowNumber, columnNumber + 1, func) return;
+			if (LimitFind(rowNumber, columnNumber - 1, func) return;
+			if (LimitFind(rowNumber + 1, columnNumber + 1, func) return;
+			if (LimitFind(rowNumber + 1, columnNumber - 1, func) return;
+			if (LimitFind(rowNumber - 1, columnNumber + 1, func) return;
+			LimitFind(rowNumber - 1, columnNumber - 1, func);
+		}
+		// todo: more
 	};
 
 }

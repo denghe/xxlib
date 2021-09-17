@@ -73,52 +73,108 @@
 至于怪物或玩家的 子弹，围墙石头等刚体啥的，可以用类似参数，再建几套 grid 数据。
 */
 
-// 基础坐标
+
+
+
+
+
+/*****************************************************************************************************/
+/*****************************************************************************************************/
+
+
+// 坐标
 struct XY {
-	int x = 0, y = 0;
+	int x, y;
+
+	XY() : x(0), y(0) {}
+	XY(int32_t const& x, int32_t const& y) : x(x), y(y) {}
+	XY(XY const&) = default;
+	XY& operator=(XY const&) = default;
+
+	XY operator+(XY const& v) const {
+		return { x + v.x, y + v.y };
+	}
+
+	XY& operator+=(XY const& v) {
+		x += v.x;
+		y += v.y;
+		return *this;
+	}
+
+	XY operator-(XY const& v) const {
+		return { x - v.x, y - v.y };
+	}
+
+	XY& operator-=(XY const& v) {
+		x -= v.x;
+		y -= v.y;
+		return *this;
+	}
+
+	XY operator-() const {
+		return { -x, -y };
+	}
+
+	XY operator*(int const& n) const {
+		return { x * n, y * n };
+	}
+
+	XY& operator*=(int const& n) {
+		x *= n;
+		y *= n;
+		return *this;
+	}
+
+	XY operator/(int const& n) const {
+		return { x / n, y / n };
+	}
+
+	bool operator!=(XY const& v) const {
+		return x != v.x || y != v.y;
+	}
 };
 
-// 场景( 预声明 )
-struct Scene;
+// 对象管理器( 预声明 )
+struct ItemMgr;
 
 // 场景内对象基类
-struct Obj {
+struct Item {
 	// 指向所在场景( 生命周期确保该指针必然有效 )
-	Scene* scene;
-	// 所在 grid 下标. 放入 scene->grid 后，该值不为 -1
+	ItemMgr* im;
+	// 所在 grid 下标. 放入 im->grid 后，该值不为 -1
 	int gridIndex = -1;
 	// 当前坐标
 	XY xy;
 
-	// 禁不传 scene, 禁 copy
-	Obj() = delete;
-	Obj(Obj const&) = delete;
-	Obj& operator=(Obj const&) = delete;
+	// 禁不传 im, 禁 copy
+	Item() = delete;
+	Item(Item const&) = delete;
+	Item& operator=(Item const&) = delete;
 
 	// 默认构造
-	Obj(Scene* scene) : scene(scene) {}
-	// 如果有放入 scene->grid，则自动移除
-	virtual ~Obj();
-	// 如果有放入 scene->grid，修改过 xy 后 需要调用这个函数来同步索引
+	Item(ItemMgr* im) : im(im) {}
+	// 如果有放入 im->grid，则自动移除
+	virtual ~Item();
+	// 如果有放入 im->grid，修改过 xy 后 需要调用这个函数来同步索引
 	void SyncGrid();
 	// 基础逻辑更新
 	virtual size_t Update() = 0;
 };
 
-// 场景
-struct Scene {
-	int frameNumber = 0;
-	std::vector<xx::Shared<Obj>> objs;
-	xx::Grid2d<Obj*> grid;
+// 对象管理器
+struct ItemMgr {
 
-	Scene(Scene const&) = delete;
-	Scene& operator=(Scene const&) = delete;
-	Scene() {
-		objs.reserve(100000);
-		grid.Init(5000, 5000, 100000);
-	}
+	// 格子系统
+	xx::Grid2d<Item*> grid;
 
-	size_t Update() {
+	// 对象容器 需要在 格子系统 的下方，确保 先 析构，这样才能正确的从 格子系统 移除
+	std::vector<xx::Shared<Item>> objs;
+
+	ItemMgr() = default;
+	ItemMgr(ItemMgr const&) = delete;
+	ItemMgr& operator=(ItemMgr const&) = delete;
+
+	virtual size_t Update() {
 		for (int i = (int)objs.size() - 1; i >= 0; --i) {
 			auto& o = objs[i];
 			if (o->Update()) {
@@ -132,23 +188,124 @@ struct Scene {
 	}
 };
 
-Obj::~Obj() {
+Item::~Item() {
 	if (gridIndex != -1) {
-		scene->grid.Remove(gridIndex);
+		im->grid.Remove(gridIndex);
 		gridIndex = -1;
 	}
 }
 
-void Obj::SyncGrid() {
+void Item::SyncGrid() {
 	assert(gridIndex != -1);
-	scene->grid.Update(gridIndex, xy.x, xy.y);
+	im->grid.Update(gridIndex, xy.x, xy.y);
 }
 
-struct Foo : Obj {
+
+/*****************************************************************************************************/
+/*****************************************************************************************************/
+
+// 下列代码模拟 一组 圆形对象, 位于 2d 空间，一开始挤在一起，之后物理随机排开, 直到静止。统计一共要花多长时间。
+// 数据结构方面不做特殊优化，走正常 oo 风格
+// 要对比的是 用 或 不用 grid 系统的效率
+
+#include "xx_randoms.h"
+
+// 模拟配置. 格子尺寸, grid 列数均为 2^n 方便位运算
+static const int gridWidth = 64;
+static const int gridHeight = 64;
+static const int gridDiameter = 128;
+static const int mapMinX = 128;				// >=
+static const int mapMaxX = 128 * 63 - 1;	// <=
+static const int mapMinY = 128;
+static const int mapMaxY = 128 * 63 - 1;
+
+// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 )
+static const int fooRadius = 50;
+static const int fooDiameter = fooRadius * 2;
+static const int fooSpeed = 10;
+
+
+struct Foo : Item {
+	using Item::Item;
+	int radius = fooRadius;
+	int speed = fooSpeed;
+
+	size_t Update() override;
 };
+
+struct Scene : ItemMgr {
+	using ItemMgr::ItemMgr;
+
+	// 随机数一枚, 用于对象完全重叠的情况下产生一个移动方向
+	xx::Random1 rnd;
+
+	// 每帧统计还有多少个对象正在移动
+	int count = 0;
+
+	Scene() {
+		// 初始化容器
+		auto n = gridWidth * gridHeight;
+		grid.Init(gridWidth, gridHeight, n);
+		objs.reserve(n);
+
+		// 直接构造出 n 个 Foo
+		for (int i = 0; i < n; i++) {
+			objs.emplace_back(xx::Make<Foo>(this));
+		}
+	}
+
+	size_t Update() override {
+		count = 0;
+		return ItemMgr::Update();
+	}
+};
+
+inline size_t Foo::Update() {
+	// 备份坐标
+	auto xy = this->xy;
+
+	// todo: 判断周围是否有别的 Foo 和自己重叠，取前 10 个，根据对方和自己的角度，结合距离，得到 推力矢量，求和 得到自己的前进方向和速度。
+	// 最关键的是最终移动方向。速度需要限定最大值和最小值。如果算出来矢量为 0，那就随机角度正常速度移动。
+	// 移动后的 xy 如果超出了 地图边缘，就硬调整. 
+
+	// 坐标转为 grid 行列值
+	auto rowNumber = xy.y / gridDiameter;
+	auto columnNumber = xy.x / gridDiameter;
+
+	// 查找 10 个
+	int limit = 10;
+	XY v;
+	bool found = false;
+	im->grid.LimitFindNeighbor(limit, rowNumber, columnNumber, [&](Item* item) {
+		found = true;
+		auto o = (Foo*)item;
+		
+		// todo: 
+		});
+
+
+	// 边缘限定
+	if (xy.x < mapMinX) xy.x = mapMinX;
+	else if (xy.x > mapMaxX) xy.x = mapMaxX;
+	if (xy.y < mapMinY) xy.y = mapMinY;
+	else if (xy.y > mapMaxY) xy.y = mapMaxY;
+
+	// 变更检测与同步
+	if (xy != this->xy) {
+		++((Scene*)im)->count;
+		this->xy = xy;
+		SyncGrid();
+	}
+	return 0;
+}
 
 int main() {
 	Scene scene;
+	auto secs = xx::NowEpochSeconds();
+	do {
+		scene.Update();
+	} while (scene.count);
+	xx::CoutN("secs = ", xx::NowEpochSeconds() - secs);
 
 	std::cin.get();
 	return 0;
