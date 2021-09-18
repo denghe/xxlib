@@ -232,17 +232,17 @@ namespace GameLogic {
 	//static const int gridWidth = 32;
 	//static const int gridHeight = 32;
 	//static const int gridDiameter = 256;
-	static const int gridWidth = 64;
+	static const int gridWidth = 128;
 	static const int gridHeight = 64;
 	static const int gridDiameter = 128;
 	//static const int gridWidth = 128;
 	//static const int gridHeight = 128;
 	//static const int gridDiameter = 64;
 
-	static const int mapMinX = 128;				// >=
-	static const int mapMaxX = 128 * 63 - 1;	// <=
-	static const int mapMinY = 128;
-	static const int mapMaxY = 128 * 63 - 1;
+	static const int mapMinX = gridDiameter;							// >=
+	static const int mapMaxX = gridDiameter * (gridWidth - 1) - 1;		// <=
+	static const int mapMinY = gridDiameter;
+	static const int mapMaxY = gridDiameter * (gridHeight - 1) - 1;
 	static const xx::XY mapCenter = { (mapMinX + mapMaxX) / 2, (mapMinY + mapMaxY) / 2 };
 
 	// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 ) / 邻居查找个数
@@ -286,7 +286,7 @@ namespace GameLogic {
 		Scene(int const& fooCount) {
 #endif
 			// 初始化容器
-			grid.Init(gridWidth, gridHeight, fooCount);
+			grid.Init(gridHeight, gridWidth, fooCount);
 			objs.reserve(fooCount);
 
 			// 直接构造出 n 个 Foo
@@ -307,7 +307,7 @@ namespace GameLogic {
 
 	inline Foo::Foo(Scene* scene, xx::XY const& xy) : xx::Item(scene) {
 		this->xy = xy;
-		gridIndex = scene->grid.Add(xy.x / gridDiameter, xy.y / gridDiameter, this);
+		gridIndex = scene->grid.Add(xy.y / gridDiameter, xy.x / gridDiameter, this);
 	}
 
 	inline size_t Foo::Update() {
@@ -375,7 +375,7 @@ namespace GameLogic {
 			++scene().count;
 			this->xy = xy;
 			assert(gridIndex != -1);
-			im->grid.Update(gridIndex, xy.x / gridDiameter, xy.y / gridDiameter);
+			im->grid.Update(gridIndex, xy.y / gridDiameter, xy.x / gridDiameter);
 		}
 
 #ifdef CC_STATIC

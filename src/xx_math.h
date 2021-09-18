@@ -143,7 +143,7 @@ namespace xx {
 			assert(columnCount);
 			assert(capacity >= 0);
 			this->rowCount = rowCount;
-			this->columnCount = rowCount;
+			this->columnCount = columnCount;
 			this->itemsCapacity = capacity;
 			items = capacity ? (Node*)malloc(capacity * sizeof(Node)) : nullptr;
 			auto bucketsLen = rowCount * columnCount;
@@ -222,7 +222,7 @@ namespace xx {
 			}
 
 			// calc
-			auto bucketsIndex = rowNumber * rowCount + columnNumber;
+			auto bucketsIndex = rowNumber * columnCount + columnNumber;
 
 			// link
 			items[idx].next = buckets[bucketsIndex];
@@ -264,7 +264,7 @@ namespace xx {
 			items[idx].value.~T();
 		}
 
-		// 移动 items[idx] 的所在 buckets 到 [ rowNumber * rowCount + columnNumber ]
+		// 移动 items[idx] 的所在 buckets 到 [ rowNumber * columnCount + columnNumber ]
 		void Update(int const& idx, int const& rowNumber, int const& columnNumber) {
 			assert(buckets);
 			assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
@@ -272,7 +272,7 @@ namespace xx {
 			assert(columnNumber >= 0 && columnNumber < columnCount);
 
 			// calc
-			auto bucketsIndex = rowNumber * rowCount + columnNumber;
+			auto bucketsIndex = rowNumber * columnCount + columnNumber;
 
 			// no change check
 			if (bucketsIndex == items[idx].bucketsIndex) return;
@@ -326,7 +326,7 @@ namespace xx {
 		// 返回链表头 idx. -1 表示没有( for 手动遍历 )
 		[[nodiscard]] int Header(int const& rowNumber, int const& columnNumber) const {
 			assert(buckets);
-			return buckets[rowNumber * rowCount + columnNumber];
+			return buckets[rowNumber * columnCount + columnNumber];
 		}
 
 		// 遍历某个格子所有 Node 并回调 func(node.value)
