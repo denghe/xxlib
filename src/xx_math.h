@@ -91,10 +91,10 @@ namespace xx {
     }
 
     // distance^2 = (x1 - x1)^2 + (y1 - y2)^2
-    // return (r1^2 + r2^2 >= distance^2)
+    // return (r1^2 + r2^2 > distance^2)
     template<typename XY>
     inline bool DistanceNear(int const& r1, int const& r2, XY const& p1, XY const& p2) {
-        return r1 * r1 + r2 * r2 >= ((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
+        return r1 * r1 + r2 * r2 > (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
     }
 
 
@@ -271,6 +271,12 @@ namespace xx {
 			assert(rowNumber >= 0 && rowNumber < rowCount);
 			assert(columnNumber >= 0 && columnNumber < columnCount);
 
+			// calc
+			auto bucketsIndex = rowNumber * rowCount + columnNumber;
+
+			// no change check
+			if (bucketsIndex == items[idx].bucketsIndex) return;
+
 			// unlink
 			if (items[idx].prev < 0) {
 				buckets[items[idx].bucketsIndex] = items[idx].next;
@@ -281,8 +287,6 @@ namespace xx {
 				items[items[idx].next].prev = items[idx].prev;
 			}
 
-			// calc
-			auto bucketsIndex = rowNumber * rowCount + columnNumber;
 
 			// link
 			items[idx].next = buckets[bucketsIndex];
@@ -353,34 +357,36 @@ namespace xx {
 
 		// 有限遍历某个格子所有 Node 并回调 func(node.value). 每次回调之后会 -- limit。当 <= 0 时，停止遍历
 		template<typename Func>
-		bool LimitFind(int& limit, int const& rowNumber, int const& columnNumber, Func&& func) {
+		void LimitFind(int& limit, int const& rowNumber, int const& columnNumber, Func&& func) {
 			assert(buckets);
+			assert(limit > 0);
 			auto idx = Header(rowNumber, columnNumber);
 			if (idx == -1) return;
 			do {
 				func(items[idx].value);
-				if (--limit <= 0) return true;
+				if (--limit <= 0) return;
 				idx = items[idx].next;
 			} while (idx != -1);
-			return false;
 		}
 
 		// 有限遍历某个格子( 不可以是最边缘的) + 周围 8 格 含有哪些 Node 并回调 func(node.value). 每次回调之后会 -- limit。当 <= 0 时，停止遍历
 		template<typename Func>
 		void LimitFindNeighbor(int& limit, int const& rowNumber, int const& columnNumber, Func&& func) {
 			assert(buckets);
+			assert(limit > 0);
 			assert(rowNumber && columnNumber && rowNumber + 1 < rowCount && columnNumber + 1 < columnCount);
-			if (LimitFind(rowNumber, columnNumber, func)) return;
-			if (LimitFind(rowNumber + 1, columnNumber, func) return;
-			if (LimitFind(rowNumber - 1, columnNumber, func) return;
-			if (LimitFind(rowNumber, columnNumber + 1, func) return;
-			if (LimitFind(rowNumber, columnNumber - 1, func) return;
-			if (LimitFind(rowNumber + 1, columnNumber + 1, func) return;
-			if (LimitFind(rowNumber + 1, columnNumber - 1, func) return;
-			if (LimitFind(rowNumber - 1, columnNumber + 1, func) return;
-			LimitFind(rowNumber - 1, columnNumber - 1, func);
+			LimitFind(limit, rowNumber, columnNumber, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber + 1, columnNumber, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber - 1, columnNumber, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber, columnNumber + 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber, columnNumber - 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber + 1, columnNumber + 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber + 1, columnNumber - 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber - 1, columnNumber + 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber - 1, columnNumber - 1, func);
 		}
-		// todo: more
+
+		// todo: more: 找出 x 个 离自己最近的邻居？
 	};
 
 }

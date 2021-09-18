@@ -91,46 +91,58 @@ struct XY {
 	XY(XY const&) = default;
 	XY& operator=(XY const&) = default;
 
+	// -x
+	XY operator-() const {
+		return { -x, -y };
+	}
+
+	// + - * /
 	XY operator+(XY const& v) const {
 		return { x + v.x, y + v.y };
 	}
+	XY operator-(XY const& v) const {
+		return { x - v.x, y - v.y };
+	}
+	XY operator*(int const& n) const {
+		return { x * n, y * n };
+	}
+	XY operator/(int const& n) const {
+		return { x / n, y / n };
+	}
 
+	// += -= *= /=
 	XY& operator+=(XY const& v) {
 		x += v.x;
 		y += v.y;
 		return *this;
 	}
-
-	XY operator-(XY const& v) const {
-		return { x - v.x, y - v.y };
-	}
-
 	XY& operator-=(XY const& v) {
 		x -= v.x;
 		y -= v.y;
 		return *this;
 	}
-
-	XY operator-() const {
-		return { -x, -y };
-	}
-
-	XY operator*(int const& n) const {
-		return { x * n, y * n };
-	}
-
 	XY& operator*=(int const& n) {
 		x *= n;
 		y *= n;
 		return *this;
 	}
-
-	XY operator/(int const& n) const {
-		return { x / n, y / n };
+	XY operator/=(int const& n) {
+		x /= n;
+		y /= n;
+		return *this;
 	}
 
+	// == !=
+	bool operator==(XY const& v) const {
+		return x == v.x && y == v.y;
+	}
 	bool operator!=(XY const& v) const {
 		return x != v.x || y != v.y;
+	}
+
+	// zero check
+	bool IsZero() const {
+		return x == 0 && y == 0;
 	}
 };
 
@@ -151,12 +163,14 @@ struct Item {
 	Item(Item const&) = delete;
 	Item& operator=(Item const&) = delete;
 
-	// 默认构造
+	// 默认构造( 派生类通常 using Item::Item 直接继承 )
+	// 派生类需自行初始化 xy 并 gridIndex = im->grid.Add(xy.x / nnnn, xy.y / nnnn, this);
+	// 中途同步用 im->grid.Update(gridIndex, xy.x / nnnn, xy.y / nnnn);
 	Item(ItemMgr* im) : im(im) {}
+
 	// 如果有放入 im->grid，则自动移除
 	virtual ~Item();
-	// 如果有放入 im->grid，修改过 xy 后 需要调用这个函数来同步索引
-	void SyncGrid();
+
 	// 基础逻辑更新
 	virtual size_t Update() = 0;
 };
@@ -190,15 +204,12 @@ struct ItemMgr {
 
 Item::~Item() {
 	if (gridIndex != -1) {
+		assert(im->grid[gridIndex].value == this);
 		im->grid.Remove(gridIndex);
 		gridIndex = -1;
 	}
 }
 
-void Item::SyncGrid() {
-	assert(gridIndex != -1);
-	im->grid.Update(gridIndex, xy.x, xy.y);
-}
 
 
 /*****************************************************************************************************/
@@ -214,22 +225,35 @@ void Item::SyncGrid() {
 static const int gridWidth = 64;
 static const int gridHeight = 64;
 static const int gridDiameter = 128;
+//static const int gridWidth = 128;
+//static const int gridHeight = 128;
+//static const int gridDiameter = 64;
+
 static const int mapMinX = 128;				// >=
 static const int mapMaxX = 128 * 63 - 1;	// <=
 static const int mapMinY = 128;
 static const int mapMaxY = 128 * 63 - 1;
+static const XY mapCenter = { (mapMinX + mapMaxX) / 2, (mapMinY + mapMaxY) / 2 };
 
-// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 )
+// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 ) / 邻居查找个数
 static const int fooRadius = 50;
 static const int fooDiameter = fooRadius * 2;
 static const int fooSpeed = 10;
+static const int fooFindNeighborLimit = 10;
+
+// 创建多少个 foo
+static const int fooCount = 80;
 
 
+
+
+struct Scene;
 struct Foo : Item {
 	using Item::Item;
 	int radius = fooRadius;
 	int speed = fooSpeed;
-
+	Foo(Scene* scene, XY const& xy);
+	Scene& scene();
 	size_t Update() override;
 };
 
@@ -237,20 +261,19 @@ struct Scene : ItemMgr {
 	using ItemMgr::ItemMgr;
 
 	// 随机数一枚, 用于对象完全重叠的情况下产生一个移动方向
-	xx::Random1 rnd;
+	xx::Random4 rnd;
 
 	// 每帧统计还有多少个对象正在移动
 	int count = 0;
 
 	Scene() {
 		// 初始化容器
-		auto n = gridWidth * gridHeight;
-		grid.Init(gridWidth, gridHeight, n);
-		objs.reserve(n);
+		grid.Init(gridWidth, gridHeight, fooCount);
+		objs.reserve(fooCount);
 
 		// 直接构造出 n 个 Foo
-		for (int i = 0; i < n; i++) {
-			objs.emplace_back(xx::Make<Foo>(this));
+		for (int i = 0; i < fooCount; i++) {
+			objs.emplace_back(xx::Make<Foo>(this, mapCenter));
 		}
 	}
 
@@ -260,11 +283,20 @@ struct Scene : ItemMgr {
 	}
 };
 
+inline Scene& Foo::scene() {
+	return *(Scene*)im;
+}
+
+inline Foo::Foo(Scene* scene, XY const& xy) : Item(scene) {
+	this->xy = xy;
+	gridIndex = scene->grid.Add(xy.x / gridDiameter, xy.y / gridDiameter, this);
+}
+
 inline size_t Foo::Update() {
 	// 备份坐标
 	auto xy = this->xy;
 
-	// todo: 判断周围是否有别的 Foo 和自己重叠，取前 10 个，根据对方和自己的角度，结合距离，得到 推力矢量，求和 得到自己的前进方向和速度。
+	// 判断周围是否有别的 Foo 和自己重叠，取前 n 个，根据对方和自己的角度，结合距离，得到 推力矢量，求和 得到自己的前进方向和速度。
 	// 最关键的是最终移动方向。速度需要限定最大值和最小值。如果算出来矢量为 0，那就随机角度正常速度移动。
 	// 移动后的 xy 如果超出了 地图边缘，就硬调整. 
 
@@ -272,38 +304,79 @@ inline size_t Foo::Update() {
 	auto rowNumber = xy.y / gridDiameter;
 	auto columnNumber = xy.x / gridDiameter;
 
-	// 查找 10 个
-	int limit = 10;
+	// 查找 n 个
+	int limit = fooFindNeighborLimit;
 	XY v;
-	bool found = false;
-	im->grid.LimitFindNeighbor(limit, rowNumber, columnNumber, [&](Item* item) {
-		found = true;
-		auto o = (Foo*)item;
-		
-		// todo: 
+	im->grid.LimitFindNeighbor(limit, rowNumber, columnNumber, [&](auto o) {
+		auto& f = *(Foo*)o;
+		// 如果圆心完全重叠，则不产生推力
+		if (f.xy == this->xy) return;
+		// 准备判断是否有重叠. r1* r1 + r2 * r2 > (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y)
+		auto r1 = f.radius;
+		auto r2 = this->radius;
+		auto r12 = r1 * r1 + r2 * r2;
+		auto p1 = f.xy;
+		auto p2 = this->xy;
+		auto p12 = (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
+		// 有重叠
+		if (r12 > p12) {
+			// 计算 f 到 this 的角度( 对方产生的推力方向 )
+			auto a = xx::GetAngle(p2, p1);
+			// 重叠的越多，推力越大
+			auto inc = xx::Rotate(XY{ this->speed * r12 / p12, 0 }, a);
+			v += inc;
+		}
 		});
 
+	// 如果 limit 有变化，则说明有找到过
+	if (limit != fooFindNeighborLimit) {
+		// 如果 v == 0 那就随机角度正常速度移动
+		if (v.IsZero()) {
+			auto a = scene().rnd.Next() % xx::table_num_angles;
+			auto inc = xx::Rotate(XY{ speed, 0 }, a);
+			xy += inc;
+		}
+		// 根据 v 移动
+		else {
+			auto a = xx::GetAngleXY(v.x, v.y);
+			// speed 应该和 v 的大小有个正比关系
+			auto spd = speed * (v.x * v.x + v.y + v.y) / (radius * 2 * radius * 2);
+			//if (spd < speed) {
+			//	spd = speed;
+			//} else if (spd > speed * 5) {
+			//	spd = speed * 5;
+			//}
+			auto inc = xx::Rotate(XY{ std::max(spd, speed), 0 }, a);
+			xy += inc;
+		}
 
-	// 边缘限定
-	if (xy.x < mapMinX) xy.x = mapMinX;
-	else if (xy.x > mapMaxX) xy.x = mapMaxX;
-	if (xy.y < mapMinY) xy.y = mapMinY;
-	else if (xy.y > mapMaxY) xy.y = mapMaxY;
+		// 边缘限定( 当前逻辑有重叠才移动，故边界检测放在这里 )
+		if (xy.x < mapMinX) xy.x = mapMinX;
+		else if (xy.x > mapMaxX) xy.x = mapMaxX;
+		if (xy.y < mapMinY) xy.y = mapMinY;
+		else if (xy.y > mapMaxY) xy.y = mapMaxY;
+	}
 
 	// 变更检测与同步
 	if (xy != this->xy) {
-		++((Scene*)im)->count;
+		++scene().count;
 		this->xy = xy;
-		SyncGrid();
+		assert(gridIndex != -1);
+		im->grid.Update(gridIndex, xy.x / gridDiameter, xy.y / gridDiameter);
 	}
 	return 0;
 }
 
 int main() {
 	Scene scene;
+	auto n = 0;
 	auto secs = xx::NowEpochSeconds();
 	do {
 		scene.Update();
+		if (n != scene.count) {
+			xx::CoutN("count = ", scene.count);
+			n = scene.count;
+		}
 	} while (scene.count);
 	xx::CoutN("secs = ", xx::NowEpochSeconds() - secs);
 
