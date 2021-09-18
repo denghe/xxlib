@@ -301,11 +301,13 @@ namespace xx {
 		// 下标访问
 		Node& operator[](int const& idx) {
 			assert(buckets);
+			assert(idx >= 0 && idx < count);
 			assert(items[idx].bucketsIndex != -1);
 			return items[idx];
 		}
 		Node const& operator[](int const& idx) const {
 			assert(buckets);
+			assert(idx >= 0 && idx < count);
 			assert(items[idx].bucketsIndex != -1);
 			return items[idx];
 		}
@@ -386,7 +388,47 @@ namespace xx {
 			LimitFind(limit, rowNumber - 1, columnNumber - 1, func);
 		}
 
-		// todo: more: 找出 x 个 离自己最近的邻居？
+		// 有限遍历某个 Node 所在格子 别的 Node 并回调 func(node.value). 每次回调之后会 -- limit。当 <= 0 时，停止遍历
+		// 遍历时将跳过 tarIdx 本身
+		template<typename Func>
+		void LimitFind(int& limit, int const& tarIdx, Func&& func) {
+			assert(buckets);
+			assert(limit > 0);
+			assert(tarIdx >= 0 && tarIdx < count);
+			assert(items[tarIdx].bucketsIndex != -1);
+			auto idx = buckets[items[tarIdx].bucketsIndex];
+			if (idx == -1) return;
+			do {
+				if (idx != tarIdx) {
+					func(items[idx].value);
+					if (--limit <= 0) return;
+				}
+				idx = items[idx].next;
+			} while (idx != -1);
+		}
+
+		// 有限遍历某个格子( 不可以是最边缘的) + 周围 8 格 含有哪些 Node 并回调 func(node.value). 每次回调之后会 -- limit。当 <= 0 时，停止遍历
+		// 遍历时将跳过 tarIdx 本身
+		template<typename Func>
+		void LimitFindNeighbor(int& limit, int const& tarIdx, Func&& func) {
+			assert(buckets);
+			assert(limit > 0);
+			assert(items[tarIdx].bucketsIndex != -1);
+			LimitFind(limit, tarIdx, func); if (limit <= 0) return;
+			auto bidx = items[tarIdx].bucketsIndex;
+			auto rowNumber = bidx / columnCount;
+			auto columnNumber = bidx - rowNumber * columnCount;
+			LimitFind(limit, rowNumber + 1, columnNumber, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber - 1, columnNumber, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber, columnNumber + 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber, columnNumber - 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber + 1, columnNumber + 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber + 1, columnNumber - 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber - 1, columnNumber + 1, func); if (limit <= 0) return;
+			LimitFind(limit, rowNumber - 1, columnNumber - 1, func);
+		}
+
+		// todo: more: 支持距离计算？ 圆形扩散？
 	};
 
 }
