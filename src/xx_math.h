@@ -8,6 +8,70 @@
 
 namespace xx {
 
+	// 整数坐标
+	struct XY {
+		int x, y;
+
+		XY() : x(0), y(0) {}
+		XY(int32_t const& x, int32_t const& y) : x(x), y(y) {}
+		XY(XY const&) = default;
+		XY& operator=(XY const&) = default;
+
+		// -x
+		XY operator-() const {
+			return { -x, -y };
+		}
+
+		// + - * /
+		XY operator+(XY const& v) const {
+			return { x + v.x, y + v.y };
+		}
+		XY operator-(XY const& v) const {
+			return { x - v.x, y - v.y };
+		}
+		XY operator*(int const& n) const {
+			return { x * n, y * n };
+		}
+		XY operator/(int const& n) const {
+			return { x / n, y / n };
+		}
+
+		// += -= *= /=
+		XY& operator+=(XY const& v) {
+			x += v.x;
+			y += v.y;
+			return *this;
+		}
+		XY& operator-=(XY const& v) {
+			x -= v.x;
+			y -= v.y;
+			return *this;
+		}
+		XY& operator*=(int const& n) {
+			x *= n;
+			y *= n;
+			return *this;
+		}
+		XY operator/=(int const& n) {
+			x /= n;
+			y /= n;
+			return *this;
+		}
+
+		// == !=
+		bool operator==(XY const& v) const {
+			return x == v.x && y == v.y;
+		}
+		bool operator!=(XY const& v) const {
+			return x != v.x || y != v.y;
+		}
+
+		// zero check
+		bool IsZero() const {
+			return x == 0 && y == 0;
+		}
+	};
+
     const double pi2 = 3.14159265358979323846264338328 * 2;
 
     // 设定计算坐标系 x, y 值范围 为 正负 table_xy_range
