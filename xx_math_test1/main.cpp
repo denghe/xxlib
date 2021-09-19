@@ -1,4 +1,6 @@
-﻿
+﻿#ifdef _WIN32MIMALLIC
+#include <mimalloc-new-delete.h>
+#endif
 #include "xx_math.h"
 #include "xx_ptr.h"
 #include "xx_string.h"
@@ -399,17 +401,19 @@ namespace GameLogic {
 }
 
 int main() {
-	GameLogic::Scene scene(5000);
-	auto n = 0;
-	auto secs = xx::NowEpochSeconds();
-	do {
-		scene.Update();
-		if (n != scene.count) {
-			xx::CoutN("count = ", scene.count);
-			n = scene.count;
-		}
-	} while (scene.count);
-	xx::CoutN("secs = ", xx::NowEpochSeconds() - secs);
+	for (size_t i = 0; i < 20; i++)	{
+		GameLogic::Scene scene(5000);
+		auto n = 0;
+		auto secs = xx::NowEpochSeconds();
+		do {
+			scene.Update();
+			//if (n != scene.count) {
+			//	xx::CoutN("count = ", scene.count);
+			//	n = scene.count;
+			//}
+		} while (scene.count);
+		xx::CoutN("secs = ", xx::NowEpochSeconds() - secs);
+	}
 
 	std::cin.get();
 	return 0;
