@@ -11,37 +11,41 @@ namespace GameLogic {
     // 数据结构方面不做特殊优化，走正常 oo 风格
     // 要对比的是 用 或 不用 grid 系统的效率
 
+    // 坐标类型限定
+    using XY = xx::XY<int>;
+
     // 模拟配置. 格子尺寸, grid 列数均为 2^n 方便位运算
     static const int gridWidth = 128;
     static const int gridHeight = 64;
     static const int gridDiameter = 128;
 
-    static const int mapMinX = gridDiameter;							// >=
+    static const int mapMinX = gridDiameter;					// >=
     static const int mapMaxX = gridDiameter * (gridWidth - 1) - 1;		// <=
     static const int mapMinY = gridDiameter;
     static const int mapMaxY = gridDiameter * (gridHeight - 1) - 1;
-    static const xx::XY mapCenter = { (mapMinX + mapMaxX) / 2, (mapMinY + mapMaxY) / 2 };
+    static const XY mapCenter = { (mapMinX + mapMaxX) / 2, (mapMinY + mapMaxY) / 2 };
 
     // Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 ) / 邻居查找个数
     static const int fooRadius = 50;
     static const int fooSpeed = 5;
     static const int fooFindNeighborLimit = 20;	// 9格范围内通常能容纳的个数
 
+
     struct Scene;
     struct Foo {
         // 当前半径
-        int radius = fooRadius;
+        int16_t radius = fooRadius;
         // 当前速度
-        int speed = fooSpeed;
+        int16_t speed = fooSpeed;
         // 所在 grid 下标. 放入 im->grid 后，该值不为 -1
         int gridIndex = -1;
         // 当前坐标( Update2 单线程填充, 同时同步 grid )
-        xx::XY xy;
+        XY xy;
         // 即将生效的坐标( Update 多线并行填充 )
-        xx::XY xy2;
+        XY xy2;
 
         // 构造时就放入 grid 系统
-        Foo(Scene* const& scene, xx::XY const& xy);
+        Foo(Scene* const& scene, XY const& xy);
 
         // 计算下一步 xy 的动向, 写入 xy2
         void Update(Scene* const& scene);
@@ -94,7 +98,7 @@ namespace GameLogic {
         }
     };
 
-    inline Foo::Foo(Scene* const& scene, xx::XY const& xy) {
+    inline Foo::Foo(Scene* const& scene, XY const& xy) {
         this->xy = xy;
         gridIndex = scene->grid.Add(xy.y / gridDiameter, xy.x / gridDiameter, this);
     }
@@ -110,7 +114,7 @@ namespace GameLogic {
         // 查找 n 个邻居
         int limit = fooFindNeighborLimit;
         int crossNum = 0;
-        xx::XY v;
+        XY v;
         scene->grid.LimitFindNeighbor(limit, gridIndex, [&](auto o) {
             assert(o != (Item*)this);
             // 类型转换下方便使用
@@ -121,8 +125,8 @@ namespace GameLogic {
                 return;
             }
             // 准备判断是否有重叠. r1* r1 + r2 * r2 > (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y)
-            auto r1 = f.radius;
-            auto r2 = this->radius;
+            auto r1 = (int)f.radius;
+            auto r2 = (int)this->radius;
             auto r12 = r1 * r1 + r2 * r2;
             auto p1 = f.xy;
             auto p2 = this->xy;
@@ -132,7 +136,7 @@ namespace GameLogic {
                 // 计算 f 到 this 的角度( 对方产生的推力方向 ). 
                 auto a = xx::GetAngle<(gridDiameter * 2 >= 1024)>(p1, p2);
                 // 重叠的越多，推力越大?
-                auto inc = xx::Rotate(xx::XY{ this->speed * r12 / p12, 0 }, a);
+                auto inc = xx::Rotate(XY{ this->speed * r12 / p12, 0 }, a);
                 v += inc;
                 ++crossNum;
             }
@@ -142,13 +146,13 @@ namespace GameLogic {
             // 如果 v == 0 那就随机角度正常速度移动
             if (v.IsZero()) {
                 auto a = scene->rnd.Next() % xx::table_num_angles;
-                auto inc = xx::Rotate(xx::XY{ speed, 0 }, a);
+                auto inc = xx::Rotate(XY{ speed, 0 }, a);
                 xy += inc;
             }
             // 根据 v 移动
             else {
                 auto a = xx::GetAngleXY(v.x, v.y);
-                auto inc = xx::Rotate(xx::XY{ speed * std::max(crossNum, 5), 0 }, a);
+                auto inc = xx::Rotate(XY{ speed * std::max(crossNum, 5), 0 }, a);
                 xy += inc;
             }
 
@@ -180,7 +184,7 @@ namespace GameLogic {
 #define SCREEN_WIDTH  1920
 #define SCREEN_HEIGHT 1080
 #define SCREEN_SCALE 0.1225f
-#define BALL_SCALED_SIZE (0.1225f * 100.f)
+#define BALL_SCALED_SIZE 8.575f  // (SCREEN_SCALE * 70.f)
 
 
 GameLogic::Scene* scene = nullptr;
@@ -201,8 +205,8 @@ bool render_func() {
 
     // for set quad v & render quad
     for (auto& f : scene->objs) {
-        float x = f.xy.x * SCREEN_SCALE;
-        float y = f.xy.y * SCREEN_SCALE;
+        auto x = f.xy.x * SCREEN_SCALE;
+        auto y = f.xy.y * SCREEN_SCALE;
         quad.v[0].x = x - BALL_SCALED_SIZE;
         quad.v[0].y = y - BALL_SCALED_SIZE;
         quad.v[1].x = x + BALL_SCALED_SIZE;
@@ -281,6 +285,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         // create game logic
         scene = new GameLogic::Scene(300000);
+        //scene = new GameLogic::Scene(5000);
 
         // Let's rock now!
         hge->System_Start();

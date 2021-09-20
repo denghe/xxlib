@@ -9,11 +9,12 @@
 namespace xx {
 
 	// 整数坐标
+	template<typename T = int>
 	struct XY {
-		int x, y;
+		T x, y;
 
 		XY() : x(0), y(0) {}
-		XY(int32_t const& x, int32_t const& y) : x(x), y(y) {}
+		XY(T const& x, T const& y) : x(x), y(y) {}
 		XY(XY const&) = default;
 		XY& operator=(XY const&) = default;
 
@@ -29,10 +30,10 @@ namespace xx {
 		XY operator-(XY const& v) const {
 			return { x - v.x, y - v.y };
 		}
-		XY operator*(int const& n) const {
+		XY operator*(T const& n) const {
 			return { x * n, y * n };
 		}
-		XY operator/(int const& n) const {
+		XY operator/(T const& n) const {
 			return { x / n, y / n };
 		}
 
@@ -47,12 +48,12 @@ namespace xx {
 			y -= v.y;
 			return *this;
 		}
-		XY& operator*=(int const& n) {
+		XY& operator*=(T const& n) {
 			x *= n;
 			y *= n;
 			return *this;
 		}
-		XY operator/=(int const& n) {
+		XY operator/=(T const& n) {
 			x /= n;
 			y /= n;
 			return *this;
@@ -120,8 +121,8 @@ namespace xx {
     inline TableFiller tableFiller__;
 
     // 传入坐标，返回角度值( 0 ~ table_num_angles )  safeMode: 支持大于查表尺寸的 xy 值 ( 慢几倍 )
-    template<bool safeMode = true>
-    table_angle_element_type GetAngleXY(int x, int y) noexcept {
+    template<bool safeMode = true, typename T = int>
+    table_angle_element_type GetAngleXY(T x, T y) noexcept {
         if constexpr (safeMode) {
             while (x < -table_xy_range || x >= table_xy_range || y < -table_xy_range || y >= table_xy_range) {
                 x /= 8;
@@ -133,8 +134,8 @@ namespace xx {
         return table_angle[(y + table_xy_range) * table_xy_range2 + x + table_xy_range];
     }
 
-    template<bool safeMode = true>
-    table_angle_element_type GetAngleXYXY(int const &x1, int const &y1, int const &x2, int const &y2) noexcept {
+    template<bool safeMode = true, typename T = int>
+    table_angle_element_type GetAngleXYXY(T const &x1, T const &y1, T const &x2, T const &y2) noexcept {
         return GetAngleXY<safeMode>(x2 - x1, y2 - y1);
     }
 
@@ -144,20 +145,25 @@ namespace xx {
     }
 
     // 计算点旋转后的坐标
-    template<typename XY>
-    inline XY Rotate(XY const &p, table_angle_element_type const &a) noexcept {
-        auto s = (int64_t) table_sin[a];
-        auto c = (int64_t) table_cos[a];
-        XY rtv;
-        rtv.x = (int) ((p.x * c - p.y * s) / table_sincos_ratio);
-        rtv.y = (int) ((p.x * s + p.y * c) / table_sincos_ratio);
-        return rtv;
-    }
+	template<typename P, typename T = int>
+	inline P Rotate(T const& x, T const& y, table_angle_element_type const& a) noexcept {
+		auto s = (int64_t)table_sin[a];
+		auto c = (int64_t)table_cos[a];
+		P rtv;
+		rtv.x = (decltype(rtv.x))((x * c - y * s) / table_sincos_ratio);
+		rtv.y = (decltype(rtv.x))((x * s + y * c) / table_sincos_ratio);
+		return rtv;
+	}
+	template<typename P>
+	inline P Rotate(P const& p, table_angle_element_type const& a) noexcept {
+		static_assert(std::is_same_v<decltype(p.x), decltype(p.y)>);
+		return Rotate<P, decltype(p.x)>(p.x, p.y, a);
+	}
 
     // distance^2 = (x1 - x1)^2 + (y1 - y2)^2
     // return (r1^2 + r2^2 > distance^2)
-    template<typename XY>
-    inline bool DistanceNear(int const& r1, int const& r2, XY const& p1, XY const& p2) {
+    template<typename P>
+    inline bool DistanceNear(int const& r1, int const& r2, P const& p1, P const& p2) {
         return r1 * r1 + r2 * r2 > (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
     }
 
