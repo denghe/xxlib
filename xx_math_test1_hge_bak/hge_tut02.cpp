@@ -6,6 +6,50 @@
 #include <omp.h>
 #include <thread>
 
+namespace xx {
+  bool intersects(int const& cr, int& cx, int& cy, int const& bw2, int const& bh2, int const& bx, int const& by) {
+    auto dx = abs(cx - bx);
+    auto dy = abs(cy - by);
+    if (dx > (bw2 + cr) || dy > (bh2 + cr)) return false;
+    if (dx <= bw2) {
+      // todo: cx = ???  cy = ???
+      return true;
+    }
+    if (dy <= bh2) {
+      // todo: cx = ???  cy = ???
+      return true;
+    }
+    // todo: cx = ???  cy = ???
+    return ((dx - bw2) ^ 2 + (dy - bh2) ^ 2) <= (cr ^ 2);
+  }
+
+
+  bool intersects2(int const& cr, int& cx, int& cy, int const& bw2, int const& bh2, int const& bx, int const& by) {
+    // 分别求 x/y 距离
+    auto dx = abs(cx - bx);
+    auto dy = abs(cy - by);
+    // 有任意 半径和 减去 距离 如果小于 0 ( 距离 > 半径和 )则不相交
+    auto vx = bw2 + cr - dx;
+    auto vy = bh2 + cr - dy;
+    if (vx <= 0 || vy <= 0) return false;
+    // 比较斜率. 如果距离更宽, 则贴近两边. 否则上下
+    if ((vx / vy) >= (bw2 / bh2)) {
+      if (cx < bx) {
+        cx = bx - bw2 - cr;
+      } else {
+        cx = bx + bw2 + cr;
+      }
+    } else {
+      if (cy < by) {
+        cy = by - bh2 - cr;
+      } else {
+        cy = by + bh2 + cr;
+      }
+    }
+    return true;
+  }
+}
+
 namespace GameLogic {
     // 下列代码模拟 一组 圆形对象, 位于 2d 空间，一开始挤在一起，之后物理随机排开, 直到静止。统计一共要花多长时间。
     // 数据结构方面不做特殊优化，走正常 oo 风格
@@ -30,8 +74,13 @@ namespace GameLogic {
     static const int fooSpeed = 5;
     static const int fooFindNeighborLimit = 20;	// 9格范围内通常能容纳的个数
 
+    // 柱子宽高/2( 半径 ). 柱子初始坐标就用 mapCenter
+    static const int boxWidth_2 = 3500;
+    static const int boxHeight_2 = 2500;
+    static const int boxSpeed = 5;
 
     struct Scene;
+
     struct Foo {
         // 当前半径
         int16_t radius = fooRadius;
@@ -43,6 +92,8 @@ namespace GameLogic {
         XY xy;
         // 即将生效的坐标( Update 多线并行填充 )
         XY xy2;
+        // 本次 Update 要用到的随机数值. 初次需填充。用完填 -1. Update2 的时候补上
+        int rnd = -1;
 
         // 构造时就放入 grid 系统
         Foo(Scene* const& scene, XY const& xy);
@@ -54,6 +105,18 @@ namespace GameLogic {
         void Update2(Scene* const& scene);
     };
 
+    struct Box {
+        // 当前半径
+        int16_t w_2 = boxWidth_2;
+        int16_t h_2 = boxHeight_2;
+        // 当前速度
+        int16_t speed = boxSpeed;
+        // 当前坐标
+        XY xy;
+        // 令 xy 发生变化
+        void Update(Scene* const& scene);
+    };
+
     struct Scene {
         Scene() = default;
         Scene(Scene const&) = delete;
@@ -63,7 +126,8 @@ namespace GameLogic {
         xx::Grid2d<Foo*, int> grid;
 
         // 对象容器 需要在 格子系统 的下方，确保 先 析构，这样才能正确的从 格子系统 移除
-        std::vector<Foo> objs;
+        std::vector<Foo> foos;
+        std::vector<Box> boxs;
 
         // 随机数一枚, 用于对象完全重叠的情况下产生一个移动方向
         xx::Random1 rnd;
@@ -76,24 +140,39 @@ namespace GameLogic {
             grid.Init(gridHeight, gridWidth, fooCount);
 
             // 必须先预留足够多个数, 否则会导致数组变化, 指针失效
-            objs.reserve(fooCount);
+            foos.reserve(fooCount);
 
             // 直接构造出 n 个 Foo
             for (int i = 0; i < fooCount; i++) {
-                objs.emplace_back(this, mapCenter);
+                foos.emplace_back(this, mapCenter).rnd = rnd.Next() & 0x7FFFFFFFu;
             }
+
+            // 直接构造出 Box
+            // todo
         }
 
         void Update() {
+            // 重置计数器
             count = 0;
-            auto siz = objs.size();
-            // 这里先简化，没有删除行为。否则就要记录到线程安全队列，事后批量删除
+
+            // 让 boxs 动起来。因为少，就不多线并行了. 可做倒序 Update 交焕删除
+            for (auto& b : boxs) {
+                b.Update(this);
+            }
+
+            // todo: 已知问题: 随机数多线程安全和调用顺序问题
+            // 
+
+            // 多线并行 Update. 和单线计算结果相同   
+            auto siz = foos.size();
 #pragma omp parallel for
             for (int i = 0; i < siz; ++i) {
-                objs[i].Update(this);
+                foos[i].Update(this);
             }
+
+            // 这步可做倒序 Update 交焕删除
             for (int i = 0; i < siz; ++i) {
-                objs[i].Update2(this);
+                foos[i].Update2(this);
             }
         }
     };
@@ -145,7 +224,8 @@ namespace GameLogic {
         if (crossNum) {
             // 如果 v == 0 那就随机角度正常速度移动
             if (v.IsZero()) {
-                auto a = scene->rnd.Next() % xx::table_num_angles;
+                auto a = rnd % xx::table_num_angles;
+                rnd = -1;
                 auto inc = xx::Rotate(XY{ speed, 0 }, a);
                 xy += inc;
             }
@@ -156,25 +236,38 @@ namespace GameLogic {
                 xy += inc;
             }
 
-            // 边缘限定( 当前逻辑有重叠才移动，故边界检测放在这里 )
-            if (xy.x < mapMinX) xy.x = mapMinX;
-            else if (xy.x > mapMaxX) xy.x = mapMaxX;
-            if (xy.y < mapMinY) xy.y = mapMinY;
-            else if (xy.y > mapMaxY) xy.y = mapMaxY;
         }
 
-        // 保存 xy ( update2 的时候应用 )
+        // 模拟一个柱子在屏幕中间
+        xx::intersects2(radius, xy.x, xy.y, boxWidth_2, boxHeight_2, mapCenter.x, mapCenter.y);
+
+        // 边缘限定( 假设边缘可能移动 )
+        if (xy.x < mapMinX) xy.x = mapMinX;
+        else if (xy.x > mapMaxX) xy.x = mapMaxX;
+        if (xy.y < mapMinY) xy.y = mapMinY;
+        else if (xy.y > mapMaxY) xy.y = mapMaxY;
+
+        // 保存到 xy2 备用
         xy2 = xy;
     }
 
     inline void Foo::Update2(Scene* const& scene) {
-        // 变更检测与同步
-        if (xy2 != xy) {
-            ++scene->count;
-            xy = xy2;
-            assert(gridIndex != -1);
-            scene->grid.Update(gridIndex, xy2.y / gridDiameter, xy2.x / gridDiameter);
+        // 补充随机数
+        if (rnd == -1) {
+            rnd = scene->rnd.Next() & 0x7FFFFFFFu;
         }
+        // 变更检测与同步
+        if (xy != xy2) {
+            xy = xy2;
+            ++scene->count;
+            assert(gridIndex != -1);
+            scene->grid.Update(gridIndex, xy.y / gridDiameter, xy.x / gridDiameter);
+        }
+    }
+
+    inline void Box::Update(Scene* const& scene) {
+        // todo
+        
     }
 }
 
@@ -204,7 +297,7 @@ bool render_func() {
     hge->Gfx_Clear(0);
 
     // for set quad v & render quad
-    for (auto& f : scene->objs) {
+    for (auto& f : scene->foos) {
         auto x = f.xy.x * SCREEN_SCALE;
         auto y = f.xy.y * SCREEN_SCALE;
         quad.v[0].x = x - BALL_SCALED_SIZE;
@@ -284,8 +377,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         quad.v[3].ty = 1.f;
 
         // create game logic
-        scene = new GameLogic::Scene(300000);
-        //scene = new GameLogic::Scene(5000);
+        //scene = new GameLogic::Scene(300000);
+        scene = new GameLogic::Scene(10000);
 
         // Let's rock now!
         hge->System_Start();
