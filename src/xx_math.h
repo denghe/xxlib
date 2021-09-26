@@ -15,8 +15,13 @@ namespace xx {
 
 		XY() : x(0), y(0) {}
 		XY(T const& x, T const& y) : x(x), y(y) {}
-		XY(XY const&) = default;
-		XY& operator=(XY const&) = default;
+		XY(XY const& v) {
+			memcpy(this, &v, sizeof(v));
+		};
+		XY& operator=(XY const& v) {
+			memcpy(this, &v, sizeof(v));
+			return *this;
+		}
 
 		// -x
 		XY operator-() const {
@@ -61,15 +66,45 @@ namespace xx {
 
 		// == !=
 		bool operator==(XY const& v) const {
-			return x == v.x && y == v.y;
+			if constexpr (std::is_integral_v<T>) {
+				if constexpr (sizeof(T) == 4) {
+					return *(uint64_t*)&x == *(uint64_t*)&v.x;
+				}
+				else if constexpr (sizeof(T) == 2) {
+					return *(uint32_t*)&x == *(uint32_t*)&v.x;
+				}
+			}
+			else {
+				return x == v.x && y == v.y;
+			}
 		}
 		bool operator!=(XY const& v) const {
-			return x != v.x || y != v.y;
+			if constexpr (std::is_integral_v<T>) {
+				if constexpr (sizeof(T) == 4) {
+					return *(uint64_t*)&x != *(uint64_t*)&v.x;
+				}
+				else if constexpr (sizeof(T) == 2) {
+					return *(uint32_t*)&x != *(uint32_t*)&v.x;
+				}
+			}
+			else {
+				return x != v.x || y != v.y;
+			}
 		}
 
 		// zero check
 		bool IsZero() const {
-			return x == 0 && y == 0;
+			if constexpr (std::is_integral_v<T>) {
+				if constexpr (sizeof(T) == 4) {
+					return *(uint64_t*)&x == 0;
+				}
+				else if constexpr (sizeof(T) == 2) {
+					return *(uint32_t*)&x != 0;
+				}
+			}
+			else {
+				return x == T{} && y == T{};
+			}
 		}
 	};
 
@@ -145,14 +180,11 @@ namespace xx {
     }
 
     // 计算点旋转后的坐标
-	template<typename P, typename T = int>
+	template<typename P, typename T = decltype(p.x)>
 	inline P Rotate(T const& x, T const& y, table_angle_element_type const& a) noexcept {
 		auto s = (int64_t)table_sin[a];
 		auto c = (int64_t)table_cos[a];
-		P rtv;
-		rtv.x = (decltype(rtv.x))((x * c - y * s) / table_sincos_ratio);
-		rtv.y = (decltype(rtv.x))((x * s + y * c) / table_sincos_ratio);
-		return rtv;
+		return { (T)((x * c - y * s) / table_sincos_ratio), (T)((x * s + y * c) / table_sincos_ratio) };
 	}
 	template<typename P>
 	inline P Rotate(P const& p, table_angle_element_type const& a) noexcept {
