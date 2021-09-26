@@ -179,7 +179,7 @@ namespace GameLogic {
 	static const int mapMaxY = 128 * 63 - 1;
 	static const xx::XY mapCenter = { (mapMinX + mapMaxX) / 2, (mapMinY + mapMaxY) / 2 };
 
-	// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 ) / 邻居查找个数
+	// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 ) / 邻居查找个数( 经验数据, 9格范围正常数量 )
 	static const int fooRadius = 50;
 	static const int fooDiameter = fooRadius * 2;
 	static const int fooSpeed = 5;
@@ -244,6 +244,8 @@ namespace GameLogic {
 		this->xy = xy;
 		gridIndex = scene->grid.Add(xy.x / gridDiameter, xy.y / gridDiameter, this);
 	}
+
+	// 性能思考: 如果将 update 拆为 2 步. 1 决策, 将结果写到 newXY.  2 应用，xy = newXY. 两个阶段分别都可以多线程并行加速. 不过可能引发奇怪的现象，服务器如果要 host, 那还不如步并行。
 
 	inline size_t Foo::Update() {
 		// 备份坐标

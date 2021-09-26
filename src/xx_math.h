@@ -406,6 +406,7 @@ namespace xx {
 			auto idx = Header(rowNumber, columnNumber);
 			if (idx == -1) return;
 			do {
+				assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
 				func(items[idx].value);
 				idx = items[idx].next;
 			} while (idx != -1);
@@ -435,6 +436,7 @@ namespace xx {
 			auto idx = Header(rowNumber, columnNumber);
 			if (idx == -1) return;
 			do {
+				assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
 				func(items[idx].value);
 				if (--limit <= 0) return;
 				idx = items[idx].next;
@@ -470,6 +472,7 @@ namespace xx {
 			if (idx == -1) return;
 			do {
 				if (idx != tarIdx) {
+					assert(idx >= 0 && idx < count&& items[idx].bucketsIndex != -1);
 					func(items[idx].value);
 					if (--limit <= 0) return;
 				}

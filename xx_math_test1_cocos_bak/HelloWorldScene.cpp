@@ -97,7 +97,7 @@ namespace xx {
 		// 所在 grid 下标. 放入 im->grid 后，该值不为 -1
 		int gridIndex = -1;
 		// 当前坐标
-		XY xy;
+		XY<> xy;
 
 		// 禁不传 im, 禁 copy
 		Item() = delete;
@@ -168,24 +168,25 @@ namespace GameLogic {
 	//static const int gridWidth = 32;
 	//static const int gridHeight = 32;
 	//static const int gridDiameter = 256;
-	static const int gridWidth = 128;
+	static const int gridWidth = 64;
 	static const int gridHeight = 64;
 	static const int gridDiameter = 128;
 	//static const int gridWidth = 128;
 	//static const int gridHeight = 128;
 	//static const int gridDiameter = 64;
 
+	// 地图范围需留够 4边缘区域，确保空出 1 个格子以上
 	static const int mapMinX = gridDiameter;							// >=
 	static const int mapMaxX = gridDiameter * (gridWidth - 1) - 1;		// <=
 	static const int mapMinY = gridDiameter;
 	static const int mapMaxY = gridDiameter * (gridHeight - 1) - 1;
 	static const xx::XY mapCenter = { (mapMinX + mapMaxX) / 2, (mapMinY + mapMaxY) / 2 };
 
-	// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 ) / 邻居查找个数
+	// Foo 的半径 / 直径 / 移动速度( 每帧移动单位距离 ) / 邻居查找个数( 经验数值，在效果和cpu之间找平衡 )
 	static const int fooRadius = 50;
 	static const int fooDiameter = fooRadius * 2;
 	static const int fooSpeed = 5;
-	static const int fooFindNeighborLimit = 20;	// 9格范围内通常能容纳的个数
+	static const int fooFindNeighborLimit = 120;
 
 
 
@@ -197,7 +198,7 @@ namespace GameLogic {
 #ifdef CC_STATIC
 		cocos2d::Sprite* body = nullptr;
 #endif
-		Foo(Scene* scene, xx::XY const& xy);
+		Foo(Scene* scene, xx::XY<> const& xy, int const& radius);
 		~Foo();
 		Scene& scene();
 		size_t Update() override;
@@ -222,12 +223,12 @@ namespace GameLogic {
 		Scene(int const& fooCount) {
 #endif
 			// 初始化容器
-			grid.Init(gridHeight, gridWidth, fooCount);
+			grid.Init(gridWidth, gridHeight, fooCount);
 			objs.reserve(fooCount);
 
 			// 直接构造出 n 个 Foo
 			for (int i = 0; i < fooCount; i++) {
-				objs.emplace_back(xx::Make<Foo>(this, mapCenter));
+				objs.emplace_back(xx::Make<Foo>(this, mapCenter, fooRadius / 2 + (rnd.NextInt() % fooRadius)));
 			}
 		}
 
@@ -241,9 +242,10 @@ namespace GameLogic {
 		return *(Scene*)im;
 	}
 
-	inline Foo::Foo(Scene* scene, xx::XY const& xy) : xx::Item(scene) {
+	inline Foo::Foo(Scene* scene, xx::XY<> const& xy, int const& radius) : xx::Item(scene) {
 		this->xy = xy;
-		gridIndex = scene->grid.Add(xy.y / gridDiameter, xy.x / gridDiameter, this);
+		this->radius = radius;
+		gridIndex = scene->grid.Add(xy.x / gridDiameter, xy.y / gridDiameter, this);
 	}
 
 	inline size_t Foo::Update() {
@@ -309,16 +311,16 @@ namespace GameLogic {
 		// 变更检测与同步
 		if (xy != this->xy) {
 			++scene().count;
-			this->xy = xy;
 			assert(gridIndex != -1);
-			im->grid.Update(gridIndex, xy.y / gridDiameter, xy.x / gridDiameter);
+			im->grid.Update(gridIndex, xy.x / gridDiameter, xy.y / gridDiameter);
+			this->xy = xy;
 		}
 
 #ifdef CC_STATIC
 		// 绘制
 		if (!body) {
 			body = cocos2d::Sprite::create("b.png");
-			//body->setScale(1.25);
+			body->setScale((float)radius / (float)fooRadius);
 			scene().hw->container->addChild(body);
 		}
 		body->setPosition(xy.x, xy.y);
@@ -346,7 +348,7 @@ bool HelloWorld::init() {
 	container->setScale(0.245);
 	addChild(container);
 
-	scene = new GameLogic::Scene(20000, this);
+	scene = new GameLogic::Scene(1000, this);
 	return true;
 }
 
