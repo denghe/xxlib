@@ -29,13 +29,13 @@ namespace xx {
                     while (true) {
                         Job j;
                         {
-                            std::unique_lock<std::mutex> lock(this->mtx);
-                            this->cond.wait(lock, [this] {
-                                return this->stop || !this->jobs.empty();
+                            std::unique_lock<std::mutex> lock(mtx);
+                            cond.wait(lock, [this] {
+                                return stop || !jobs.empty();
                                 });
-                            if (this->stop && this->jobs.empty()) return;
-                            j = std::move(this->jobs.front());
-                            this->jobs.pop();
+                            if (stop && jobs.empty()) return;
+                            j = std::move(jobs.front());
+                            jobs.pop();
                         }
                         j();
                     }
@@ -114,13 +114,13 @@ namespace xx {
                     while (true) {
                         Job j;
                         {
-                            std::unique_lock<std::mutex> lock(this->mtx);
-                            this->cond.wait(lock, [this] {
-                                return this->stop || !this->jobs.empty();
+                            std::unique_lock<std::mutex> lock(mtx);
+                            cond.wait(lock, [this] {
+                                return stop || !jobs.empty();
                                 });
-                            if (this->stop && this->jobs.empty()) return;
-                            j = std::move(this->jobs.front());
-                            this->jobs.pop();
+                            if (stop && jobs.empty()) return;
+                            j = std::move(jobs.front());
+                            jobs.pop();
                         }
                         // 检测 Env 是否存在 operator(). 如果没有这个函数，就执行 j(e);
                         if constexpr (has_OperatorParentheses<Env>::value) {
@@ -203,4 +203,94 @@ namespace xx {
     });
 
     */
+
+
+
+
+
+
+
+    // 翻转执行的线程池。只有当 RunOnce 的时候，每个线程才开始执行。RunOnce 会阻塞到所有线程执行完毕。
+    class ToggleThreadPool {
+
+        // 退出 & 执行 通知
+        bool stop = false, run = false;
+        // 完成计数器
+        std::atomic<size_t> numFinishs;
+        // 配合修改通知变量的 mutex
+        std::mutex m;
+        // 翻转条件
+        std::condition_variable c1, c2;
+        // 线程池
+        std::vector<std::thread> threads;
+        // 每个线程对应的当次执行队列
+        std::vector<std::vector<std::function<void()>>> funcss;
+
+        void Process(int const& tid) {
+            auto& fs = funcss[tid];
+            while (true) {
+                // 等 退出 或 run
+                {
+                    std::unique_lock<std::mutex> lock(m);
+                    this->c1.wait(lock, [this] { return stop || run; });
+                    if (this->stop) return;
+                }
+                // 执行所有函数
+                for (auto& f : fs) f();
+                fs.clear();
+                // 累加完成计数器
+                ++numFinishs;
+                // 触发 RunOnce 的 c2 条件判断
+                c2.notify_one();
+                // 等 !run
+                {
+                    std::unique_lock<std::mutex> lock(m);
+                    this->c1.wait(lock, [this] { return !run; });
+                }
+            }
+        }
+    public:
+        // 初始化线程个数
+        void Init(int const& numThreads) {
+            threads.resize(numThreads);
+            funcss.resize(numThreads);
+            for (int i = 0; i < numThreads; ++i) {
+                threads[i] = std::thread([this, i = i] { Process(i); });
+            }
+        }
+        // 往指定线程的执行队列压入函数
+        template<typename F>
+        void Add(int const& tid, F&& func) {
+            funcss[tid].emplace_back(std::forward<F>(func));
+        }
+        // 一起执行
+        void RunOnce() {
+            // 通知所有线程开始一起执行
+            {
+                std::unique_lock<std::mutex> lock(m);
+                run = true;
+            }
+            c1.notify_all();
+            // 等所有线程执行完, 之后通知线程进行下一轮等待
+            {
+                std::unique_lock<std::mutex> lock(m);
+                c2.wait(lock, [this] {
+                    return numFinishs == threads.size();
+                    });
+                numFinishs = 0;
+                run = false;
+            }
+            c1.notify_all();
+        }
+        ~ToggleThreadPool() {
+            // 通知所有线程退出
+            {
+                std::unique_lock<std::mutex> lock(m);
+                stop = true;
+            }
+            c1.notify_all();
+            for (std::thread& t : threads) { t.join(); }
+        }
+    };
+
 }
