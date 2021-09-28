@@ -4,6 +4,7 @@
 int main() {
 	xx::ToggleThreadPool ttp;
 	ttp.Init(2);
+
 	std::mutex m;
 	auto DumpTime = [&](int const& tid) {
 		std::lock_guard<std::mutex> lg(m);
@@ -12,21 +13,80 @@ int main() {
 
 	for (int i = 0; i < 10; ++i) {
 	    DumpTime(-1);
+		ttp.Begin();
 		std::cout << "begin" << std::endl;
-		ttp.Add(0, [&] {
+		ttp.Add([&] {
 			DumpTime(0);
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			});
-		ttp.Add(1, [&] {
+		ttp.Add([&] {
 			DumpTime(1);
 			std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			});
-		ttp.RunOnce();
+		ttp.Commit();
 		std::cout << "end" << std::endl;
 	}
 	DumpTime(-1);
 	return 0;
 }
+
+//int main() {
+//	xx::ToggleThreadPool ttp;
+//	ttp.Init(2);
+//
+//	std::mutex m;
+//	auto DumpTime = [&](int const& tid) {
+//		std::lock_guard<std::mutex> lg(m);
+//		xx::CoutN(tid,": ", xx::NowEpochSeconds());
+//	};
+//
+//	for (int i = 0; i < 10; ++i) {
+//	    DumpTime(-1);
+//		std::cout << "begin" << std::endl;
+//		ttp.Add([&] {
+//			DumpTime(0);
+//			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//			});
+//		ttp.Add([&] {
+//			DumpTime(1);
+//			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+//			});
+//		ttp.RunOnce();
+//		std::cout << "end" << std::endl;
+//	}
+//	DumpTime(-1);
+//	return 0;
+//}
+
+//int main() {
+//	xx::ToggleThreadPool ttp;
+//	ttp.Init(2);
+//	ttp.Start();
+//
+//	std::mutex m;
+//	auto DumpTime = [&](int const& tid) {
+//		std::lock_guard<std::mutex> lg(m);
+//		xx::CoutN(tid,": ", xx::NowEpochSeconds());
+//	};
+//
+//	for (int i = 0; i < 10; ++i) {
+//	    DumpTime(-1);
+//		std::cout << "begin" << std::endl;
+//		ttp.Add([&] {
+//			DumpTime(0);
+//			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//			});
+//		ttp.Add([&] {
+//			DumpTime(1);
+//			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+//			});
+//		//ttp.RunOnce();
+//		ttp.Go();
+//		std::cout << "end" << std::endl;
+//	}
+//	DumpTime(-1);
+//	return 0;
+//}
 
 
 
