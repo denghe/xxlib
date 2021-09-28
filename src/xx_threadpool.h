@@ -212,15 +212,6 @@ namespace xx {
 
     // 翻转执行的线程池。只有当 RunOnce 的时候，每个线程才开始执行。RunOnce 会阻塞到所有线程执行完毕。
     class ToggleThreadPool {
-
-        // 退出 & 执行 通知
-        bool stop = false, run = false;
-        // 完成计数器
-        std::atomic<size_t> numFinishs;
-        // 配合修改通知变量的 mutex
-        std::mutex m;
-        // 翻转条件
-        std::condition_variable c1, c2;
         // 线程池
         std::vector<std::thread> threads;
         // 每个线程对应的当次执行队列
@@ -228,35 +219,15 @@ namespace xx {
 
         void Process(int const& tid) {
             auto& fs = funcss[tid];
-            while (true) {
-                // 等 退出 或 run
-                {
-                    std::unique_lock<std::mutex> lock(m);
-                    this->c1.wait(lock, [this] { return stop || run; });
-                    if (this->stop) return;
-                }
-                // 执行所有函数
-                for (auto& f : fs) f();
-                fs.clear();
-                // 累加完成计数器
-                ++numFinishs;
-                // 触发 RunOnce 的 c2 条件判断
-                c2.notify_one();
-                // 等 !run
-                {
-                    std::unique_lock<std::mutex> lock(m);
-                    this->c1.wait(lock, [this] { return !run; });
-                }
-            }
+            // 执行所有函数
+            for (auto& f : fs) f();
+            fs.clear();
         }
     public:
         // 初始化线程个数
         void Init(int const& numThreads) {
             threads.resize(numThreads);
             funcss.resize(numThreads);
-            for (int i = 0; i < numThreads; ++i) {
-                threads[i] = std::thread([this, i = i] { Process(i); });
-            }
         }
         // 往指定线程的执行队列压入函数
         template<typename F>
@@ -265,30 +236,10 @@ namespace xx {
         }
         // 一起执行
         void RunOnce() {
-            // 通知所有线程开始一起执行
-            {
-                std::unique_lock<std::mutex> lock(m);
-                run = true;
+            int n = (int)threads.size();
+            for (int i = 0; i < n; ++i) {
+                threads[i] = std::thread([this, i = i] { Process(i); });
             }
-            c1.notify_all();
-            // 等所有线程执行完, 之后通知线程进行下一轮等待
-            {
-                std::unique_lock<std::mutex> lock(m);
-                c2.wait(lock, [this] {
-                    return numFinishs == threads.size();
-                    });
-                numFinishs = 0;
-                run = false;
-            }
-            c1.notify_all();
-        }
-        ~ToggleThreadPool() {
-            // 通知所有线程退出
-            {
-                std::unique_lock<std::mutex> lock(m);
-                stop = true;
-            }
-            c1.notify_all();
             for (std::thread& t : threads) { t.join(); }
         }
     };

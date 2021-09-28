@@ -1,6 +1,5 @@
 ﻿#include <xx_threadpool.h>
-#include <chrono>
-#include <iostream>
+#include <xx_string.h>
 
 int main() {
 	xx::ToggleThreadPool ttp;
@@ -8,24 +7,24 @@ int main() {
 	std::mutex m;
 	auto DumpTime = [&](int const& tid) {
 		std::lock_guard<std::mutex> lg(m);
-		std::cout << tid << ": " << std::chrono::system_clock::now() << std::endl;
+		xx::CoutN(tid,": ", xx::NowEpochSeconds());
 	};
 
-	std::cout << std::chrono::system_clock::now() << std::endl;
 	for (int i = 0; i < 10; ++i) {
+	    DumpTime(-1);
 		std::cout << "begin" << std::endl;
 		ttp.Add(0, [&] {
-			//DumpTime(0);
+			DumpTime(0);
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			});
 		ttp.Add(1, [&] {
-			//DumpTime(1);
+			DumpTime(1);
 			std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			});
 		ttp.RunOnce();
-		//std::cout << "end" << std::endl;
+		std::cout << "end" << std::endl;
 	}
-	std::cout << std::chrono::system_clock::now() << std::endl;
+	DumpTime(-1);
 	return 0;
 }
 
