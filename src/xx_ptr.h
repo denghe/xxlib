@@ -14,15 +14,30 @@ namespace xx {
         uint32_t refCount;      // 弱引用技术
     };
 
+
+    // 适配路由
+    template<typename T, typename ENABLED = void>
+    struct PtrHeaderSwitcher {
+        using type = PtrHeaderBase;
+    };
+
+    template<typename T, typename ENABLED = void>
+    using PtrHeader_t = PtrHeaderSwitcher<T>::type;
+
+
+    /************************************************************************************/
+
+    // for ObjBase 序列化等需求
     struct PtrHeader : PtrHeaderBase {
         union {
             struct {
                 uint32_t typeId;        // 序列化 或 类型转换用
                 uint32_t offset;        // 序列化等过程中使用
             };
-            void *ud;
+            void* ud;
         };
     };
+
 
     /************************************************************************************/
     // std::shared_ptr like
@@ -33,11 +48,10 @@ namespace xx {
     template<typename T>
     struct Ptr;
 
-    struct ObjBase;
 
     template<typename T>
     struct Shared {
-        using HeaderType = std::conditional_t<(std::is_same_v<ObjBase, T> || TypeId_v<T> > 0), PtrHeader, PtrHeaderBase>;
+        using HeaderType = PtrHeader_t<T>;
         using ElementType = T;
         T *pointer = nullptr;
 
@@ -270,7 +284,7 @@ namespace xx {
 
     template<typename T>
     struct Weak {
-        using HeaderType = std::conditional_t<(std::is_same_v<ObjBase, T> || TypeId_v<T> > 0), PtrHeader, PtrHeaderBase>;
+        using HeaderType = PtrHeader_t<T>;
         using ElementType = T;
         HeaderType *h = nullptr;
 

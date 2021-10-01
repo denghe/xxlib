@@ -417,6 +417,77 @@ namespace xx {
     constexpr size_t TupleTypeIndex_v = TupleTypeIndex<T, Tuple>::value;
 
 
+    /************************************************************************************/
+    // FuncR_t   FuncA_t  FuncC_t  lambda / function 类型拆解
+
+    template<typename T, class = void>
+    struct FuncTraits;
+
+    template<typename Rtv, typename...Args>
+    struct FuncTraits<Rtv(*)(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<Args...>;
+        using A2 = std::tuple<std::decay_t<Args>...>;
+        //using A3 = std::tuple<RefC_t<Args>...>;
+        using C = void;
+    };
+
+    template<typename Rtv, typename...Args>
+    struct FuncTraits<Rtv(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<Args...>;
+        using A2 = std::tuple<std::decay_t<Args>...>;
+        //using A3 = std::tuple<RefC_t<Args>...>;
+        using C = void;
+    };
+
+    template<typename Rtv, typename CT, typename... Args>
+    struct FuncTraits<Rtv(CT::*)(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<Args...>;
+        using A2 = std::tuple<std::decay_t<Args>...>;
+        //using A3 = std::tuple<RefC_t<Args>...>;
+        using C = CT;
+    };
+
+    template<typename Rtv, typename CT, typename... Args>
+    struct FuncTraits<Rtv(CT::*)(Args ...) const> {
+        using R = Rtv;
+        using A = std::tuple<Args...>;
+        using A2 = std::tuple<std::decay_t<Args>...>;
+        //using A3 = std::tuple<RefC_t<Args>...>;
+        using C = CT;
+    };
+
+    template<typename T>
+    struct FuncTraits<T, std::void_t<decltype(&T::operator())> >
+            : public FuncTraits<decltype(&T::operator())> {
+    };
+
+    template<typename T>
+    using FuncR_t = typename FuncTraits<T>::R;
+    template<typename T>
+    using FuncA_t = typename FuncTraits<T>::A;
+    template<typename T>
+    using FuncA2_t = typename FuncTraits<T>::A2;
+    //template<typename T>
+    //using FuncA3_t = typename FuncTraits<T>::A3;
+    template<typename T>
+    using FuncC_t = typename FuncTraits<T>::C;
+
+
+    /************************************************************************************/
+    // 针对模板基类，检查某类型是否其派生类. 用法: XX_IsTemplateOf(BT, T)::value
+
+    struct IsTemplateOf {
+        template <template <class> class TM, class T> static std::true_type  check(TM<T>);
+        template <template <class> class TM>          static std::false_type check(...);
+        template <template <int>   class TM, int N>   static std::true_type  check(TM<N>);
+        template <template <int>   class TM>          static std::false_type check(...);
+    };
+    #define XX_IsTemplateOf(TM, ...) decltype(::xx::IsTemplateOf::check<TM>(std::declval<__VA_ARGS__>()))
+
+
 	/************************************************************************************/
 	// weak_ptr 系列
 
@@ -1030,61 +1101,3 @@ inline void Sleep(int const &ms) {
 //    template<typename T>
 //    using RefC_t = typename RefTraits<T>::C;
 
-//
-//    /************************************************************************************/
-//    // FuncR_t   FuncA_t  FuncC_t  lambda / function 类型拆解
-//
-//    template<typename T, class = void>
-//    struct FuncTraits;
-//
-//    template<typename Rtv, typename...Args>
-//    struct FuncTraits<Rtv(*)(Args ...)> {
-//        using R = Rtv;
-//        using A = std::tuple<Args...>;
-//        using A2 = std::tuple<std::decay_t<Args>...>;
-//        using A3 = std::tuple<RefC_t<Args>...>;
-//        using C = void;
-//    };
-//
-//    template<typename Rtv, typename...Args>
-//    struct FuncTraits<Rtv(Args ...)> {
-//        using R = Rtv;
-//        using A = std::tuple<Args...>;
-//        using A2 = std::tuple<std::decay_t<Args>...>;
-//        using A3 = std::tuple<RefC_t<Args>...>;
-//        using C = void;
-//    };
-//
-//    template<typename Rtv, typename CT, typename... Args>
-//    struct FuncTraits<Rtv(CT::*)(Args ...)> {
-//        using R = Rtv;
-//        using A = std::tuple<Args...>;
-//        using A2 = std::tuple<std::decay_t<Args>...>;
-//        using A3 = std::tuple<RefC_t<Args>...>;
-//        using C = CT;
-//    };
-//
-//    template<typename Rtv, typename CT, typename... Args>
-//    struct FuncTraits<Rtv(CT::*)(Args ...) const> {
-//        using R = Rtv;
-//        using A = std::tuple<Args...>;
-//        using A2 = std::tuple<std::decay_t<Args>...>;
-//        using A3 = std::tuple<RefC_t<Args>...>;
-//        using C = CT;
-//    };
-//
-//    template<typename T>
-//    struct FuncTraits<T, std::void_t<decltype(&T::operator())> >
-//            : public FuncTraits<decltype(&T::operator())> {
-//    };
-//
-//    template<typename T>
-//    using FuncR_t = typename FuncTraits<T>::R;
-//    template<typename T>
-//    using FuncA_t = typename FuncTraits<T>::A;
-//    template<typename T>
-//    using FuncA2_t = typename FuncTraits<T>::A2;
-//    template<typename T>
-//    using FuncA3_t = typename FuncTraits<T>::A3;
-//    template<typename T>
-//    using FuncC_t = typename FuncTraits<T>::C;
