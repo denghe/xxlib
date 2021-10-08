@@ -23,6 +23,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict_mk.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_file.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_grid2d.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_helpers.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_logger.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua.h" />

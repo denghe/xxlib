@@ -13,7 +13,7 @@ namespace xx {
 	struct ObjBase;
 
 	template<typename T>
-	struct PtrHeaderSwitcher<T, std::enable_if_t< (std::is_base_of_v<ObjBase, T> || TypeId_v<T> > 0) >> {
+	struct PtrHeaderSwitcher<T, std::enable_if_t< (std::is_same_v<ObjBase, T> || TypeId_v<T> > 0) >> {
 		using type = PtrHeader;
 	};
 

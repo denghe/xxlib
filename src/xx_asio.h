@@ -199,7 +199,7 @@ namespace xx::Asio {
                 auto sentLen = socket.send_to(asio::buffer(buf, len), ep);
                 return sentLen == len ? 0 : __LINE__;
             }
-            catch (asio::system_error const &e) {
+            catch (asio::system_error const &/*e*/) {
                 // todo: log?
                 return __LINE__;
             }
