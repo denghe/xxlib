@@ -1,17 +1,32 @@
-recommend: ubuntu 21.04 desktop/server with vmware latest version, easy install, minimal
+/*********************************************************************************************************************************************************/
+
+// ubuntu 21.10 desktop/server  with vmware/hyper-v(server only) latest version, easy install, minimal
+
+sudo apt install gcc g++ git gdb make unzip
+
+/*********************************************************************************************************************************************************/
+
+// ubuntu 21.04 desktop/server with vmware/hyper-v(server only) latest version, easy install, minimal
 
 sudo add-apt-repository ppa:cappelikan/ppa
 sudo apt update
 
 sudo snap install cmake --classic
-sudo apt install gcc-11 g++-11 gdb make unzip
+sudo apt install gcc-11 g++-11 git gdb make unzip
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
 sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 100 --slave /usr/bin/c++ c++ /usr/bin/g++-11
 
+/*********************************************************************************************************************************************************/
 
-visit website: https://github.com/microsoft/mimalloc
+// install cmake:
 
-download latest release zip, extract & cd dir
+sudo snap install cmake --classic
+
+/*********************************************************************************************************************************************************/
+
+// visit website: https://github.com/microsoft/mimalloc
+
+// download latest release zip, extract & cd dir
 
 mkdir -p out/release
 cd out/release
@@ -19,14 +34,19 @@ cmake ../..
 make
 sudo make install
 
-install other depends:
+/*********************************************************************************************************************************************************/
+
+// install other depends:
+
 sudo apt install libreadline-dev libsqlite3-dev libmariadb-dev libuv1-dev uuid-dev
+
+/*********************************************************************************************************************************************************/
 
 // for desktop version:
 
-download clion from offical website & install
+// download clion from offical website & install
 
-create short cut file: ~/Desktop/clion.desktop
+// create short cut file: ~/Desktop/clion.desktop
 
 #!/usr/bin/env xdg-open
 [Desktop Entry]
@@ -37,4 +57,65 @@ Icon="/home/xx/Desktop/clion-2021.1.3/bin/clion.png"
 Exec=sh "/home/xx/Desktop/clion-2021.1.3/bin/clion.sh"
 Name=CLION
 
-then, mouse right click, Properties, Permissions, allow executing file as program, then  Basic -- "Allow Launching"
+// then, mouse right click, Properties, Permissions, allow executing file as program, then  Basic -- "Allow Launching"
+
+
+/*********************************************************************************************************************************************************/
+
+// network config: static ip
+
+sudo apt install net-tools vim
+sudo vim /etc/netplan/00-installer-config.yaml
+
+/********************************/
+
+network:
+  ethernets:
+    eth0:
+	  dhcp4: false
+	  addresses: [1.2.3.4/24]
+	  gateway4: 1.2.3.4
+	  nameservers:
+	    addresses: [1.2.3.4]
+  version: 2
+  
+/********************************/
+
+sudo netplan apply
+
+
+/*********************************************************************************************************************************************************/
+
+// change machine name
+
+sudo vim /etc/hostname
+reboot
+
+/*********************************************************************************************************************************************************/
+
+// disable password secure check
+
+sudo vim /etc/pam.d/common-password
+
+// edit following line:
+
+password      [success=1 default=ignore]      pam_unix.so obscure sha512
+
+// "obscure" change to "minlen=1"
+
+
+/*********************************************************************************************************************************************************/
+
+// change root account password
+
+passwd
+...
+
+su -
+passwd
+...
+
+
+
+
+
