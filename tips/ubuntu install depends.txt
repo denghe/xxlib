@@ -83,6 +83,11 @@ network:
 
 sudo netplan apply
 
+// if os run at sr-ivo enabled env,  non eth0: should be set
+    asdfasdfasdfasdf:
+	  dhcp6: false
+	  dhcp4: false
+
 
 /*********************************************************************************************************************************************************/
 

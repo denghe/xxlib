@@ -3,3 +3,12 @@ cmake -DCMAKE_BUILD_TYPE=Release ******target path******
 
 // build debug:
 cmake -DCMAKE_BUILD_TYPE=Debug ******target path******
+
+// set clang compiler
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=/usr/bin/clang-10 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10 -G "CodeBlocks - Unix Makefiles" ******target path******
+
+// build target project
+cmake --build ~/xxxxxxxxxxx --target eeeeeerrrrrrrr -- -j 8
+
+// build all project
+cmake --build ~/xxxxxxxxxxx -- -j 16
