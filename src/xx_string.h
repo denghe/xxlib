@@ -307,7 +307,16 @@ namespace xx {
             s.push_back(']');
         }
     };
-	
+
+    // 适配 std::variant<......>
+    template<typename...T>
+    struct StringFuncs<std::variant<T...>, void> {
+        static inline void Append(std::string& s, std::variant<T...> const& in) {
+            std::visit([&](auto const& v) {
+                ::xx::Append(s, v);
+            }, in);
+        }
+    };
 
     // 适配 Span, Data_r, Data_rw
     template<typename T>

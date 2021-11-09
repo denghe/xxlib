@@ -134,6 +134,22 @@ namespace xx {
     constexpr bool IsTuple_v = IsTuple<T>::value;
 
 
+    template<typename>
+    struct IsVariant : std::false_type {
+    };
+    template<typename ...T>
+    struct IsVariant<std::variant<T...>> : std::true_type {
+    };
+    template<typename ...T>
+    struct IsVariant<std::variant<T...>&> : std::true_type {
+    };
+    template<typename ...T>
+    struct IsVariant<std::variant<T...> const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsVariant_v = IsVariant<T>::value;
+
+
     template<typename T>
     struct IsUnique : std::false_type {
     };

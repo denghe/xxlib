@@ -179,6 +179,51 @@ namespace xx {
         }
 	};
 
+
+	// 适配 std::variant<......>
+	template<typename T>
+	struct DataFuncs<T, std::enable_if_t<IsVariant_v<T>>> {
+		template<bool needReserve = true>
+		static inline void Write(Data& d, T const& in) {
+			std::visit([&](auto&& v) {
+				d.Write<needReserve>((size_t)in.index());
+				d.Write<needReserve>(std::forward<decltype(v)>(v));
+			}, in);
+		}
+
+		template<std::size_t I = 0, typename... Ts>
+		static std::enable_if_t<I == sizeof...(Ts) - 1, int> ReadVariant(Data_r& d, std::variant<Ts...>& t, size_t const& index) {
+			if (I == index) {
+				t = std::tuple_element_t<I, std::tuple<Ts...>>();
+				int r;
+				std::visit([&](auto& v) {
+					r = d.Read(v);
+				}, t);
+				return r;
+			}
+			else return -1;
+		}
+		template<std::size_t I = 0, typename... Ts>
+		static std::enable_if_t < I < sizeof...(Ts) - 1, int> ReadVariant(Data_r& d, std::variant<Ts...>& t, size_t const& index) {
+			if (I == index) {
+				t = std::tuple_element_t<I, std::tuple<Ts...>>();
+				int r;
+				std::visit([&](auto& v) {
+					r = d.Read(v);
+				}, t);
+				return r;
+			}
+			else return ReadVariant<I + 1, Ts...>(d, t, index);
+		}
+
+		static inline int Read(Data_r& d, T& out) {
+			size_t index;
+			if (int r = d.Read(index)) return r;
+			return ReadVariant(d, out, index);
+		}
+	};
+
+
 	// 适配 std::vector, std::array   // todo: queue / deque
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t< (IsVector_v<T> || IsArray_v<T>)/* && IsBaseDataType_v<T>*/>> {
