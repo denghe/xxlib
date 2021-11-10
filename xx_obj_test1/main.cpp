@@ -182,9 +182,9 @@ void Test5() {
 int main() {
 	//Test1();
 	//Test2();
-	//Test3();
+	Test3();
 	//Test4();
-	Test5();
+	//Test5();
 
 	std::cout << "end." << std::endl;
 	return 0;

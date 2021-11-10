@@ -8,5 +8,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\codegen_test1\foo.cs" />
+    <None Include="..\codegen_test1\shared.cs" />
   </ItemGroup>
 </Project>
