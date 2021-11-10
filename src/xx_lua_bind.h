@@ -2,6 +2,10 @@
 #include "xx_lua.h"
 #include "xx_ptr.h"
 
+// lua 5.1 没有这个东旭，需要自己动手，为每个 state 于创建后立刻执行下列语句以确保 LUA_RIDX_MAINTHREAD 的值跨 state 一致：
+// auto rtv = lua_pushthread(L);
+// assert(rtv == 1);    // must be main thread
+// LUA_RIDX_MAINTHREAD = luaL_ref(L, LUA_REGISTRYINDEX);
 #if LUA_VERSION_NUM == 501
 extern int LUA_RIDX_MAINTHREAD;
 #endif
@@ -12,7 +16,6 @@ namespace xx::Lua {
 	/****************************************************************************************/
 	// lua 向 c++ 注册的回调函数的封装, 将函数以 luaL_ref 方式放入注册表
 	// 通常被 lambda 捕获携带, 析构时同步删除 lua 端函数。 需确保比 L 早死, 否则 L 就野了
-	// 注意：如果 L 来自协程，则有可能失效。尽量避免在协程执行过程中创建 Func, 或者自己转储根 L
 	struct Func {
 		Func() = default;
 		Func(Func const& o) = default;
@@ -374,9 +377,9 @@ namespace xx::Lua {
                         lua_pop(L, 1);                                     //                      ... t, k
                         continue;
                     }
-                    WriteTo(d, L);											// 先写 v               ... t, k, v
+                    WriteTo(d, L);                                         // 先写 v               ... t, k, v
                     lua_pop(L, 1);                                         //                      ... t, k
-                    WriteTo(d, L);											// 再写 k
+                    WriteTo(d, L);                                         // 再写 k
                 }
                 d.WriteFixed(ValueTypes::TableEnd);
                 return;
@@ -452,8 +455,8 @@ namespace xx::Lua {
                         ++d.offset;
                         return 0;
                     }
-                    if (int r = ReadFrom(d, L)) return r;						// ... t, v
-                    if (int r = ReadFrom(d, L)) return r;						// ... t, v, k
+                    if (int r = ReadFrom(d, L)) return r;                 // ... t, v
+                    if (int r = ReadFrom(d, L)) return r;                 // ... t, v, k
                     lua_pushvalue(L, -2);                                 // ... t, v, k, v
                     lua_rawset(L, -4);                                    // ... t, v
                     lua_pop(L, 1);                                        // ... t
