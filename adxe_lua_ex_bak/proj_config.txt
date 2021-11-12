@@ -1,0 +1,15 @@
+general C++ Language standard set
+
+C++17+
+
+
+search path add
+
+$(SolutionDir)../../xxlib/lua-5.4.x/src
+$(SolutionDir)../../xxlib/3rd
+$(SolutionDir)../../xxlib/src
+
+
+C/C++ : preprocessor add
+
+ONELUA_MAKE_LIB

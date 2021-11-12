@@ -33,12 +33,14 @@ namespace xx::Lua {
 	template<typename T, typename ENABLED = void>
 	struct PushToFuncs {
 		static int Push(lua_State* const& L, T&& in) {
-			CoutN("Push not found match template. type = ", TypeName_v<T>);
+			auto&& tn = TypeName_v<T>;
+			CoutN("Push not found match template. type = ", tn);
 			assert(false);
 			return 0;
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
-			CoutN("To not found match template. type = ", TypeName_v<T>);
+			auto&& tn = TypeName_v<T>;
+			CoutN("To not found match template. type = ", tn);
 			assert(false);
 		}
 	};

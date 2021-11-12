@@ -47,13 +47,14 @@ namespace xx::Lua {
 	};
 	// 指针方式 push + to
 	template<typename T>
-	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<T>&& std::is_base_of_v<FooBase, std::remove_pointer_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>>&& std::is_base_of_v<FooBase, std::remove_pointer_t<std::decay_t<T>>>>> {
+		using U = std::decay_t<T>;
 		static int Push(lua_State* const& L, T&& in) {
-			return PushUserdata<T>(L, in);
+			return PushUserdata<U>(L, in);
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
-			AssertType<T>(L, idx);
-			out = *(T*)lua_touserdata(L, idx);
+			AssertType<U>(L, idx);
+			out = *(U*)lua_touserdata(L, idx);
 		}
 	};
 }

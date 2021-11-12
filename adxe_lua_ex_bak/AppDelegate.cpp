@@ -127,13 +127,14 @@ namespace xx::Lua {
     };
     // 指针方式 push + to
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<T>&& std::is_base_of_v<cocos2d::Node, std::remove_pointer_t<T>>>> {
+    struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>> && std::is_base_of_v<cocos2d::Node, std::remove_pointer_t<std::decay_t<T>>>>> {
+        using U = std::decay_t<T>;
         static int Push(lua_State* const& L, T&& in) {
-            return PushUserdata<T>(L, in);
+            return PushUserdata<U>(L, in);
         }
         static void To(lua_State* const& L, int const& idx, T& out) {
-            AssertType<T>(L, idx);  // Release 模式下也要检测可以用 EnsureType
-            out = *(T*)lua_touserdata(L, idx);
+            EnsureType<U>(L, idx);  // 只在 Debug 生效用 AssertType
+            out = *(U*)lua_touserdata(L, idx);
         }
     };
 }
@@ -159,12 +160,10 @@ void luaBinds(AppDelegate* ad) {
     });
 
     XL::SetGlobalCClosure(L, "cc_sprite_create", [](auto L) -> int {
-        if (lua_gettop(L)) {
-            return XL::Push(L, cocos2d::Sprite::create(XL::To<char const*>(L, 1)));
-        }
-        else {
-            return XL::Push(L, cocos2d::Sprite::create());
-        }
+        auto r = lua_gettop(L)
+            ? cocos2d::Sprite::create(XL::To<char const*>(L, 1))
+            : cocos2d::Sprite::create();
+        return XL::Push(L, r);
     });
 
     // 注册 lua 函数回调到 _globalUpdate
