@@ -1,11 +1,11 @@
 ﻿#pragma once
-#ifndef MAKE_LIB
+#ifndef ONELUA_MAKE_LIB
 extern "C" {
 #endif
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
-#ifndef MAKE_LIB
+#ifndef ONELUA_MAKE_LIB
 }
 #endif
 #include "xx_string.h"

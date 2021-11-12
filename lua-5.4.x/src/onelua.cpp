@@ -3,7 +3,7 @@
 */
 
 /* default is to build the full interpreter */
-#ifndef MAKE_LIB
+#ifndef ONELUA_MAKE_LIB
 #ifndef MAKE_LUAC
 #ifndef MAKE_LUA
 #define MAKE_LUA

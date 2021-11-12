@@ -3,7 +3,7 @@ project(xx_lua_test2)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_definitions("-DMAKE_LIB")
+add_definitions("-DONELUA_MAKE_LIB")
 
 set(srcs)
 set(dirs)
