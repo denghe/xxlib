@@ -77,6 +77,7 @@ static int register_all_packages()
 inline static AppDelegate* _appDelegate = nullptr;
 inline static cocos2d::Director* _director = nullptr;
 inline static lua_State* _luaState = nullptr;
+inline static xx::Lua::Func _globalUpdate;  // 注意：restart 功能实现时需先 Reset
 
 // 模板适配区
 namespace xx::Lua {
@@ -166,29 +167,48 @@ void luaBinds(AppDelegate* ad) {
         }
     });
 
-    // 注册 lua 帧回调
+    // 注册 lua 函数回调到 _globalUpdate
+    XL::SetGlobalCClosure(L, "cc_register_global_update", [](auto L) -> int {
+        To(L, 1, _globalUpdate);
+        return 0;
+    });
+
+    // 产生 lua 帧回调
     _director->getScheduler()->schedule([](float delta) {
-        XL::CallGlobalFunc(_luaState, "global_update", delta);
+        if (_globalUpdate) {
+            auto r = XL::Try(_luaState, [&] {
+                _globalUpdate.Call(delta);
+            });
+            if (r) {
+                xx::CoutN(r.m);
+            }
+        }
     }, (void*)ad, 1.0f / 60, false, "AppDelegate");
 
     XL::AssertTop(L, 0);
 
     // 模拟加载入口 lua 文件源码
-    XL::DoString(L, R"(
+    auto luaSrc = R"(
 local scene = cc_scene_create()
 cc_director_runWithScene(scene)
+
 local spr = cc_sprite_create()
 spr:setTexture("HelloWorld.png")
 spr:setPosition(300, 300)
 scene:addChild(spr)
 
-function global_update(delta)
+cc_register_global_update(function(delta)
     local x,y = spr:getPosition()
     spr:setPosition( x + delta * 20, y )
-end
-)");
+end)
+)";
 
-
+    auto r = XL::Try(L, [&] {
+        xx::Lua::DoString(L, luaSrc);
+    });
+    if (r) {
+        xx::CoutN(r.m);
+    }
 }
 
 /*****************************************************************************************************************************************/
