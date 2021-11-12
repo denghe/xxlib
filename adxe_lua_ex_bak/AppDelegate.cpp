@@ -132,7 +132,7 @@ namespace xx::Lua {
             return PushUserdata<T>(L, in);
         }
         static void To(lua_State* const& L, int const& idx, T& out) {
-            AssertType<T>(L, idx);
+            AssertType<T>(L, idx);  // Release 模式下也要检测可以用 EnsureType
             out = *(T*)lua_touserdata(L, idx);
         }
     };
