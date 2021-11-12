@@ -1,0 +1,756 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{9D919DCA-363E-329E-A300-EB3C4948C13C}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+    <Platform>x64</Platform>
+    <ProjectName>adxe_lua</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="C:\Users\xx\Documents\adxe_lua\build\adxe_lua.dir\nasm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/xx/Documents/adxe_lua/Resources</LocalDebuggerWorkingDirectory>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\xx\Documents\adxe_lua\build\bin\adxe_lua\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">adxe_lua.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">adxe_lua</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/xx/Documents/adxe_lua/Resources</LocalDebuggerWorkingDirectory>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\xx\Documents\adxe_lua\build\bin\adxe_lua\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">adxe_lua.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">adxe_lua</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/xx/Documents/adxe_lua/Resources</LocalDebuggerWorkingDirectory>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\xx\Documents\adxe_lua\build\bin\adxe_lua\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">adxe_lua.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">adxe_lua</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/xx/Documents/adxe_lua/Resources</LocalDebuggerWorkingDirectory>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\xx\Documents\adxe_lua\build\bin\adxe_lua\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">adxe_lua.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">adxe_lua</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(SolutionDir)../../xxlib/lua-5.4.x/src;$(SolutionDir)../../xxlib/3rd;$(SolutionDir)../../xxlib/src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <IncludePath>$(SolutionDir)../../xxlib/lua-5.4.x/src;$(SolutionDir)../../xxlib/3rd;$(SolutionDir)../../xxlib/src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(SolutionDir)../../xxlib/lua-5.4.x/src;$(SolutionDir)../../xxlib/3rd;$(SolutionDir)../../xxlib/src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <IncludePath>$(SolutionDir)../../xxlib/lua-5.4.x/src;$(SolutionDir)../../xxlib/3rd;$(SolutionDir)../../xxlib/src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);ONELUA_MAKE_LIB;WIN32;_WINDOWS;COCOS2D_DEBUG=1;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;COCOS2D_DEBUG=1;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <NASM>
+      <IncludePaths>C:\Users\xx\Documents\adxe_lua\Classes\;C:\Users\xx\Documents\adxe\cocos\audio\include\;C:\Users\xx\Documents\adxe\;C:\Users\xx\Documents\adxe\thirdparty\;C:\Users\xx\Documents\adxe\extensions\;C:\Users\xx\Documents\adxe\cocos\;C:\Users\xx\Documents\adxe\cocos\platform\;C:\Users\xx\Documents\adxe\cocos\base\;C:\Users\xx\Documents\adxe\cocos\platform\win32\;C:\Users\xx\Documents\adxe\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW\;C:\Users\xx\Documents\adxe\thirdparty\box2d\include\;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include\;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\recast\..\;C:\Users\xx\Documents\adxe\thirdparty\bullet\.\;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp\;C:\Users\xx\Documents\adxe\thirdparty\pugixml\;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.\;C:\Users\xx\Documents\adxe\thirdparty\lz4\.\;C:\Users\xx\Documents\adxe\thirdparty\clipper\.\;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.\;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..\;C:\Users\xx\Documents\adxe\thirdparty\astc\..\;C:\Users\xx\Documents\adxe\thirdparty\openal\include\;C:\Users\xx\Documents\adxe\thirdparty\ogg\include\;C:\Users\xx\Documents\adxe\thirdparty\glad\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\;C:\Users\xx\Documents\adxe\thirdparty\png\;C:\Users\xx\Documents\adxe\thirdparty\unzip\.\;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include\;C:\Users\xx\Documents\adxe\thirdparty\fmt\include\;C:\Users\xx\Documents\adxe\extensions\cocostudio\;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include\;C:\Users\xx\Documents\adxe\extensions\fairygui\;C:\Users\xx\Documents\adxe\extensions\GUI\;C:\Users\xx\Documents\adxe\thirdparty\zlib\include\;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include\;C:\Users\xx\Documents\adxe\thirdparty\openssl\include\;C:\Users\xx\Documents\adxe\thirdparty\curl\include\;%(IncludePaths)</IncludePaths>
+      <Outputswitch>1</Outputswitch>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;COCOS2D_DEBUG=1;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="Debug";</PreprocessorDefinitions>
+    </NASM>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message>
+      </Message>
+      <Command>setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/zlib/prebuilt/windows/x64/zlib1.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Debug/zlib1.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libcrypto-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Debug/libcrypto-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libssl-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Debug/libssl-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/curl/prebuilt/windows/x64/libcurl.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Debug/libcurl.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe_lua/build/bin/$(Configuration)/OpenAL32.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Debug
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libGLESv2.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libEGL.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/d3dcompiler_47.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Debug
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>lib\Debug\adxe.lib;lib\Debug\cocostudio.lib;lib\Debug\ImGuiEXT.lib;lib\Debug\fairygui.lib;lib\Debug\DragonBones.lib;lib\Debug\spine.lib;lib\Debug\physics-nodes.lib;lib\Debug\particle3d.lib;lib\Debug\assets-manager.lib;lib\Debug\GUI.lib;lib\Debug\adxe.lib;lib\Debug\thirdparty.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\Debug\box2d.lib;lib\Debug\chipmunk.lib;lib\Debug\freetype.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\Debug\recast.lib;lib\Debug\bullet.lib;C:\Users\xx\Documents\adxe\thirdparty\jpeg\prebuilt\windows\x64\jpeg-static.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libcrypto.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libssl.lib;lib\Debug\webp.lib;lib\Debug\pugixml.lib;lib\Debug\xxhash.lib;lib\Debug\lz4.lib;lib\Debug\clipper.lib;lib\Debug\ConvertUTF.lib;lib\Debug\poly2tri.lib;lib\Debug\astc.lib;C:\Users\xx\Documents\adxe\thirdparty\curl\prebuilt\windows\x64\libcurl_imp.lib;lib\Debug\OpenAL32.lib;lib\Debug\ogg.lib;lib\Debug\glad.lib;lib\Debug\glfw.lib;lib\Debug\png.lib;lib\Debug\unzip.lib;lib\Debug\llhttp.lib;ws2_32.lib;userenv.lib;psapi.lib;winmm.lib;Version.lib;Iphlpapi.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/xx/Documents/adxe_lua/build/Debug/adxe_lua.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Debug/adxe_lua.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);ONELUA_MAKE_LIB;WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <NASM>
+      <IncludePaths>C:\Users\xx\Documents\adxe_lua\Classes\;C:\Users\xx\Documents\adxe\cocos\audio\include\;C:\Users\xx\Documents\adxe\;C:\Users\xx\Documents\adxe\thirdparty\;C:\Users\xx\Documents\adxe\extensions\;C:\Users\xx\Documents\adxe\cocos\;C:\Users\xx\Documents\adxe\cocos\platform\;C:\Users\xx\Documents\adxe\cocos\base\;C:\Users\xx\Documents\adxe\cocos\platform\win32\;C:\Users\xx\Documents\adxe\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW\;C:\Users\xx\Documents\adxe\thirdparty\box2d\include\;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include\;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\recast\..\;C:\Users\xx\Documents\adxe\thirdparty\bullet\.\;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp\;C:\Users\xx\Documents\adxe\thirdparty\pugixml\;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.\;C:\Users\xx\Documents\adxe\thirdparty\lz4\.\;C:\Users\xx\Documents\adxe\thirdparty\clipper\.\;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.\;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..\;C:\Users\xx\Documents\adxe\thirdparty\astc\..\;C:\Users\xx\Documents\adxe\thirdparty\openal\include\;C:\Users\xx\Documents\adxe\thirdparty\ogg\include\;C:\Users\xx\Documents\adxe\thirdparty\glad\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\;C:\Users\xx\Documents\adxe\thirdparty\png\;C:\Users\xx\Documents\adxe\thirdparty\unzip\.\;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include\;C:\Users\xx\Documents\adxe\thirdparty\fmt\include\;C:\Users\xx\Documents\adxe\extensions\cocostudio\;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include\;C:\Users\xx\Documents\adxe\extensions\fairygui\;C:\Users\xx\Documents\adxe\extensions\GUI\;C:\Users\xx\Documents\adxe\thirdparty\zlib\include\;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include\;C:\Users\xx\Documents\adxe\thirdparty\openssl\include\;C:\Users\xx\Documents\adxe\thirdparty\curl\include\;%(IncludePaths)</IncludePaths>
+      <Outputswitch>1</Outputswitch>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="Release";</PreprocessorDefinitions>
+    </NASM>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message>
+      </Message>
+      <Command>setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/zlib/prebuilt/windows/x64/zlib1.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Release/zlib1.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libcrypto-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Release/libcrypto-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libssl-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Release/libssl-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/curl/prebuilt/windows/x64/libcurl.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Release/libcurl.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe_lua/build/bin/$(Configuration)/OpenAL32.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Release
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libGLESv2.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libEGL.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/d3dcompiler_47.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Release
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>lib\Release\adxe.lib;lib\Release\cocostudio.lib;lib\Release\ImGuiEXT.lib;lib\Release\fairygui.lib;lib\Release\DragonBones.lib;lib\Release\spine.lib;lib\Release\physics-nodes.lib;lib\Release\particle3d.lib;lib\Release\assets-manager.lib;lib\Release\GUI.lib;lib\Release\adxe.lib;lib\Release\thirdparty.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\Release\box2d.lib;lib\Release\chipmunk.lib;lib\Release\freetype.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\Release\recast.lib;lib\Release\bullet.lib;C:\Users\xx\Documents\adxe\thirdparty\jpeg\prebuilt\windows\x64\jpeg-static.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libcrypto.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libssl.lib;lib\Release\webp.lib;lib\Release\pugixml.lib;lib\Release\xxhash.lib;lib\Release\lz4.lib;lib\Release\clipper.lib;lib\Release\ConvertUTF.lib;lib\Release\poly2tri.lib;lib\Release\astc.lib;C:\Users\xx\Documents\adxe\thirdparty\curl\prebuilt\windows\x64\libcurl_imp.lib;lib\Release\OpenAL32.lib;lib\Release\ogg.lib;lib\Release\glad.lib;lib\Release\glfw.lib;lib\Release\png.lib;lib\Release\unzip.lib;lib\Release\llhttp.lib;ws2_32.lib;userenv.lib;psapi.lib;winmm.lib;Version.lib;Iphlpapi.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/xx/Documents/adxe_lua/build/Release/adxe_lua.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/Release/adxe_lua.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);ONELUA_MAKE_LIB;WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <NASM>
+      <IncludePaths>C:\Users\xx\Documents\adxe_lua\Classes\;C:\Users\xx\Documents\adxe\cocos\audio\include\;C:\Users\xx\Documents\adxe\;C:\Users\xx\Documents\adxe\thirdparty\;C:\Users\xx\Documents\adxe\extensions\;C:\Users\xx\Documents\adxe\cocos\;C:\Users\xx\Documents\adxe\cocos\platform\;C:\Users\xx\Documents\adxe\cocos\base\;C:\Users\xx\Documents\adxe\cocos\platform\win32\;C:\Users\xx\Documents\adxe\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW\;C:\Users\xx\Documents\adxe\thirdparty\box2d\include\;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include\;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\recast\..\;C:\Users\xx\Documents\adxe\thirdparty\bullet\.\;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp\;C:\Users\xx\Documents\adxe\thirdparty\pugixml\;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.\;C:\Users\xx\Documents\adxe\thirdparty\lz4\.\;C:\Users\xx\Documents\adxe\thirdparty\clipper\.\;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.\;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..\;C:\Users\xx\Documents\adxe\thirdparty\astc\..\;C:\Users\xx\Documents\adxe\thirdparty\openal\include\;C:\Users\xx\Documents\adxe\thirdparty\ogg\include\;C:\Users\xx\Documents\adxe\thirdparty\glad\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\;C:\Users\xx\Documents\adxe\thirdparty\png\;C:\Users\xx\Documents\adxe\thirdparty\unzip\.\;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include\;C:\Users\xx\Documents\adxe\thirdparty\fmt\include\;C:\Users\xx\Documents\adxe\extensions\cocostudio\;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include\;C:\Users\xx\Documents\adxe\extensions\fairygui\;C:\Users\xx\Documents\adxe\extensions\GUI\;C:\Users\xx\Documents\adxe\thirdparty\zlib\include\;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include\;C:\Users\xx\Documents\adxe\thirdparty\openssl\include\;C:\Users\xx\Documents\adxe\thirdparty\curl\include\;%(IncludePaths)</IncludePaths>
+      <Outputswitch>1</Outputswitch>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="MinSizeRel";</PreprocessorDefinitions>
+    </NASM>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message>
+      </Message>
+      <Command>setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/zlib/prebuilt/windows/x64/zlib1.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/MinSizeRel/zlib1.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libcrypto-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/MinSizeRel/libcrypto-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libssl-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/MinSizeRel/libssl-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/curl/prebuilt/windows/x64/libcurl.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/MinSizeRel/libcurl.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe_lua/build/bin/$(Configuration)/OpenAL32.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/MinSizeRel
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libGLESv2.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libEGL.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/d3dcompiler_47.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/MinSizeRel
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>lib\MinSizeRel\adxe.lib;lib\MinSizeRel\cocostudio.lib;lib\MinSizeRel\ImGuiEXT.lib;lib\MinSizeRel\fairygui.lib;lib\MinSizeRel\DragonBones.lib;lib\MinSizeRel\spine.lib;lib\MinSizeRel\physics-nodes.lib;lib\MinSizeRel\particle3d.lib;lib\MinSizeRel\assets-manager.lib;lib\MinSizeRel\GUI.lib;lib\MinSizeRel\adxe.lib;lib\MinSizeRel\thirdparty.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\MinSizeRel\box2d.lib;lib\MinSizeRel\chipmunk.lib;lib\MinSizeRel\freetype.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\MinSizeRel\recast.lib;lib\MinSizeRel\bullet.lib;C:\Users\xx\Documents\adxe\thirdparty\jpeg\prebuilt\windows\x64\jpeg-static.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libcrypto.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libssl.lib;lib\MinSizeRel\webp.lib;lib\MinSizeRel\pugixml.lib;lib\MinSizeRel\xxhash.lib;lib\MinSizeRel\lz4.lib;lib\MinSizeRel\clipper.lib;lib\MinSizeRel\ConvertUTF.lib;lib\MinSizeRel\poly2tri.lib;lib\MinSizeRel\astc.lib;C:\Users\xx\Documents\adxe\thirdparty\curl\prebuilt\windows\x64\libcurl_imp.lib;lib\MinSizeRel\OpenAL32.lib;lib\MinSizeRel\ogg.lib;lib\MinSizeRel\glad.lib;lib\MinSizeRel\glfw.lib;lib\MinSizeRel\png.lib;lib\MinSizeRel\unzip.lib;lib\MinSizeRel\llhttp.lib;ws2_32.lib;userenv.lib;psapi.lib;winmm.lib;Version.lib;Iphlpapi.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/xx/Documents/adxe_lua/build/MinSizeRel/adxe_lua.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/MinSizeRel/adxe_lua.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);ONELUA_MAKE_LIB;WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <NASM>
+      <IncludePaths>C:\Users\xx\Documents\adxe_lua\Classes\;C:\Users\xx\Documents\adxe\cocos\audio\include\;C:\Users\xx\Documents\adxe\;C:\Users\xx\Documents\adxe\thirdparty\;C:\Users\xx\Documents\adxe\extensions\;C:\Users\xx\Documents\adxe\cocos\;C:\Users\xx\Documents\adxe\cocos\platform\;C:\Users\xx\Documents\adxe\cocos\base\;C:\Users\xx\Documents\adxe\cocos\platform\win32\;C:\Users\xx\Documents\adxe\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW\;C:\Users\xx\Documents\adxe\thirdparty\box2d\include\;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include\;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include\;C:\Users\xx\Documents\adxe\thirdparty\recast\..\;C:\Users\xx\Documents\adxe\thirdparty\bullet\.\;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp\;C:\Users\xx\Documents\adxe\thirdparty\pugixml\;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.\;C:\Users\xx\Documents\adxe\thirdparty\lz4\.\;C:\Users\xx\Documents\adxe\thirdparty\clipper\.\;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.\;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..\;C:\Users\xx\Documents\adxe\thirdparty\astc\..\;C:\Users\xx\Documents\adxe\thirdparty\openal\include\;C:\Users\xx\Documents\adxe\thirdparty\ogg\include\;C:\Users\xx\Documents\adxe\thirdparty\glad\include\;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\;C:\Users\xx\Documents\adxe\thirdparty\png\;C:\Users\xx\Documents\adxe\thirdparty\unzip\.\;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include\;C:\Users\xx\Documents\adxe\thirdparty\fmt\include\;C:\Users\xx\Documents\adxe\extensions\cocostudio\;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include\;C:\Users\xx\Documents\adxe\extensions\fairygui\;C:\Users\xx\Documents\adxe\extensions\GUI\;C:\Users\xx\Documents\adxe\thirdparty\zlib\include\;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include\;C:\Users\xx\Documents\adxe\thirdparty\openssl\include\;C:\Users\xx\Documents\adxe\thirdparty\curl\include\;%(IncludePaths)</IncludePaths>
+      <Outputswitch>1</Outputswitch>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_WIN32;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;CC_STATIC;CC_USE_ALSOFT=1;CP_USE_CGTYPES=0;CP_USE_DOUBLES=0;BT_USE_SSE_IN_API=1;ASTCENC_NEON=0;ASTCENC_SSE=0;ASTCENC_AVX=0;ASTCENC_POPCNT=0;ASTCENC_F16C=0;FMT_HEADER_ONLY=1;CC_STATIC=1;CC_BUILD_WITH_SPINE=1;CMAKE_INTDIR="RelWithDebInfo";</PreprocessorDefinitions>
+    </NASM>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\xx\Documents\adxe_lua\Classes;C:\Users\xx\Documents\adxe\cocos\audio\include;C:\Users\xx\Documents\adxe;C:\Users\xx\Documents\adxe\thirdparty;C:\Users\xx\Documents\adxe\extensions;C:\Users\xx\Documents\adxe\cocos;C:\Users\xx\Documents\adxe\cocos\platform;C:\Users\xx\Documents\adxe\cocos\base;C:\Users\xx\Documents\adxe\cocos\platform\win32;C:\Users\xx\Documents\adxe\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include\GLFW;C:\Users\xx\Documents\adxe\thirdparty\box2d\include;C:\Users\xx\Documents\adxe\thirdparty\chipmunk\include;C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\include;C:\Users\xx\Documents\adxe\thirdparty\recast\..;C:\Users\xx\Documents\adxe\thirdparty\bullet\.;C:\Users\xx\Documents\adxe\thirdparty\webp\src\webp;C:\Users\xx\Documents\adxe\thirdparty\pugixml;C:\Users\xx\Documents\adxe\thirdparty\xxhash\.;C:\Users\xx\Documents\adxe\thirdparty\lz4\.;C:\Users\xx\Documents\adxe\thirdparty\clipper\.;C:\Users\xx\Documents\adxe\thirdparty\ConvertUTF\.;C:\Users\xx\Documents\adxe\thirdparty\poly2tri\..;C:\Users\xx\Documents\adxe\thirdparty\astc\..;C:\Users\xx\Documents\adxe\thirdparty\openal\include;C:\Users\xx\Documents\adxe\thirdparty\ogg\include;C:\Users\xx\Documents\adxe\thirdparty\glad\include;C:\Users\xx\Documents\adxe\thirdparty\glfw\include;C:\Users\xx\Documents\adxe\thirdparty\png;C:\Users\xx\Documents\adxe\thirdparty\unzip\.;C:\Users\xx\Documents\adxe\thirdparty\llhttp\include;C:\Users\xx\Documents\adxe\thirdparty\fmt\include;C:\Users\xx\Documents\adxe\extensions\cocostudio;C:\Users\xx\Documents\adxe\extensions\spine\runtime\include;C:\Users\xx\Documents\adxe\extensions\fairygui;C:\Users\xx\Documents\adxe\extensions\GUI;C:\Users\xx\Documents\adxe\thirdparty\zlib\include;C:\Users\xx\Documents\adxe\thirdparty\jpeg\include;C:\Users\xx\Documents\adxe\thirdparty\openssl\include;C:\Users\xx\Documents\adxe\thirdparty\curl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message>
+      </Message>
+      <Command>setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/zlib/prebuilt/windows/x64/zlib1.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/RelWithDebInfo/zlib1.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libcrypto-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/RelWithDebInfo/libcrypto-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/openssl/prebuilt/windows/x64/libssl-3-x64.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/RelWithDebInfo/libssl-3-x64.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/curl/prebuilt/windows/x64/libcurl.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/RelWithDebInfo/libcurl.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe_lua/build/bin/$(Configuration)/OpenAL32.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/RelWithDebInfo
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libGLESv2.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/libEGL.dll C:/Users/xx/Documents/adxe/thirdparty/angle/prebuilt/x64/d3dcompiler_47.dll C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/RelWithDebInfo
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>lib\RelWithDebInfo\adxe.lib;lib\RelWithDebInfo\cocostudio.lib;lib\RelWithDebInfo\ImGuiEXT.lib;lib\RelWithDebInfo\fairygui.lib;lib\RelWithDebInfo\DragonBones.lib;lib\RelWithDebInfo\spine.lib;lib\RelWithDebInfo\physics-nodes.lib;lib\RelWithDebInfo\particle3d.lib;lib\RelWithDebInfo\assets-manager.lib;lib\RelWithDebInfo\GUI.lib;lib\RelWithDebInfo\adxe.lib;lib\RelWithDebInfo\thirdparty.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\RelWithDebInfo\box2d.lib;lib\RelWithDebInfo\chipmunk.lib;lib\RelWithDebInfo\freetype.lib;C:\Users\xx\Documents\adxe\thirdparty\zlib\prebuilt\windows\x64\libzlib.lib;lib\RelWithDebInfo\recast.lib;lib\RelWithDebInfo\bullet.lib;C:\Users\xx\Documents\adxe\thirdparty\jpeg\prebuilt\windows\x64\jpeg-static.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libcrypto.lib;C:\Users\xx\Documents\adxe\thirdparty\openssl\prebuilt\windows\x64\libssl.lib;lib\RelWithDebInfo\webp.lib;lib\RelWithDebInfo\pugixml.lib;lib\RelWithDebInfo\xxhash.lib;lib\RelWithDebInfo\lz4.lib;lib\RelWithDebInfo\clipper.lib;lib\RelWithDebInfo\ConvertUTF.lib;lib\RelWithDebInfo\poly2tri.lib;lib\RelWithDebInfo\astc.lib;C:\Users\xx\Documents\adxe\thirdparty\curl\prebuilt\windows\x64\libcurl_imp.lib;lib\RelWithDebInfo\OpenAL32.lib;lib\RelWithDebInfo\ogg.lib;lib\RelWithDebInfo\glad.lib;lib\RelWithDebInfo\glfw.lib;lib\RelWithDebInfo\png.lib;lib\RelWithDebInfo\unzip.lib;lib\RelWithDebInfo\llhttp.lib;ws2_32.lib;userenv.lib;psapi.lib;winmm.lib;Version.lib;Iphlpapi.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/xx/Documents/adxe_lua/build/RelWithDebInfo/adxe_lua.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/xx/Documents/adxe_lua/build/bin/adxe_lua/RelWithDebInfo/adxe_lua.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\xx\Documents\adxe_lua\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/xx/Documents/adxe_lua/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/xx/Documents/adxe_lua -BC:/Users/xx/Documents/adxe_lua/build --check-stamp-file C:/Users/xx/Documents/adxe_lua/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASM_NASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompilerABI.c;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompilerABI.cpp;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCompilerIdDetection.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASM_NASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompileFeatures.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerABI.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerId.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeFindBinUtils.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseArguments.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseLibraryArchitecture.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystem.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCompilerCommon.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-ASM.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CompilerId\VS-10.vcxproj.in;C:\Program Files\CMake\share\cmake-3.21\Modules\Internal\FeatureTesting.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-Determine-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\WindowsPaths.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildHelpers.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildSet.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDefine.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDepend.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASM_NASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCXXCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeRCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Templates\MSBuild\nasm.props.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/xx/Documents/adxe_lua/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/xx/Documents/adxe_lua -BC:/Users/xx/Documents/adxe_lua/build --check-stamp-file C:/Users/xx/Documents/adxe_lua/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASM_NASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompilerABI.c;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompilerABI.cpp;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCompilerIdDetection.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASM_NASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompileFeatures.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerABI.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerId.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeFindBinUtils.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseArguments.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseLibraryArchitecture.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystem.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCompilerCommon.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-ASM.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CompilerId\VS-10.vcxproj.in;C:\Program Files\CMake\share\cmake-3.21\Modules\Internal\FeatureTesting.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-Determine-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\WindowsPaths.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildHelpers.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildSet.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDefine.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDepend.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASM_NASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCXXCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeRCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Templates\MSBuild\nasm.props.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/xx/Documents/adxe_lua/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/xx/Documents/adxe_lua -BC:/Users/xx/Documents/adxe_lua/build --check-stamp-file C:/Users/xx/Documents/adxe_lua/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASM_NASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompilerABI.c;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompilerABI.cpp;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCompilerIdDetection.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASM_NASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompileFeatures.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerABI.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerId.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeFindBinUtils.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseArguments.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseLibraryArchitecture.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystem.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCompilerCommon.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-ASM.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CompilerId\VS-10.vcxproj.in;C:\Program Files\CMake\share\cmake-3.21\Modules\Internal\FeatureTesting.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-Determine-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\WindowsPaths.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildHelpers.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildSet.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDefine.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDepend.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASM_NASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCXXCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeRCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Templates\MSBuild\nasm.props.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/xx/Documents/adxe_lua/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/xx/Documents/adxe_lua -BC:/Users/xx/Documents/adxe_lua/build --check-stamp-file C:/Users/xx/Documents/adxe_lua/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeASM_NASMInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCCompilerABI.c;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXCompilerABI.cpp;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeCompilerIdDetection.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineASM_NASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompileFeatures.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerABI.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineCompilerId.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeDetermineSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeFindBinUtils.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseArguments.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeParseLibraryArchitecture.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCCompiler.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystem.cmake.in;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestASMCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCXXCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestCompilerCommon.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CMakeTestRCCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-ASM.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\CompilerId\VS-10.vcxproj.in;C:\Program Files\CMake\share\cmake-3.21\Modules\Internal\FeatureTesting.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-Determine-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-3.21\Modules\Platform\WindowsPaths.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildHelpers.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosBuildSet.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDefine.cmake;C:\Users\xx\Documents\adxe\cmake\Modules\CocosConfigDepend.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeASM_NASMCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeCXXCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeRCCompiler.cmake;C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\3.21.3\CMakeSystem.cmake;C:\Program Files\CMake\share\cmake-3.21\Templates\MSBuild\nasm.props.in;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\xx\Documents\adxe_lua\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Classes\AppDelegate.h" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Classes\HelloWorldScene.h" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\proj.win32\main.h" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\proj.win32\resource.h" />
+    <ClCompile Include="..\..\xxlib\lua-5.4.x\src\onelua.cpp" />
+    <ClCompile Include="C:\Users\xx\Documents\adxe_lua\Classes\AppDelegate.cpp" />
+    <ClCompile Include="C:\Users\xx\Documents\adxe_lua\Classes\HelloWorldScene.cpp" />
+    <ClCompile Include="C:\Users\xx\Documents\adxe_lua\proj.win32\main.cpp" />
+    <ResourceCompile Include="C:\Users\xx\Documents\adxe_lua\proj.win32\game.rc" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Resources\CloseNormal.png" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Resources\CloseSelected.png" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Resources\HelloWorld.png" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Resources\fonts\Marker Felt.ttf" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Resources\fonts\arial.ttf" />
+    <ClInclude Include="C:\Users\xx\Documents\adxe_lua\Resources\res\.gitkeep" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\ZERO_CHECK.vcxproj">
+      <Project>{0648948F-107A-3CF1-8B65-E0BC2A36D184}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\ConvertUTF\ConvertUTF.vcxproj">
+      <Project>{DEFE93FA-D226-3964-80F7-649ADFA0B47C}</Project>
+      <Name>ConvertUTF</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\DragonBones\DragonBones.vcxproj">
+      <Project>{E820ADF7-B570-37B9-A01A-61883A58F4E5}</Project>
+      <Name>DragonBones</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\GUI\GUI.vcxproj">
+      <Project>{7A0DD036-769B-3B64-8664-19FF848F5CFC}</Project>
+      <Name>GUI</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\ImGuiEXT\ImGuiEXT.vcxproj">
+      <Project>{37589B35-5EA2-3C3D-83F4-1BC22C6764F7}</Project>
+      <Name>ImGuiEXT</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\openal\OpenAL.vcxproj">
+      <Project>{17972834-7EE1-3306-81E5-E5EE4A44E374}</Project>
+      <Name>OpenAL</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\SYNC_RESOURCE-adxe_lua.vcxproj">
+      <Project>{C2E6207C-685C-37FE-B991-5EBF0D9BB4D7}</Project>
+      <Name>SYNC_RESOURCE-adxe_lua</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\cocos\core\adxe.vcxproj">
+      <Project>{E79E21F0-5F30-3955-BF5B-EA309E7E7342}</Project>
+      <Name>adxe</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\assets-manager\assets-manager.vcxproj">
+      <Project>{CAF33F06-5373-3618-8ED8-67BCB0551B22}</Project>
+      <Name>assets-manager</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\astc\astc.vcxproj">
+      <Project>{6EE3AE15-0B33-34B8-99A7-439D1D5A1A16}</Project>
+      <Name>astc</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\box2d\box2d.vcxproj">
+      <Project>{A3F50F03-7BD0-3EFF-845C-AF769726341B}</Project>
+      <Name>box2d</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\bullet\bullet.vcxproj">
+      <Project>{C116F8F1-D882-3AD0-BC5A-8571EBE170AC}</Project>
+      <Name>bullet</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\chipmunk\src\chipmunk.vcxproj">
+      <Project>{3ECB0C65-B77F-3DF9-842A-E97A6FDE88FC}</Project>
+      <Name>chipmunk</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\clipper\clipper.vcxproj">
+      <Project>{AF7B7D24-F305-3621-A890-CEE1B1FC8007}</Project>
+      <Name>clipper</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\cocostudio\cocostudio.vcxproj">
+      <Project>{9CCB7FE7-A471-3015-B90A-A5CCA11B50C9}</Project>
+      <Name>cocostudio</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\fairygui\fairygui.vcxproj">
+      <Project>{586B1D22-EA54-35E5-A2BD-2B4FD2AB071B}</Project>
+      <Name>fairygui</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\freetype\freetype.vcxproj">
+      <Project>{7AD20FD2-02D2-3611-BAE7-5626A87347E9}</Project>
+      <Name>freetype</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\glad\glad.vcxproj">
+      <Project>{E4DF2D2C-A88D-33BE-B653-BE21052AC8FB}</Project>
+      <Name>glad</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\glfw\src\glfw.vcxproj">
+      <Project>{81D7EBA2-CB19-3E70-A8F7-5E9D7360440A}</Project>
+      <Name>glfw</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\llhttp\llhttp.vcxproj">
+      <Project>{0AC8F2A8-D18B-38F6-9E89-0DEED54FA8D0}</Project>
+      <Name>llhttp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\lz4\lz4.vcxproj">
+      <Project>{28E727DF-CA13-3B58-8D8A-BC8FEF298978}</Project>
+      <Name>lz4</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\ogg\ogg.vcxproj">
+      <Project>{FABFF51B-89DB-397C-999A-6505D15A39D3}</Project>
+      <Name>ogg</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\Particle3D\particle3d.vcxproj">
+      <Project>{E6C94854-866B-3CE6-87A0-BED91FFF9FC5}</Project>
+      <Name>particle3d</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\physics-nodes\physics-nodes.vcxproj">
+      <Project>{AD0E4A31-7F88-3A9E-8DD2-EE78F1DE1255}</Project>
+      <Name>physics-nodes</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\png\png.vcxproj">
+      <Project>{9F24B0F5-D3DF-327E-A5EC-2129FA7965D3}</Project>
+      <Name>png</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\poly2tri\poly2tri.vcxproj">
+      <Project>{0DECCAA2-141A-3AF6-9DAF-0289CA2CD52A}</Project>
+      <Name>poly2tri</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\pugixml\pugixml.vcxproj">
+      <Project>{0D303027-CF8F-3212-8B03-B3593203C20B}</Project>
+      <Name>pugixml</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\recast\recast.vcxproj">
+      <Project>{6E536FF3-9BB5-3230-8118-8E69981F49A0}</Project>
+      <Name>recast</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\extensions\spine\spine.vcxproj">
+      <Project>{5BBC6D1F-5A21-3FB1-891A-B31DA00D322A}</Project>
+      <Name>spine</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\thirdparty.vcxproj">
+      <Project>{FF654333-57A8-3D7C-AC27-475501014643}</Project>
+      <Name>thirdparty</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\unzip\unzip.vcxproj">
+      <Project>{451F23B2-68ED-3063-9C3B-3CD88D5CFD3C}</Project>
+      <Name>unzip</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\webp\webp.vcxproj">
+      <Project>{CD06BE3D-947A-31D1-B743-13D3F992A4B0}</Project>
+      <Name>webp</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\xx\Documents\adxe_lua\build\engine\thirdparty\xxhash\xxhash.vcxproj">
+      <Project>{CA4A2558-F14F-3B8F-B0ED-827DDD9FB96D}</Project>
+      <Name>xxhash</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="packages\Microsoft.Web.WebView2\build\native\Microsoft.Web.WebView2.targets" Condition="Exists('packages\Microsoft.Web.WebView2\build\native\Microsoft.Web.WebView2.targets') And ('$(Configuration)'=='Debug' Or '$(Configuration)'=='Release' Or '$(Configuration)'=='MinSizeRel' Or '$(Configuration)'=='RelWithDebInfo')" />
+    <Import Project="C:\Program Files\CMake\share\cmake-3.21\Templates\MSBuild\nasm.targets" />
+  </ImportGroup>
+</Project>
