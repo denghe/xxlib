@@ -72,12 +72,13 @@ static int register_all_packages()
 // 直接在此附加 lua 功能以示说明
 
 #include <xx_lua_bind.h>
+namespace XL = xx::Lua;
 
 // 单例区
 inline static AppDelegate* _appDelegate = nullptr;
 inline static cocos2d::Director* _director = nullptr;
 inline static lua_State* _luaState = nullptr;
-inline static xx::Lua::Func _globalUpdate;  // 注意：restart 功能实现时需先 Reset
+inline static XL::Func _globalUpdate;  // 注意：restart 功能实现时需先 Reset
 
 // 模板适配区
 namespace xx::Lua {
@@ -98,6 +99,16 @@ namespace xx::Lua {
             });
             SetFieldCClosure(L, "addChild", [](auto L)->int {
                 To<U>(L)->addChild(To<cocos2d::Node*>(L, 2));
+                return 0;
+            });
+            SetFieldCClosure(L, "setUpdate", [](auto L)->int {
+                To<U>(L)->getScheduler()->schedule([f = To<Func>(L, 2)](float delta) {
+                    if (auto r = Try(_luaState, [&] {
+                        f.Call(delta);
+                    })) {
+                        xx::CoutN(r.m);
+                    }
+                }, To<U>(L), 1.0f / 60, false, name + "setUpdate");
                 return 0;
             });
         }
@@ -122,7 +133,7 @@ namespace xx::Lua {
             SetFieldCClosure(L, "setTexture", [](auto L)->int {
                 To<U>(L)->setTexture(To<char const*>(L, 2));
                 return 0;
-                });
+            });
         }
     };
     // 指针方式 push + to
@@ -140,8 +151,6 @@ namespace xx::Lua {
 }
 
 void luaBinds(AppDelegate* ad) {
-    namespace XL = xx::Lua;
-
     // 创建环境
     _appDelegate = ad;
     _director = cocos2d::Director::getInstance();
@@ -149,16 +158,20 @@ void luaBinds(AppDelegate* ad) {
     luaL_openlibs(_luaState);
 
     // 简单给 lua 塞几个 cocos 函数
+
+    // 创建场景
     XL::SetGlobalCClosure(L, "cc_scene_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::Scene::create());
     });
 
+    // 加载场景
     XL::SetGlobalCClosure(L, "cc_director_runWithScene", [](auto L) -> int {
         auto&& scene = XL::To<cocos2d::Scene*>(L, 1);
         _director->runWithScene(scene);
         return 0;
     });
 
+    // 创建精灵
     XL::SetGlobalCClosure(L, "cc_sprite_create", [](auto L) -> int {
         auto r = lua_gettop(L)
             ? cocos2d::Sprite::create(XL::To<char const*>(L, 1))
@@ -166,8 +179,8 @@ void luaBinds(AppDelegate* ad) {
         return XL::Push(L, r);
     });
 
-    // 注册 lua 函数回调到 _globalUpdate
-    XL::SetGlobalCClosure(L, "cc_register_global_update", [](auto L) -> int {
+    // 注册帧回调函数
+    XL::SetGlobalCClosure(L, "cc_setFrameUpdate", [](auto L) -> int {
         To(L, 1, _globalUpdate);
         return 0;
     });
@@ -175,10 +188,9 @@ void luaBinds(AppDelegate* ad) {
     // 产生 lua 帧回调
     _director->getScheduler()->schedule([](float delta) {
         if (_globalUpdate) {
-            auto r = XL::Try(_luaState, [&] {
+            if (auto r = XL::Try(_luaState, [&] {
                 _globalUpdate.Call(delta);
-            });
-            if (r) {
+            })) {
                 xx::CoutN(r.m);
             }
         }
@@ -186,7 +198,7 @@ void luaBinds(AppDelegate* ad) {
 
     XL::AssertTop(L, 0);
 
-    // 模拟加载入口 lua 文件源码
+    // 模拟从文件读取 lua 源码( 具体要做 lua 文件操作还需要给 L 做映射，这里掠过 )
     auto luaSrc = R"(
 local scene = cc_scene_create()
 cc_director_runWithScene(scene)
@@ -196,12 +208,19 @@ spr:setTexture("HelloWorld.png")
 spr:setPosition(300, 300)
 scene:addChild(spr)
 
-cc_register_global_update(function(delta)
+spr:setUpdate(function(delta)
     local x,y = spr:getPosition()
-    spr:setPosition( x + delta * 20, y )
+    spr:setPosition( x, y + delta * 20 )    -- change y
 end)
+
+cc_setFrameUpdate(function(delta)
+    local x,y = spr:getPosition()
+    spr:setPosition( x + delta * 20, y )    -- change x
+end)
+
 )";
 
+    // 模拟执行 lua 源码
     auto r = XL::Try(L, [&] {
         xx::Lua::DoString(L, luaSrc);
     });
