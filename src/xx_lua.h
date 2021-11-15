@@ -631,7 +631,7 @@ namespace xx::Lua {
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<IsVector_v<std::decay_t<T>>>> {
 		static int Push(lua_State* const& L, T && in) {
-            CheckStack(L, 1);
+            CheckStack(L, 3);
 			auto siz = (int)in.size();
 			lua_createtable(L, siz, 0);
 			for (int i = 0; i < siz; ++i) {
@@ -643,7 +643,7 @@ namespace xx::Lua {
 			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(xx::TypeName_v<T>));
 			out.clear();
 			int top = lua_gettop(L) + 1;
-			CheckStack(L, 2);
+			CheckStack(L, 3);
 			out.reserve(32);
 			for (lua_Integer i = 1;; i++) {
 				lua_rawgeti(L, idx, i);									// ... t(idx), ..., val/nil
