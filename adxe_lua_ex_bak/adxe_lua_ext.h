@@ -222,7 +222,9 @@ namespace xx::Lua {
             return PushUserdata<U>(L, in);
         }
         static void To(lua_State* const& L, int const& idx, T& out) {
-            EnsureType<U>(L, idx);  // 只在 Debug 生效用 AssertType
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
+            EnsureType<U>(L, idx);  // 在 Release 也生效
+#endif
             out = *(U*)lua_touserdata(L, idx);
         }
     };
@@ -262,7 +264,7 @@ void luaBinds(AppDelegate* ad) {
     };
     
     // 翻写 cocos 的 lua_print
-    XL::SetGlobalCClosure(L, "lua_print", [](auto L) -> int {
+    XL::SetGlobalCClosure(L, "print", [](auto L) -> int {
         _string.clear();
         get_string_for_print(L, _string);
         CCLOG("[LUA-print] %s", _string.c_str());
@@ -270,7 +272,7 @@ void luaBinds(AppDelegate* ad) {
     });
 
     // 翻写 cocos 的 lua_release_print
-    XL::SetGlobalCClosure(L, "lua_release_print", [](auto L) -> int {
+    XL::SetGlobalCClosure(L, "release_print", [](auto L) -> int {
         _string.clear();
         get_string_for_print(L, _string);
         cocos2d::log("[LUA-print] %s", _string.c_str());

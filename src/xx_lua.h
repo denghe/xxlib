@@ -16,13 +16,21 @@ extern "C" {
 // 注意：这里使用 LUA_VERSION_NUM == 501 来检测是否为 luajit
 
 
+// Debug 模式下，在 to 操作中启用类型检查, Release 不启用。可以修改为始终启用
+#ifndef NDEBUG
+#   define XX_LUA_TO_ENABLE_TYPE_CHECK 1
+#else
+#   define XX_LUA_TO_ENABLE_TYPE_CHECK 0
+#endif
+
+
 // 启用该宏，lua 低版本不支持 u/int64 的将使用 double 读写 而非 userdata(size=8)
 // 15 位精度 百万亿，业务逻辑需注意. 超出将丢失低位
 #define XX_LUA51_ENABLE_INT64_PUSHTO_DOUBLE false
-
 // 用于路由 Push/To 以实现 lua 低版本 强制使用 double
 using di64_t = int64_t;
 using du64_t = uint64_t;
+
 
 namespace xx::Lua {
 
@@ -420,7 +428,9 @@ namespace xx::Lua {
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
 			if constexpr (std::is_same_v<bool, std::decay_t<T>>) {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 				if (!lua_isboolean(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not bool");
+#endif
 				out = (bool)lua_toboolean(L, idx);
 			}
 			else {
@@ -438,9 +448,13 @@ namespace xx::Lua {
 			    else
 #endif
                 {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
                     int isnum = 0;
                     out = (T) lua_tointegerx(L, idx, &isnum);
                     if (!isnum) Error(L, "error! args[", std::to_string(idx), "] is not number");
+#else
+					out = (T)lua_tointeger(L, idx);
+#endif
                 }
 
 			}
@@ -470,9 +484,13 @@ namespace xx::Lua {
 			return 1;
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 			int isnum = 0;
 			out = (T)lua_tonumberx(L, idx, &isnum);
 			if (!isnum) Error(L, "error! args[", std::to_string(idx), "] is not number");
+#else
+			out = (T)lua_tonumber(L, idx);
+#endif
 		}
 	};
 
@@ -496,7 +514,9 @@ namespace xx::Lua {
 			return 1;
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 			if (!lua_isstring(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not string");
+#endif
 			out = (T)lua_tostring(L, idx);
 		}
 	};
@@ -510,7 +530,9 @@ namespace xx::Lua {
 			return 1;
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 			if (!lua_isstring(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not string");
+#endif
 			size_t len = 0;
 			auto buf = lua_tolstring(L, idx, &len);
 			out = std::string_view(buf, len);
@@ -527,7 +549,9 @@ namespace xx::Lua {
 			return 1;
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 			if (!lua_isstring(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not string");
+#endif
 			size_t len = 0;
 			auto ptr = lua_tolstring(L, idx, &len);
 			out.assign(ptr, len);
@@ -544,7 +568,9 @@ namespace xx::Lua {
 			return 1;
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 			if (!lua_islightuserdata(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not void*");
+#endif
 			out = (T)lua_touserdata(L, idx);
 		}
 	};
@@ -640,7 +666,9 @@ namespace xx::Lua {
 			return 1;
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(xx::TypeName_v<T>));
+#endif
 			out.clear();
 			int top = lua_gettop(L) + 1;
 			CheckStack(L, 3);
@@ -672,7 +700,9 @@ namespace xx::Lua {
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
 			out.clear();
+#if XX_LUA_TO_ENABLE_TYPE_CHECK
 			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", xx::TypeName_v<T>);
+#endif
 			int top = lua_gettop(L);
 			CheckStack(L, 1);
 			lua_pushnil(L);                                             // ... t(idx), ..., nil
