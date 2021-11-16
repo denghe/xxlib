@@ -345,8 +345,7 @@ void luaBinds(AppDelegate* ad) {
                 chunkBuf += 3;
                 chunkSize -= 3;
             }
-            int r = luaL_loadbuffer(L, chunkBuf, chunkSize, chunkName);
-            if (r) {
+            if (int r = luaL_loadbuffer(L, chunkBuf, chunkSize, chunkName)) {   // -0 +1
                 switch (r) {
                 case LUA_ERRSYNTAX:
                     CCLOG("[LUA ERROR] load \"%s\", error: syntax error during pre-compilation.", chunkName);
@@ -364,7 +363,6 @@ void luaBinds(AppDelegate* ad) {
                     CCLOG("[LUA ERROR] load \"%s\", error: unknown.", chunkName);
                 }
             }
-            return 0;
         }
         else {
             CCLOG("can not get file data of %s", resolvedPath.c_str());
