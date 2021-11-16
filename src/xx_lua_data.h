@@ -13,7 +13,7 @@ LUA 全局函数:
 */
 
 #include "xx_data.h"
-#include "xx_lua.h"
+#include "xx_lua_bind.h"
 
 namespace xx::Lua::Data {
 	using D = xx::Data;
@@ -25,8 +25,8 @@ namespace xx::Lua::Data {
 #endif
 
 	// 在 lua 中注册 全局的 Data 创建函数
-	inline void Register(lua_State* const& L) {
-		SetGlobalCClosure(L, "NewXxData", [](auto L)->int { return PushUserdata<D>(L); });
+	inline void Register(lua_State* const& L, char const* const& keyName = "NewXxData") {
+		SetGlobalCClosure(L, keyName, [](auto L)->int { return PushUserdata<D>(L); });
 	}
 
 	inline int __tostring(lua_State* L) {

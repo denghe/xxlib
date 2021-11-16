@@ -467,10 +467,10 @@ namespace xx::Lua {
 	struct PushToFuncs<T, std::enable_if_t<std::is_enum_v<std::decay_t<T>>>> {
 		typedef std::underlying_type_t<T> UT;
 		static int Push(lua_State* const& L, T && in) {
-			return PushToFuncs<UT, void>::Push(L, (UT)in);
+			return ::xx::Lua::PushToFuncs<UT, void>::Push(L, (UT)in);
 		}
 		static void To(lua_State* const& L, int const& idx, T& out) {
-			PushToFuncs<UT, void>::To(L, (UT&)out);
+			::xx::Lua::PushToFuncs<UT, void>::To(L, idx, (UT&)out);
 		}
 	};
 
