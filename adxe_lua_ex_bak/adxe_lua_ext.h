@@ -234,6 +234,7 @@ namespace xx::Lua {
     // Clonable
     // 这个类的子类，需要自己实现返回具体类型的 clone 函数。直接压 Cloneable* 到 lua 没啥用，还需要转换一次才能用
     // SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (TTTTTTTTTTTTTTTTTT*)(To<U>(L)->clone())); });
+    // 
 
     /*******************************************************************************************/
     // Touch : Ref
@@ -306,7 +307,7 @@ namespace xx::Lua {
             SetFieldCClosure(L, "setRestoreOriginalFrame", [](auto L)->int { To<U>(L)->setRestoreOriginalFrame(To<bool>(L, 2)); return 0; });
             SetFieldCClosure(L, "getLoops", [](auto L)->int { return Push(L, To<U>(L)->getLoops()); });
             SetFieldCClosure(L, "setLoops", [](auto L)->int { To<U>(L)->setLoops(To<uint32_t>(L, 2)); return 0; });
-            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, To<U>(L)->clone()); });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); });   // override
         }
     };
     /*******************************************************************************************/
@@ -319,8 +320,8 @@ namespace xx::Lua {
             MetaFuncs<cocos2d::Ref*>::Fill(L);
             SetType<U>(L);
             SetFieldCClosure(L, "description", [](auto L)->int { return Push(L, To<U>(L)->description()); });
-            // 不实现 clone. 因为是空的
-            // 不实现 reverse. 因为是空的
+            SetFieldCClosure(L, "clone", [](auto L)->int { return 0; });
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return 0; });
             SetFieldCClosure(L, "isDone", [](auto L)->int { return Push(L, To<U>(L)->isDone()); });
             SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; });
             SetFieldCClosure(L, "stop", [](auto L)->int { To<U>(L)->stop(); return 0; });
@@ -359,6 +360,9 @@ namespace xx::Lua {
             SetFieldCClosure(L, "getElapsed", [](auto L)->int { return Push(L, To<U>(L)->getElapsed()); });
             SetFieldCClosure(L, "setAmplitudeRate", [](auto L)->int { To<U>(L)->setAmplitudeRate(To<float>(L, 2)); return 0; });
             SetFieldCClosure(L, "getAmplitudeRate", [](auto L)->int { return Push(L, To<U>(L)->getAmplitudeRate()); });
+            SetFieldCClosure(L, "isDone", [](auto L)->int { return Push(L, To<U>(L)->isDone()); }); // override
+            SetFieldCClosure(L, "step", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
         }
     };
     // ActionInstant : FiniteTimeAction
@@ -369,9 +373,12 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::FiniteTimeAction*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "isDone", [](auto L)->int { return Push(L, To<U>(L)->isDone()); }); // override
+            SetFieldCClosure(L, "step", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
-
     // Animate : ActionInterval
     template<>
     struct MetaFuncs<cocos2d::Animate*, void> {
@@ -383,6 +390,11 @@ namespace xx::Lua {
             SetFieldCClosure(L, "setAnimation", [](auto L)->int { To<U>(L)->setAnimation(To<cocos2d::Animation*>(L, 2)); return 0; });
             SetFieldCClosure(L, "getAnimation", [](auto L)->int { return Push(L, To<U>(L)->getAnimation()); });
             SetFieldCClosure(L, "getCurrentFrameIndex", [](auto L)->int { return Push(L, To<U>(L)->getCurrentFrameIndex()); });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "stop", [](auto L)->int { To<U>(L)->stop(); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // BezierBy : ActionInterval
@@ -393,6 +405,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // BezierTo : BezierBy
@@ -403,6 +419,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::BezierBy*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // Blink : ActionInterval
@@ -413,6 +432,11 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "stop", [](auto L)->int { To<U>(L)->stop(); return 0; }); // override
         }
     };
     // CallFunc : ActionInstant
@@ -424,6 +448,9 @@ namespace xx::Lua {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
             SetFieldCClosure(L, "execute", [](auto L)->int { To<U>(L)->execute(); return 0; });
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
     // DelayTime : ActionInterval
@@ -434,6 +461,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
 
@@ -447,6 +477,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // FadeIn : FadeTo
@@ -457,6 +491,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::FadeTo*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // FadeOut : FadeTo
@@ -467,6 +504,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::FadeTo*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // FlipX : ActionInstant
@@ -477,6 +517,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
     // FlipY : ActionInstant
@@ -487,6 +530,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
     // Hide : ActionInstant
@@ -497,6 +543,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
     // JumpBy : ActionInterval
@@ -507,6 +556,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // JumpTo : JumpBy
@@ -517,6 +570,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::JumpBy*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // MoveBy : ActionInterval
@@ -527,6 +583,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // MoveTo : ActionInterval
@@ -537,6 +597,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
         }
     };
     // Place : ActionInstant
@@ -547,6 +610,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // RemoveSelf : ActionInstant
@@ -557,6 +623,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // Repeat : ActionInterval
@@ -567,8 +636,14 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
-            SetFieldCClosure(L, "getInnerAction", [](auto L)->int { return Push(L, To<U>(L)->getInnerAction()); });
             SetFieldCClosure(L, "setInnerAction", [](auto L)->int { To<U>(L)->setInnerAction(To<cocos2d::FiniteTimeAction*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getInnerAction", [](auto L)->int { return Push(L, To<U>(L)->getInnerAction()); });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "stop", [](auto L)->int { To<U>(L)->stop(); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "isDone", [](auto L)->int { return Push(L, To<U>(L)->isDone()); }); // override
         }
     };
     // RepeatForever : ActionInterval
@@ -581,6 +656,11 @@ namespace xx::Lua {
             SetType<U>(L);
             SetFieldCClosure(L, "getInnerAction", [](auto L)->int { return Push(L, To<U>(L)->getInnerAction()); });
             SetFieldCClosure(L, "setInnerAction", [](auto L)->int { To<U>(L)->setInnerAction(To<cocos2d::ActionInterval*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "step", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "isDone", [](auto L)->int { return Push(L, To<U>(L)->isDone()); }); // override
         }
     };
     // ResizeBy : ActionInterval
@@ -591,6 +671,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // ResizeTo : ActionInterval
@@ -601,6 +685,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            // todo: cocos 代码这里没有覆盖 reverse
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // RotateBy : ActionInterval
@@ -611,6 +699,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // RotateTo : ActionInterval
@@ -621,6 +713,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // ScaleTo : ActionInterval
@@ -631,6 +727,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // ScaleBy : ScaleTo
@@ -641,6 +741,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ScaleTo*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { (U)To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // Sequence : ActionInterval
@@ -651,6 +754,12 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "stop", [](auto L)->int { To<U>(L)->stop(); return 0; }); // override
+            SetFieldCClosure(L, "isDone", [](auto L)->int { return Push(L, To<U>(L)->isDone()); }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // Show : ActionInstant
@@ -661,6 +770,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
     // SkewTo : ActionInterval
@@ -671,6 +783,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // SkewBy : SkewTo
@@ -681,6 +797,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::SkewTo*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
     // Spawn : ActionInterval
@@ -691,6 +810,11 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "stop", [](auto L)->int { To<U>(L)->stop(); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // TintTo : ActionInterval
@@ -701,6 +825,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // TintBy : ActionInterval
@@ -711,6 +839,10 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
         }
     };
     // ToggleVisibility : ActionInstant
@@ -721,6 +853,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
     // Speed : Action
@@ -735,6 +870,12 @@ namespace xx::Lua {
             SetFieldCClosure(L, "setSpeed", [](auto L)->int { To<U>(L)->setSpeed(To<float>(L, 2)); return 0; });
             SetFieldCClosure(L, "getInnerAction", [](auto L)->int { return Push(L, To<U>(L)->getInnerAction()); });
             SetFieldCClosure(L, "setInnerAction", [](auto L)->int { To<U>(L)->setInnerAction(To<cocos2d::ActionInterval*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+            SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
+            SetFieldCClosure(L, "startWithTarget", [](auto L)->int { To<U>(L)->startWithTarget(To<cocos2d::Node*>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "stop", [](auto L)->int { To<U>(L)->stop(); return 0; }); // override
+            SetFieldCClosure(L, "step", [](auto L)->int { To<U>(L)->step(To<float>(L, 2)); return 0; }); // override
+            SetFieldCClosure(L, "isDone", [](auto L)->int { return Push(L, To<U>(L)->isDone()); }); // override
         }
     };
 
@@ -1038,6 +1179,7 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
+            // todo
         }
     };
     /*******************************************************************************************/
@@ -1050,6 +1192,7 @@ namespace xx::Lua {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
             SetFieldCClosure(L, "setTexture", [](auto L)->int { To<U>(L)->setTexture(To<std::string>(L, 2)); return 0; });
+            // todo
         }
     };
 
