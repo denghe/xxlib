@@ -8,6 +8,8 @@ namespace XL = xx::Lua;
 
 // 单例区
 inline static AppDelegate* _appDelegate = nullptr;
+inline static cocos2d::AnimationCache* _animationCache = nullptr;
+inline static cocos2d::SpriteFrameCache* _spriteFrameCache = nullptr;
 inline static cocos2d::FileUtils* _fileUtils = nullptr;
 inline static cocos2d::Director* _director = nullptr;
 inline static cocos2d::GLView* _glView = nullptr;                                   // lazy init
@@ -285,7 +287,6 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Ref*>::Fill(L);
             SetType<U>(L);
-            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (cocos2d::Animation*)(To<U>(L)->clone())); });
             SetFieldCClosure(L, "addSpriteFrame", [](auto L)->int { To<U>(L)->addSpriteFrame(To<cocos2d::SpriteFrame*>(L, 2)); return 0; });
             SetFieldCClosure(L, "addSpriteFrameWithFile", [](auto L)->int { To<U>(L)->addSpriteFrameWithFile(To<std::string>(L, 2)); return 0; });
             SetFieldCClosure(L, "addSpriteFrameWithTexture", [](auto L)->int { To<U>(L)->addSpriteFrameWithTexture(To<cocos2d::Texture2D*>(L, 2)
@@ -295,6 +296,17 @@ namespace xx::Lua {
             SetFieldCClosure(L, "getDelayPerUnit", [](auto L)->int { return Push(L, To<U>(L)->getDelayPerUnit()); });
             SetFieldCClosure(L, "getDuration", [](auto L)->int { return Push(L, To<U>(L)->getDuration()); });
             SetFieldCClosure(L, "getFrames", [](auto L)->int { return Push(L, To<U>(L)->getFrames()); });
+            SetFieldCClosure(L, "setFrames", [](auto L)->int {
+                auto&& sg = xx::MakeScopeGuard([&] { _animationFrames2.clear(); });
+                To(L, 2, _animationFrames2);
+                To<U>(L)->setFrames(_animationFrames2);
+                return 0;
+            });
+            SetFieldCClosure(L, "getRestoreOriginalFrame", [](auto L)->int { return Push(L, To<U>(L)->getRestoreOriginalFrame()); });
+            SetFieldCClosure(L, "setRestoreOriginalFrame", [](auto L)->int { To<U>(L)->setRestoreOriginalFrame(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getLoops", [](auto L)->int { return Push(L, To<U>(L)->getLoops()); });
+            SetFieldCClosure(L, "setLoops", [](auto L)->int { To<U>(L)->setLoops(To<uint32_t>(L, 2)); return 0; });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, To<U>(L)->clone()); });
         }
     };
     /*******************************************************************************************/
@@ -1062,6 +1074,8 @@ namespace xx::Lua {
 void luaBinds(AppDelegate* ad) {
     // 创建环境
     _appDelegate = ad;
+    _animationCache = cocos2d::AnimationCache::getInstance();
+    _spriteFrameCache = cocos2d::SpriteFrameCache::getInstance();
     _fileUtils = cocos2d::FileUtils::getInstance();
     _director = cocos2d::Director::getInstance();
     _actionManager = _director->getActionManager();
@@ -1561,9 +1575,7 @@ void luaBinds(AppDelegate* ad) {
 
 
     /***********************************************************************************************/
-    // xx::Data & FileUtils
-
-    xx::Lua::Data::Register(L, "xx_data_create");
+    // FileUtils
 
     XL::SetGlobalCClosure(L, "cc_purgeCachedEntries", [](auto L) -> int {
         _fileUtils->purgeCachedEntries();
@@ -1715,10 +1727,36 @@ void luaBinds(AppDelegate* ad) {
         return XL::Push(L, _fileUtils->getNewFilename(XL::To<std::string>(L, 1)));
     });
 
+    /***********************************************************************************************/
+    // AnimationCache
+
+    XL::SetGlobalCClosure(L, "cc_addAnimation", [](auto L) -> int {
+        _animationCache->addAnimation(XL::To<cocos2d::Animation*>(L, 1), XL::To<std::string>(L, 2));
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_removeAnimation", [](auto L) -> int {
+        _animationCache->removeAnimation(XL::To<std::string>(L, 1));
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_getAnimation", [](auto L) -> int {
+        return XL::Push(L, _animationCache->getAnimation(XL::To<std::string>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_addAnimationsWithFile", [](auto L) -> int {
+        _animationCache->addAnimationsWithFile(XL::To<std::string>(L, 1));
+        return 0;
+    });
+
+    
+
 
 
     /***********************************************************************************************/
     // 各种 create
+
+    xx::Lua::Data::Register(L, "xx_data_create");
 
     XL::SetGlobalCClosure(L, "cc_Animation_create", [](auto L) -> int {
         auto&& numArgs = lua_gettop(L);
