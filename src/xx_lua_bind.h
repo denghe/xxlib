@@ -75,6 +75,17 @@ namespace xx::Lua {
 			}
 		}
 
+        // 简化 Call 调用
+        template<typename T = void, typename...Args>
+        XX_FORCE_INLINE T operator()(Args&&...args) const {
+            if constexpr (!std::is_void_v<T>) {
+                return Call(std::forward<Args>(args)...);
+            }
+            else {
+                Call(std::forward<Args>(args)...);
+            }
+        }
+
 		// 判断是否有值
 		operator bool() const {
 			return (bool)p;

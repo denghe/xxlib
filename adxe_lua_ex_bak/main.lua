@@ -1,30 +1,47 @@
-print = lua_release_print
+print = release_print
 
-local scene = cc_scene_create()
-cc_director_runWithScene(scene)
+local scene = cc_Scene_create()
+cc_runWithScene(scene)
 
-local spr = cc_sprite_create()
+local spr = cc_Sprite_create()
 spr:setTexture("HelloWorld.png")
-spr:setPositionXY(300, 300)
 scene:addChild(spr)
 
-local c3 = spr:getColor()
-c3[1] = 0
-spr:setColor(c3)
+local for10000000 = function()
+    for i = 1, 10000000 do
+    end
+end
+local beginTime = os.clock()
+for10000000()
+release_print( "for10000000 elapsed time = ", os.clock() - beginTime)
 
-local r, g, b = spr:getColorRGB()
-g = 0;
-spr:setColorRGB(r, g, b)
+local setGetPos10000000 = function(tar)
+    for i = 1, 10000000 do
+	    tar:setPosition(tar:getPosition())
+    end
+end
+local beginTime = os.clock()
+setGetPos10000000(spr)
+print("setGetPos10000000 elapsed time = ", os.clock() - beginTime)
 
-spr:schedule(function(delta)
-    local v2 = spr:getPosition()
-    v2[2] = v2[2] + delta * 20    -- change y
-    spr:setPosition( v2 )
-end)
-
-cc_setFrameUpdate(function(delta)
-    local x, y = spr:getPositionXY()
-    spr:setPositionXY( x + delta * 20, y )    -- change x
-end)
+local setColor10000000 = function(tar)
+    for i = 1, 10000000 do
+	    tar:setColor(255, 255, 255)
+    end
+end
+local beginTime = os.clock()
+setColor10000000(spr)
+print("setColor10000000 elapsed time = ", os.clock() - beginTime)
 
 print("end")
+
+spr:setPosition(300, 300)
+
+local r, g, b = spr:getColor()
+g = 0;
+spr:setColor(r, g, b)
+
+cc_setFrameUpdate(function(delta)
+    local x, y = spr:getPosition()
+    spr:setPosition( x + delta * 20, y )    -- change x
+end)

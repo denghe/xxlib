@@ -10,14 +10,16 @@ namespace XL = xx::Lua;
 inline static AppDelegate* _appDelegate = nullptr;
 inline static cocos2d::FileUtils* _fileUtils = nullptr;
 inline static cocos2d::Director* _director = nullptr;
-inline static cocos2d::GLView* _glView = nullptr;   // lazy init
+inline static cocos2d::GLView* _glView = nullptr;                                   // lazy init
 inline static cocos2d::ActionManager* _actionManager = nullptr;
 inline static cocos2d::Scheduler* _scheduler = nullptr;
 inline static cocos2d::EventDispatcher* _eventDispatcher = nullptr;
 inline static lua_State* _luaState = nullptr;
-inline static XL::Func _globalUpdate;   // 注意：restart 功能实现时需先 Reset
-inline static std::string _string;      // for print
-inline static std::vector<std::string> _strings;    // tmp
+inline static XL::Func _globalUpdate;                                               // 注意：restart 功能实现时需先 Reset
+inline static std::string _string;                                                  // for print
+inline static std::vector<std::string> _strings;                                    // tmp
+inline static std::vector<cocos2d::FiniteTimeAction*> _finiteTimeActions;           // tmp
+inline static cocos2d::Vector<cocos2d::FiniteTimeAction*> _finiteTimeActions2;      // tmp，因为会自动加持，须退出函数时清空
 
 // 模板适配区
 namespace xx::Lua {
@@ -166,6 +168,19 @@ namespace xx::Lua {
     };
 
     /*******************************************************************************************/
+    // Clonable
+    template<>
+    struct MetaFuncs<cocos2d::Clonable*, void> {
+        using U = cocos2d::Clonable*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            // MetaFuncs<BaseType*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, To<U>(L)->clone()); });
+        }
+    };
+
+    /*******************************************************************************************/
     // Touch : Ref
     template<>
     struct MetaFuncs<cocos2d::Touch*, void> {
@@ -209,6 +224,19 @@ namespace xx::Lua {
     };
 
     /*******************************************************************************************/
+    // Animation : Ref, Clonable
+    template<>
+    struct MetaFuncs<cocos2d::Animation*, void> {
+        using U = cocos2d::Animation*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Ref*>::Fill(L);
+            MetaFuncs<cocos2d::Clonable*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
+    /*******************************************************************************************/
     // Action : Ref
     template<>
     struct MetaFuncs<cocos2d::Action*, void> {
@@ -217,6 +245,408 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Ref*>::Fill(L);
             SetType<U>(L);
+            // todo
+        }
+    };
+    // FiniteTimeAction : Action
+    template<>
+    struct MetaFuncs<cocos2d::FiniteTimeAction*, void> {
+        using U = cocos2d::FiniteTimeAction*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Action*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "getDuration", [](auto L)->int { return Push(L, To<U>(L)->getDuration()); });
+            SetFieldCClosure(L, "setDuration", [](auto L)->int { To<U>(L)->setDuration(To<float>(L, 2)); return 0; });
+        }
+    };
+    // ActionInterval : FiniteTimeAction
+    template<>
+    struct MetaFuncs<cocos2d::ActionInterval*, void> {
+        using U = cocos2d::ActionInterval*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::FiniteTimeAction*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "getElapsed", [](auto L)->int { return Push(L, To<U>(L)->getElapsed()); });
+            SetFieldCClosure(L, "setAmplitudeRate", [](auto L)->int { To<U>(L)->setAmplitudeRate(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getAmplitudeRate", [](auto L)->int { return Push(L, To<U>(L)->getAmplitudeRate()); });
+        }
+    };
+    // ActionInstant : FiniteTimeAction
+    template<>
+    struct MetaFuncs<cocos2d::ActionInstant*, void> {
+        using U = cocos2d::ActionInstant*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::FiniteTimeAction*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+
+    // Animate : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::Animate*, void> {
+        using U = cocos2d::Animate*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "setAnimation", [](auto L)->int { To<U>(L)->setAnimation(To<cocos2d::Animation*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getAnimation", [](auto L)->int { return Push(L, To<U>(L)->getAnimation()); });
+            SetFieldCClosure(L, "getCurrentFrameIndex", [](auto L)->int { return Push(L, To<U>(L)->getCurrentFrameIndex()); });
+        }
+    };
+    // BezierBy : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::BezierBy*, void> {
+        using U = cocos2d::BezierBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // BezierTo : BezierBy
+    template<>
+    struct MetaFuncs<cocos2d::BezierTo*, void> {
+        using U = cocos2d::BezierTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::BezierBy*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Blink : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::Blink*, void> {
+        using U = cocos2d::Blink*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // CallFunc : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::CallFunc*, void> {
+        using U = cocos2d::CallFunc*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "execute", [](auto L)->int { To<U>(L)->execute(); return 0; });
+        }
+    };
+    // DelayTime : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::DelayTime*, void> {
+        using U = cocos2d::DelayTime*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+
+    // todo: EaseXXXXXX ......
+
+    // FadeTo : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::FadeTo*, void> {
+        using U = cocos2d::FadeTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // FadeIn : FadeTo
+    template<>
+    struct MetaFuncs<cocos2d::FadeIn*, void> {
+        using U = cocos2d::FadeIn*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::FadeTo*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // FadeOut : FadeTo
+    template<>
+    struct MetaFuncs<cocos2d::FadeOut*, void> {
+        using U = cocos2d::FadeOut*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::FadeTo*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // FlipX : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::FlipX*, void> {
+        using U = cocos2d::FlipX*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // FlipY : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::FlipY*, void> {
+        using U = cocos2d::FlipY*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Hide : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::Hide*, void> {
+        using U = cocos2d::Hide*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // JumpBy : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::JumpBy*, void> {
+        using U = cocos2d::JumpBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // JumpTo : JumpBy
+    template<>
+    struct MetaFuncs<cocos2d::JumpTo*, void> {
+        using U = cocos2d::JumpTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::JumpBy*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // MoveBy : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::MoveBy*, void> {
+        using U = cocos2d::MoveBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // MoveTo : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::MoveTo*, void> {
+        using U = cocos2d::MoveTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Place : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::Place*, void> {
+        using U = cocos2d::Place*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // RemoveSelf : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::RemoveSelf*, void> {
+        using U = cocos2d::RemoveSelf*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Repeat : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::Repeat*, void> {
+        using U = cocos2d::Repeat*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "getInnerAction", [](auto L)->int { return Push(L, To<U>(L)->getInnerAction()); });
+            SetFieldCClosure(L, "setInnerAction", [](auto L)->int { To<U>(L)->setInnerAction(To<cocos2d::FiniteTimeAction*>(L, 2)); return 0; });
+        }
+    };
+    // RepeatForever : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::RepeatForever*, void> {
+        using U = cocos2d::RepeatForever*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "getInnerAction", [](auto L)->int { return Push(L, To<U>(L)->getInnerAction()); });
+            SetFieldCClosure(L, "setInnerAction", [](auto L)->int { To<U>(L)->setInnerAction(To<cocos2d::ActionInterval*>(L, 2)); return 0; });
+        }
+    };
+    // ResizeBy : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::ResizeBy*, void> {
+        using U = cocos2d::ResizeBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // ResizeTo : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::ResizeTo*, void> {
+        using U = cocos2d::ResizeTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // RotateBy : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::RotateBy*, void> {
+        using U = cocos2d::RotateBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // RotateTo : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::RotateTo*, void> {
+        using U = cocos2d::RotateTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // ScaleTo : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::ScaleTo*, void> {
+        using U = cocos2d::ScaleTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // ScaleBy : ScaleTo
+    template<>
+    struct MetaFuncs<cocos2d::ScaleBy*, void> {
+        using U = cocos2d::ScaleBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ScaleTo*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Sequence : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::Sequence*, void> {
+        using U = cocos2d::Sequence*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Show : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::Show*, void> {
+        using U = cocos2d::Show*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // SkewTo : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::SkewTo*, void> {
+        using U = cocos2d::SkewTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // SkewBy : SkewTo
+    template<>
+    struct MetaFuncs<cocos2d::SkewBy*, void> {
+        using U = cocos2d::SkewBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::SkewTo*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Spawn : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::Spawn*, void> {
+        using U = cocos2d::Spawn*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // TintTo : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::TintTo*, void> {
+        using U = cocos2d::TintTo*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // TintBy : ActionInterval
+    template<>
+    struct MetaFuncs<cocos2d::TintBy*, void> {
+        using U = cocos2d::TintBy*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInterval*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // ToggleVisibility : ActionInstant
+    template<>
+    struct MetaFuncs<cocos2d::ToggleVisibility*, void> {
+        using U = cocos2d::ToggleVisibility*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::ActionInstant*>::Fill(L);
+            SetType<U>(L);
+        }
+    };
+    // Speed : Action
+    template<>
+    struct MetaFuncs<cocos2d::Speed*, void> {
+        using U = cocos2d::Speed*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Action*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "getSpeed", [](auto L)->int { return Push(L, To<U>(L)->getSpeed()); });
+            SetFieldCClosure(L, "setSpeed", [](auto L)->int { To<U>(L)->setSpeed(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getInnerAction", [](auto L)->int { return Push(L, To<U>(L)->getInnerAction()); });
+            SetFieldCClosure(L, "setInnerAction", [](auto L)->int { To<U>(L)->setInnerAction(To<cocos2d::ActionInterval*>(L, 2)); return 0; });
         }
     };
 
@@ -233,7 +663,6 @@ namespace xx::Lua {
 
     /*******************************************************************************************/
     //EventDispatcher : Ref
-
     template<>
     struct MetaFuncs<cocos2d::EventDispatcher*, void> {
         using U = cocos2d::EventDispatcher*;
@@ -454,13 +883,13 @@ namespace xx::Lua {
             SetFieldCClosure(L, "isOpacityModifyRGB", [](auto L)->int { return Push(L, To<U>(L)->isOpacityModifyRGB()); });
             SetFieldCClosure(L, "setOnEnterCallback", [](auto L)->int {
                 To<U>(L)->setOnEnterCallback([f = To<Func>(L, 2)] {
-                    if (auto&& r = Try(_luaState, [&] { f.Call(); })) { xx::CoutN(r.m); }
+                    if (auto&& r = Try(_luaState, [&] { f(); })) { xx::CoutN(r.m); }
                 });
                 return 0;
             });
             SetFieldCClosure(L, "setOnExitCallback", [](auto L)->int {
                 To<U>(L)->setOnExitCallback([f = To<Func>(L, 2)] {
-                    if (auto&& r = Try(_luaState, [&] { f.Call(); })) { xx::CoutN(r.m); }
+                    if (auto&& r = Try(_luaState, [&] { f(); })) { xx::CoutN(r.m); }
                 });
                 return 0;
             });
@@ -491,7 +920,7 @@ namespace xx::Lua {
             });
             SetFieldCClosure(L, "schedule", [](auto L)->int {
                 To<U>(L)->schedule([f = To<Func>(L, 2)](float delta) {
-                    if (auto&& r = Try(_luaState, [&] { f.Call(delta); })) { xx::CoutN(r.m); }
+                    if (auto&& r = Try(_luaState, [&] { f(delta); })) { xx::CoutN(r.m); }
                 }, std::to_string((size_t)To<U>(L)));
                 return 0;
             });
@@ -1213,10 +1642,250 @@ void luaBinds(AppDelegate* ad) {
 
 
     /***********************************************************************************************/
-    // Node
+    // 各种 create
 
-    XL::SetGlobalCClosure(L, "cc_node_create", [](auto L) -> int {
+    XL::SetGlobalCClosure(L, "cc_BezierBy_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::BezierBy::create(XL::To<float>(L, 1)
+            , { { XL::To<float>(L, 2), XL::To<float>(L, 3)}, {XL::To<float>(L, 4), XL::To<float>(L, 5)}, {XL::To<float>(L, 6), XL::To<float>(L, 7)} }
+        ));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_BezierTo_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::BezierTo::create(XL::To<float>(L, 1)
+            , { { XL::To<float>(L, 2), XL::To<float>(L, 3)}, {XL::To<float>(L, 4), XL::To<float>(L, 5)}, {XL::To<float>(L, 6), XL::To<float>(L, 7)} }
+        ));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Blink_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Blink::create(XL::To<float>(L, 1), XL::To<int>(L, 2)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_CallFunc_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::CallFunc::create([f = XL::To<XL::Func>(L, 1)]{ f(); }));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_DelayTime_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::DelayTime::create(XL::To<float>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_FadeIn_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::FadeIn::create(XL::To<float>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_FadeOut_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::FadeOut::create(XL::To<float>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_FadeTo_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::FadeTo::create(XL::To<float>(L, 1), XL::To<uint8_t>(L, 2)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_FlipX_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::FlipX::create(XL::To<bool>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_FlipY_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::FlipY::create(XL::To<bool>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Hide_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Hide::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_JumpTo_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::JumpTo::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3) }, XL::To<float>(L, 4), XL::To<int>(L, 5)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_JumpBy_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::JumpBy::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3) }, XL::To<float>(L, 4), XL::To<int>(L, 5)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_MoveBy_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 3: {
+            return XL::Push(L, cocos2d::MoveBy::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3) }));
+        }
+        case 4: {
+            return XL::Push(L, cocos2d::MoveBy::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
+        }
+        default:
+            return luaL_error(L, "create MoveBy error! need 3 ~ 4 args: float duration, float deltaX, float deltaY, float deltaZ");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_MoveTo_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 3: {
+            return XL::Push(L, cocos2d::MoveTo::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3) }));
+        }
+        case 4: {
+            return XL::Push(L, cocos2d::MoveTo::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
+        }
+        default:
+            return luaL_error(L, "create MoveTo error! need 3 ~ 4 args: float duration, float dstX, float dstY, float dstZ");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Node_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::Node::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Place_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Place::create({ XL::To<float>(L, 1), XL::To<float>(L, 2) }));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_RemoveSelf_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::RemoveSelf::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Repeat_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Repeat::create(XL::To<cocos2d::FiniteTimeAction*>(L, 1), XL::To<int>(L, 2)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_RepeatForever_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::RepeatForever::create(XL::To<cocos2d::ActionInterval*>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ResizeTo_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::ResizeTo::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3) }));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ResizeBy_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::ResizeBy::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3) }));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_RotateTo_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 2: {
+            return XL::Push(L, cocos2d::RotateTo::create(XL::To<float>(L, 1), XL::To<float>(L, 2)));
+        }
+        case 3: {
+            return XL::Push(L, cocos2d::RotateTo::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3)));
+        }
+        case 4: {
+            return XL::Push(L, cocos2d::RotateTo::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
+        }
+        default:
+            return luaL_error(L, "create RotateTo error! need 2 ~ 4 args: float duration, float dstAngleX, float dstAngleY, float dstAngleZ");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_RotateBy_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 2: {
+            return XL::Push(L, cocos2d::RotateBy::create(XL::To<float>(L, 1), XL::To<float>(L, 2)));
+        }
+        case 3: {
+            return XL::Push(L, cocos2d::RotateBy::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3)));
+        }
+        case 4: {
+            return XL::Push(L, cocos2d::RotateBy::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
+        }
+        default:
+            return luaL_error(L, "create RotateBy error! need 2 ~ 4 args: float duration, float dstAngleX, float dstAngleY, float dstAngleZ");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ScaleTo_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 2: {
+            return XL::Push(L, cocos2d::ScaleTo::create(XL::To<float>(L, 1), XL::To<float>(L, 2)));
+        }
+        case 3: {
+            return XL::Push(L, cocos2d::ScaleTo::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3)));
+        }
+        case 4: {
+            return XL::Push(L, cocos2d::ScaleTo::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4)));
+        }
+        default:
+            return luaL_error(L, "create ScaleTo error! need 2 ~ 4 args: float duration, float sXY/sX, float sY, float sZ");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ScaleBy_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 2: {
+            return XL::Push(L, cocos2d::ScaleBy::create(XL::To<float>(L, 1), XL::To<float>(L, 2)));
+        }
+        case 3: {
+            return XL::Push(L, cocos2d::ScaleBy::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3)));
+        }
+        case 4: {
+            return XL::Push(L, cocos2d::ScaleBy::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4)));
+        }
+        default:
+            return luaL_error(L, "create ScaleBy error! need 2 ~ 4 args: float duration, float sXY/sX, float sY, float sZ");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Sequence_create", [](auto L) -> int {
+        auto&& numArgs = lua_gettop(L);
+        if (!numArgs) {
+            return luaL_error(L, "create Sequence error! need 1+ args: FiniteTimeAction*... / { FiniteTimeAction*... }");
+        }
+        if (lua_istable(L, 1)) {
+            XL::To(L, 1, _finiteTimeActions);
+        }
+        else {
+            _finiteTimeActions.clear();
+            for (int i = 1; i <= numArgs; ++i) {
+                _finiteTimeActions.push_back(XL::To<cocos2d::FiniteTimeAction*>(L, i));
+            }
+        }
+        if (_finiteTimeActions.size() == 2) {
+            return XL::Push(L, cocos2d::Sequence::createWithTwoActions(_finiteTimeActions[0], _finiteTimeActions[1]));
+        }
+        else {
+            auto&& sg = xx::MakeScopeGuard([&] { _finiteTimeActions2.clear(); });
+            for (auto& o : _finiteTimeActions) _finiteTimeActions2.pushBack(o);
+            return XL::Push(L, cocos2d::Sequence::create(_finiteTimeActions2));
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_SkewTo_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::SkewTo::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Show_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Show::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_SkewBy_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::SkewBy::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Spawn_create", [](auto L) -> int {
+        auto&& numArgs = lua_gettop(L);
+        if (!numArgs) {
+            return luaL_error(L, "create Spawn error! need 1+ args: FiniteTimeAction*... / { FiniteTimeAction*... }");
+        }
+        auto&& sg = xx::MakeScopeGuard([&] { _finiteTimeActions2.clear(); });
+        if (lua_istable(L, 1)) {
+            XL::To(L, 1, _finiteTimeActions);
+            for (auto& o : _finiteTimeActions) _finiteTimeActions2.pushBack(o);
+        }
+        else {
+            for (int i = 1; i <= numArgs; ++i) {
+                _finiteTimeActions2.pushBack(XL::To<cocos2d::FiniteTimeAction*>(L, i));
+            }
+        }
+        return XL::Push(L, cocos2d::Spawn::create(_finiteTimeActions2));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Speed_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Speed::create(XL::To<cocos2d::ActionInterval*>(L, 1), XL::To<float>(L, 2)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_TintBy_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::TintBy::create(XL::To<float>(L, 1), XL::To<int16_t>(L, 2), XL::To<int16_t>(L, 3), XL::To<int16_t>(L, 4)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_TintTo_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::TintTo::create(XL::To<float>(L, 1), XL::To<uint8_t>(L, 2), XL::To<uint8_t>(L, 3), XL::To<uint8_t>(L, 4)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ToggleVisibility_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::ToggleVisibility::create());
     });
 
 
@@ -1242,7 +1911,7 @@ void luaBinds(AppDelegate* ad) {
 
 
     // 创建场景
-    XL::SetGlobalCClosure(L, "cc_scene_create", [](auto L) -> int {
+    XL::SetGlobalCClosure(L, "cc_Scene_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::Scene::create());
     });
 
@@ -1252,7 +1921,7 @@ void luaBinds(AppDelegate* ad) {
 
 
     // 创建精灵
-    XL::SetGlobalCClosure(L, "cc_sprite_create", [](auto L) -> int {
+    XL::SetGlobalCClosure(L, "cc_Sprite_create", [](auto L) -> int {
         auto&& r = lua_gettop(L)
             ? cocos2d::Sprite::create(XL::To<std::string>(L, 1))
             : cocos2d::Sprite::create();
@@ -1269,7 +1938,7 @@ void luaBinds(AppDelegate* ad) {
     _director->getScheduler()->schedule([](float delta) {
         if (_globalUpdate) {
             if (auto&& r = XL::Try(_luaState, [&] {
-                    _globalUpdate.Call(delta);
+                    _globalUpdate(delta);
                 })) {
                 xx::CoutN(r.m);
             }
