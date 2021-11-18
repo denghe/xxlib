@@ -54,7 +54,7 @@ namespace xx::Lua {
 			p.Reset();
 		}
 
-		// 执行并返回
+		// 执行并返回( 会还原 call 前堆栈长度 )
 		template<typename T = void, typename...Args>
 		T Call(Args&&...args) const {
 			assert(p);
