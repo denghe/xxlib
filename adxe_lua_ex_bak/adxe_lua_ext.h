@@ -1020,7 +1020,7 @@ namespace xx::Lua {
 #if XX_LUA_ENABLE_TRY_CALL_FUNC
                     if (auto&& r = Try(_luaState, [&] {
 #endif
-                        return f.Call<bool>(k, e);
+                        f(k, e);
 #if XX_LUA_ENABLE_TRY_CALL_FUNC
                     })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
 #endif
