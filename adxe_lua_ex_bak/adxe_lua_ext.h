@@ -1016,7 +1016,7 @@ namespace xx::Lua {
             MetaFuncs<cocos2d::EventListener*>::Fill(L);
             SetType<U>(L);
             SetFieldCClosure(L, "onKeyPressed", [](auto L)->int {
-                To<U>(L)->onKeyPressed = [f = To<Func>(L, 2)](cocos2d::EventKeyboard::KeyCode k, cocos2d::Event* e)->bool {
+                To<U>(L)->onKeyPressed = [f = To<Func>(L, 2)](cocos2d::EventKeyboard::KeyCode k, cocos2d::Event* e)->void {
 #if XX_LUA_ENABLE_TRY_CALL_FUNC
                     if (auto&& r = Try(_luaState, [&] {
 #endif
@@ -2448,7 +2448,7 @@ void luaBinds(AppDelegate* ad) {
     XL::SetGlobalCClosure(L, "cc_CallFunc_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::CallFunc::create([f = XL::To<XL::Func>(L, 1)]{
 #if XX_LUA_ENABLE_TRY_CALL_FUNC
-                if (auto&& r = Try(_luaState, [&] {
+                if (auto&& r = XL::Try(_luaState, [&] {
 #endif
                     f();
 #if XX_LUA_ENABLE_TRY_CALL_FUNC
