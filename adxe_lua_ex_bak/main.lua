@@ -106,15 +106,14 @@ delta = 0
 cc_frameUpdate(function(delta)
 	_G.delta = delta
 	local t = coroutines
-	local r = resume
+	if #t == 0 then return end
+	local re = resume
 	local cs = coroutine_status
-	if #t > 0 then
-		for i = #t, 1, -1 do
-			local co = t[i]
-			local ok, msg = r(co)
-			if cs(co) == "dead" then
-				t.remove(i)
-			end
+	for i = #t, 1, -1 do
+		local c = t[i]
+		local ok, msg = re(c)
+		if cs(c) == "dead" then
+			t.remove(i)
 		end
 	end
 end)
