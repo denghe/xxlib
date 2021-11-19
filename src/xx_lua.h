@@ -465,7 +465,7 @@ namespace xx::Lua {
 	// 适配 枚举( 转为整数 )
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_enum_v<std::decay_t<T>>>> {
-		typedef std::underlying_type_t<T> UT;
+		typedef std::underlying_type_t<std::decay_t<T>> UT;
 		static int Push(lua_State* const& L, T && in) {
 			return ::xx::Lua::PushToFuncs<UT, void>::Push(L, (UT)in);
 		}

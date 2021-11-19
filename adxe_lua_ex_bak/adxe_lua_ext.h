@@ -3,6 +3,8 @@
 // 在 AppDelegate.cpp 第 34 行，也就是 一堆 include 之后，USING_NS_CC 之前 插入本 .h 的 include
 // 并于 applicationDidFinishLaunching 的最后 执行 luaBinds(this);
 
+// 原则上 所有获取单例的函数，都不映射。单例的成员函数，直接映射为全局 cc_ 函数。
+
 #include <xx_lua_data.h>
 namespace XL = xx::Lua;
 
@@ -14,7 +16,7 @@ namespace XL = xx::Lua;
 #   define XX_LUA_ENABLE_TRY_CALL_FUNC 0
 #endif
 
-// 单例区
+// 单例缓存 & 临时数据区
 inline static AppDelegate* _appDelegate = nullptr;
 inline static cocos2d::AnimationCache* _animationCache = nullptr;
 inline static cocos2d::SpriteFrameCache* _spriteFrameCache = nullptr;
@@ -825,7 +827,7 @@ namespace xx::Lua {
         }
     };
 
-    // todo: 更多 action?
+    // todo: more action?
 
 
     /*******************************************************************************************/
@@ -852,8 +854,8 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Ref*>::Fill(L);
             SetType<U>(L);
-            SetFieldCClosure(L, "checkAvailable", [](auto L)->int { return 0; }); // pure virtual
-            SetFieldCClosure(L, "clone", [](auto L)->int { return 0; }); // pure virtual
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); });
+            SetFieldCClosure(L, "checkAvailable", [](auto L)->int { return Push(L, To<U>(L)->checkAvailable()); });
             SetFieldCClosure(L, "setEnabled", [](auto L)->int { To<U>(L)->setEnabled(To<bool>(L, 2)); return 0; });
             SetFieldCClosure(L, "isEnabled", [](auto L)->int { return Push(L, To<U>(L)->isEnabled()); });
         }
@@ -877,6 +879,7 @@ namespace xx::Lua {
                     })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
 #endif
                 };
+                return 0;
             });
             SetFieldCClosure(L, "onTouchesMoved", [](auto L)->int {
                 To<U>(L)->onTouchesMoved = [f = To<Func>(L, 2)](const std::vector<cocos2d::Touch*>& ts, cocos2d::Event* e)->void {
@@ -888,6 +891,7 @@ namespace xx::Lua {
                     })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
 #endif
                 };
+                return 0;
             });
             SetFieldCClosure(L, "onTouchesEnded", [](auto L)->int {
                 To<U>(L)->onTouchesEnded = [f = To<Func>(L, 2)](const std::vector<cocos2d::Touch*>& ts, cocos2d::Event* e)->void {
@@ -899,6 +903,7 @@ namespace xx::Lua {
                     })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
 #endif
                 };
+                return 0;
             });
             SetFieldCClosure(L, "onTouchesCancelled", [](auto L)->int {
                 To<U>(L)->onTouchesCancelled = [f = To<Func>(L, 2)](const std::vector<cocos2d::Touch*>& ts, cocos2d::Event* e)->void {
@@ -910,28 +915,112 @@ namespace xx::Lua {
                     })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
 #endif
                 };
+                return 0;
             });
             SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
-            SetFieldCClosure(L, "checkAvailable", [](auto L)->int { return Push(L, (U)To<U>(L)->checkAvailable()); }); // override
         }
     };
 
+    // EventListenerTouchOneByOne : EventListener
+    template<>
+    struct MetaFuncs<cocos2d::EventListenerTouchOneByOne*, void> {
+        using U = cocos2d::EventListenerTouchOneByOne*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::EventListener*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "setSwallowTouches", [](auto L)->int { To<U>(L)->setSwallowTouches(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isSwallowTouches", [](auto L)->int { return Push(L, To<U>(L)->isSwallowTouches()); });
+            SetFieldCClosure(L, "onTouchesBegan", [](auto L)->int {
+                To<U>(L)->onTouchBegan = [f = To<Func>(L, 2)](cocos2d::Touch* t, cocos2d::Event* e)->bool {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        return f.Call<bool>(t, e);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+                    return false;
+#endif
+                };
+                return 0;
+            });
+            SetFieldCClosure(L, "onTouchesMoved", [](auto L)->int {
+                To<U>(L)->onTouchMoved = [f = To<Func>(L, 2)](cocos2d::Touch* t, cocos2d::Event* e)->void {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f(t, e);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                };
+                return 0;
+            });
+            SetFieldCClosure(L, "onTouchesEnded", [](auto L)->int {
+                To<U>(L)->onTouchEnded = [f = To<Func>(L, 2)](cocos2d::Touch* t, cocos2d::Event* e)->void {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f(t, e);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                };
+                return 0;
+            });
+            SetFieldCClosure(L, "onTouchesCancelled", [](auto L)->int {
+                To<U>(L)->onTouchCancelled = [f = To<Func>(L, 2)](cocos2d::Touch* t, cocos2d::Event* e)->void {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f(t, e);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                };
+                return 0;
+            });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+        }
+    };
 
-    // todo
+        // EventListenerKeyboard : EventListener
+    template<>
+    struct MetaFuncs<cocos2d::EventListenerKeyboard*, void> {
+        using U = cocos2d::EventListenerKeyboard*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::EventListener*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "onKeyPressed", [](auto L)->int {
+                To<U>(L)->onKeyPressed = [f = To<Func>(L, 2)](cocos2d::EventKeyboard::KeyCode k, cocos2d::Event* e)->bool {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        return f.Call<bool>(k, e);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                };
+                return 0;
+            });
+            SetFieldCClosure(L, "onKeyReleased", [](auto L)->int {
+                To<U>(L)->onKeyReleased = [f = To<Func>(L, 2)](cocos2d::EventKeyboard::KeyCode k, cocos2d::Event* e)->void {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f(k, e);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                };
+                return 0;
+            });
+            SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
+        }
+    };
 
-
-    ///*******************************************************************************************/
-    ////EventDispatcher : Ref
-    //template<>
-    //struct MetaFuncs<cocos2d::EventDispatcher*, void> {
-    //    using U = cocos2d::EventDispatcher*;
-    //    inline static std::string name = std::string(TypeName_v<U>);
-    //    static void Fill(lua_State* const& L) {
-    //        MetaFuncs<cocos2d::Ref*>::Fill(L);
-    //        SetType<U>(L);
-    //        // todo
-    //    }
-    //};
+    // todo: more EventListener?
 
     /*******************************************************************************************/
     // Node : Ref
@@ -1218,6 +1307,7 @@ namespace xx::Lua {
             // todo
         }
     };
+
     /*******************************************************************************************/
     // Scene : Node
     template<>
@@ -1230,6 +1320,7 @@ namespace xx::Lua {
             // todo
         }
     };
+
     /*******************************************************************************************/
     // Sprite : Node
     template<>
@@ -1243,6 +1334,8 @@ namespace xx::Lua {
             // todo
         }
     };
+
+    // todo: more Node ?
 
     /*******************************************************************************************/
     // push + to
@@ -1439,7 +1532,13 @@ void luaBinds(AppDelegate* ad) {
     XL::AssertTop(L, 0);
 
     /***********************************************************************************************/
-    // Director
+    // Global / Director
+
+    // 注册全局帧回调函数( 利用 _scheduler 实现 )
+    XL::SetGlobalCClosure(L, "cc_setFrameUpdate", [](auto L) -> int {
+        To(L, 1, _globalUpdate);
+        return 0;
+    });
 
     XL::SetGlobalCClosure(L, "cc_getRunningScene", [](auto L) -> int {
         return XL::Push(L, _director->getRunningScene());
@@ -1474,11 +1573,6 @@ void luaBinds(AppDelegate* ad) {
     XL::SetGlobalCClosure(L, "cc_getTotalFrames", [](auto L) -> int {
         return XL::Push(L, _director->getTotalFrames());
     });
-
-    XL::SetGlobal(L, "Projection_2D", cocos2d::Director::Projection::_2D);
-    XL::SetGlobal(L, "Projection_3D", cocos2d::Director::Projection::_3D);
-    XL::SetGlobal(L, "Projection_CUSTOM", cocos2d::Director::Projection::CUSTOM);
-    XL::SetGlobal(L, "Projection_DEFAULT", cocos2d::Director::Projection::DEFAULT);
 
     XL::SetGlobalCClosure(L, "cc_getProjection", [](auto L) -> int {
         return XL::Push(L, _director->getProjection());
@@ -1640,13 +1734,6 @@ void luaBinds(AppDelegate* ad) {
         return 0;
     });
 
-    XL::SetGlobal(L, "ResolutionPolicy_EXACT_FIT", ResolutionPolicy::EXACT_FIT);
-    XL::SetGlobal(L, "ResolutionPolicy_NO_BORDER", ResolutionPolicy::NO_BORDER);
-    XL::SetGlobal(L, "ResolutionPolicy_SHOW_ALL", ResolutionPolicy::SHOW_ALL);
-    XL::SetGlobal(L, "ResolutionPolicy_FIXED_HEIGHT", ResolutionPolicy::FIXED_HEIGHT);
-    XL::SetGlobal(L, "ResolutionPolicy_FIXED_WIDTH", ResolutionPolicy::FIXED_WIDTH);
-    XL::SetGlobal(L, "ResolutionPolicy_UNKNOWN", ResolutionPolicy::UNKNOWN);
-
     XL::SetGlobalCClosure(L, "cc_setDesignResolutionSize", [](auto L) -> int {
         assert(_glView);
         _glView->setDesignResolutionSize(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<ResolutionPolicy>(L, 3));
@@ -1676,27 +1763,6 @@ void luaBinds(AppDelegate* ad) {
         _eventDispatcher->removeEventListener(XL::To<cocos2d::EventListener*>(L, 1));
         return 0;
     });
-
-    XL::SetGlobal(L, "Touch_DispatchMode_ALL_AT_ONCE", cocos2d::Touch::DispatchMode::ALL_AT_ONCE);
-    XL::SetGlobal(L, "Touch_DispatchMode_ONE_BY_ONE", cocos2d::Touch::DispatchMode::ONE_BY_ONE);
-
-    XL::SetGlobal(L, "Event_Type_TOUCH", cocos2d::Event::Type::TOUCH);
-    XL::SetGlobal(L, "Event_Type_KEYBOARD", cocos2d::Event::Type::KEYBOARD);
-    XL::SetGlobal(L, "Event_Type_ACCELERATION", cocos2d::Event::Type::ACCELERATION);
-    XL::SetGlobal(L, "Event_Type_MOUSE", cocos2d::Event::Type::MOUSE);
-    XL::SetGlobal(L, "Event_Type_FOCUS", cocos2d::Event::Type::FOCUS);
-    XL::SetGlobal(L, "Event_Type_GAME_CONTROLLER", cocos2d::Event::Type::GAME_CONTROLLER);
-    XL::SetGlobal(L, "Event_Type_CUSTOM", cocos2d::Event::Type::CUSTOM);
-
-    XL::SetGlobal(L, "EventListener_Type_UNKNOWN", cocos2d::EventListener::Type::UNKNOWN);
-    XL::SetGlobal(L, "EventListener_Type_TOUCH_ONE_BY_ONE", cocos2d::EventListener::Type::TOUCH_ONE_BY_ONE);
-    XL::SetGlobal(L, "EventListener_Type_TOUCH_ALL_AT_ONCE", cocos2d::EventListener::Type::TOUCH_ALL_AT_ONCE);
-    XL::SetGlobal(L, "EventListener_Type_KEYBOARD", cocos2d::EventListener::Type::KEYBOARD);
-    XL::SetGlobal(L, "EventListener_Type_MOUSE", cocos2d::EventListener::Type::MOUSE);
-    XL::SetGlobal(L, "EventListener_Type_ACCELERATION", cocos2d::EventListener::Type::ACCELERATION);
-    XL::SetGlobal(L, "EventListener_Type_FOCUS", cocos2d::EventListener::Type::FOCUS);
-    XL::SetGlobal(L, "EventListener_Type_GAME_CONTROLLER", cocos2d::EventListener::Type::GAME_CONTROLLER);
-    XL::SetGlobal(L, "EventListener_Type_CUSTOM", cocos2d::EventListener::Type::CUSTOM);
 
     XL::SetGlobalCClosure(L, "cc_removeEventListenersForType", [](auto L) -> int {
         _eventDispatcher->removeEventListenersForType(XL::To<cocos2d::EventListener::Type>(L, 1));
@@ -2029,6 +2095,18 @@ void luaBinds(AppDelegate* ad) {
         }));
     });
 
+    XL::SetGlobalCClosure(L, "cc_EventListenerTouchAllAtOnce_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::EventListenerTouchAllAtOnce::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_EventListenerKeyboard_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::EventListenerKeyboard::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_EventListenerTouchOneByOne_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::EventListenerTouchOneByOne::create());
+    });
+
     XL::SetGlobalCClosure(L, "cc_DelayTime_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::DelayTime::create(XL::To<float>(L, 1)));
     });
@@ -2183,6 +2261,10 @@ void luaBinds(AppDelegate* ad) {
         }
     });
 
+    XL::SetGlobalCClosure(L, "cc_Scene_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Scene::create());
+    });
+
     XL::SetGlobalCClosure(L, "cc_Sequence_create", [](auto L) -> int {
         auto&& numArgs = lua_gettop(L);
         if (!numArgs) {
@@ -2240,6 +2322,14 @@ void luaBinds(AppDelegate* ad) {
         return XL::Push(L, cocos2d::Speed::create(XL::To<cocos2d::ActionInterval*>(L, 1), XL::To<float>(L, 2)));
     });
 
+    XL::SetGlobalCClosure(L, "cc_Sprite_create", [](auto L) -> int {
+        // todo 似乎还有更多构造方式
+        auto&& r = lua_gettop(L)
+            ? cocos2d::Sprite::create(XL::To<std::string>(L, 1))
+            : cocos2d::Sprite::create();
+        return XL::Push(L, r);
+    });
+
     XL::SetGlobalCClosure(L, "cc_TintBy_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::TintBy::create(XL::To<float>(L, 1), XL::To<int16_t>(L, 2), XL::To<int16_t>(L, 3), XL::To<int16_t>(L, 4)));
     });
@@ -2251,8 +2341,6 @@ void luaBinds(AppDelegate* ad) {
     XL::SetGlobalCClosure(L, "cc_ToggleVisibility_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::ToggleVisibility::create());
     });
-
-
 
 
     //lua_pushstring(L, TypeNames<cocos2d::TextHAlignment>::value);
@@ -2270,38 +2358,46 @@ void luaBinds(AppDelegate* ad) {
     //lua_rawset(L, -3);
 
 
+    // todo: enum cocos2d::EventKeyboard::KeyCode
+
+    XL::SetGlobal(L, "Projection_2D", cocos2d::Director::Projection::_2D);
+    XL::SetGlobal(L, "Projection_3D", cocos2d::Director::Projection::_3D);
+    XL::SetGlobal(L, "Projection_CUSTOM", cocos2d::Director::Projection::CUSTOM);
+    XL::SetGlobal(L, "Projection_DEFAULT", cocos2d::Director::Projection::DEFAULT);
+
+    XL::SetGlobal(L, "ResolutionPolicy_EXACT_FIT", ResolutionPolicy::EXACT_FIT);
+    XL::SetGlobal(L, "ResolutionPolicy_NO_BORDER", ResolutionPolicy::NO_BORDER);
+    XL::SetGlobal(L, "ResolutionPolicy_SHOW_ALL", ResolutionPolicy::SHOW_ALL);
+    XL::SetGlobal(L, "ResolutionPolicy_FIXED_HEIGHT", ResolutionPolicy::FIXED_HEIGHT);
+    XL::SetGlobal(L, "ResolutionPolicy_FIXED_WIDTH", ResolutionPolicy::FIXED_WIDTH);
+    XL::SetGlobal(L, "ResolutionPolicy_UNKNOWN", ResolutionPolicy::UNKNOWN);
+
+    XL::SetGlobal(L, "Touch_DispatchMode_ALL_AT_ONCE", cocos2d::Touch::DispatchMode::ALL_AT_ONCE);
+    XL::SetGlobal(L, "Touch_DispatchMode_ONE_BY_ONE", cocos2d::Touch::DispatchMode::ONE_BY_ONE);
+
+    XL::SetGlobal(L, "Event_Type_TOUCH", cocos2d::Event::Type::TOUCH);
+    XL::SetGlobal(L, "Event_Type_KEYBOARD", cocos2d::Event::Type::KEYBOARD);
+    XL::SetGlobal(L, "Event_Type_ACCELERATION", cocos2d::Event::Type::ACCELERATION);
+    XL::SetGlobal(L, "Event_Type_MOUSE", cocos2d::Event::Type::MOUSE);
+    XL::SetGlobal(L, "Event_Type_FOCUS", cocos2d::Event::Type::FOCUS);
+    XL::SetGlobal(L, "Event_Type_GAME_CONTROLLER", cocos2d::Event::Type::GAME_CONTROLLER);
+    XL::SetGlobal(L, "Event_Type_CUSTOM", cocos2d::Event::Type::CUSTOM);
+
+    XL::SetGlobal(L, "EventListener_Type_UNKNOWN", cocos2d::EventListener::Type::UNKNOWN);
+    XL::SetGlobal(L, "EventListener_Type_TOUCH_ONE_BY_ONE", cocos2d::EventListener::Type::TOUCH_ONE_BY_ONE);
+    XL::SetGlobal(L, "EventListener_Type_TOUCH_ALL_AT_ONCE", cocos2d::EventListener::Type::TOUCH_ALL_AT_ONCE);
+    XL::SetGlobal(L, "EventListener_Type_KEYBOARD", cocos2d::EventListener::Type::KEYBOARD);
+    XL::SetGlobal(L, "EventListener_Type_MOUSE", cocos2d::EventListener::Type::MOUSE);
+    XL::SetGlobal(L, "EventListener_Type_ACCELERATION", cocos2d::EventListener::Type::ACCELERATION);
+    XL::SetGlobal(L, "EventListener_Type_FOCUS", cocos2d::EventListener::Type::FOCUS);
+    XL::SetGlobal(L, "EventListener_Type_GAME_CONTROLLER", cocos2d::EventListener::Type::GAME_CONTROLLER);
+    XL::SetGlobal(L, "EventListener_Type_CUSTOM", cocos2d::EventListener::Type::CUSTOM);
 
 
-
-
-    // 创建场景
-    XL::SetGlobalCClosure(L, "cc_Scene_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::Scene::create());
-    });
-
-
-
-
-
-
-    // 创建精灵
-    XL::SetGlobalCClosure(L, "cc_Sprite_create", [](auto L) -> int {
-        auto&& r = lua_gettop(L)
-            ? cocos2d::Sprite::create(XL::To<std::string>(L, 1))
-            : cocos2d::Sprite::create();
-        return XL::Push(L, r);
-    });
-
-
-    // 注册帧回调函数
-    XL::SetGlobalCClosure(L, "cc_setFrameUpdate", [](auto L) -> int {
-        To(L, 1, _globalUpdate);
-        return 0;
-    });
 
 
     // 在 cocos 中注册 lua 帧回调
-    _director->getScheduler()->schedule([](float delta) {
+    _scheduler->schedule([](float delta) {
         if (_globalUpdate) {
 #if XX_LUA_ENABLE_TRY_CALL_FUNC
             if (auto&& r = XL::Try(_luaState, [&] {
