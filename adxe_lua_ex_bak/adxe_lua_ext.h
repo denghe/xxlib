@@ -1525,7 +1525,7 @@ namespace xx::Lua {
             SetFieldCClosure(L, "getBatchNode", [](auto L)->int { return Push(L, To<U>(L)->getBatchNode()); });
             SetFieldCClosure(L, "setBatchNode", [](auto L)->int { To<U>(L)->setBatchNode(To<cocos2d::SpriteBatchNode*>(L, 2)); return 0; });
             SetFieldCClosure(L, "setTexture", [](auto L)->int {
-                if (lua_isstring(L, 1)) {
+                if (lua_isstring(L, 2)) {
                     To<U>(L)->setTexture(To<std::string>(L, 2));
                 }
                 else {
