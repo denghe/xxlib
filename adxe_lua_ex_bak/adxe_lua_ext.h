@@ -2,6 +2,9 @@
 // 用法：
 // 在 AppDelegate.cpp 第 34 行，也就是 一堆 include 之后，USING_NS_CC 之前 插入本 .h 的 include
 // 并于 applicationDidFinishLaunching 的最后 执行 luaBinds(this);
+// void AppDelegate::applicationDidEnterBackground() { 里面 添加 if (_enterBackground) _enterBackground();
+// void AppDelegate::applicationWillEnterForeground() { 里面 添加 if (_enterForeground) _enterForeground();
+// 也可以模拟下面代码的 try 机制包裹 XX_LUA_ENABLE_TRY_CALL_FUNC
 
 // 原则上 所有获取单例的函数，都不映射。单例的成员函数，直接映射为全局 cc_ 函数。
 
@@ -26,8 +29,13 @@ inline static cocos2d::GLView* _glView = nullptr;                               
 inline static cocos2d::ActionManager* _actionManager = nullptr;
 inline static cocos2d::Scheduler* _scheduler = nullptr;
 inline static cocos2d::EventDispatcher* _eventDispatcher = nullptr;
+
 inline static lua_State* _luaState = nullptr;
+
 inline static XL::Func _globalUpdate;                                               // 注意：restart 功能实现时需先 Reset
+inline static XL::Func _enterBackground;                                            // 注意：restart 功能实现时需先 Reset
+inline static XL::Func _enterForeground;                                            // 注意：restart 功能实现时需先 Reset
+
 inline static std::string _string;                                                  // for print
 inline static std::vector<std::string> _strings;                                    // tmp
 inline static std::vector<cocos2d::FiniteTimeAction*> _finiteTimeActions;           // tmp
@@ -830,6 +838,7 @@ namespace xx::Lua {
     // todo: more action?
 
 
+
     /*******************************************************************************************/
     // Event : Ref
     template<>
@@ -843,6 +852,20 @@ namespace xx::Lua {
             SetFieldCClosure(L, "stopPropagation", [](auto L)->int { To<U>(L)->stopPropagation(); return 0; });
             SetFieldCClosure(L, "isStopped", [](auto L)->int { return Push(L, To<U>(L)->isStopped()); });
             SetFieldCClosure(L, "getCurrentTarget", [](auto L)->int { return Push(L, To<U>(L)->getCurrentTarget()); });
+        }
+    };
+
+    // EventCustom : Event
+    template<>
+    struct MetaFuncs<cocos2d::EventCustom*, void> {
+        using U = cocos2d::EventCustom*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Event*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "setUserData", [](auto L)->int { To<U>(L)->setUserData(To<void*>(L, 1));  return 0; });
+            SetFieldCClosure(L, "getUserData", [](auto L)->int { return Push(L, To<U>(L)->getUserData()); });
+            SetFieldCClosure(L, "getEventName", [](auto L)->int { return Push(L, To<U>(L)->getEventName()); });
         }
     };
 
@@ -983,8 +1006,8 @@ namespace xx::Lua {
             SetFieldCClosure(L, "clone", [](auto L)->int { return Push(L, (U)To<U>(L)->clone()); }); // override
         }
     };
-
-        // EventListenerKeyboard : EventListener
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+    // EventListenerKeyboard : EventListener
     template<>
     struct MetaFuncs<cocos2d::EventListenerKeyboard*, void> {
         using U = cocos2d::EventListenerKeyboard*;
@@ -1023,6 +1046,31 @@ namespace xx::Lua {
     // todo: more EventListener?
 
     /*******************************************************************************************/
+    // Component : Ref
+    template<>
+    struct MetaFuncs<cocos2d::Component*, void> {
+        using U = cocos2d::Component*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Ref*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
+
+    // PhysicsBody : Component
+    template<>
+    struct MetaFuncs<cocos2d::PhysicsBody*, void> {
+        using U = cocos2d::PhysicsBody*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Component*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
+
+    /*******************************************************************************************/
     // Node : Ref
     template<>
     struct MetaFuncs<cocos2d::Node*, void> {
@@ -1031,6 +1079,95 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Ref*>::Fill(L);
             SetType<U>(L);
+            // 针对 基类向派生类转换的需求，提供一组 asType 的函数给 lua，以便附加正确的 meta
+            SetFieldCClosure(L, "toScene", [](auto L)->int { return Push(L, To<cocos2d::Scene*>(L)); });
+            SetFieldCClosure(L, "toSprite", [](auto L)->int { return Push(L, To<cocos2d::Sprite*>(L)); });
+            // todo: more asXxxx
+            SetFieldCClosure(L, "getDescription", [](auto L)->int { return Push(L, To<U>(L)->getDescription()); });
+            SetFieldCClosure(L, "setLocalZOrder", [](auto L)->int { To<U>(L)->setLocalZOrder(To<int>(L, 2)); return 0; });
+            SetFieldCClosure(L, "_setLocalZOrder", [](auto L)->int { To<U>(L)->_setLocalZOrder(To<int>(L, 2)); return 0; });
+            SetFieldCClosure(L, "updateOrderOfArrival", [](auto L)->int { To<U>(L)->updateOrderOfArrival(); return 0; });
+            SetFieldCClosure(L, "getLocalZOrder", [](auto L)->int { return Push(L, To<U>(L)->getLocalZOrder()); });
+            SetFieldCClosure(L, "setGlobalZOrder", [](auto L)->int { To<U>(L)->setGlobalZOrder(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getGlobalZOrder", [](auto L)->int { return Push(L, To<U>(L)->getGlobalZOrder()); });
+            SetFieldCClosure(L, "setScaleX", [](auto L)->int { To<U>(L)->setScaleX(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getScaleX", [](auto L)->int { return Push(L, To<U>(L)->getScaleX()); });
+            SetFieldCClosure(L, "setScaleY", [](auto L)->int { To<U>(L)->setScaleY(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getScaleY", [](auto L)->int { return Push(L, To<U>(L)->getScaleY()); });
+            SetFieldCClosure(L, "setScaleZ", [](auto L)->int { To<U>(L)->setScaleZ(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getScaleZ", [](auto L)->int { return Push(L, To<U>(L)->getScaleZ()); });
+            SetFieldCClosure(L, "setScale", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 2: {
+                    To<U>(L)->setScale(To<float>(L, 2));
+                    return 0;
+                }
+                case 3: {
+                    To<U>(L)->setScale(To<float>(L, 2), To<float>(L, 3));
+                    return 0;
+                }
+                default:
+                    return luaL_error(L, "setScale error! need 2 ~ 3 args: self, float scaleX+Y / scaleX, scaleY");
+                }
+            });
+            SetFieldCClosure(L, "getScale", [](auto L)->int { return Push(L, To<U>(L)->getScale()); });
+            SetFieldCClosure(L, "setPosition", [](auto L)->int { To<U>(L)->setPosition(To<float>(L, 2), To<float>(L, 3)); return 0; });
+            SetFieldCClosure(L, "setPositionNormalized", [](auto L)->int { To<U>(L)->setPositionNormalized({ To<float>(L, 2), To<float>(L, 3) }); return 0; });
+            SetFieldCClosure(L, "getPosition", [](auto L)->int { auto&& o = To<U>(L)->getPosition(); return Push(L, o.x, o.y); });
+            SetFieldCClosure(L, "getPositionNormalized", [](auto L)->int {
+                auto&& r = To<U>(L)->getPositionNormalized();
+                return Push(L, r.x, r.y);
+            });
+            SetFieldCClosure(L, "setPositionX", [](auto L)->int { To<U>(L)->setPositionX(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getPositionX", [](auto L)->int { return Push(L, To<U>(L)->getPositionX()); });
+            SetFieldCClosure(L, "setPositionY", [](auto L)->int { To<U>(L)->setPositionY(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getPositionY", [](auto L)->int { return Push(L, To<U>(L)->getPositionY()); });
+            SetFieldCClosure(L, "setPosition3D", [](auto L)->int { To<U>(L)->setPosition3D({ To<float>(L, 2), To<float>(L, 3), To<float>(L, 4) }); return 0; });
+            SetFieldCClosure(L, "getPosition3D", [](auto L)->int {
+                auto&& o = To<U>(L)->getPosition3D();
+                return Push(L, o.x, o.y, o.z);
+            });
+            SetFieldCClosure(L, "setPositionZ", [](auto L)->int { To<U>(L)->setPositionZ(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getPositionZ", [](auto L)->int { return Push(L, To<U>(L)->getPositionZ()); });
+            SetFieldCClosure(L, "setSkewX", [](auto L)->int { To<U>(L)->setSkewX(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getSkewX", [](auto L)->int { return Push(L, To<U>(L)->getSkewX()); });
+            SetFieldCClosure(L, "setSkewY", [](auto L)->int { To<U>(L)->setSkewY(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getSkewY", [](auto L)->int { return Push(L, To<U>(L)->getSkewY()); });
+            SetFieldCClosure(L, "setAnchorPoint", [](auto L)->int { To<U>(L)->setAnchorPoint({ To<float>(L, 2), To<float>(L, 3) }); return 0; });
+            SetFieldCClosure(L, "getAnchorPoint", [](auto L)->int {
+                auto&& r = To<U>(L)->getAnchorPoint();
+                return Push(L, r.x, r.y);
+            });
+            SetFieldCClosure(L, "getAnchorPointInPoints", [](auto L)->int {
+                auto&& r = To<U>(L)->getAnchorPointInPoints();
+                return Push(L, r.x, r.y);
+            });
+            SetFieldCClosure(L, "setContentSize", [](auto L)->int { To<U>(L)->setContentSize({ To<float>(L, 2), To<float>(L, 3) }); return 0; });
+            SetFieldCClosure(L, "getContentSize", [](auto L)->int {
+                auto&& r = To<U>(L)->getContentSize();
+                return Push(L, r.width, r.height);
+            });
+            SetFieldCClosure(L, "hitTest", [](auto L)->int { return Push(L, To<U>(L)->hitTest({ To<float>(L, 2), To<float>(L, 3) })); });
+            SetFieldCClosure(L, "setVisible", [](auto L)->int { To<U>(L)->setVisible(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isVisible", [](auto L)->int { return Push(L, To<U>(L)->isVisible()); });
+            SetFieldCClosure(L, "setRotation", [](auto L)->int { To<U>(L)->setRotation(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getRotation", [](auto L)->int { return Push(L, To<U>(L)->getRotation()); });
+            SetFieldCClosure(L, "setRotation3D", [](auto L)->int { To<U>(L)->setRotation3D({ To<float>(L, 2), To<float>(L, 3), To<float>(L, 4) }); return 0; });
+            SetFieldCClosure(L, "getRotation3D", [](auto L)->int {
+                auto&& r = To<U>(L)->getRotation3D();
+                return Push(L, r.x, r.y, r.z);
+            });
+            SetFieldCClosure(L, "setRotationQuat", [](auto L)->int { To<U>(L)->setRotationQuat({ To<float>(L, 2), To<float>(L, 3), To<float>(L, 4), To<float>(L, 5) }); return 0; });
+            SetFieldCClosure(L, "getRotationQuat", [](auto L)->int {
+                auto&& r = To<U>(L)->getRotationQuat();
+                return Push(L, r.x, r.y, r.z, r.w);
+            });
+            SetFieldCClosure(L, "setRotationSkewX", [](auto L)->int { To<U>(L)->setRotationSkewX(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getRotationSkewX", [](auto L)->int { return Push(L, To<U>(L)->getRotationSkewX()); });
+            SetFieldCClosure(L, "setRotationSkewY", [](auto L)->int { To<U>(L)->setRotationSkewY(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getRotationSkewY", [](auto L)->int { return Push(L, To<U>(L)->getRotationSkewY()); });
+            SetFieldCClosure(L, "setIgnoreAnchorPointForPosition", [](auto L)->int { To<U>(L)->setIgnoreAnchorPointForPosition(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isIgnoreAnchorPointForPosition", [](auto L)->int { return Push(L, To<U>(L)->isIgnoreAnchorPointForPosition()); });
             SetFieldCClosure(L, "addChild", [](auto L)->int {
                 switch (lua_gettop(L)) {
                 case 2: {
@@ -1056,6 +1193,19 @@ namespace xx::Lua {
             });
             SetFieldCClosure(L, "getChildByTag", [](auto L)->int { return Push(L, To<U>(L)->getChildByTag(XL::To<int>(L, 2))); });
             SetFieldCClosure(L, "getChildByName", [](auto L)->int { return Push(L, To<U>(L)->getChildByName(XL::To<std::string>(L, 2))); });
+            SetFieldCClosure(L, "enumerateChildren", [](auto L)->int {
+                To<U>(L)->enumerateChildren(To<std::string>(L, 2), [f = To<Func>(L, 2)](cocos2d::Node* node)->bool {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        return f.Call<bool>(node);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+                    return false;
+#endif
+                });
+                return 0; 
+            });
             SetFieldCClosure(L, "getChildren", [](auto L)->int { return Push(L, To<U>(L)->getChildren()); });
             SetFieldCClosure(L, "getChildrenCount", [](auto L)->int { return Push(L, To<U>(L)->getChildrenCount()); });
             SetFieldCClosure(L, "setParent", [](auto L)->int { To<U>(L)->setParent(To<cocos2d::Node*>(L, 2)); return 0; });
@@ -1108,83 +1258,86 @@ namespace xx::Lua {
             SetFieldCClosure(L, "removeAllChildrenWithCleanup", [](auto L)->int { To<U>(L)->removeAllChildrenWithCleanup(To<bool>(L, 2)); return 0; });
             SetFieldCClosure(L, "reorderChild", [](auto L)->int { To<U>(L)->reorderChild(To<cocos2d::Node*>(L, 2), To<int>(L, 3)); return 0; });
             SetFieldCClosure(L, "sortAllChildren", [](auto L)->int { To<U>(L)->sortAllChildren(); return 0; });
-            SetFieldCClosure(L, "setPositionNormalized", [](auto L)->int { To<U>(L)->setPositionNormalized({ To<float>(L, 2), To<float>(L, 3) }); return 0; });
-            SetFieldCClosure(L, "getPositionNormalized", [](auto L)->int {
-                auto&& r = To<U>(L)->getPositionNormalized();
-                return Push(L, r.x, r.y);
+            // todo: cc_sortNodes ?
+            SetFieldCClosure(L, "getTag", [](auto L)->int { return Push(L, To<U>(L)->getTag()); });
+            SetFieldCClosure(L, "setTag", [](auto L)->int { To<U>(L)->setTag(To<int>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getName", [](auto L)->int { return Push(L, To<U>(L)->getName()); });
+            SetFieldCClosure(L, "setName", [](auto L)->int { To<U>(L)->setName(To<std::string>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getUserData", [](auto L)->int { return Push(L, To<U>(L)->getUserData()); });
+            SetFieldCClosure(L, "setUserData", [](auto L)->int { To<U>(L)->setUserData(To<void*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getUserObject", [](auto L)->int { return Push(L, To<U>(L)->getUserObject()); });
+            SetFieldCClosure(L, "setUserObject", [](auto L)->int { To<U>(L)->setUserObject(To<cocos2d::Ref*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isRunning", [](auto L)->int { return Push(L, To<U>(L)->isRunning()); });
+            // 不实现 scheduleUpdateWithPriorityLua
+            SetFieldCClosure(L, "onEnter", [](auto L)->int { To<U>(L)->onEnter(); return 0; });
+            SetFieldCClosure(L, "onEnterTransitionDidFinish", [](auto L)->int { To<U>(L)->onEnterTransitionDidFinish(); return 0; });
+            SetFieldCClosure(L, "onExit", [](auto L)->int { To<U>(L)->onExit(); return 0; });
+            SetFieldCClosure(L, "onExitTransitionDidStart", [](auto L)->int { To<U>(L)->onExitTransitionDidStart(); return 0; });
+            SetFieldCClosure(L, "cleanup", [](auto L)->int { To<U>(L)->cleanup(); return 0; });
+            // todo: draw, visit
+            SetFieldCClosure(L, "getScene", [](auto L)->int { return Push(L, To<U>(L)->getScene()); });
+            SetFieldCClosure(L, "getBoundingBox", [](auto L)->int {
+                auto&& r = To<U>(L)->getBoundingBox();
+                return Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
             });
-            SetFieldCClosure(L, "setPosition", [](auto L)->int { To<U>(L)->setPosition(To<float>(L, 2), To<float>(L, 3)); return 0; });
-            SetFieldCClosure(L, "getPosition", [](auto L)->int { auto&& o = To<U>(L)->getPosition(); return Push(L, o.x, o.y); });
-            SetFieldCClosure(L, "setPositionX", [](auto L)->int { To<U>(L)->setPositionX(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getPositionX", [](auto L)->int { return Push(L, To<U>(L)->getPositionX()); });
-            SetFieldCClosure(L, "setPositionY", [](auto L)->int { To<U>(L)->setPositionY(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getPositionY", [](auto L)->int { return Push(L, To<U>(L)->getPositionY()); });
-            SetFieldCClosure(L, "setPositionZ", [](auto L)->int { To<U>(L)->setPositionZ(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getPositionZ", [](auto L)->int { return Push(L, To<U>(L)->getPositionZ()); });
-            SetFieldCClosure(L, "setPosition3D", [](auto L)->int { To<U>(L)->setPosition3D({ To<float>(L, 2), To<float>(L, 3), To<float>(L, 4) }); return 0; });
-            SetFieldCClosure(L, "getPosition3D", [](auto L)->int { auto&& o = To<U>(L)->getPosition3D(); return Push(L, o.x, o.y, o.z); });
-            SetFieldCClosure(L, "setSkewX", [](auto L)->int { To<U>(L)->setSkewX(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getSkewX", [](auto L)->int { return Push(L, To<U>(L)->getSkewX()); });
-            SetFieldCClosure(L, "setSkewY", [](auto L)->int { To<U>(L)->setSkewY(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getSkewY", [](auto L)->int { return Push(L, To<U>(L)->getSkewY()); });
-            SetFieldCClosure(L, "setAnchorPoint", [](auto L)->int { To<U>(L)->setAnchorPoint({ To<float>(L, 2), To<float>(L, 3) }); return 0; });
-            SetFieldCClosure(L, "getAnchorPoint", [](auto L)->int {
-                auto&& r = To<U>(L)->getAnchorPoint();
-                return Push(L, r.x, r.y);
+            // todo: setEventDispatcher getEventDispatcher setActionManager getActionManager
+            SetFieldCClosure(L, "runAction", [](auto L)->int { return Push(L, To<U>(L)->runAction(To<cocos2d::Action*>(L, 2))); });
+            SetFieldCClosure(L, "stopAllActions", [](auto L)->int { To<U>(L)->stopAllActions(); return 0; });
+            SetFieldCClosure(L, "stopAction", [](auto L)->int { To<U>(L)->stopAction(To<cocos2d::Action*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "stopActionByTag", [](auto L)->int { To<U>(L)->stopActionByTag(To<int>(L, 2)); return 0; });
+            SetFieldCClosure(L, "stopAllActionsByTag", [](auto L)->int { To<U>(L)->stopAllActionsByTag(To<int>(L, 2)); return 0; });
+            SetFieldCClosure(L, "stopActionsByFlags", [](auto L)->int { To<U>(L)->stopActionsByFlags(To<int>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getActionByTag", [](auto L)->int { return Push(L, To<U>(L)->getActionByTag(To<int>(L, 2))); });
+            SetFieldCClosure(L, "getNumberOfRunningActions", [](auto L)->int { return Push(L, To<U>(L)->getNumberOfRunningActions()); });
+            // todo: 有些函数映射到 lua 没啥意义 慢慢排查清理. 已知有 setScheduler getScheduler isScheduled  scheduleUpdateWithPriority
+            // 这个函数因为 lua 无法 override update 而修改，利用 schedule 来实现类似效果。key 使用指针值来生成
+            SetFieldCClosure(L, "scheduleUpdate", [](auto L)->int {
+                To<U>(L)->schedule([f = To<Func>(L, 2)](float delta) {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f(delta);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                }, std::to_string((size_t)To<U>(L)));
+                return 0;
             });
-            SetFieldCClosure(L, "getAnchorPointInPoints", [](auto L)->int {
-                auto&& r = To<U>(L)->getAnchorPointInPoints();
-                return Push(L, r.x, r.y);
+            // 这个函数因为 lua 无法 override update 而修改，利用 unschedule 来实现类似效果。key 使用指针值来生成
+            SetFieldCClosure(L, "unscheduleUpdate", [](auto L)->int { To<U>(L)->unschedule(std::to_string((size_t)To<U>(L))); return 0; });
+            SetFieldCClosure(L, "scheduleOnce", [](auto L)->int {
+                // 参数：callback(float)->void, float delay
+                To<U>(L)->scheduleOnce([f = To<Func>(L, 2)](float delta) {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f(delta);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                }, To<float>(L, 3), std::to_string((size_t)To<U>(L)));
+                return 0;
             });
-            SetFieldCClosure(L, "setLocalZOrder", [](auto L)->int { To<U>(L)->setLocalZOrder(To<int>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getLocalZOrder", [](auto L)->int { return Push(L, To<U>(L)->getLocalZOrder()); });
-            SetFieldCClosure(L, "setGlobalZOrder", [](auto L)->int { To<U>(L)->setGlobalZOrder(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getGlobalZOrder", [](auto L)->int { return Push(L, To<U>(L)->getGlobalZOrder()); });
-            SetFieldCClosure(L, "setRotationSkewX", [](auto L)->int { To<U>(L)->setRotationSkewX(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getRotationSkewX", [](auto L)->int { return Push(L, To<U>(L)->getRotationSkewX()); });
-            SetFieldCClosure(L, "setRotationSkewY", [](auto L)->int { To<U>(L)->setRotationSkewY(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getRotationSkewY", [](auto L)->int { return Push(L, To<U>(L)->getRotationSkewY()); });
-            SetFieldCClosure(L, "setRotation", [](auto L)->int { To<U>(L)->setRotation(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getRotation", [](auto L)->int { return Push(L, To<U>(L)->getRotation()); });
-            SetFieldCClosure(L, "setRotation3D", [](auto L)->int { To<U>(L)->setRotation3D({ To<float>(L, 2), To<float>(L, 3), To<float>(L, 4) }); return 0; });
-            SetFieldCClosure(L, "getRotation3D", [](auto L)->int {
-                auto&& r = To<U>(L)->getRotation3D();
-                return Push(L, r.x, r.y, r.z);
+            SetFieldCClosure(L, "schedule", [](auto L)->int {
+                // 原型: void schedule(const std::function<void(float)>& callback, float interval, unsigned int repeat, float delay, const std::string &key);
+                To<U>(L)->schedule([f = To<Func>(L, 2)](float delta)->void {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f(delta);
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                }, To<float>(L, 3), To<uint32_t>(L, 4), To<float>(L, 5), To<std::string>(L, 6));
+                return 0;
             });
-            SetFieldCClosure(L, "setRotationQuat", [](auto L)->int { To<U>(L)->setRotationQuat({ To<float>(L, 2), To<float>(L, 3), To<float>(L, 4), To<float>(L, 5) }); return 0; });
-            SetFieldCClosure(L, "getRotationQuat", [](auto L)->int {
-                auto&& r = To<U>(L)->getRotationQuat();
-                return Push(L, r.x, r.y, r.z, r.w);
-            });
-            SetFieldCClosure(L, "setScale", [](auto L)->int {
-                switch (lua_gettop(L)) {
-                case 2: {
-                    To<U>(L)->setScale(To<float>(L, 2));
-                    return 0;
-                }
-                case 3: {
-                    To<U>(L)->setScale(To<float>(L, 2), To<float>(L, 3));
-                    return 0;
-                }
-                default:
-                    return luaL_error(L, "setScale error! need 2 ~ 3 args: self, float scaleX+Y / scaleX, scaleY");
-                }
-            });
-            SetFieldCClosure(L, "setScaleX", [](auto L)->int { To<U>(L)->setScaleX(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getScaleX", [](auto L)->int { return Push(L, To<U>(L)->getScaleX()); });
-            SetFieldCClosure(L, "setScaleY", [](auto L)->int { To<U>(L)->setScaleY(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getScaleY", [](auto L)->int { return Push(L, To<U>(L)->getScaleY()); });
-            SetFieldCClosure(L, "setScaleZ", [](auto L)->int { To<U>(L)->setScaleZ(To<float>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getScaleZ", [](auto L)->int { return Push(L, To<U>(L)->getScaleZ()); });
-            SetFieldCClosure(L, "setVisible", [](auto L)->int { To<U>(L)->setVisible(To<bool>(L, 2)); return 0; });
-            SetFieldCClosure(L, "isVisible", [](auto L)->int { return Push(L, To<U>(L)->isVisible()); });
-            SetFieldCClosure(L, "setIgnoreAnchorPointForPosition", [](auto L)->int { To<U>(L)->setIgnoreAnchorPointForPosition(To<bool>(L, 2)); return 0; });
-            SetFieldCClosure(L, "isIgnoreAnchorPointForPosition", [](auto L)->int { return Push(L, To<U>(L)->isIgnoreAnchorPointForPosition()); });
-            SetFieldCClosure(L, "setContentSize", [](auto L)->int { To<U>(L)->setContentSize({ To<float>(L, 2), To<float>(L, 3) }); return 0; });
-            SetFieldCClosure(L, "getContentSize", [](auto L)->int {
-                auto&& r = To<U>(L)->getContentSize();
-                return Push(L, r.width, r.height);
-            });
+            SetFieldCClosure(L, "unschedule", [](auto L)->int { To<U>(L)->unschedule(To<std::string>(L, 2)); return 0; });
+            SetFieldCClosure(L, "unscheduleAllCallbacks", [](auto L)->int { To<U>(L)->unscheduleAllCallbacks(); return 0; });
+            SetFieldCClosure(L, "resume", [](auto L)->int { To<U>(L)->resume(); return 0; });
+            SetFieldCClosure(L, "pause", [](auto L)->int { To<U>(L)->pause(); return 0; });
+            SetFieldCClosure(L, "update", [](auto L)->int { To<U>(L)->update(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "updateTransform", [](auto L)->int { To<U>(L)->updateTransform(); return 0; });
+            // todo: get/set xxxxx Transform
             SetFieldCClosure(L, "convertToNodeSpace", [](auto L)->int {
                 auto&& r = To<U>(L)->convertToNodeSpace({ To<float>(L, 2), To<float>(L, 3) });
                 return Push(L, r.width, r.height);
@@ -1209,24 +1362,25 @@ namespace xx::Lua {
                 auto&& r = To<U>(L)->convertTouchToNodeSpaceAR(To<cocos2d::Touch*>(L, 2));
                 return Push(L, r.width, r.height);
             });
-            SetFieldCClosure(L, "setOpacity", [](auto L)->int { To<U>(L)->setOpacity(To<uint8_t>(L, 2)); return 0; });
+            // todo: get / set / add / remove  Component
             SetFieldCClosure(L, "getOpacity", [](auto L)->int { return Push(L, To<U>(L)->getOpacity()); });
-            SetFieldCClosure(L, "updateDisplayedOpacity", [](auto L)->int { To<U>(L)->updateDisplayedOpacity(To<uint8_t>(L, 2)); return 0; });
             SetFieldCClosure(L, "getDisplayedOpacity", [](auto L)->int { return Push(L, To<U>(L)->getDisplayedOpacity()); });
-            SetFieldCClosure(L, "setCascadeOpacityEnabled", [](auto L)->int { To<U>(L)->setCascadeOpacityEnabled(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "setOpacity", [](auto L)->int { To<U>(L)->setOpacity(To<uint8_t>(L, 2)); return 0; });
+            SetFieldCClosure(L, "updateDisplayedOpacity", [](auto L)->int { To<U>(L)->updateDisplayedOpacity(To<uint8_t>(L, 2)); return 0; });
             SetFieldCClosure(L, "isCascadeOpacityEnabled", [](auto L)->int { return Push(L, To<U>(L)->isCascadeOpacityEnabled()); });
-            SetFieldCClosure(L, "setColor", [](auto L)->int { To<U>(L)->setColor({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4) }); return 0; });
+            SetFieldCClosure(L, "setCascadeOpacityEnabled", [](auto L)->int { To<U>(L)->setCascadeOpacityEnabled(To<bool>(L, 2)); return 0; });
             SetFieldCClosure(L, "getColor", [](auto L)->int {
                 auto&& o = To<U>(L)->getColor(); 
                 return Push(L, o.r, o.g, o.b);
             });
-            SetFieldCClosure(L, "updateDisplayedColor", [](auto L)->int { To<U>(L)->updateDisplayedColor({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4) }); return 0; });
             SetFieldCClosure(L, "getDisplayedColor", [](auto L)->int {
                 auto&& o = To<U>(L)->getDisplayedColor();
                 return Push(L, o.r, o.g, o.b);
             });
-            SetFieldCClosure(L, "setCascadeColorEnabled", [](auto L)->int { To<U>(L)->setCascadeColorEnabled(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "setColor", [](auto L)->int { To<U>(L)->setColor({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4) }); return 0; });
+            SetFieldCClosure(L, "updateDisplayedColor", [](auto L)->int { To<U>(L)->updateDisplayedColor({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4) }); return 0; });
             SetFieldCClosure(L, "isCascadeColorEnabled", [](auto L)->int { return Push(L, To<U>(L)->isCascadeColorEnabled()); });
+            SetFieldCClosure(L, "setCascadeColorEnabled", [](auto L)->int { To<U>(L)->setCascadeColorEnabled(To<bool>(L, 2)); return 0; });
             SetFieldCClosure(L, "setOpacityModifyRGB", [](auto L)->int { To<U>(L)->setOpacityModifyRGB(To<bool>(L, 2)); return 0; });
             SetFieldCClosure(L, "isOpacityModifyRGB", [](auto L)->int { return Push(L, To<U>(L)->isOpacityModifyRGB()); });
             SetFieldCClosure(L, "setOnEnterCallback", [](auto L)->int {
@@ -1241,6 +1395,7 @@ namespace xx::Lua {
                 });
                 return 0;
             });
+            // todo: getOnEnterCallback
             SetFieldCClosure(L, "setOnExitCallback", [](auto L)->int {
                 To<U>(L)->setOnExitCallback([f = To<Func>(L, 2)] {
 #if XX_LUA_ENABLE_TRY_CALL_FUNC
@@ -1253,6 +1408,33 @@ namespace xx::Lua {
                 });
                 return 0;
             });
+            // todo: getOnExitCallback
+            SetFieldCClosure(L, "setOnEnterTransitionDidFinishCallback", [](auto L)->int {
+                To<U>(L)->setOnEnterTransitionDidFinishCallback([f = To<Func>(L, 2)] {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f();
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                });
+                return 0;
+            });
+            // todo: getOnEnterTransitionDidFinishCallback
+            SetFieldCClosure(L, "setOnExitTransitionDidStartCallback", [](auto L)->int {
+                To<U>(L)->setOnExitTransitionDidStartCallback([f = To<Func>(L, 2)] {
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    if (auto&& r = Try(_luaState, [&] {
+#endif
+                        f();
+#if XX_LUA_ENABLE_TRY_CALL_FUNC
+                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
+#endif
+                });
+                return 0;
+            });
+            // todo: getOnExitTransitionDidStartCallback
             SetFieldCClosure(L, "setCameraMask", [](auto L)->int {
                 switch (lua_gettop(L)) {
                 case 2: {
@@ -1268,42 +1450,50 @@ namespace xx::Lua {
                 }
             });
             SetFieldCClosure(L, "getCameraMask", [](auto L)->int { return Push(L, To<U>(L)->getCameraMask()); });
-            SetFieldCClosure(L, "setTag", [](auto L)->int { To<U>(L)->setTag(To<int>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getTag", [](auto L)->int { return Push(L, To<U>(L)->getTag()); });
-            SetFieldCClosure(L, "setName", [](auto L)->int { To<U>(L)->setName(To<std::string>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getName", [](auto L)->int { return Push(L, To<U>(L)->getName()); });
-            SetFieldCClosure(L, "cleanup", [](auto L)->int { To<U>(L)->cleanup(); return 0; });
-            SetFieldCClosure(L, "getScene", [](auto L)->int { return Push(L, To<U>(L)->getScene()); });
-            SetFieldCClosure(L, "getBoundingBox", [](auto L)->int {
-                auto&& r = To<U>(L)->getBoundingBox();
-                return Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
-            });
-            SetFieldCClosure(L, "schedule", [](auto L)->int {
-                To<U>(L)->schedule([f = To<Func>(L, 2)](float delta) {
-#if XX_LUA_ENABLE_TRY_CALL_FUNC
-                    if (auto&& r = Try(_luaState, [&] {
-#endif
-                        f(delta);
-#if XX_LUA_ENABLE_TRY_CALL_FUNC
-                    })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
-#endif
-                }, std::to_string((size_t)To<U>(L)));
-                return 0;
-            });
-            SetFieldCClosure(L, "unschedule", [](auto L)->int { To<U>(L)->unschedule(std::to_string((size_t)To<U>(L))); return 0; });
-            SetFieldCClosure(L, "unscheduleAllCallbacks", [](auto L)->int { To<U>(L)->unscheduleAllCallbacks(); return 0; });
-            SetFieldCClosure(L, "runAction", [](auto L)->int { return Push(L, To<U>(L)->runAction(To<cocos2d::Action*>(L, 2))); });
-            SetFieldCClosure(L, "stopAllActions", [](auto L)->int { To<U>(L)->stopAllActions(); return 0; });
-            SetFieldCClosure(L, "stopAction", [](auto L)->int { To<U>(L)->stopAction(To<cocos2d::Action*>(L, 2)); return 0; });
-            SetFieldCClosure(L, "stopActionByTag", [](auto L)->int { To<U>(L)->stopActionByTag(To<int>(L, 2)); return 0; });
-            SetFieldCClosure(L, "stopAllActionsByTag", [](auto L)->int { To<U>(L)->stopAllActionsByTag(To<int>(L, 2)); return 0; });
-            SetFieldCClosure(L, "stopActionsByFlags", [](auto L)->int { To<U>(L)->stopActionsByFlags(To<int>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getActionByTag", [](auto L)->int { return Push(L, To<U>(L)->getActionByTag(To<int>(L, 2))); });
-            SetFieldCClosure(L, "getNumberOfRunningActions", [](auto L)->int { return Push(L, To<U>(L)->getNumberOfRunningActions()); });
-            SetFieldCClosure(L, "getEventDispatcher", [](auto L)->int { return Push(L, To<U>(L)->getEventDispatcher()); });
-            // todo: getGLProgram setGLProgram getGLProgramState setGLProgramState ......
+            // todo: setProgramState setProgramStateWithRegistry getProgramState
+            SetFieldCClosure(L, "updateProgramStateTexture", [](auto L)->int { To<U>(L)->updateProgramStateTexture(To<cocos2d::Texture2D*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "resetChild", [](auto L)->int { To<U>(L)->resetChild(To<cocos2d::Node*>(L, 2), To<bool>(L, 3)); return 0; });
+            // todo: 或许内置物理应该禁掉?
+            SetFieldCClosure(L, "setPhysicsBody", [](auto L)->int { To<U>(L)->setPhysicsBody(To<cocos2d::PhysicsBody*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getPhysicsBody", [](auto L)->int { return Push(L, To<U>(L)->getPhysicsBody()); });
+        }
+    };
 
+    /*******************************************************************************************/
+    // BaseLight : Node
+    template<>
+    struct MetaFuncs<cocos2d::BaseLight*, void> {
+        using U = cocos2d::BaseLight*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
 
+    /*******************************************************************************************/
+    // Camera : Node
+    template<>
+    struct MetaFuncs<cocos2d::Camera*, void> {
+        using U = cocos2d::Camera*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
+
+    /*******************************************************************************************/
+    // SpriteBatchNode : Node, TextureProtocol
+    template<>
+    struct MetaFuncs<cocos2d::SpriteBatchNode*, void> {
+        using U = cocos2d::SpriteBatchNode*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
+            SetType<U>(L);
             // todo
         }
     };
@@ -1317,7 +1507,9 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
-            // todo
+            SetFieldCClosure(L, "getCameras", [](auto L)->int { return Push(L, To<U>(L)->getCameras()); });
+            SetFieldCClosure(L, "getDefaultCamera", [](auto L)->int { return Push(L, To<U>(L)->getDefaultCamera()); });
+            SetFieldCClosure(L, "getLights", [](auto L)->int { return Push(L, To<U>(L)->getLights()); });
         }
     };
 
@@ -1330,7 +1522,131 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
-            SetFieldCClosure(L, "setTexture", [](auto L)->int { To<U>(L)->setTexture(To<std::string>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getBatchNode", [](auto L)->int { return Push(L, To<U>(L)->getBatchNode()); });
+            SetFieldCClosure(L, "setBatchNode", [](auto L)->int { To<U>(L)->setBatchNode(To<cocos2d::SpriteBatchNode*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "setTexture", [](auto L)->int {
+                if (lua_isstring(L, 1)) {
+                    To<U>(L)->setTexture(To<std::string>(L, 2));
+                }
+                else {
+                    To<U>(L)->setTexture(To<cocos2d::Texture2D*>(L, 2));
+                }
+                return 0;
+            });
+            SetFieldCClosure(L, "getTexture", [](auto L)->int { return Push(L, To<U>(L)->getTexture()); });
+            SetFieldCClosure(L, "setTextureRect", [](auto L)->int { 
+                switch (lua_gettop(L)) {
+                case 5: {
+                    To<U>(L)->setTextureRect({ XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) });
+                    return 0;
+                }
+                case 8: {
+                    To<U>(L)->setTextureRect({ XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) }
+                    , XL::To<bool>(L, 6), { XL::To<float>(L, 7), XL::To<float>(L, 8) });
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "Sprite:setTextureRect error! need 5 / 8 args: Sprite* self, Rect rect{ float x, y, w, h }, bool rotated, Vec2 untrimmedSize{ float w, h }");
+                }
+                }
+            });
+            SetFieldCClosure(L, "setVertexRect", [](auto L)->int {
+                To<U>(L)->setVertexRect({ XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) });
+                return 0;
+            });
+            SetFieldCClosure(L, "setCenterRectNormalized", [](auto L)->int {
+                To<U>(L)->setCenterRectNormalized({ XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) });
+                return 0;
+            });
+            SetFieldCClosure(L, "getCenterRectNormalized", [](auto L)->int {
+                auto&& r = To<U>(L)->getCenterRectNormalized();
+                return XL::Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
+            });
+            SetFieldCClosure(L, "setCenterRect", [](auto L)->int {
+                To<U>(L)->setCenterRect({ XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) });
+                return 0;
+            });
+            SetFieldCClosure(L, "getCenterRect", [](auto L)->int {
+                auto&& r = To<U>(L)->getCenterRect();
+                return XL::Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
+            });
+            SetFieldCClosure(L, "setSpriteFrame", [](auto L)->int {
+                if (lua_isstring(L, 1)) {
+                    To<U>(L)->setSpriteFrame(To<std::string>(L, 2));
+                }
+                else {
+                    To<U>(L)->setSpriteFrame(To<cocos2d::SpriteFrame*>(L, 2));
+                }
+                return 0;
+            });
+            SetFieldCClosure(L, "getSpriteFrame", [](auto L)->int { return Push(L, To<U>(L)->getSpriteFrame()); });
+            SetFieldCClosure(L, "setDisplayFrameWithAnimationName", [](auto L)->int {
+                To<U>(L)->setDisplayFrameWithAnimationName( XL::To<std::string>(L, 2), XL::To<uint32_t>(L, 3));
+                return 0;
+            });
+            SetFieldCClosure(L, "isDirty", [](auto L)->int { return Push(L, To<U>(L)->isDirty()); });
+            SetFieldCClosure(L, "setDirty", [](auto L)->int { To<U>(L)->setDirty(To<bool>(L, 2)); return 0; });
+            // todo: getQuad 
+            SetFieldCClosure(L, "isTextureRectRotated", [](auto L)->int { return Push(L, To<U>(L)->isTextureRectRotated()); });
+            SetFieldCClosure(L, "getAtlasIndex", [](auto L)->int { return Push(L, To<U>(L)->getAtlasIndex()); });
+            SetFieldCClosure(L, "setAtlasIndex", [](auto L)->int { To<U>(L)->setAtlasIndex(XL::To<uint32_t>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getTextureRect", [](auto L)->int {
+                auto&& r = To<U>(L)->getTextureRect();
+                return XL::Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
+            });
+            SetFieldCClosure(L, "getTextureAtlas", [](auto L)->int { To<U>(L)->getTextureAtlas(); return 0; });
+            SetFieldCClosure(L, "setTextureAtlas", [](auto L)->int { To<U>(L)->setTextureAtlas(XL::To<cocos2d::TextureAtlas*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getOffsetPosition", [](auto L)->int {
+                auto&& r = To<U>(L)->getOffsetPosition();
+                return XL::Push(L, r.x, r.y);
+            });
+            SetFieldCClosure(L, "isFlippedX", [](auto L)->int { return Push(L, To<U>(L)->isFlippedX()); });
+            SetFieldCClosure(L, "setFlippedX", [](auto L)->int { To<U>(L)->setFlippedX(XL::To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isFlippedY", [](auto L)->int { return Push(L, To<U>(L)->isFlippedY()); });
+            SetFieldCClosure(L, "setFlippedY", [](auto L)->int { To<U>(L)->setFlippedY(XL::To<bool>(L, 2)); return 0; });
+            // todo: getPolygonInfo setPolygonInfo
+            SetFieldCClosure(L, "setStretchEnabled", [](auto L)->int { To<U>(L)->setStretchEnabled(XL::To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isStretchEnabled", [](auto L)->int { return Push(L, To<U>(L)->isStretchEnabled()); });
+            SetFieldCClosure(L, "getResourceType", [](auto L)->int { return Push(L, To<U>(L)->getResourceType()); });
+            SetFieldCClosure(L, "getResourceName", [](auto L)->int { return Push(L, To<U>(L)->getResourceName()); });
+        }
+    };
+
+    /*******************************************************************************************/
+    // SpriteFrame : Ref, Cloneable
+    template<>
+    struct MetaFuncs<cocos2d::SpriteFrame*, void> {
+        using U = cocos2d::SpriteFrame*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Ref*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
+
+    /*******************************************************************************************/
+    // Texture2D : Ref
+    template<>
+    struct MetaFuncs<cocos2d::Texture2D*, void> {
+        using U = cocos2d::Texture2D*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Ref*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
+
+    /*******************************************************************************************/
+    // TextureAtlas : Ref
+    template<>
+    struct MetaFuncs<cocos2d::TextureAtlas*, void> {
+        using U = cocos2d::TextureAtlas*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Ref*>::Fill(L);
+            SetType<U>(L);
             // todo
         }
     };
@@ -1532,13 +1848,57 @@ void luaBinds(AppDelegate* ad) {
     XL::AssertTop(L, 0);
 
     /***********************************************************************************************/
-    // Global / Director
+    // Application
 
     // 注册全局帧回调函数( 利用 _scheduler 实现 )
-    XL::SetGlobalCClosure(L, "cc_setFrameUpdate", [](auto L) -> int {
+    XL::SetGlobalCClosure(L, "cc_frameUpdate", [](auto L) -> int {
         To(L, 1, _globalUpdate);
         return 0;
     });
+
+    XL::SetGlobalCClosure(L, "cc_enterBackground", [](auto L) -> int {
+        To(L, 1, _enterBackground);
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_enterForeground", [](auto L) -> int {
+        To(L, 1, _enterForeground);
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_setAnimationInterval", [](auto L) -> int {
+        ((cocos2d::Application*)_appDelegate)->setAnimationInterval(XL::To<float>(L, 1));
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_getCurrentLanguage", [](auto L) -> int {
+        ((cocos2d::Application*)_appDelegate)->getCurrentLanguage();
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_getCurrentLanguageCode", [](auto L) -> int {
+        ((cocos2d::Application*)_appDelegate)->getCurrentLanguageCode();
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_getTargetPlatform", [](auto L) -> int {
+        ((cocos2d::Application*)_appDelegate)->getTargetPlatform();
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_getVersion", [](auto L) -> int {
+        ((cocos2d::Application*)_appDelegate)->getVersion();
+        return 0;
+    });
+
+    XL::SetGlobalCClosure(L, "cc_openURL", [](auto L) -> int {
+        ((cocos2d::Application*)_appDelegate)->openURL(XL::To<std::string>(L, 1));
+        return 0;
+    });
+
+
+    /***********************************************************************************************/
+    // Director
 
     XL::SetGlobalCClosure(L, "cc_getRunningScene", [](auto L) -> int {
         return XL::Push(L, _director->getRunningScene());
@@ -1995,6 +2355,8 @@ void luaBinds(AppDelegate* ad) {
         return XL::Push(L, _fileUtils->getNewFilename(XL::To<std::string>(L, 1)));
     });
 
+
+
     /***********************************************************************************************/
     // AnimationCache
 
@@ -2265,6 +2627,10 @@ void luaBinds(AppDelegate* ad) {
         return XL::Push(L, cocos2d::Scene::create());
     });
 
+    XL::SetGlobalCClosure(L, "cc_Scene_createWithSize", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Scene::createWithSize({ XL::To<float>(L, 1), XL::To<float>(L, 2) }));
+    });
+
     XL::SetGlobalCClosure(L, "cc_Sequence_create", [](auto L) -> int {
         auto&& numArgs = lua_gettop(L);
         if (!numArgs) {
@@ -2323,11 +2689,37 @@ void luaBinds(AppDelegate* ad) {
     });
 
     XL::SetGlobalCClosure(L, "cc_Sprite_create", [](auto L) -> int {
-        // todo 似乎还有更多构造方式
         auto&& r = lua_gettop(L)
             ? cocos2d::Sprite::create(XL::To<std::string>(L, 1))
             : cocos2d::Sprite::create();
+        // todo: PolygonInfo, filename + rect
         return XL::Push(L, r);
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Sprite_createWithSpriteFrame", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Sprite::createWithSpriteFrame(XL::To<cocos2d::SpriteFrame*>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Sprite_createWithSpriteFrameName", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Sprite::createWithSpriteFrameName(XL::To<std::string>(L, 1)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Sprite_createWithTexture", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 1: {
+            return XL::Push(L, cocos2d::Sprite::createWithTexture(XL::To<cocos2d::Texture2D*>(L, 1)));
+        }
+        case 5: {
+            return XL::Push(L, cocos2d::Sprite::createWithTexture(XL::To<cocos2d::Texture2D*>(L, 1)
+                , { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) }));
+        }
+        case 6: {
+            return XL::Push(L, cocos2d::Sprite::createWithTexture(XL::To<cocos2d::Texture2D*>(L, 1)
+                , { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) }, XL::To<bool>(L, 6)));
+        }
+        default:
+            return luaL_error(L, "cc_Sprite_createWithTexture error! need 1 / 5 / 6 args: Texture2D texture, Rect{ float x, y, w, h }, bool rotated = false");
+        }
     });
 
     XL::SetGlobalCClosure(L, "cc_TintBy_create", [](auto L) -> int {
@@ -2343,22 +2735,225 @@ void luaBinds(AppDelegate* ad) {
     });
 
 
-    //lua_pushstring(L, TypeNames<cocos2d::TextHAlignment>::value);
-    //lua_createtable(L, 3, 0);
-    //lua_pushstring(L, "LEFT");	lua_pushinteger(L, (int)cocos2d::TextHAlignment::LEFT);	lua_rawset(L, -3);
-    //lua_pushstring(L, "CENTER");	lua_pushinteger(L, (int)cocos2d::TextHAlignment::CENTER);	lua_rawset(L, -3);
-    //lua_pushstring(L, "RIGHT");	lua_pushinteger(L, (int)cocos2d::TextHAlignment::RIGHT);	lua_rawset(L, -3);
-    //lua_rawset(L, -3);
+    /***********************************************************************************************/
+    // enums
 
-    //lua_pushstring(L, TypeNames<cocos2d::TextVAlignment>::value);
-    //lua_createtable(L, 3, 0);
-    //lua_pushstring(L, "TOP");	lua_pushinteger(L, (int)cocos2d::TextVAlignment::TOP);	lua_rawset(L, -3);
-    //lua_pushstring(L, "CENTER");	lua_pushinteger(L, (int)cocos2d::TextVAlignment::CENTER);	lua_rawset(L, -3);
-    //lua_pushstring(L, "BOTTOM");	lua_pushinteger(L, (int)cocos2d::TextVAlignment::BOTTOM);	lua_rawset(L, -3);
-    //lua_rawset(L, -3);
+    XL::SetGlobal(L, "ApplicationProtocol_Platform_OS_WINDOWS", cocos2d::ApplicationProtocol::Platform::OS_WINDOWS);
+    XL::SetGlobal(L, "ApplicationProtocol_Platform_OS_LINUX", cocos2d::ApplicationProtocol::Platform::OS_LINUX);
+    XL::SetGlobal(L, "ApplicationProtocol_Platform_OS_MAC", cocos2d::ApplicationProtocol::Platform::OS_MAC);
+    XL::SetGlobal(L, "ApplicationProtocol_Platform_OS_ANDROID", cocos2d::ApplicationProtocol::Platform::OS_ANDROID);
+    XL::SetGlobal(L, "ApplicationProtocol_Platform_OS_IPHONE", cocos2d::ApplicationProtocol::Platform::OS_IPHONE);
+    XL::SetGlobal(L, "ApplicationProtocol_Platform_OS_IPAD", cocos2d::ApplicationProtocol::Platform::OS_IPAD);
 
+    XL::SetGlobal(L, "Event_Type_TOUCH", cocos2d::Event::Type::TOUCH);
+    XL::SetGlobal(L, "Event_Type_KEYBOARD", cocos2d::Event::Type::KEYBOARD);
+    XL::SetGlobal(L, "Event_Type_ACCELERATION", cocos2d::Event::Type::ACCELERATION);
+    XL::SetGlobal(L, "Event_Type_MOUSE", cocos2d::Event::Type::MOUSE);
+    XL::SetGlobal(L, "Event_Type_FOCUS", cocos2d::Event::Type::FOCUS);
+    XL::SetGlobal(L, "Event_Type_GAME_CONTROLLER", cocos2d::Event::Type::GAME_CONTROLLER);
+    XL::SetGlobal(L, "Event_Type_CUSTOM", cocos2d::Event::Type::CUSTOM);
 
-    // todo: enum cocos2d::EventKeyboard::KeyCode
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_NONE", cocos2d::EventKeyboard::KeyCode::KEY_NONE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PAUSE", cocos2d::EventKeyboard::KeyCode::KEY_PAUSE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_SCROLL_LOCK", cocos2d::EventKeyboard::KeyCode::KEY_SCROLL_LOCK);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PRINT", cocos2d::EventKeyboard::KeyCode::KEY_PRINT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_SYSREQ", cocos2d::EventKeyboard::KeyCode::KEY_SYSREQ);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_BREAK", cocos2d::EventKeyboard::KeyCode::KEY_BREAK);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_ESCAPE", cocos2d::EventKeyboard::KeyCode::KEY_ESCAPE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_BACK", cocos2d::EventKeyboard::KeyCode::KEY_ESCAPE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_BACKSPACE", cocos2d::EventKeyboard::KeyCode::KEY_BACKSPACE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_TAB", cocos2d::EventKeyboard::KeyCode::KEY_TAB);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_BACK_TAB", cocos2d::EventKeyboard::KeyCode::KEY_BACK_TAB);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RETURN", cocos2d::EventKeyboard::KeyCode::KEY_RETURN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPS_LOCK", cocos2d::EventKeyboard::KeyCode::KEY_CAPS_LOCK);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_SHIFT", cocos2d::EventKeyboard::KeyCode::KEY_SHIFT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LEFT_SHIFT", cocos2d::EventKeyboard::KeyCode::KEY_LEFT_SHIFT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RIGHT_SHIFT", cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_SHIFT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CTRL", cocos2d::EventKeyboard::KeyCode::KEY_CTRL);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LEFT_CTRL", cocos2d::EventKeyboard::KeyCode::KEY_LEFT_CTRL);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RIGHT_CTRL", cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_CTRL);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_ALT", cocos2d::EventKeyboard::KeyCode::KEY_ALT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LEFT_ALT", cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ALT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RIGHT_ALT", cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ALT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_MENU", cocos2d::EventKeyboard::KeyCode::KEY_MENU);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_HYPER", cocos2d::EventKeyboard::KeyCode::KEY_HYPER);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_INSERT", cocos2d::EventKeyboard::KeyCode::KEY_INSERT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_HOME", cocos2d::EventKeyboard::KeyCode::KEY_HOME);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PG_UP", cocos2d::EventKeyboard::KeyCode::KEY_PG_UP);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DELETE", cocos2d::EventKeyboard::KeyCode::KEY_DELETE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_END", cocos2d::EventKeyboard::KeyCode::KEY_END);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PG_DOWN", cocos2d::EventKeyboard::KeyCode::KEY_PG_DOWN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LEFT_ARROW", cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RIGHT_ARROW", cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_UP_ARROW", cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DOWN_ARROW", cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_NUM_LOCK", cocos2d::EventKeyboard::KeyCode::KEY_NUM_LOCK);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_PLUS", cocos2d::EventKeyboard::KeyCode::KEY_KP_PLUS);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_MINUS", cocos2d::EventKeyboard::KeyCode::KEY_KP_MINUS);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_MULTIPLY", cocos2d::EventKeyboard::KeyCode::KEY_KP_MULTIPLY);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_DIVIDE", cocos2d::EventKeyboard::KeyCode::KEY_KP_DIVIDE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_ENTER", cocos2d::EventKeyboard::KeyCode::KEY_KP_ENTER);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_HOME", cocos2d::EventKeyboard::KeyCode::KEY_KP_HOME);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_UP", cocos2d::EventKeyboard::KeyCode::KEY_KP_UP);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_PG_UP", cocos2d::EventKeyboard::KeyCode::KEY_KP_PG_UP);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_LEFT", cocos2d::EventKeyboard::KeyCode::KEY_KP_LEFT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_FIVE", cocos2d::EventKeyboard::KeyCode::KEY_KP_FIVE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_RIGHT", cocos2d::EventKeyboard::KeyCode::KEY_KP_RIGHT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_END", cocos2d::EventKeyboard::KeyCode::KEY_KP_END);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_DOWN", cocos2d::EventKeyboard::KeyCode::KEY_KP_DOWN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_PG_DOWN", cocos2d::EventKeyboard::KeyCode::KEY_KP_PG_DOWN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_INSERT", cocos2d::EventKeyboard::KeyCode::KEY_KP_INSERT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_KP_DELETE", cocos2d::EventKeyboard::KeyCode::KEY_KP_DELETE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F1", cocos2d::EventKeyboard::KeyCode::KEY_F1);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F2", cocos2d::EventKeyboard::KeyCode::KEY_F2);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F3", cocos2d::EventKeyboard::KeyCode::KEY_F3);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F4", cocos2d::EventKeyboard::KeyCode::KEY_F4);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F5", cocos2d::EventKeyboard::KeyCode::KEY_F5);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F6", cocos2d::EventKeyboard::KeyCode::KEY_F6);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F7", cocos2d::EventKeyboard::KeyCode::KEY_F7);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F8", cocos2d::EventKeyboard::KeyCode::KEY_F8);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F9", cocos2d::EventKeyboard::KeyCode::KEY_F9);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F10", cocos2d::EventKeyboard::KeyCode::KEY_F10);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F11", cocos2d::EventKeyboard::KeyCode::KEY_F11);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F12", cocos2d::EventKeyboard::KeyCode::KEY_F12);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_SPACE", cocos2d::EventKeyboard::KeyCode::KEY_SPACE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_EXCLAM", cocos2d::EventKeyboard::KeyCode::KEY_EXCLAM);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_QUOTE", cocos2d::EventKeyboard::KeyCode::KEY_QUOTE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_NUMBER", cocos2d::EventKeyboard::KeyCode::KEY_NUMBER);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DOLLAR", cocos2d::EventKeyboard::KeyCode::KEY_DOLLAR);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PERCENT", cocos2d::EventKeyboard::KeyCode::KEY_PERCENT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CIRCUMFLEX", cocos2d::EventKeyboard::KeyCode::KEY_CIRCUMFLEX);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_AMPERSAND", cocos2d::EventKeyboard::KeyCode::KEY_AMPERSAND);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_APOSTROPHE", cocos2d::EventKeyboard::KeyCode::KEY_APOSTROPHE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LEFT_PARENTHESIS", cocos2d::EventKeyboard::KeyCode::KEY_LEFT_PARENTHESIS);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RIGHT_PARENTHESIS", cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_PARENTHESIS);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_ASTERISK", cocos2d::EventKeyboard::KeyCode::KEY_ASTERISK);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PLUS", cocos2d::EventKeyboard::KeyCode::KEY_PLUS);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_COMMA", cocos2d::EventKeyboard::KeyCode::KEY_COMMA);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_MINUS", cocos2d::EventKeyboard::KeyCode::KEY_MINUS);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PERIOD", cocos2d::EventKeyboard::KeyCode::KEY_PERIOD);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_SLASH", cocos2d::EventKeyboard::KeyCode::KEY_SLASH);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_0", cocos2d::EventKeyboard::KeyCode::KEY_0);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_1", cocos2d::EventKeyboard::KeyCode::KEY_1);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_2", cocos2d::EventKeyboard::KeyCode::KEY_2);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_3", cocos2d::EventKeyboard::KeyCode::KEY_3);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_4", cocos2d::EventKeyboard::KeyCode::KEY_4);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_5", cocos2d::EventKeyboard::KeyCode::KEY_5);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_6", cocos2d::EventKeyboard::KeyCode::KEY_6);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_7", cocos2d::EventKeyboard::KeyCode::KEY_7);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_8", cocos2d::EventKeyboard::KeyCode::KEY_8);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_9", cocos2d::EventKeyboard::KeyCode::KEY_9);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_COLON", cocos2d::EventKeyboard::KeyCode::KEY_COLON);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_SEMICOLON", cocos2d::EventKeyboard::KeyCode::KEY_SEMICOLON);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LESS_THAN", cocos2d::EventKeyboard::KeyCode::KEY_LESS_THAN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_EQUAL", cocos2d::EventKeyboard::KeyCode::KEY_EQUAL);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_GREATER_THAN", cocos2d::EventKeyboard::KeyCode::KEY_GREATER_THAN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_QUESTION", cocos2d::EventKeyboard::KeyCode::KEY_QUESTION);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_AT", cocos2d::EventKeyboard::KeyCode::KEY_AT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_A", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_A);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_B", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_B);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_C", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_C);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_D", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_D);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_E", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_E);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_F", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_F);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_G", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_G);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_H", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_H);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_I", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_I);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_J", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_J);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_K", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_K);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_L", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_L);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_M", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_M);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_N", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_N);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_O", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_O);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_P", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_P);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_Q", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_Q);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_R", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_R);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_S", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_S);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_T", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_T);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_U", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_U);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_V", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_V);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_W", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_W);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_X", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_X);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_Y", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_Y);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_CAPITAL_Z", cocos2d::EventKeyboard::KeyCode::KEY_CAPITAL_Z);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LEFT_BRACKET", cocos2d::EventKeyboard::KeyCode::KEY_LEFT_BRACKET);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_BACK_SLASH", cocos2d::EventKeyboard::KeyCode::KEY_BACK_SLASH);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RIGHT_BRACKET", cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_BRACKET);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_UNDERSCORE", cocos2d::EventKeyboard::KeyCode::KEY_UNDERSCORE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_GRAVE", cocos2d::EventKeyboard::KeyCode::KEY_GRAVE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_A", cocos2d::EventKeyboard::KeyCode::KEY_A);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_B", cocos2d::EventKeyboard::KeyCode::KEY_B);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_C", cocos2d::EventKeyboard::KeyCode::KEY_C);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_D", cocos2d::EventKeyboard::KeyCode::KEY_D);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_E", cocos2d::EventKeyboard::KeyCode::KEY_E);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_F", cocos2d::EventKeyboard::KeyCode::KEY_F);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_G", cocos2d::EventKeyboard::KeyCode::KEY_G);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_H", cocos2d::EventKeyboard::KeyCode::KEY_H);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_I", cocos2d::EventKeyboard::KeyCode::KEY_I);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_J", cocos2d::EventKeyboard::KeyCode::KEY_J);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_K", cocos2d::EventKeyboard::KeyCode::KEY_K);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_L", cocos2d::EventKeyboard::KeyCode::KEY_L);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_M", cocos2d::EventKeyboard::KeyCode::KEY_M);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_N", cocos2d::EventKeyboard::KeyCode::KEY_N);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_O", cocos2d::EventKeyboard::KeyCode::KEY_O);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_P", cocos2d::EventKeyboard::KeyCode::KEY_P);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_Q", cocos2d::EventKeyboard::KeyCode::KEY_Q);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_R", cocos2d::EventKeyboard::KeyCode::KEY_R);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_S", cocos2d::EventKeyboard::KeyCode::KEY_S);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_T", cocos2d::EventKeyboard::KeyCode::KEY_T);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_U", cocos2d::EventKeyboard::KeyCode::KEY_U);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_V", cocos2d::EventKeyboard::KeyCode::KEY_V);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_W", cocos2d::EventKeyboard::KeyCode::KEY_W);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_X", cocos2d::EventKeyboard::KeyCode::KEY_X);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_Y", cocos2d::EventKeyboard::KeyCode::KEY_Y);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_Z", cocos2d::EventKeyboard::KeyCode::KEY_Z);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_LEFT_BRACE", cocos2d::EventKeyboard::KeyCode::KEY_LEFT_BRACE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_BAR", cocos2d::EventKeyboard::KeyCode::KEY_BAR);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_RIGHT_BRACE", cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_BRACE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_TILDE", cocos2d::EventKeyboard::KeyCode::KEY_TILDE);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_EURO", cocos2d::EventKeyboard::KeyCode::KEY_EURO);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_POUND", cocos2d::EventKeyboard::KeyCode::KEY_POUND);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_YEN", cocos2d::EventKeyboard::KeyCode::KEY_YEN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_MIDDLE_DOT", cocos2d::EventKeyboard::KeyCode::KEY_MIDDLE_DOT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_SEARCH", cocos2d::EventKeyboard::KeyCode::KEY_SEARCH);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DPAD_LEFT", cocos2d::EventKeyboard::KeyCode::KEY_DPAD_LEFT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DPAD_RIGHT", cocos2d::EventKeyboard::KeyCode::KEY_DPAD_RIGHT);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DPAD_UP", cocos2d::EventKeyboard::KeyCode::KEY_DPAD_UP);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DPAD_DOWN", cocos2d::EventKeyboard::KeyCode::KEY_DPAD_DOWN);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_DPAD_CENTER", cocos2d::EventKeyboard::KeyCode::KEY_DPAD_CENTER);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_ENTER", cocos2d::EventKeyboard::KeyCode::KEY_ENTER);
+    XL::SetGlobal(L, "EventKeyboard_KeyCode_KEY_PLAY", cocos2d::EventKeyboard::KeyCode::KEY_PLAY);
+
+    XL::SetGlobal(L, "EventListener_Type_UNKNOWN", cocos2d::EventListener::Type::UNKNOWN);
+    XL::SetGlobal(L, "EventListener_Type_TOUCH_ONE_BY_ONE", cocos2d::EventListener::Type::TOUCH_ONE_BY_ONE);
+    XL::SetGlobal(L, "EventListener_Type_TOUCH_ALL_AT_ONCE", cocos2d::EventListener::Type::TOUCH_ALL_AT_ONCE);
+    XL::SetGlobal(L, "EventListener_Type_KEYBOARD", cocos2d::EventListener::Type::KEYBOARD);
+    XL::SetGlobal(L, "EventListener_Type_MOUSE", cocos2d::EventListener::Type::MOUSE);
+    XL::SetGlobal(L, "EventListener_Type_ACCELERATION", cocos2d::EventListener::Type::ACCELERATION);
+    XL::SetGlobal(L, "EventListener_Type_FOCUS", cocos2d::EventListener::Type::FOCUS);
+    XL::SetGlobal(L, "EventListener_Type_GAME_CONTROLLER", cocos2d::EventListener::Type::GAME_CONTROLLER);
+    XL::SetGlobal(L, "EventListener_Type_CUSTOM", cocos2d::EventListener::Type::CUSTOM);
+
+    XL::SetGlobal(L, "LanguageType_ENGLISH", cocos2d::LanguageType::ENGLISH);
+    XL::SetGlobal(L, "LanguageType_CHINESE", cocos2d::LanguageType::CHINESE);
+    XL::SetGlobal(L, "LanguageType_FRENCH", cocos2d::LanguageType::FRENCH);
+    XL::SetGlobal(L, "LanguageType_ITALIAN", cocos2d::LanguageType::ITALIAN);
+    XL::SetGlobal(L, "LanguageType_GERMAN", cocos2d::LanguageType::GERMAN);
+    XL::SetGlobal(L, "LanguageType_SPANISH", cocos2d::LanguageType::SPANISH);
+    XL::SetGlobal(L, "LanguageType_DUTCH", cocos2d::LanguageType::DUTCH);
+    XL::SetGlobal(L, "LanguageType_RUSSIAN", cocos2d::LanguageType::RUSSIAN);
+    XL::SetGlobal(L, "LanguageType_KOREAN", cocos2d::LanguageType::KOREAN);
+    XL::SetGlobal(L, "LanguageType_JAPANESE", cocos2d::LanguageType::JAPANESE);
+    XL::SetGlobal(L, "LanguageType_HUNGARIAN", cocos2d::LanguageType::HUNGARIAN);
+    XL::SetGlobal(L, "LanguageType_PORTUGUESE", cocos2d::LanguageType::PORTUGUESE);
+    XL::SetGlobal(L, "LanguageType_ARABIC", cocos2d::LanguageType::ARABIC);
+    XL::SetGlobal(L, "LanguageType_NORWEGIAN", cocos2d::LanguageType::NORWEGIAN);
+    XL::SetGlobal(L, "LanguageType_POLISH", cocos2d::LanguageType::POLISH);
+    XL::SetGlobal(L, "LanguageType_TURKISH", cocos2d::LanguageType::TURKISH);
+    XL::SetGlobal(L, "LanguageType_UKRAINIAN", cocos2d::LanguageType::UKRAINIAN);
+    XL::SetGlobal(L, "LanguageType_ROMANIAN", cocos2d::LanguageType::ROMANIAN);
+    XL::SetGlobal(L, "LanguageType_BULGARIAN", cocos2d::LanguageType::BULGARIAN);
+    XL::SetGlobal(L, "LanguageType_BELARUSIAN", cocos2d::LanguageType::BELARUSIAN);
 
     XL::SetGlobal(L, "Projection_2D", cocos2d::Director::Projection::_2D);
     XL::SetGlobal(L, "Projection_3D", cocos2d::Director::Projection::_3D);
@@ -2372,28 +2967,18 @@ void luaBinds(AppDelegate* ad) {
     XL::SetGlobal(L, "ResolutionPolicy_FIXED_WIDTH", ResolutionPolicy::FIXED_WIDTH);
     XL::SetGlobal(L, "ResolutionPolicy_UNKNOWN", ResolutionPolicy::UNKNOWN);
 
+    XL::SetGlobal(L, "TextHAlignment", cocos2d::TextHAlignment::LEFT);
+    XL::SetGlobal(L, "TextHAlignment", cocos2d::TextHAlignment::CENTER);
+    XL::SetGlobal(L, "TextHAlignment", cocos2d::TextHAlignment::RIGHT);
+
+    XL::SetGlobal(L, "TextVAlignment", cocos2d::TextVAlignment::TOP);
+    XL::SetGlobal(L, "TextVAlignment", cocos2d::TextVAlignment::CENTER);
+    XL::SetGlobal(L, "TextVAlignment", cocos2d::TextVAlignment::BOTTOM);
+
     XL::SetGlobal(L, "Touch_DispatchMode_ALL_AT_ONCE", cocos2d::Touch::DispatchMode::ALL_AT_ONCE);
     XL::SetGlobal(L, "Touch_DispatchMode_ONE_BY_ONE", cocos2d::Touch::DispatchMode::ONE_BY_ONE);
 
-    XL::SetGlobal(L, "Event_Type_TOUCH", cocos2d::Event::Type::TOUCH);
-    XL::SetGlobal(L, "Event_Type_KEYBOARD", cocos2d::Event::Type::KEYBOARD);
-    XL::SetGlobal(L, "Event_Type_ACCELERATION", cocos2d::Event::Type::ACCELERATION);
-    XL::SetGlobal(L, "Event_Type_MOUSE", cocos2d::Event::Type::MOUSE);
-    XL::SetGlobal(L, "Event_Type_FOCUS", cocos2d::Event::Type::FOCUS);
-    XL::SetGlobal(L, "Event_Type_GAME_CONTROLLER", cocos2d::Event::Type::GAME_CONTROLLER);
-    XL::SetGlobal(L, "Event_Type_CUSTOM", cocos2d::Event::Type::CUSTOM);
-
-    XL::SetGlobal(L, "EventListener_Type_UNKNOWN", cocos2d::EventListener::Type::UNKNOWN);
-    XL::SetGlobal(L, "EventListener_Type_TOUCH_ONE_BY_ONE", cocos2d::EventListener::Type::TOUCH_ONE_BY_ONE);
-    XL::SetGlobal(L, "EventListener_Type_TOUCH_ALL_AT_ONCE", cocos2d::EventListener::Type::TOUCH_ALL_AT_ONCE);
-    XL::SetGlobal(L, "EventListener_Type_KEYBOARD", cocos2d::EventListener::Type::KEYBOARD);
-    XL::SetGlobal(L, "EventListener_Type_MOUSE", cocos2d::EventListener::Type::MOUSE);
-    XL::SetGlobal(L, "EventListener_Type_ACCELERATION", cocos2d::EventListener::Type::ACCELERATION);
-    XL::SetGlobal(L, "EventListener_Type_FOCUS", cocos2d::EventListener::Type::FOCUS);
-    XL::SetGlobal(L, "EventListener_Type_GAME_CONTROLLER", cocos2d::EventListener::Type::GAME_CONTROLLER);
-    XL::SetGlobal(L, "EventListener_Type_CUSTOM", cocos2d::EventListener::Type::CUSTOM);
-
-
+    // todo: more enums
 
 
     // 在 cocos 中注册 lua 帧回调
