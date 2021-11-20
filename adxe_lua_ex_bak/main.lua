@@ -146,15 +146,6 @@ go(function()
 		yield()
 	end
 end)
-
--- start a coroutine. every 2 seconds print coroutines count
-go(function()
-	local t = coroutines
-	while true do
-		print("#coroutines = ", #t)
-		sleeps(2)
-	end
-end)
 ]]
 
 -- function for easy make sprite
@@ -166,38 +157,52 @@ local creSpr = function(x, y)
 end
 
 --[[
--- start a coroutine. every frame create a sprite at screen center & random move 10 seconds
--- very bad performance. 1xx coroutine drop fps to 17
+-- start a coroutine. every frame create a sprite at screen center & random move 100 seconds
+-- very bad performance at vs2022 release mode direct F5 run but CTRL + F5 is ok
+-- slowly than update funcs 5 times( 40 fps 6000 coroutines VS 30000 updates)
 go(function()
 	while true do
-		go(function()
-			-- start pos: center screen
-			local x = centerX
-			local y = centerY
-			-- random angle
-			local a = math_random() * 3.1416 * 2
-			-- set speed
-			local spd = 10
-			-- calculate frame increase value
-			local dx = math_cos(a) * spd
-			local dy = math_sin(a) * spd
-			-- calculate end time
-			local et = os_clock() + 10
-			-- create sprite
-			local s = creSpr(x, y)
-			repeat
-				x = x + dx
-				y = y + dy
-				s:setPosition(x, y)
-				yield()
-			until( os_clock() > et )
-			-- kill sprite
-			s:removeFromParent()
-		end)
+		-- every frame create 10 couroutines
+		for i = 1, 10 do
+			go(function()
+				-- start pos: center screen
+				local x = centerX
+				local y = centerY
+				-- random angle
+				local a = math_random() * 3.1416 * 2
+				-- set speed
+				local spd = 1
+				-- calculate frame increase value
+				local dx = math_cos(a) * spd
+				local dy = math_sin(a) * spd
+				-- calculate end time
+				local et = os_clock() + 100
+				-- create sprite
+				local s = creSpr(x, y)
+				repeat
+					x = x + dx
+					y = y + dy
+					s:setPosition(x, y)
+					yield()
+				until( os_clock() > et )
+				-- kill sprite
+				s:removeFromParent()
+			end)
+		end
 		yield()
 	end
 end)
+
+-- start a coroutine. every 2 seconds print coroutines count
+go(function()
+	local t = coroutines
+	while true do
+		print("#coroutines = ", #t)
+		sleeps(2)
+	end
+end)
 ]]
+
 
 -- start a coroutine. every frame create a sprite at screen center & random move 100 seconds
 -- very good performance. 20000 updates fps = 60
