@@ -6,10 +6,13 @@ xx::Data 主体映射到 lua
 C++ 注册:
 	xx::Lua::Data::Register( L )
 
-LUA 全局函数:
+LUA 全局函数( 可修改 ):
 	NewXxData()
 
 成员函数见 funcs 数组
+
+Push, To 适配及其用法 & 注意事项，见本文件最下方代码
+
 */
 
 #include "xx_data.h"
@@ -567,12 +570,12 @@ namespace xx::Lua::Data {
 
 		{"Rnvi",       R<int64_t, false, false, false, true>},
 		{"Rnvu",       R<uint64_t, false, false, false, true>},
-		{"Rnvi64",       R<int64_t, false, false, false, true>},
-		{"Rnvu64",       R<uint64_t, false, false, false, true>},
-		{"Rnvi32",       R<int32_t, false, false, false, true>},
-		{"Rnvu32",       R<uint32_t, false, false, false, true>},
-		{"Rnvi16",       R<int16_t, false, false, false, true>},
-		{"Rnvu16",       R<uint16_t, false, false, false, true>},
+		{"Rnvi64",     R<int64_t, false, false, false, true>},
+		{"Rnvu64",     R<uint64_t, false, false, false, true>},
+		{"Rnvi32",     R<int32_t, false, false, false, true>},
+		{"Rnvu32",     R<uint32_t, false, false, false, true>},
+		{"Rnvi16",     R<int16_t, false, false, false, true>},
+		{"Rnvu16",     R<uint16_t, false, false, false, true>},
 
 		{"Rnb",        R<bool, true, false, false, true>},
 		{"Rni8",       R<int8_t, true, false, false, true>},
@@ -618,17 +621,17 @@ namespace xx::Lua::Data {
 		{"Rd_be_at",   R<double, true, true, true>},
 
         // for luajit force u/int64 <-> double
-        {"Rvi64d",      R<di64_t, false>},
-        {"Rvu64d",      R<du64_t, false>},
-        {"Wvi64d",      W<di64_t, false>},
-        {"Wvu64d",      W<du64_t, false>},
+        {"Rvi64d",     R<di64_t, false>},
+        {"Rvu64d",     R<du64_t, false>},
+        {"Wvi64d",     W<di64_t, false>},
+        {"Wvu64d",     W<du64_t, false>},
 
         {nullptr,      nullptr}
 	};
 }
 
 namespace xx::Lua {
-	// 值方式 meta 但是访问成员时转为指针
+	// meta
 	template<typename T>
 	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
 		using U = xx::Data;
@@ -638,14 +641,18 @@ namespace xx::Lua {
 			luaL_setfuncs(L, ::xx::Lua::Data::funcs, 0);
 		}
 	};
-	// 值方式 push
+	// push ( 移动或拷贝 ), to ( 数据会挪走 )
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
 		static int Push(lua_State* const& L, T&& in) {
 			return PushUserdata<xx::Data>(L, std::forward<T>(in));
 		}
+		static void To(lua_State* const& L, int const& idx, T& out) {
+			AssertType<xx::Data>(L, idx);
+			out = std::move(*(T*)lua_touserdata(L, idx));
+		}
 	};
-	// 指针方式 to 但是做 值方式 检查
+	// 指针方式 to ( 不希望挪走数据 就用这个 )
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>> && std::is_same_v<xx::Data, std::decay_t<std::remove_pointer_t<std::decay_t<T>>>>>> {
 		static void To(lua_State* const& L, int const& idx, T& out) {

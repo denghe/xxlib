@@ -2,7 +2,7 @@
 #include "xx_lua.h"
 #include "xx_ptr.h"
 
-// lua 5.1 没有这个东旭，需要自己动手，为每个 state 于创建后立刻执行下列语句以确保 LUA_RIDX_MAINTHREAD 的值跨 state 一致：
+// lua 5.1 没有这个东西，需要自己动手，为每个 state 于创建后立刻执行下列语句以确保 LUA_RIDX_MAINTHREAD 的值跨 state 一致：
 // auto rtv = lua_pushthread(L);
 // assert(rtv == 1);    // must be main thread
 // LUA_RIDX_MAINTHREAD = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -228,24 +228,24 @@ namespace xx::Lua {
 				lua_rawset(L, -3);                                          // ..., mt
 			}
 
-			// 如果类型不是可执行的
+			// 如果压入的不是 lambda, 则继续填充各种适配
 			if constexpr (!IsLambda_v<T>) {
 				lua_pushstring(L, "__index");                               // ..., mt, "__index"
 				lua_pushvalue(L, -2);                                       // ..., mt, "__index", mt
 				lua_rawset(L, -3);                                          // ..., mt
-			}
 
-			MetaFuncs<T, void>::Fill(L);                                    // ..., mt
+			    MetaFuncs<T, void>::Fill(L);                                // ..., mt
 
 #if LUA_VERSION_NUM == 501
-			lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name.data());     // ..., mt, key
-			lua_pushvalue(L, -2);                                           // ..., mt, key, mt
-			lua_rawset(L, LUA_REGISTRYINDEX);                               // ..., mt
+			    lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name.data()); // ..., mt, key
+			    lua_pushvalue(L, -2);                                       // ..., mt, key, mt
+			    lua_rawset(L, LUA_REGISTRYINDEX);                           // ..., mt
 #else
-			lua_pushvalue(L, -1);                                           // ..., mt, mt
-			lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());   // ..., mt
+			    lua_pushvalue(L, -1);                                       // ..., mt, mt
+			    lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());   // ..., mt
 #endif
-			//CoutN("PushMeta MetaFuncs<T>::name.data() = ", (size_t)MetaFuncs<T>::name.data(), " T = ", MetaFuncs<T>::name);
+			    //CoutN("PushMeta MetaFuncs<T>::name.data() = ", (size_t)MetaFuncs<T>::name.data(), " T = ", MetaFuncs<T>::name);
+			}
 		}
 	}
 
@@ -260,6 +260,33 @@ namespace xx::Lua {
 		lua_setmetatable(L, -2);											// ..., ud
 		return 1;
 	}
+
+
+    // 适配 lambda ( 这个性能一般，不要滥用，尽量使用 CClosure )
+    // 在 userdata 申请 lambda 捕获上下文的内存 并将 lambda 挪进去, 参数利用 tuple 暂存并展开转发。附加的 mt 啥都没有，只有 __gc 析构
+    template<typename T>
+    struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
+        static inline int Push(lua_State* const& L, T&& in) {
+            using U = std::decay_t<T>;
+            PushUserdata<U>(L, std::forward<T>(in));						// ..., ud
+            lua_pushcclosure(L, [](auto L) {								// ..., cc
+                auto f = (U*)lua_touserdata(L, lua_upvalueindex(1));
+                FuncA2_t<U> tuple;
+                To(L, 1, tuple);
+                int rtv = 0;
+                std::apply([&](auto &&... args) {
+                    if constexpr (std::is_void_v<FuncR_t<U>>) {
+                        (*f)(args...);
+                    }
+                    else {
+                        rtv = ::xx::Lua::Push(L, (*f)(args...));
+                    }
+                    }, tuple);
+                return rtv;
+                }, 1);
+            return 1;
+        }
+    };
 
 
     /****************************************************************************************/
@@ -478,31 +505,5 @@ namespace xx::Lua {
         }
     }
 
-
-
-//	// 适配 lambda   先注释掉，避免滥用
-//	template<typename T>
-//	struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
-//		static inline int Push(lua_State* const& L, T&& in) {
-//			using U = std::decay_t<T>;
-//			PushUserdata<U>(L, std::forward<T>(in));						// ..., ud
-//			lua_pushcclosure(L, [](auto L) {								// ..., cc
-//				auto f = (U*)lua_touserdata(L, lua_upvalueindex(1));
-//				FuncA2_t<U> tuple;
-//				To(L, 1, tuple);
-//				int rtv = 0;
-//				std::apply([&](auto &&... args) {
-//					if constexpr (std::is_void_v<FuncR_t<U>>) {
-//						(*f)(args...);
-//					}
-//					else {
-//						rtv = ::xx::Lua::Push(L, (*f)(args...));
-//					}
-//					}, tuple);
-//				return rtv;
-//				}, 1);
-//			return 1;
-//		}
-//	};
 
 }

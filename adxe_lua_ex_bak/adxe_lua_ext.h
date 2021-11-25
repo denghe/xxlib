@@ -5,8 +5,25 @@
 // void AppDelegate::applicationDidEnterBackground() { 里面 添加 if (_enterBackground) _enterBackground();
 // void AppDelegate::applicationWillEnterForeground() { 里面 添加 if (_enterForeground) _enterForeground();
 // 也可以模拟下面代码的 try 机制包裹 XX_LUA_ENABLE_TRY_CALL_FUNC
-
+// 
+// 进一步的，可去 base/ccConfig.h 改宏，关闭一些特性, 将值修改为 0
+// 脚本绑定: CC_ENABLE_SCRIPT_BINDING   ( 必关，有本 lua 绑定方案，不再需要 cpp 那边侵入式的脚本支持 )
+// 2d物理：CC_USE_PHYSICS
+// 3d物理：CC_USE_3D_PHYSICS
+// 3d导航: CC_USE_NAVMESH
+// 3d隐面剔除: CC_USE_CULLING   ( 谨慎，这个关闭后估计所有 3d 显示就不正常了 )
+// 
+// 由于工作量巨大，先提供能做游戏的最小集合映射。
 // 原则上 所有获取单例的函数，都不映射。单例的成员函数，直接映射为全局 cc_ 函数。
+// 
+// 当前已映射的类型有：
+// Vec2 / 3 / 4, Color3 / 4B
+// Ref, Cloneable, Touch, Animation / Action 系列( 不全 ), Event / EventListener 系列,  Node, Scene, Sprite
+// todo:
+// Label, ScrollView, DrawNode
+// todo2:
+// ...
+
 
 #include <xx_lua_data.h>
 namespace XL = xx::Lua;
@@ -18,6 +35,7 @@ namespace XL = xx::Lua;
 #else
 #   define XX_LUA_ENABLE_TRY_CALL_FUNC 0
 #endif
+
 
 // 单例缓存 & 临时数据区
 inline static AppDelegate* _appDelegate = nullptr;
@@ -417,6 +435,7 @@ namespace xx::Lua {
             SetFieldCClosure(L, "reverse", [](auto L)->int { return Push(L, (U)To<U>(L)->reverse()); }); // override
         }
     };
+
     // BezierBy : ActionInterval
     template<>
     struct MetaFuncs<cocos2d::BezierBy*, void> {
@@ -1453,9 +1472,8 @@ namespace xx::Lua {
             // todo: setProgramState setProgramStateWithRegistry getProgramState
             SetFieldCClosure(L, "updateProgramStateTexture", [](auto L)->int { To<U>(L)->updateProgramStateTexture(To<cocos2d::Texture2D*>(L, 2)); return 0; });
             SetFieldCClosure(L, "resetChild", [](auto L)->int { To<U>(L)->resetChild(To<cocos2d::Node*>(L, 2), To<bool>(L, 3)); return 0; });
-            // todo: 或许内置物理应该禁掉?
-            SetFieldCClosure(L, "setPhysicsBody", [](auto L)->int { To<U>(L)->setPhysicsBody(To<cocos2d::PhysicsBody*>(L, 2)); return 0; });
-            SetFieldCClosure(L, "getPhysicsBody", [](auto L)->int { return Push(L, To<U>(L)->getPhysicsBody()); });
+            //SetFieldCClosure(L, "setPhysicsBody", [](auto L)->int { To<U>(L)->setPhysicsBody(To<cocos2d::PhysicsBody*>(L, 2)); return 0; });
+            //SetFieldCClosure(L, "getPhysicsBody", [](auto L)->int { return Push(L, To<U>(L)->getPhysicsBody()); });
         }
     };
 
@@ -1646,6 +1664,19 @@ namespace xx::Lua {
         inline static std::string name = std::string(TypeName_v<U>);
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Ref*>::Fill(L);
+            SetType<U>(L);
+            // todo
+        }
+    };
+
+    /*******************************************************************************************/
+    // Label : Node, LabelProtocol, BlendProtocol
+    template<>
+    struct MetaFuncs<cocos2d::Label*, void> {
+        using U = cocos2d::Label*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
             // todo
         }
