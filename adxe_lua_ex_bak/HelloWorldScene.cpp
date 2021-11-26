@@ -49,7 +49,6 @@ void HelloWorld::update(float delta) {
 			auto et = xx::NowEpochSeconds() + 100;
 			// create sprite
 			auto s = cocos2d::Sprite::create("HelloWorld.png");
-			s->setPosition(x, y);
 			scene->addChild(s);
 			do {
 				x += dx;

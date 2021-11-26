@@ -18,9 +18,9 @@
 // 
 // 当前已映射的类型有：
 // Vec2 / 3 / 4, Color3 / 4B
-// Ref, Cloneable, Touch, Animation / Action 系列( 不全 ), Event / EventListener 系列,  Node, Scene, Sprite
+// Ref, Cloneable, Touch, Animation / Action 系列( 不全 ), Event / EventListener 系列,  Node, Scene, Sprite, Label
 // todo:
-// Label, ScrollView, DrawNode
+// ScrollView, DrawNode
 // todo2:
 // ...
 
