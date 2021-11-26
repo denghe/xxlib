@@ -5,7 +5,7 @@
 
 namespace xx {
 
-    template<typename T, int firstCap = 16, bool reserve = false>
+    template<typename T, int firstCap = 16, bool reserve = false, bool forceUseRealloc = false>
     struct NodePool {
         static_assert(firstCap > 0);
         struct Node {
@@ -38,7 +38,7 @@ namespace xx {
         NodePool() {
             if constexpr (reserve) {
                 cap = firstCap;
-                nodes = (Node *) malloc(nodes, cap * sizeof(T));
+                nodes = (Node *) malloc(cap * sizeof(Node));
             }
         }
 
@@ -74,11 +74,11 @@ namespace xx {
                     else {
                         cap *= 2;
                     }
-                    if constexpr(std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
-                        nodes = (Node *) realloc((void*)nodes, cap * sizeof(T));
+                    if constexpr(forceUseRealloc || (std::is_standard_layout_v<T> && std::is_trivial_v<T>)) {
+                        nodes = (Node *) realloc((void*)nodes, cap * sizeof(Node));
                     }
                     else {
-                        auto newNodes = (Node*)malloc(cap * sizeof(T));
+                        auto newNodes = (Node*)malloc(cap * sizeof(Node));
                         for (int i = 0; i < count; ++i) {
                             newNodes[i].prev = nodes[i].prev;
                             newNodes[i].next = nodes[i].next;

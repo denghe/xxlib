@@ -25,6 +25,10 @@ namespace xx {
     using namespace std::experimental;
 #endif
 
+    // todo
+    // 已知问题: 如果用 lambda 带捕获列表 返回 Generator<> 就会出问题。捕获列表中的数据似乎被破坏了
+    // 所以当前最好传参绕过捕获需求
+
     template<typename T>
     struct Generator {
         struct promise_type {
@@ -37,9 +41,12 @@ namespace xx {
             void unhandled_exception() { r.template emplace<2>(std::current_exception()); }
         };
 
+        Generator(Generator const& o) = delete;
         Generator(Generator &&o) noexcept : h(o.h) { o.h = nullptr; };
         ~Generator() { if (h) { h.destroy(); } }
         explicit Generator(promise_type& p) : h(coroutine_handle<promise_type>::from_promise(p)) {}
+        Generator& operator=(Generator const&) = delete;
+        Generator& operator=(Generator &&) = delete;
 
         void Resume() { assert(h); h.resume(); }
         bool Done() { assert(h); return h.done(); }
@@ -130,7 +137,7 @@ namespace xx {
         Coros &operator=(Coros &&) = default;
 
         // 1: wheel index
-        NodePool<std::pair<Generator<Cond>, Cond*>> nodes;
+        NodePool<std::pair<Generator<Cond>, Cond*>, 16, true, true> nodes;
 
         int wheelLen;
         int *wheel;
