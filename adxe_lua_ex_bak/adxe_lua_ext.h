@@ -318,7 +318,7 @@ namespace xx::Lua {
                     To<U>(L)->setTouchInfo(To<int>(L, 2), To<float>(L, 3), To<float>(L, 4), To<float>(L, 5), To<float>(L, 6)); return 0;
                 }
                 default:
-                    return luaL_error(L, "setTouchInfo error! need 4 / 6 args: self, int id, float x, float y, float force, float maxForce");
+                    return luaL_error(L, "%s", "setTouchInfo error! need 4 / 6 args: self, int id, float x, float y, float force, float maxForce");
                 }
             });
             SetFieldCClosure(L, "getID", [](auto L)->int { return Push(L, To<U>(L)->getID()); });
@@ -1126,7 +1126,7 @@ namespace xx::Lua {
                     return 0;
                 }
                 default:
-                    return luaL_error(L, "setScale error! need 2 ~ 3 args: self, float scaleX+Y / scaleX, scaleY");
+                    return luaL_error(L, "%s", "setScale error! need 2 ~ 3 args: self, float scaleX+Y / scaleX, scaleY");
                 }
             });
             SetFieldCClosure(L, "getScale", [](auto L)->int { return Push(L, To<U>(L)->getScale()); });
@@ -1207,7 +1207,7 @@ namespace xx::Lua {
                     return 0;
                 }
                 default:
-                    return luaL_error(L, "addChild error! need 2 ~ 4 args: self, Node child, int localZOrder, int tag/string name");
+                    return luaL_error(L, "%s", "addChild error! need 2 ~ 4 args: self, Node child, int localZOrder, int tag/string name");
                 }
             });
             SetFieldCClosure(L, "getChildByTag", [](auto L)->int { return Push(L, To<U>(L)->getChildByTag(XL::To<int>(L, 2))); });
@@ -1242,7 +1242,7 @@ namespace xx::Lua {
                     return 0;
                 }
                 default:
-                    return luaL_error(L, "removeChild error! need 2 ~ 3 args: self, Node child, bool cleanup = true");
+                    return luaL_error(L, "%s", "removeChild error! need 2 ~ 3 args: self, Node child, bool cleanup = true");
                 }
             });
             SetFieldCClosure(L, "removeChildByTag", [](auto L)->int {
@@ -1256,7 +1256,7 @@ namespace xx::Lua {
                     return 0;
                 }
                 default:
-                    return luaL_error(L, "removeChildByTag error! need 2 ~ 3 args: self, int tag, bool cleanup = true");
+                    return luaL_error(L, "%s", "removeChildByTag error! need 2 ~ 3 args: self, int tag, bool cleanup = true");
                 }
             });
             SetFieldCClosure(L, "removeChildByName", [](auto L)->int {
@@ -1270,7 +1270,7 @@ namespace xx::Lua {
                     return 0;
                 }
                 default:
-                    return luaL_error(L, "removeChildByName error! need 2 ~ 3 args: self, string name, bool cleanup = true");
+                    return luaL_error(L, "%s", "removeChildByName error! need 2 ~ 3 args: self, string name, bool cleanup = true");
                 }
             });
             SetFieldCClosure(L, "removeAllChildren", [](auto L)->int { To<U>(L)->removeAllChildren(); return 0; });
@@ -1465,7 +1465,7 @@ namespace xx::Lua {
                     return 0;
                 }
                 default:
-                    return luaL_error(L, "setCameraMask error! need 2 ~ 3 args: self, unsigned short mask, bool applyChildren = true");
+                    return luaL_error(L, "%s", "setCameraMask error! need 2 ~ 3 args: self, unsigned short mask, bool applyChildren = true");
                 }
             });
             SetFieldCClosure(L, "getCameraMask", [](auto L)->int { return Push(L, To<U>(L)->getCameraMask()); });
@@ -1678,6 +1678,259 @@ namespace xx::Lua {
         static void Fill(lua_State* const& L) {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
+            SetFieldCClosure(L, "setTTFConfig", [](auto L)->int {
+                // 已知问题：customGlyphs 因为原始接口要求传入 char const*, 故 lua 那边须确保该 string 不会“野”
+                switch (lua_gettop(L)) {
+                case 1: {
+                    To<U>(L)->setTTFConfig({});
+                    return 0;
+                }
+                case 2: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2) });
+                    return 0;
+                }
+                case 3: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3) });
+                    return 0;
+                }
+                case 4: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4) });
+                    return 0;
+                }
+                case 5: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<char const*>(L, 5) });
+                    return 0;
+                }
+                case 6: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<char const*>(L, 5), To<bool>(L, 6) });
+                    return 0;
+                }
+                case 7: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7) });
+                    return 0;
+                }
+                case 8: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                        , To<bool>(L, 8) });
+                    return 0;
+                }
+                case 9: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                        , To<bool>(L, 8), To<bool>(L, 9) });
+                    return 0;
+                }
+                case 10: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                        , To<bool>(L, 8), To<bool>(L, 9), To<bool>(L, 10) });
+                    return 0;
+                }
+                case 11: {
+                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                        , To<bool>(L, 8), To<bool>(L, 9), To<bool>(L, 10), To<bool>(L, 11) });
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "setTTFConfig error! need 1 ~ 11 args: self, string filePath = \"\", float size = CC_DEFAULT_FONT_LABEL_SIZE, GlyphCollection glyphCollection = GlyphCollection::DYNAMIC, const char *customGlyphCollection = nullptr, bool useDistanceField = false, int outline = 0, bool useItalics = false, bool useBold = false, bool useUnderline = false, bool useStrikethrough = false");
+                }
+                }
+            });
+            SetFieldCClosure(L, "getTTFConfig", [](auto L)->int {
+                auto&& o = To<U>(L)->getTTFConfig();
+                // 已知问题：customGlyphs 可能会野指针
+                return Push(L, o.fontFilePath, o.fontSize, o.glyphs, o.customGlyphs, o.distanceFieldEnabled, o.outlineSize, o.italics, o.bold, o.underline, o.strikethrough);
+            });
+            SetFieldCClosure(L, "setBMFontFilePath", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 2: {
+                    To<U>(L)->setBMFontFilePath(To<std::string>(L, 2));
+                    return 0;
+                }
+                case 3: {
+                    if (lua_isnumber(L, 3)) {
+                        To<U>(L)->setBMFontFilePath(To<std::string>(L, 2), To<float>(L, 3));
+                    }
+                    else {
+                        To<U>(L)->setBMFontFilePath(To<std::string>(L, 2), To<std::string>(L, 3));
+                    }
+                    return 0;
+                }
+                case 7: {
+                    To<U>(L)->setBMFontFilePath(To<std::string>(L, 2), { XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5), XL::To<float>(L, 6) }, XL::To<bool>(L, 7));
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "setBMFontFilePath error! need 2, 3, 7 args: self, string bmfontFilePath, float fontSize / string subTextureKey / Rect {float x, y, w, h}, bool imageRotated");
+                }
+                }
+            });
+            SetFieldCClosure(L, "getBMFontFilePath", [](auto L)->int { return Push(L, To<U>(L)->getBMFontFilePath()); });
+            SetFieldCClosure(L, "setCharMap", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 2: {
+                    To<U>(L)->setCharMap(To<std::string>(L, 2));
+                    return 0;
+                }
+                case 5: {
+                    if (lua_isstring(L, 2)) {
+                        To<U>(L)->setCharMap(To<std::string>(L, 2), To<int>(L, 3), To<int>(L, 3), To<int>(L, 3));
+                    }
+                    else {
+                        To<U>(L)->setCharMap(To<cocos2d::Texture2D*>(L, 2), To<int>(L, 3), To<int>(L, 3), To<int>(L, 3));
+                    }
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "setCharMap error! need 2, 5 args: self, string plistFile | string charMapFile / Texture2D* texture, int itemWidth, int itemHeight, int startCharMap");
+                }
+                }
+            });
+            SetFieldCClosure(L, "setSystemFontName", [](auto L)->int { To<U>(L)->setSystemFontName(To<std::string>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getSystemFontName", [](auto L)->int { return Push(L, To<U>(L)->getSystemFontName()); });
+            SetFieldCClosure(L, "setSystemFontSize", [](auto L)->int { To<U>(L)->setSystemFontSize(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getSystemFontSize", [](auto L)->int { return Push(L, To<U>(L)->getSystemFontSize()); });
+            SetFieldCClosure(L, "requestSystemFontRefresh", [](auto L)->int { To<U>(L)->requestSystemFontRefresh(); return 0; });
+            SetFieldCClosure(L, "setString", [](auto L)->int { To<U>(L)->setString(To<std::string>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getString", [](auto L)->int { return Push(L, To<U>(L)->getString()); });
+            SetFieldCClosure(L, "getStringNumLines", [](auto L)->int { return Push(L, To<U>(L)->getStringNumLines()); });
+            SetFieldCClosure(L, "getStringLength", [](auto L)->int { return Push(L, To<U>(L)->getStringLength()); });
+            SetFieldCClosure(L, "setTextColor", [](auto L)->int {
+                To<U>(L)->setTextColor({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) });
+                return 0;
+            });
+            SetFieldCClosure(L, "getTextColor", [](auto L)->int {
+                auto&& o = To<U>(L)->getTextColor();
+                return Push(L, o.r, o.g, o.b, o.a);
+            });
+            SetFieldCClosure(L, "enableShadow", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 1: {
+                    To<U>(L)->enableShadow();
+                    return 0;
+                }
+                case 5: {
+                    To<U>(L)->enableShadow({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) });
+                    return 0;
+                }
+                case 7: {
+                    To<U>(L)->enableShadow({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) }, { To<float>(L, 6), To<float>(L, 7) });
+                    return 0;
+                }
+                case 8: {
+                    To<U>(L)->enableShadow({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) }, { To<float>(L, 6), To<float>(L, 7) }, To<int>(L, 8));
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "enableShadow error! need 1, 5 ~ 8 args: self, GLubyte r = 0, g = 0, b = 0, a = 0, float offsetW = 2, offsetH = -2, int blurRadius = 0");
+                }
+                }
+            });
+            SetFieldCClosure(L, "enableOutline", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 5: {
+                    To<U>(L)->enableOutline({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) });
+                    return 0;
+                }
+                case 6: {
+                    To<U>(L)->enableOutline({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) }, To<int>(L, 6));
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "enableOutline error! need 5 ~ 6 args: self, GLubyte r = 0, g = 0, b = 0, a = 0, int outlineSize = -1");
+                }
+                }
+            });
+            SetFieldCClosure(L, "enableGlow", [](auto L)->int {
+                To<U>(L)->enableGlow({ To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) });
+                return 0;
+            });
+            SetFieldCClosure(L, "enableItalics", [](auto L)->int { To<U>(L)->enableItalics(); return 0; });
+            SetFieldCClosure(L, "enableBold", [](auto L)->int { To<U>(L)->enableBold(); return 0; });
+            SetFieldCClosure(L, "enableUnderline", [](auto L)->int { To<U>(L)->enableUnderline(); return 0; });
+            SetFieldCClosure(L, "enableStrikethrough", [](auto L)->int { To<U>(L)->enableStrikethrough(); return 0; });
+            SetFieldCClosure(L, "disableEffect", [](auto L)->int { 
+                if (lua_gettop(L)) {
+                    To<U>(L)->disableEffect(To<cocos2d::LabelEffect>(L, 2));
+                }
+                else {
+                    To<U>(L)->disableEffect();
+                }
+                return 0;
+            });
+            SetFieldCClosure(L, "isShadowEnabled", [](auto L)->int { return Push(L, To<U>(L)->isShadowEnabled()); });
+            SetFieldCClosure(L, "getShadowOffset", [](auto L)->int { 
+                auto&& o = To<U>(L)->getShadowOffset();
+                return Push(L, o.x, o.y);
+            });
+            SetFieldCClosure(L, "getShadowBlurRadius", [](auto L)->int { return Push(L, To<U>(L)->getShadowBlurRadius()); });
+            SetFieldCClosure(L, "getShadowColor", [](auto L)->int { 
+                auto&& o = To<U>(L)->getShadowColor();
+                return Push(L, o.r, o.g, o.b, o.a); // Color4F
+            });
+            SetFieldCClosure(L, "getOutlineSize", [](auto L)->int { return Push(L, To<U>(L)->getOutlineSize()); });
+            SetFieldCClosure(L, "getLabelEffectType", [](auto L)->int { return Push(L, To<U>(L)->getLabelEffectType()); });
+            SetFieldCClosure(L, "getEffectColor", [](auto L)->int { 
+                auto&& o = To<U>(L)->getEffectColor();
+                return Push(L, o.r, o.g, o.b, o.a); // Color4F
+            });
+            SetFieldCClosure(L, "setAlignment", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 2: {
+                    To<U>(L)->setAlignment(To<cocos2d::TextHAlignment>(L, 2));
+                    return 0;
+                }
+                case 3: {
+                    To<U>(L)->setAlignment(To<cocos2d::TextHAlignment>(L, 2), To<cocos2d::TextVAlignment>(L, 3));
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "setAlignment error! need 2 ~ 3 args: self, TextHAlignment hAlignment, TextVAlignment vAlignment");
+                }
+                }
+            });
+            SetFieldCClosure(L, "getTextAlignment", [](auto L)->int { return Push(L, To<U>(L)->getTextAlignment()); });
+            SetFieldCClosure(L, "setHorizontalAlignment", [](auto L)->int { To<U>(L)->setHorizontalAlignment(To<cocos2d::TextHAlignment>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getHorizontalAlignment", [](auto L)->int { return Push(L, To<U>(L)->getHorizontalAlignment()); });
+            SetFieldCClosure(L, "setVerticalAlignment", [](auto L)->int { To<U>(L)->setVerticalAlignment(To<cocos2d::TextVAlignment>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getVerticalAlignment", [](auto L)->int { return Push(L, To<U>(L)->getVerticalAlignment()); });
+            SetFieldCClosure(L, "setLineBreakWithoutSpace", [](auto L)->int { To<U>(L)->setLineBreakWithoutSpace(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "setMaxLineWidth", [](auto L)->int { To<U>(L)->setMaxLineWidth(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getMaxLineWidth", [](auto L)->int { return Push(L, To<U>(L)->getMaxLineWidth()); });
+            SetFieldCClosure(L, "setBMFontSize", [](auto L)->int { To<U>(L)->setBMFontSize(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getBMFontSize", [](auto L)->int { return Push(L, To<U>(L)->getBMFontSize()); });
+            SetFieldCClosure(L, "enableWrap", [](auto L)->int { To<U>(L)->enableWrap(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isWrapEnabled", [](auto L)->int { return Push(L, To<U>(L)->isWrapEnabled()); });
+            SetFieldCClosure(L, "setOverflow", [](auto L)->int { To<U>(L)->setOverflow(To<cocos2d::Label::Overflow>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getOverflow", [](auto L)->int { return Push(L, To<U>(L)->getOverflow()); });
+            SetFieldCClosure(L, "setWidth", [](auto L)->int { To<U>(L)->setWidth(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getWidth", [](auto L)->int { return Push(L, To<U>(L)->getWidth()); });
+            SetFieldCClosure(L, "setHeight", [](auto L)->int { To<U>(L)->setHeight(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getHeight", [](auto L)->int { return Push(L, To<U>(L)->getHeight()); });
+            SetFieldCClosure(L, "setDimensions", [](auto L)->int { To<U>(L)->setDimensions(To<float>(L, 2), To<float>(L, 3)); return 0; });
+            SetFieldCClosure(L, "getDimensions", [](auto L)->int { 
+                auto&& o = To<U>(L)->getDimensions();
+                return Push(L, o.width, o.height);
+            });
+            SetFieldCClosure(L, "updateContent", [](auto L)->int { To<U>(L)->updateContent(); return 0; });
+            SetFieldCClosure(L, "getLetter", [](auto L)->int { return Push(L, To<U>(L)->getLetter(To<int>(L, 2))); });
+            SetFieldCClosure(L, "setClipMarginEnabled", [](auto L)->int { To<U>(L)->setClipMarginEnabled(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isClipMarginEnabled", [](auto L)->int { return Push(L, To<U>(L)->isClipMarginEnabled()); });
+            SetFieldCClosure(L, "setLineHeight", [](auto L)->int { To<U>(L)->setLineHeight(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getLineHeight", [](auto L)->int { return Push(L, To<U>(L)->getLineHeight()); });
+            SetFieldCClosure(L, "setLineSpacing", [](auto L)->int { To<U>(L)->setLineSpacing(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getLineSpacing", [](auto L)->int { return Push(L, To<U>(L)->getLineSpacing()); });
+            SetFieldCClosure(L, "getLabelType", [](auto L)->int { return Push(L, To<U>(L)->getLabelType()); });
+            SetFieldCClosure(L, "getRenderingFontSize", [](auto L)->int { return Push(L, To<U>(L)->getRenderingFontSize()); });
+            SetFieldCClosure(L, "setAdditionalKerning", [](auto L)->int { To<U>(L)->setAdditionalKerning(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getAdditionalKerning", [](auto L)->int { return Push(L, To<U>(L)->getAdditionalKerning()); });
+            SetFieldCClosure(L, "getFontAtlas", [](auto L)->int { return Push(L, To<U>(L)->getFontAtlas()); });
+
             // todo
         }
     };
@@ -1732,7 +1985,7 @@ void luaBinds(AppDelegate* ad) {
             size_t sz;
             s = lua_tolstring(L, -1, &sz);  /* get result */
             if (s == NULL)
-                return luaL_error(L, "'tostring' must return a string to 'print'");
+                return luaL_error(L, "%s", "'tostring' must return a string to 'print'");
             if (i > 1) out.append("\t");
             out.append(s, sz);
             lua_pop(L, 1);  /* pop result */
@@ -2419,6 +2672,8 @@ void luaBinds(AppDelegate* ad) {
 
     xx::Lua::Data::Register(L, "xx_data_create");
 
+    // 各种 Action Animation
+
     XL::SetGlobalCClosure(L, "cc_Animation_create", [](auto L) -> int {
         auto&& numArgs = lua_gettop(L);
         if (!numArgs) return XL::Push(L, cocos2d::Animation::create());
@@ -2435,7 +2690,7 @@ void luaBinds(AppDelegate* ad) {
             }
             }
         }
-        return luaL_error(L, "cc_Animation_create error! need 2 ~ 3 args: SpriteFrame[] arrayOfAnimationFrameNames, float delayPerUnit, loops = 1");
+        return luaL_error(L, "%s", "cc_Animation_create error! need 2 ~ 3 args: SpriteFrame[] arrayOfAnimationFrameNames, float delayPerUnit, loops = 1");
     });
 
     XL::SetGlobalCClosure(L, "cc_Animation_createWithSpriteFrames", [](auto L) -> int {
@@ -2457,7 +2712,7 @@ void luaBinds(AppDelegate* ad) {
                 }
             }
         }
-        return luaL_error(L, "cc_Animation_createWithSpriteFrames error! need 1 ~ 3 args: SpriteFrame[] frames, float delay = 0, loop = 1");
+        return luaL_error(L, "%s", "cc_Animation_createWithSpriteFrames error! need 1 ~ 3 args: SpriteFrame[] frames, float delay = 0, loop = 1");
     });
 
     XL::SetGlobalCClosure(L, "cc_BezierBy_create", [](auto L) -> int {
@@ -2486,18 +2741,6 @@ void luaBinds(AppDelegate* ad) {
                 })) { cocos2d::log("!!!! cpp call lua error !!!! file: %s line: %d err: %s", __FILE__, __LINE__, r.m.c_str()); }
 #endif
         }));
-    });
-
-    XL::SetGlobalCClosure(L, "cc_EventListenerTouchAllAtOnce_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::EventListenerTouchAllAtOnce::create());
-    });
-
-    XL::SetGlobalCClosure(L, "cc_EventListenerKeyboard_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::EventListenerKeyboard::create());
-    });
-
-    XL::SetGlobalCClosure(L, "cc_EventListenerTouchOneByOne_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::EventListenerTouchOneByOne::create());
     });
 
     XL::SetGlobalCClosure(L, "cc_DelayTime_create", [](auto L) -> int {
@@ -2545,7 +2788,7 @@ void luaBinds(AppDelegate* ad) {
             return XL::Push(L, cocos2d::MoveBy::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
         }
         default:
-            return luaL_error(L, "cc_MoveBy_create error! need 3 ~ 4 args: float duration, float deltaX, float deltaY, float deltaZ");
+            return luaL_error(L, "%s", "cc_MoveBy_create error! need 3 ~ 4 args: float duration, float deltaX, float deltaY, float deltaZ");
         }
     });
 
@@ -2558,12 +2801,8 @@ void luaBinds(AppDelegate* ad) {
             return XL::Push(L, cocos2d::MoveTo::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
         }
         default:
-            return luaL_error(L, "cc_MoveTo_create error! need 3 ~ 4 args: float duration, float dstX, float dstY, float dstZ");
+            return luaL_error(L, "%s", "cc_MoveTo_create error! need 3 ~ 4 args: float duration, float dstX, float dstY, float dstZ");
         }
-    });
-
-    XL::SetGlobalCClosure(L, "cc_Node_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::Node::create());
     });
 
     XL::SetGlobalCClosure(L, "cc_Place_create", [](auto L) -> int {
@@ -2602,7 +2841,7 @@ void luaBinds(AppDelegate* ad) {
             return XL::Push(L, cocos2d::RotateTo::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
         }
         default:
-            return luaL_error(L, "cc_RotateTo_create error! need 2 ~ 4 args: float duration, float dstAngleX, float dstAngleY, float dstAngleZ");
+            return luaL_error(L, "%s", "cc_RotateTo_create error! need 2 ~ 4 args: float duration, float dstAngleX, float dstAngleY, float dstAngleZ");
         }
     });
 
@@ -2618,7 +2857,7 @@ void luaBinds(AppDelegate* ad) {
             return XL::Push(L, cocos2d::RotateBy::create(XL::To<float>(L, 1), { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
         }
         default:
-            return luaL_error(L, "cc_RotateBy_create error! need 2 ~ 4 args: float duration, float dstAngleX, float dstAngleY, float dstAngleZ");
+            return luaL_error(L, "%s", "cc_RotateBy_create error! need 2 ~ 4 args: float duration, float dstAngleX, float dstAngleY, float dstAngleZ");
         }
     });
 
@@ -2634,7 +2873,7 @@ void luaBinds(AppDelegate* ad) {
             return XL::Push(L, cocos2d::ScaleTo::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4)));
         }
         default:
-            return luaL_error(L, "cc_ScaleTo_create error! need 2 ~ 4 args: float duration, float sXY/sX, float sY, float sZ");
+            return luaL_error(L, "%s", "cc_ScaleTo_create error! need 2 ~ 4 args: float duration, float sXY/sX, float sY, float sZ");
         }
     });
 
@@ -2650,22 +2889,14 @@ void luaBinds(AppDelegate* ad) {
             return XL::Push(L, cocos2d::ScaleBy::create(XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4)));
         }
         default:
-            return luaL_error(L, "cc_ScaleBy_create error! need 2 ~ 4 args: float duration, float sXY/sX, float sY, float sZ");
+            return luaL_error(L, "%s", "cc_ScaleBy_create error! need 2 ~ 4 args: float duration, float sXY/sX, float sY, float sZ");
         }
-    });
-
-    XL::SetGlobalCClosure(L, "cc_Scene_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::Scene::create());
-    });
-
-    XL::SetGlobalCClosure(L, "cc_Scene_createWithSize", [](auto L) -> int {
-        return XL::Push(L, cocos2d::Scene::createWithSize({ XL::To<float>(L, 1), XL::To<float>(L, 2) }));
     });
 
     XL::SetGlobalCClosure(L, "cc_Sequence_create", [](auto L) -> int {
         auto&& numArgs = lua_gettop(L);
         if (!numArgs) {
-            return luaL_error(L, "; error! need 1+ args: FiniteTimeAction*... / { FiniteTimeAction*... }");
+            return luaL_error(L, "%s", "; error! need 1+ args: FiniteTimeAction*... / { FiniteTimeAction*... }");
         }
         if (lua_istable(L, 1)) {
             XL::To(L, 1, _finiteTimeActions);
@@ -2701,7 +2932,7 @@ void luaBinds(AppDelegate* ad) {
     XL::SetGlobalCClosure(L, "cc_Spawn_create", [](auto L) -> int {
         auto&& numArgs = lua_gettop(L);
         if (!numArgs) {
-            return luaL_error(L, "cc_Spawn_create error! need 1+ args: FiniteTimeAction*... / { FiniteTimeAction*... }");
+            return luaL_error(L, "%s", "cc_Spawn_create error! need 1+ args: FiniteTimeAction*... / { FiniteTimeAction*... }");
         }
         auto&& sg = xx::MakeScopeGuard([&] { _finiteTimeActions2.clear(); });
         if (lua_istable(L, 1)) {
@@ -2717,6 +2948,46 @@ void luaBinds(AppDelegate* ad) {
 
     XL::SetGlobalCClosure(L, "cc_Speed_create", [](auto L) -> int {
         return XL::Push(L, cocos2d::Speed::create(XL::To<cocos2d::ActionInterval*>(L, 1), XL::To<float>(L, 2)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_TintBy_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::TintBy::create(XL::To<float>(L, 1), XL::To<int16_t>(L, 2), XL::To<int16_t>(L, 3), XL::To<int16_t>(L, 4)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_TintTo_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::TintTo::create(XL::To<float>(L, 1), XL::To<uint8_t>(L, 2), XL::To<uint8_t>(L, 3), XL::To<uint8_t>(L, 4)));
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ToggleVisibility_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::ToggleVisibility::create());
+    });
+
+    // 各种 EventListener
+
+    XL::SetGlobalCClosure(L, "cc_EventListenerTouchAllAtOnce_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::EventListenerTouchAllAtOnce::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_EventListenerKeyboard_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::EventListenerKeyboard::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_EventListenerTouchOneByOne_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::EventListenerTouchOneByOne::create());
+    });
+
+    // 各种 Node
+
+    XL::SetGlobalCClosure(L, "cc_Node_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Node::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Scene_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Scene::create());
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Scene_createWithSize", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Scene::createWithSize({ XL::To<float>(L, 1), XL::To<float>(L, 2) }));
     });
 
     XL::SetGlobalCClosure(L, "cc_Sprite_create", [](auto L) -> int {
@@ -2749,20 +3020,97 @@ void luaBinds(AppDelegate* ad) {
                 , { XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) }, XL::To<bool>(L, 6)));
         }
         default:
-            return luaL_error(L, "cc_Sprite_createWithTexture error! need 1 / 5 / 6 args: Texture2D texture, Rect{ float x, y, w, h }, bool rotated = false");
+            return luaL_error(L, "%s", "cc_Sprite_createWithTexture error! need 1 / 5 / 6 args: Texture2D texture, Rect{ float x, y, w, h }, bool rotated = false");
         }
     });
 
-    XL::SetGlobalCClosure(L, "cc_TintBy_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::TintBy::create(XL::To<float>(L, 1), XL::To<int16_t>(L, 2), XL::To<int16_t>(L, 3), XL::To<int16_t>(L, 4)));
+    XL::SetGlobalCClosure(L, "cc_Label_create", [](auto L) -> int {
+        return XL::Push(L, cocos2d::Label::create());
     });
 
-    XL::SetGlobalCClosure(L, "cc_TintTo_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::TintTo::create(XL::To<float>(L, 1), XL::To<uint8_t>(L, 2), XL::To<uint8_t>(L, 3), XL::To<uint8_t>(L, 4)));
+    XL::SetGlobalCClosure(L, "cc_Label_createWithSystemFont", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 3: {
+            return XL::Push(L, cocos2d::Label::createWithSystemFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)));
+        }
+        case 5: {
+            return XL::Push(L, cocos2d::Label::createWithSystemFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)
+                , { XL::To<float>(L, 4), XL::To<float>(L, 5) }));
+        }
+        case 6: {
+            return XL::Push(L, cocos2d::Label::createWithSystemFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)
+                , { XL::To<float>(L, 4), XL::To<float>(L, 5) }, XL::To<cocos2d::TextHAlignment>(L, 6)));
+        }
+        case 7: {
+            return XL::Push(L, cocos2d::Label::createWithSystemFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)
+                , { XL::To<float>(L, 4), XL::To<float>(L, 5) }, XL::To<cocos2d::TextHAlignment>(L, 6), XL::To<cocos2d::TextVAlignment>(L, 7)));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_Label_createWithSystemFont error! need 3, 5 ~ 7 args: string text, font, float fontSize, dimensionsX = 0, dimensionsY = 0, TextHAlignment hAlignment = TextHAlignment::LEFT, TextVAlignment vAlignment = TextVAlignment::TOP");
+        }
     });
 
-    XL::SetGlobalCClosure(L, "cc_ToggleVisibility_create", [](auto L) -> int {
-        return XL::Push(L, cocos2d::ToggleVisibility::create());
+    XL::SetGlobalCClosure(L, "cc_Label_createWithTTF", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 3: {
+            return XL::Push(L, cocos2d::Label::createWithTTF(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)));
+        }
+        case 5: {
+            return XL::Push(L, cocos2d::Label::createWithTTF(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)
+                , { XL::To<float>(L, 4), XL::To<float>(L, 5) }));
+        }
+        case 6: {
+            return XL::Push(L, cocos2d::Label::createWithTTF(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)
+                , { XL::To<float>(L, 4), XL::To<float>(L, 5) }, XL::To<cocos2d::TextHAlignment>(L, 6)));
+        }
+        case 7: {
+            return XL::Push(L, cocos2d::Label::createWithTTF(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2), XL::To<float>(L, 3)
+                , { XL::To<float>(L, 4), XL::To<float>(L, 5) }, XL::To<cocos2d::TextHAlignment>(L, 6), XL::To<cocos2d::TextVAlignment>(L, 7)));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_Label_createWithTTF error! need 3, 5 ~ 7 args: string text, fontFilePath, float fontSize, dimensionsX = 0, dimensionsY = 0, TextHAlignment hAlignment = TextHAlignment::LEFT, TextVAlignment vAlignment = TextVAlignment::TOP");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Label_createWithBMFont", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 2: {
+            return XL::Push(L, cocos2d::Label::createWithBMFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2)));
+        }
+        case 3: {
+            return XL::Push(L, cocos2d::Label::createWithBMFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2)
+                , XL::To<cocos2d::TextHAlignment>(L, 3)));
+        }
+        case 4: {
+            return XL::Push(L, cocos2d::Label::createWithBMFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2)
+                , XL::To<cocos2d::TextHAlignment>(L, 3), XL::To<int>(L, 4)));
+        }
+        case 5: {
+            return XL::Push(L, cocos2d::Label::createWithBMFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2)
+                , XL::To<cocos2d::TextHAlignment>(L, 3), XL::To<int>(L, 4), XL::To<std::string>(L, 5)));
+        }
+        case 9: {
+            return XL::Push(L, cocos2d::Label::createWithBMFont(XL::To<std::string>(L, 1), XL::To<std::string>(L, 2)
+                , XL::To<cocos2d::TextHAlignment>(L, 3), XL::To<int>(L, 4)
+                , { XL::To<float>(L, 5), XL::To<float>(L, 6), XL::To<float>(L, 7), XL::To<float>(L, 8) }, XL::To<bool>(L, 9)));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_Label_createWithBMFont error! need 2 ~ 5, 9 args: string bmfontPath, text, hAlignment = TextHAlignment::LEFT, maxLineWidth = 0, string subTextureKey / Rect{ float x, y, w, h }, bool imageRotated");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_Label_createWithCharMap", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 1: {
+            return XL::Push(L, cocos2d::Label::createWithCharMap(XL::To<std::string>(L, 1)));
+        }
+        case 4: {
+            if (lua_isstring(L, 1)) return XL::Push(L, cocos2d::Label::createWithCharMap(XL::To<std::string>(L, 1), XL::To<int>(L, 2), XL::To<int>(L, 3), XL::To<int>(L, 4)));
+            else return XL::Push(L, cocos2d::Label::createWithCharMap(XL::To<cocos2d::Texture2D*>(L, 1), XL::To<int>(L, 2), XL::To<int>(L, 3), XL::To<int>(L, 4)));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_Label_createWithCharMap error! need 1, 4 args: string plistFile | Texture2D* texture / string charMapFile, int itemWidth, int itemHeight, int startCharMap");
+        }
     });
 
 
@@ -2964,6 +3312,31 @@ void luaBinds(AppDelegate* ad) {
     XL::SetGlobal(L, "EventListener_Type_FOCUS", cocos2d::EventListener::Type::FOCUS);
     XL::SetGlobal(L, "EventListener_Type_GAME_CONTROLLER", cocos2d::EventListener::Type::GAME_CONTROLLER);
     XL::SetGlobal(L, "EventListener_Type_CUSTOM", cocos2d::EventListener::Type::CUSTOM);
+
+    XL::SetGlobal(L, "GlyphCollection_DYNAMIC", cocos2d::GlyphCollection::DYNAMIC);
+    XL::SetGlobal(L, "GlyphCollection_NEHE", cocos2d::GlyphCollection::NEHE);
+    XL::SetGlobal(L, "GlyphCollection_ASCII", cocos2d::GlyphCollection::ASCII);
+    XL::SetGlobal(L, "GlyphCollection_CUSTOM", cocos2d::GlyphCollection::CUSTOM);
+
+    XL::SetGlobal(L, "Label_Overflow_NONE", cocos2d::Label::Overflow::NONE);
+    XL::SetGlobal(L, "Label_Overflow_CLAMP", cocos2d::Label::Overflow::CLAMP);
+    XL::SetGlobal(L, "Label_Overflow_SHRINK", cocos2d::Label::Overflow::SHRINK);
+    XL::SetGlobal(L, "Label_Overflow_RESIZE_HEIGHT", cocos2d::Label::Overflow::RESIZE_HEIGHT);
+
+    XL::SetGlobal(L, "Label_Label_LabelType_TTF", cocos2d::Label::LabelType::TTF);
+    XL::SetGlobal(L, "Label_Label_LabelType_BMFONT", cocos2d::Label::LabelType::BMFONT);
+    XL::SetGlobal(L, "Label_Label_LabelType_CHARMAP", cocos2d::Label::LabelType::CHARMAP);
+    XL::SetGlobal(L, "Label_Label_LabelType_STRING_TEXTURE", cocos2d::Label::LabelType::STRING_TEXTURE);
+
+    XL::SetGlobal(L, "LabelEffect_NORMAL", cocos2d::LabelEffect::NORMAL);
+    XL::SetGlobal(L, "LabelEffect_OUTLINE", cocos2d::LabelEffect::OUTLINE);
+    XL::SetGlobal(L, "LabelEffect_SHADOW", cocos2d::LabelEffect::SHADOW);
+    XL::SetGlobal(L, "LabelEffect_GLOW", cocos2d::LabelEffect::GLOW);
+    XL::SetGlobal(L, "LabelEffect_ITALICS", cocos2d::LabelEffect::ITALICS);
+    XL::SetGlobal(L, "LabelEffect_BOLD", cocos2d::LabelEffect::BOLD);
+    XL::SetGlobal(L, "LabelEffect_UNDERLINE", cocos2d::LabelEffect::UNDERLINE);
+    XL::SetGlobal(L, "LabelEffect_STRIKETHROUGH", cocos2d::LabelEffect::STRIKETHROUGH);
+    XL::SetGlobal(L, "LabelEffect_ALL", cocos2d::LabelEffect::ALL);
 
     XL::SetGlobal(L, "LanguageType_ENGLISH", cocos2d::LanguageType::ENGLISH);
     XL::SetGlobal(L, "LanguageType_CHINESE", cocos2d::LanguageType::CHINESE);
