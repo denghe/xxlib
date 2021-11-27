@@ -1679,60 +1679,59 @@ namespace xx::Lua {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
             SetFieldCClosure(L, "setTTFConfig", [](auto L)->int {
-                // 已知问题：customGlyphs 因为原始接口要求传入 char const*, 故 lua 那边须确保该 string 不会“野”
                 switch (lua_gettop(L)) {
                 case 1: {
                     To<U>(L)->setTTFConfig({});
                     return 0;
                 }
                 case 2: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2) });
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2) });
                     return 0;
                 }
                 case 3: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3) });
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3) });
                     return 0;
                 }
                 case 4: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4) });
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4) });
                     return 0;
                 }
                 case 5: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
-                        , To<char const*>(L, 5) });
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<std::string_view>(L, 5) });
                     return 0;
                 }
                 case 6: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
-                        , To<char const*>(L, 5), To<bool>(L, 6) });
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<std::string_view>(L, 5), To<bool>(L, 6) });
                     return 0;
                 }
                 case 7: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
-                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7) });
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<std::string_view>(L, 5), To<bool>(L, 6), To<int>(L, 7) });
                     return 0;
                 }
                 case 8: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
-                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<std::string_view>(L, 5), To<bool>(L, 6), To<int>(L, 7)
                         , To<bool>(L, 8) });
                     return 0;
                 }
                 case 9: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
-                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<std::string_view>(L, 5), To<bool>(L, 6), To<int>(L, 7)
                         , To<bool>(L, 8), To<bool>(L, 9) });
                     return 0;
                 }
                 case 10: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
-                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<std::string_view>(L, 5), To<bool>(L, 6), To<int>(L, 7)
                         , To<bool>(L, 8), To<bool>(L, 9), To<bool>(L, 10) });
                     return 0;
                 }
                 case 11: {
-                    To<U>(L)->setTTFConfig({ To<std::string>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
-                        , To<char const*>(L, 5), To<bool>(L, 6), To<int>(L, 7)
+                    To<U>(L)->setTTFConfig({ To<std::string_view>(L, 2), To<float>(L, 3), To<cocos2d::GlyphCollection>(L, 4)
+                        , To<std::string_view>(L, 5), To<bool>(L, 6), To<int>(L, 7)
                         , To<bool>(L, 8), To<bool>(L, 9), To<bool>(L, 10), To<bool>(L, 11) });
                     return 0;
                 }
@@ -1743,7 +1742,6 @@ namespace xx::Lua {
             });
             SetFieldCClosure(L, "getTTFConfig", [](auto L)->int {
                 auto&& o = To<U>(L)->getTTFConfig();
-                // 已知问题：customGlyphs 可能会野指针
                 return Push(L, o.fontFilePath, o.fontSize, o.glyphs, o.customGlyphs, o.distanceFieldEnabled, o.outlineSize, o.italics, o.bold, o.underline, o.strikethrough);
             });
             SetFieldCClosure(L, "setBMFontFilePath", [](auto L)->int {
