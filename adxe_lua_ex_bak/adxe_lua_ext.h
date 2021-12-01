@@ -19,8 +19,9 @@
 // 当前已映射的类型有：
 // Vec2 / 3 / 4, Color3 / 4B
 // Ref, Cloneable, Touch, Animation / Action 系列( 不全 ), Event / EventListener 系列,  Node, Scene, Sprite, Label
+// ScrollView( 这个其实可以自己用 ClippingNode + EventListener 来实现 )
 // todo:
-// ScrollView, DrawNode
+// ClippingNode, DrawNode ...
 // todo2:
 // ...
 
@@ -1935,6 +1936,137 @@ namespace xx::Lua {
         }
     };
 
+    /*******************************************************************************************/
+    // ScrollView : 简化为 Node ( 实际为 Layer, ActionTweenDelegate )
+    template<>
+    struct MetaFuncs<cocos2d::extension::ScrollView*, void> {
+        using U = cocos2d::extension::ScrollView*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "setContentOffset", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 3: {
+                    To<U>(L)->setContentOffset({ To<float>(L, 2) , To<float>(L, 3) }); 
+                    return 0;
+                }
+                case 4: {
+                    To<U>(L)->setContentOffset({ To<float>(L, 2) , To<float>(L, 3) }, To<bool>(L, 4));
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "ScrollView:setContentOffset error! need 3 ~ 4 args: self, Vec2 offset{ float x, y }, bool animated = false");
+                }
+                }
+            });
+            SetFieldCClosure(L, "getContentOffset", [](auto L)->int {
+                auto&& r = To<U>(L)->getContentOffset();
+                return XL::Push(L, r.x, r.y);
+            });
+            SetFieldCClosure(L, "setContentOffsetInDuration", [](auto L)->int {
+                To<U>(L)->setContentOffsetInDuration({ To<float>(L, 2) , To<float>(L, 3) }, To<float>(L, 4));
+                return 0;
+            });
+            SetFieldCClosure(L, "stopAnimatedContentOffset", [](auto L)->int { To<U>(L)->stopAnimatedContentOffset(); return 0; });
+            SetFieldCClosure(L, "setZoomScale", [](auto L)->int {
+                switch (lua_gettop(L)) {
+                case 2: {
+                    To<U>(L)->setZoomScale(To<float>(L, 2));
+                    return 0;
+                }
+                case 3: {
+                    To<U>(L)->setZoomScale(To<float>(L, 2), To<bool>(L, 3));
+                    return 0;
+                }
+                default: {
+                    return luaL_error(L, "%s", "ScrollView:setZoomScale error! need 2 ~ 3 args: self, float s, bool animated");
+                }
+                }
+            });
+            SetFieldCClosure(L, "getZoomScale", [](auto L)->int { return Push(L, To<U>(L)->getZoomScale()); });
+            SetFieldCClosure(L, "setZoomScaleInDuration", [](auto L)->int { To<U>(L)->setZoomScaleInDuration(To<float>(L, 2), To<float>(L, 3)); return 0; });
+            SetFieldCClosure(L, "setMinScale", [](auto L)->int { To<U>(L)->setMinScale(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "setMaxScale", [](auto L)->int { To<U>(L)->setMaxScale(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "minContainerOffset", [](auto L)->int {
+                auto&& r = To<U>(L)->minContainerOffset();
+                return XL::Push(L, r.x, r.y);
+            });
+            SetFieldCClosure(L, "maxContainerOffset", [](auto L)->int {
+                auto&& r = To<U>(L)->maxContainerOffset();
+                return XL::Push(L, r.x, r.y);
+            });
+            SetFieldCClosure(L, "isNodeVisible", [](auto L)->int { return Push(L, To<U>(L)->isNodeVisible(To<cocos2d::Node*>(L, 2))); });
+            SetFieldCClosure(L, "pause", [](auto L)->int { To<U>(L)->pause(To<cocos2d::Ref*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "resume", [](auto L)->int { To<U>(L)->resume(To<cocos2d::Ref*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "setTouchEnabled", [](auto L)->int { To<U>(L)->setTouchEnabled(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isTouchEnabled", [](auto L)->int { return Push(L, To<U>(L)->isTouchEnabled()); });
+            SetFieldCClosure(L, "setSwallowTouches", [](auto L)->int { To<U>(L)->setSwallowTouches(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isDragging", [](auto L)->int { return Push(L, To<U>(L)->isDragging()); });
+            SetFieldCClosure(L, "isTouchMoved", [](auto L)->int { return Push(L, To<U>(L)->isTouchMoved()); });
+            SetFieldCClosure(L, "isBounceable", [](auto L)->int { return Push(L, To<U>(L)->isBounceable()); });
+            SetFieldCClosure(L, "setBounceable", [](auto L)->int { To<U>(L)->setBounceable(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getViewSize", [](auto L)->int {
+                auto&& r = To<U>(L)->getViewSize();
+                return XL::Push(L, r.width, r.height);
+            });
+            SetFieldCClosure(L, "setViewSize", [](auto L)->int { To<U>(L)->setViewSize({ To<float>(L, 2), To<float>(L, 3) }); return 0; });
+            SetFieldCClosure(L, "getContainer", [](auto L)->int { return Push(L, To<U>(L)->getContainer()); });
+            SetFieldCClosure(L, "setContainer", [](auto L)->int { To<U>(L)->setContainer(To<cocos2d::Node*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "getDirection", [](auto L)->int { return Push(L, To<U>(L)->getDirection()); });
+            SetFieldCClosure(L, "setDirection", [](auto L)->int { To<U>(L)->setDirection(To<cocos2d::extension::ScrollView::Direction>(L, 2)); return 0; });
+            // getDelegate, setDelegate
+            SetFieldCClosure(L, "updateInset", [](auto L)->int { To<U>(L)->updateInset(); return 0; });
+            SetFieldCClosure(L, "isClippingToBounds", [](auto L)->int { return Push(L, To<U>(L)->isClippingToBounds()); });
+            SetFieldCClosure(L, "setClippingToBounds", [](auto L)->int { To<U>(L)->setClippingToBounds(To<bool>(L, 2)); return 0; });
+            SetFieldCClosure(L, "hasVisibleParents", [](auto L)->int { return Push(L, To<U>(L)->hasVisibleParents()); });
+            // onTouchBegan onTouchMoved onTouchEnded onTouchCancelled
+        }
+    };
+
+
+    /*******************************************************************************************/
+    // ClippingNode : Node
+    template<>
+    struct MetaFuncs<cocos2d::ClippingNode*, void> {
+        using U = cocos2d::ClippingNode*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "getStencil", [](auto L)->int { return Push(L, To<U>(L)->getStencil()); });
+            SetFieldCClosure(L, "setStencil", [](auto L)->int { To<U>(L)->setStencil(To<cocos2d::Node*>(L, 2)); return 0; });
+            SetFieldCClosure(L, "hasContent", [](auto L)->int { return Push(L, To<U>(L)->hasContent()); });
+            SetFieldCClosure(L, "getAlphaThreshold", [](auto L)->int { return Push(L, To<U>(L)->getAlphaThreshold()); });
+            SetFieldCClosure(L, "setAlphaThreshold", [](auto L)->int { To<U>(L)->setAlphaThreshold(To<float>(L, 2)); return 0; });
+            SetFieldCClosure(L, "isInverted", [](auto L)->int { return Push(L, To<U>(L)->isInverted()); });
+            SetFieldCClosure(L, "setInverted", [](auto L)->int { To<U>(L)->setInverted(To<bool>(L, 2)); return 0; });
+        }
+    };
+
+    /*******************************************************************************************/
+    // ClippingRectangleNode : Node
+    template<>
+    struct MetaFuncs<cocos2d::ClippingRectangleNode*, void> {
+        using U = cocos2d::ClippingRectangleNode*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "getClippingRegion", [](auto L)->int {
+                auto&& r = To<U>(L)->getClippingRegion();
+                return XL::Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
+            });
+            SetFieldCClosure(L, "setClippingRegion", [](auto L)->int {
+                To<U>(L)->setClippingRegion({ XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) });
+                return 0; 
+            });
+            SetFieldCClosure(L, "isClippingEnabled", [](auto L)->int { return Push(L, To<U>(L)->isClippingEnabled()); });
+            SetFieldCClosure(L, "setClippingEnabled", [](auto L)->int { To<U>(L)->setClippingEnabled(To<bool>(L, 2)); return 0; });
+        }
+    };
+
+
     // todo: more Node ?
 
     /*******************************************************************************************/
@@ -3113,6 +3245,48 @@ void luaBinds(AppDelegate* ad) {
         }
     });
 
+    XL::SetGlobalCClosure(L, "cc_ScrollView_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 0: {
+            return XL::Push(L, cocos2d::extension::ScrollView::create());
+        }
+        case 2: {
+            return XL::Push(L, cocos2d::extension::ScrollView::create({ XL::To<float>(L, 1), XL::To<float>(L, 2) }));
+        }
+        case 3: {
+            return XL::Push(L, cocos2d::extension::ScrollView::create({ XL::To<float>(L, 1), XL::To<float>(L, 2) }, XL::To<cocos2d::Node*>(L, 3)));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_ScrollView_create error! need 0, 2, 3 args: Size size { float w, h }, Node* container = NULL");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ClippingNode_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 0: {
+            return XL::Push(L, cocos2d::ClippingNode::create());
+        }
+        case 1: {
+            return XL::Push(L, cocos2d::ClippingNode::create(XL::To<cocos2d::Node*>(L, 1)));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_ClippingNode_create error! need 0, 1 args: Node *stencil");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_ClippingRectangleNode_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 0: {
+            return XL::Push(L, cocos2d::ClippingRectangleNode::create());
+        }
+        case 1: {
+            return XL::Push(L, cocos2d::ClippingRectangleNode::create({ XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_ClippingRectangleNode_create error! need 0, 4 args: Rect region{ float x, y, w, h }");
+        }
+    });
+
 
     /***********************************************************************************************/
     // enums
@@ -3370,6 +3544,11 @@ void luaBinds(AppDelegate* ad) {
     XL::SetGlobal(L, "ResolutionPolicy_FIXED_HEIGHT", ResolutionPolicy::FIXED_HEIGHT);
     XL::SetGlobal(L, "ResolutionPolicy_FIXED_WIDTH", ResolutionPolicy::FIXED_WIDTH);
     XL::SetGlobal(L, "ResolutionPolicy_UNKNOWN", ResolutionPolicy::UNKNOWN);
+
+    XL::SetGlobal(L, "ScrollView_Direction_NONE", cocos2d::extension::ScrollView::Direction::NONE);
+    XL::SetGlobal(L, "ScrollView_Direction_HORIZONTAL", cocos2d::extension::ScrollView::Direction::HORIZONTAL);
+    XL::SetGlobal(L, "ScrollView_Direction_VERTICAL", cocos2d::extension::ScrollView::Direction::VERTICAL);
+    XL::SetGlobal(L, "ScrollView_Direction_BOTH", cocos2d::extension::ScrollView::Direction::BOTH);
 
     XL::SetGlobal(L, "TextHAlignment", cocos2d::TextHAlignment::LEFT);
     XL::SetGlobal(L, "TextHAlignment", cocos2d::TextHAlignment::CENTER);
