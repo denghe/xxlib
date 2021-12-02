@@ -18,11 +18,13 @@
 // 
 // 当前已映射的类型有：
 // Vec2 / 3 / 4, Color3 / 4B
-// Ref, Cloneable, Touch, Animation / Action 系列( 不全 ), Event / EventListener 系列,  Node, Scene, Sprite, Label
+// Ref, Cloneable, Animation / Action 系列( 不全 )
+// Touch, Event / EventListener 系列
+// Node, Scene, Sprite, Label
 // ScrollView( 这个其实可以自己用 ClippingNode + EventListener 来实现 )
+// ClippingNode, ClippingRectangleNode
 // todo:
-// ClippingNode, DrawNode ...
-// todo2:
+// DrawNode ...
 // ...
 
 
@@ -2064,6 +2066,22 @@ namespace xx::Lua {
         }
     };
 
+    /*******************************************************************************************/
+    // DrawNode : Node
+    template<>
+    struct MetaFuncs<cocos2d::DrawNode*, void> {
+        using U = cocos2d::DrawNode*;
+        inline static std::string name = std::string(TypeName_v<U>);
+        static void Fill(lua_State* const& L) {
+            MetaFuncs<cocos2d::Node*>::Fill(L);
+            SetType<U>(L);
+            SetFieldCClosure(L, "drawPoint", [](auto L)->int {
+                To<U>(L)->drawPoint({ XL::To<float>(L, 2), XL::To<float>(L, 3) }, XL::To<float>(L, 4)
+                    , { XL::To<float>(L, 5), XL::To<float>(L, 6), XL::To<float>(L, 7), XL::To<float>(L, 8) });
+                return 0;
+            });
+        }
+    };
 
     // todo: more Node ?
 
@@ -3277,11 +3295,24 @@ void luaBinds(AppDelegate* ad) {
         case 0: {
             return XL::Push(L, cocos2d::ClippingRectangleNode::create());
         }
-        case 1: {
+        case 4: {
             return XL::Push(L, cocos2d::ClippingRectangleNode::create({ XL::To<float>(L, 1), XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4) }));
         }
         default:
             return luaL_error(L, "%s", "cc_ClippingRectangleNode_create error! need 0, 4 args: Rect region{ float x, y, w, h }");
+        }
+    });
+
+    XL::SetGlobalCClosure(L, "cc_DrawNode_create", [](auto L) -> int {
+        switch (lua_gettop(L)) {
+        case 0: {
+            return XL::Push(L, cocos2d::DrawNode::create());
+        }
+        case 1: {
+            return XL::Push(L, cocos2d::DrawNode::create(XL::To<float>(L, 1));
+        }
+        default:
+            return luaL_error(L, "%s", "cc_DrawNode_create error! need 0, 1 args: float defaultLineWidth = DEFAULT_LINE_WIDTH");
         }
     });
 

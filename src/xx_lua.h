@@ -244,7 +244,7 @@ namespace xx::Lua {
 					rtv.m = lua_tostring(L, -1);
 				}
 				else if (rtv.n == -1) {
-					rtv.m = "cpp exception";
+					rtv.m = "cpp exception( can edit ldo.c LUAI_TRY macro for more info )";
 				}
 				else {
 					rtv.m = "lua_error forget arg?";
