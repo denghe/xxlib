@@ -1,32 +1,41 @@
-﻿// 针对 adxe engine 的纯 cpp 导出项目的 lua 扩展
-// 用法：
-// 在 AppDelegate.cpp 第 34 行，也就是 一堆 include 之后，USING_NS_CC 之前 插入本 .h 的 include
-// 并于 applicationDidFinishLaunching 的最后 执行 luaBinds(this);
-// void AppDelegate::applicationDidEnterBackground() { 里面 添加 if (_enterBackground) _enterBackground();
-// void AppDelegate::applicationWillEnterForeground() { 里面 添加 if (_enterForeground) _enterForeground();
-// 也可以模拟下面代码的 try 机制包裹 XX_LUA_ENABLE_TRY_CALL_FUNC
-// 
-// 进一步的，可去 base/ccConfig.h 改宏，关闭一些特性, 将值修改为 0
-// 脚本绑定: CC_ENABLE_SCRIPT_BINDING   ( 必关，有本 lua 绑定方案，不再需要 cpp 那边侵入式的脚本支持 )
-// 2d物理：CC_USE_PHYSICS
-// 3d物理：CC_USE_3D_PHYSICS
-// 3d导航: CC_USE_NAVMESH
-// 3d隐面剔除: CC_USE_CULLING   ( 谨慎，这个关闭后估计所有 3d 显示就不正常了 )
-// 
-// 由于工作量巨大，先提供能做游戏的最小集合映射。
-// 原则上 所有获取单例的函数，都不映射。单例的成员函数，直接映射为全局 cc_ 函数。
-// 
-// 当前已映射的类型有：
-// Vec2 / 3 / 4, Color3 / 4B
-// Ref, Cloneable, Animation / Action 系列( 不全 )
-// Touch, Event / EventListener 系列
-// Node, Scene, Sprite, Label
-// ScrollView( 这个其实可以自己用 ClippingNode + EventListener 来实现 )
-// ClippingNode, ClippingRectangleNode
-// todo:
-// DrawNode ...
-// ...
+﻿/*
+    针对 adxe engine 的纯 cpp 导出项目的 lua 扩展
+ 
+    用法：
+配置 include 查找路径, 类似 $(SolutionDir)../../xxlib/lua-5.4.x/src;$(SolutionDir)../../xxlib/3rd;$(SolutionDir)../../xxlib/src;$(IncludePath)
+配置项目宏 ONELUA_MAKE_LIB
 
+    在 AppDelegate.cpp 第 34 行，也就是 一堆 include 之后，USING_NS_CC 之前 插入下列 include 语句
+#include "extensions/GUI/CCScrollView/CCScrollView.h"
+#include <xx_lua_adxe_binds.h>
+
+    并于 applicationDidFinishLaunching 的最后 执行 luaBinds(this);
+void AppDelegate::applicationDidEnterBackground() { 里面 添加 if (_enterBackground) _enterBackground();
+void AppDelegate::applicationWillEnterForeground() { 里面 添加 if (_enterForeground) _enterForeground();
+// 也可以模拟下面代码的 try 机制包裹 XX_LUA_ENABLE_TRY_CALL_FUNC
+
+    进一步的，可去 base/ccConfig.h 改宏，关闭一些特性, 将值修改为 0
+脚本绑定: CC_ENABLE_SCRIPT_BINDING   ( 必关，有本 lua 绑定方案，不再需要 cpp 那边侵入式的脚本支持 )
+2d物理：CC_USE_PHYSICS
+3d物理：CC_USE_3D_PHYSICS
+3d导航: CC_USE_NAVMESH
+3d隐面剔除: CC_USE_CULLING   ( 谨慎，这个关闭后估计所有 3d 显示就不正常了 )
+
+    由于工作量巨大，先提供能做游戏的最小集合映射。
+原则上 所有获取单例的函数，都不映射。单例的成员函数，直接映射为全局 cc_ 函数。
+当前已映射的类型有：
+
+Vec2 / 3 / 4, Color3 / 4B
+Ref, Cloneable, Animation / Action 系列( 不全 )
+Touch, Event / EventListener 系列
+Node, Scene, Sprite, Label
+ScrollView( 这个其实可以自己用 ClippingNode + EventListener 来实现 )
+ClippingNode, ClippingRectangleNode
+// todo:
+DrawNode ...
+...
+
+*/
 
 #include <xx_lua_data.h>
 namespace XL = xx::Lua;
@@ -60,6 +69,7 @@ inline static XL::Func _enterForeground;                                        
 inline static std::string _string;                                                  // for print
 inline static std::vector<std::string> _strings;                                    // tmp
 inline static std::vector<cocos2d::FiniteTimeAction*> _finiteTimeActions;           // tmp
+inline static std::vector<cocos2d::Vec2> _vec2s;                                    // tmp
 inline static cocos2d::Vector<cocos2d::FiniteTimeAction*> _finiteTimeActions2;      // tmp，因为会自动加持，须退出函数时清空
 inline static cocos2d::Vector<cocos2d::SpriteFrame*> _spriteFrames2;                // tmp，因为会自动加持，须退出函数时清空
 inline static cocos2d::Vector<cocos2d::AnimationFrame*> _animationFrames2;          // tmp，因为会自动加持，须退出函数时清空
@@ -2076,8 +2086,22 @@ namespace xx::Lua {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
             SetFieldCClosure(L, "drawPoint", [](auto L)->int {
-                To<U>(L)->drawPoint({ XL::To<float>(L, 2), XL::To<float>(L, 3) }, XL::To<float>(L, 4)
-                    , { XL::To<float>(L, 5), XL::To<float>(L, 6), XL::To<float>(L, 7), XL::To<float>(L, 8) });
+                XL::To<U>(L)->drawPoint4B({ XL::To<float>(L, 2), XL::To<float>(L, 3) }, XL::To<float>(L, 4)
+                    , { XL::To<uint8_t>(L, 5), XL::To<uint8_t>(L, 6), XL::To<uint8_t>(L, 7), XL::To<uint8_t>(L, 8) });
+                return 0;
+            });
+            SetFieldCClosure(L, "drawPoints", [](auto L)->int {
+                auto top = lua_gettop(L);
+                if (top < 8 || (top - 8) & 1 == 1) return luaL_error(L, "%s", "DrawNode:drawPoints error! need 8+ args: self, Color4B color{ byte r,g,b,a }, float pointSize = 1, Vec2{ float x, y }[] points...");
+                _vec2s.reserve((top - 6) / 2);
+                _vec2s.clear();
+                for (auto i = 7; i < top; i += 2) {
+                    _vec2s.push_back({ XL::To<float>(L, i), XL::To<float>(L, i + 1) });
+                }
+                
+                Color4B c(XL::To<uint8_t>(L, 2), XL::To<uint8_t>(L, 3), XL::To<uint8_t>(L, 4), XL::To<uint8_t>(L, 5));
+                auto ps = XL::To<uint8_t>(L, 6);
+                // todo
                 return 0;
             });
         }
@@ -3309,7 +3333,7 @@ void luaBinds(AppDelegate* ad) {
             return XL::Push(L, cocos2d::DrawNode::create());
         }
         case 1: {
-            return XL::Push(L, cocos2d::DrawNode::create(XL::To<float>(L, 1));
+            return XL::Push(L, cocos2d::DrawNode::create(XL::To<float>(L, 1)));
         }
         default:
             return luaL_error(L, "%s", "cc_DrawNode_create error! need 0, 1 args: float defaultLineWidth = DEFAULT_LINE_WIDTH");
