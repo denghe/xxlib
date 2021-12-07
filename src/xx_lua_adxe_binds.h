@@ -2065,10 +2065,10 @@ namespace xx::Lua {
             SetType<U>(L);
             SetFieldCClosure(L, "getClippingRegion", [](auto L)->int {
                 auto&& r = To<U>(L)->getClippingRegion();
-                return XL::Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
+                return Push(L, r.origin.x, r.origin.y, r.size.width, r.size.height);
             });
             SetFieldCClosure(L, "setClippingRegion", [](auto L)->int {
-                To<U>(L)->setClippingRegion({ XL::To<float>(L, 2), XL::To<float>(L, 3), XL::To<float>(L, 4), XL::To<float>(L, 5) });
+                To<U>(L)->setClippingRegion({ To<float>(L, 2), To<float>(L, 3), To<float>(L, 4), To<float>(L, 5) });
                 return 0; 
             });
             SetFieldCClosure(L, "isClippingEnabled", [](auto L)->int { return Push(L, To<U>(L)->isClippingEnabled()); });
@@ -2086,24 +2086,49 @@ namespace xx::Lua {
             MetaFuncs<cocos2d::Node*>::Fill(L);
             SetType<U>(L);
             SetFieldCClosure(L, "drawPoint", [](auto L)->int {
-                XL::To<U>(L)->drawPoint4B({ XL::To<float>(L, 2), XL::To<float>(L, 3) }, XL::To<float>(L, 4)
-                    , { XL::To<uint8_t>(L, 5), XL::To<uint8_t>(L, 6), XL::To<uint8_t>(L, 7), XL::To<uint8_t>(L, 8) });
+                To<U>(L)->drawPoint({ To<float>(L, 2), To<float>(L, 3) }, To<float>(L, 4)
+                    , { To<uint8_t>(L, 5), To<uint8_t>(L, 6), To<uint8_t>(L, 7), To<uint8_t>(L, 8) });
                 return 0;
             });
             SetFieldCClosure(L, "drawPoints", [](auto L)->int {
                 auto top = lua_gettop(L);
-                if (top < 8 || (top - 8) & 1 == 1) return luaL_error(L, "%s", "DrawNode:drawPoints error! need 8+ args: self, Color4B color{ byte r,g,b,a }, float pointSize = 1, Vec2{ float x, y }[] points...");
-                _vec2s.reserve((top - 6) / 2);
+                if (top < 8 || ((top - 8) & 1) == 1) return luaL_error(L, "%s", "DrawNode:drawPoints error! need 8+ args: self, float pointSize, Color4B color{ byte r,g,b,a }, Vec2{ float x, y }[] points...");
+                _vec2s.reserve((top - 6) << 1);
                 _vec2s.clear();
                 for (auto i = 7; i < top; i += 2) {
-                    _vec2s.push_back({ XL::To<float>(L, i), XL::To<float>(L, i + 1) });
+                    _vec2s.push_back({ To<float>(L, i), To<float>(L, i + 1) });
                 }
-                
-                Color4B c(XL::To<uint8_t>(L, 2), XL::To<uint8_t>(L, 3), XL::To<uint8_t>(L, 4), XL::To<uint8_t>(L, 5));
-                auto ps = XL::To<uint8_t>(L, 6);
-                // todo
+                To<U>(L)->drawPoints(_vec2s.data(), _vec2s.size() << 1, To<float>(L, 2), { To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5), To<uint8_t>(L, 6) });
                 return 0;
             });
+            SetFieldCClosure(L, "drawLine", [](auto L)->int {
+                To<U>(L)->drawLine({ To<float>(L, 2), To<float>(L, 3) }, { To<float>(L, 4), To<float>(L, 5) }
+                    , { To<uint8_t>(L, 6), To<uint8_t>(L, 7), To<uint8_t>(L, 8), To<uint8_t>(L, 9)});
+                return 0;
+            });
+            SetFieldCClosure(L, "drawRect", [](auto L)->int {
+                To<U>(L)->drawRect({ To<float>(L, 2), To<float>(L, 3) }, { To<float>(L, 4), To<float>(L, 5) }
+                    , { To<uint8_t>(L, 6), To<uint8_t>(L, 7), To<uint8_t>(L, 8), To<uint8_t>(L, 9)});
+                return 0;
+            });
+            SetFieldCClosure(L, "drawPoly", [](auto L)->int {
+                auto top = lua_gettop(L);
+                if (top < 8 || ((top - 8) & 1) == 1) return luaL_error(L, "%s", "DrawNode:drawPoly error! need 8+ args: self, bool closePolygon, Color4B color{ byte r,g,b,a }, Vec2{ float x, y }[] points...");
+                _vec2s.reserve((top - 6) << 1);
+                _vec2s.clear();
+                for (auto i = 7; i < top; i += 2) {
+                    _vec2s.push_back({ To<float>(L, i), To<float>(L, i + 1) });
+                }
+                To<U>(L)->drawPoints(_vec2s.data(), _vec2s.size() << 1, To<bool>(L, 2), { To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5), To<uint8_t>(L, 6) });
+                return 0;
+            });
+            SetFieldCClosure(L, "drawCircle", [](auto L)->int {
+                To<U>(L)->drawCircle({ To<float>(L, 2), To<float>(L, 3) }
+                    , To<float>(L, 4), To<float>(L, 5), To<uint32_t>(L, 6), To<float>(L, 7)
+                    , { To<uint8_t>(L, 8), To<uint8_t>(L, 9), To<uint8_t>(L, 10), To<uint8_t>(L, 11)});
+                return 0;
+            });
+            // todo: more draw
         }
     };
 
