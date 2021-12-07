@@ -38,6 +38,7 @@ DrawNode ...
 */
 
 #include <xx_lua_data.h>
+#include <xx_bufholder.h>
 namespace XL = xx::Lua;
 
 // 标识是否启用 c++ call lua 的 try 功能。开启后如果 lua 执行错误，将被捕获并打印，不会导致程序 crash
@@ -69,7 +70,7 @@ inline static XL::Func _enterForeground;                                        
 inline static std::string _string;                                                  // for print
 inline static std::vector<std::string> _strings;                                    // tmp
 inline static std::vector<cocos2d::FiniteTimeAction*> _finiteTimeActions;           // tmp
-inline static std::vector<cocos2d::Vec2> _vec2s;                                    // tmp
+inline static xx::BufHolder _bh;                                                    // tmp
 inline static cocos2d::Vector<cocos2d::FiniteTimeAction*> _finiteTimeActions2;      // tmp，因为会自动加持，须退出函数时清空
 inline static cocos2d::Vector<cocos2d::SpriteFrame*> _spriteFrames2;                // tmp，因为会自动加持，须退出函数时清空
 inline static cocos2d::Vector<cocos2d::AnimationFrame*> _animationFrames2;          // tmp，因为会自动加持，须退出函数时清空
@@ -2093,12 +2094,14 @@ namespace xx::Lua {
             SetFieldCClosure(L, "drawPoints", [](auto L)->int {
                 auto top = lua_gettop(L);
                 if (top < 8 || ((top - 8) & 1) == 1) return luaL_error(L, "%s", "DrawNode:drawPoints error! need 8+ args: self, float pointSize, Color4B color{ byte r,g,b,a }, Vec2{ float x, y }[] points...");
-                _vec2s.reserve((top - 6) << 1);
-                _vec2s.clear();
-                for (auto i = 7; i < top; i += 2) {
-                    _vec2s.push_back({ To<float>(L, i), To<float>(L, i + 1) });
+                auto c = (top - 6) << 1;
+                auto p = _bh.Get<cocos2d::Vec2>(c);
+                auto o = p;
+                for (auto i = 7; i < top; i += 2, ++o) {
+                    (*o).x = To<float>(L, i);
+                    (*o).y = To<float>(L, i + 1);
                 }
-                To<U>(L)->drawPoints(_vec2s.data(), _vec2s.size() << 1, To<float>(L, 2), { To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5), To<uint8_t>(L, 6) });
+                To<U>(L)->drawPoints(p, c, To<float>(L, 2), { To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5), To<uint8_t>(L, 6) });
                 return 0;
             });
             SetFieldCClosure(L, "drawLine", [](auto L)->int {
@@ -2114,21 +2117,99 @@ namespace xx::Lua {
             SetFieldCClosure(L, "drawPoly", [](auto L)->int {
                 auto top = lua_gettop(L);
                 if (top < 8 || ((top - 8) & 1) == 1) return luaL_error(L, "%s", "DrawNode:drawPoly error! need 8+ args: self, bool closePolygon, Color4B color{ byte r,g,b,a }, Vec2{ float x, y }[] points...");
-                _vec2s.reserve((top - 6) << 1);
-                _vec2s.clear();
-                for (auto i = 7; i < top; i += 2) {
-                    _vec2s.push_back({ To<float>(L, i), To<float>(L, i + 1) });
+                auto c = (top - 6) << 1;
+                auto p = _bh.Get<cocos2d::Vec2>(c);
+                auto o = p;
+                for (auto i = 7; i < top; i += 2, ++o) {
+                    (*o).x = To<float>(L, i);
+                    (*o).y = To<float>(L, i + 1);
                 }
-                To<U>(L)->drawPoints(_vec2s.data(), _vec2s.size() << 1, To<bool>(L, 2), { To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5), To<uint8_t>(L, 6) });
+                To<U>(L)->drawPoints(p, c, To<bool>(L, 2), { To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5), To<uint8_t>(L, 6) });
                 return 0;
             });
             SetFieldCClosure(L, "drawCircle", [](auto L)->int {
                 To<U>(L)->drawCircle({ To<float>(L, 2), To<float>(L, 3) }
-                    , To<float>(L, 4), To<float>(L, 5), To<uint32_t>(L, 6), To<float>(L, 7)
-                    , { To<uint8_t>(L, 8), To<uint8_t>(L, 9), To<uint8_t>(L, 10), To<uint8_t>(L, 11)});
+                    , To<float>(L, 4), To<float>(L, 5), To<uint32_t>(L, 6), To<bool>(L, 7)
+                    , To<float>(L, 8), To<float>(L, 9)
+                    , { To<uint8_t>(L, 10), To<uint8_t>(L, 11), To<uint8_t>(L, 12), To<uint8_t>(L, 13)});
                 return 0;
             });
-            // todo: more draw
+            SetFieldCClosure(L, "drawQuadBezier", [](auto L)->int {
+                To<U>(L)->drawQuadBezier({ To<float>(L, 2), To<float>(L, 3) }
+                    , { To<float>(L, 4), To<float>(L, 5) }
+                    , { To<float>(L, 6), To<float>(L, 7) }
+                    , To<uint32_t>(L, 8)
+                    , { To<uint8_t>(L, 9), To<uint8_t>(L, 10), To<uint8_t>(L, 11), To<uint8_t>(L, 12)});
+                return 0;
+            });
+            SetFieldCClosure(L, "drawCubicBezier", [](auto L)->int {
+                To<U>(L)->drawCubicBezier({ To<float>(L, 2), To<float>(L, 3) }
+                    , { To<float>(L, 4), To<float>(L, 5) }
+                    , { To<float>(L, 6), To<float>(L, 7) }
+                    , { To<float>(L, 8), To<float>(L, 9) }
+                    , To<uint32_t>(L, 10)
+                    , { To<uint8_t>(L, 11), To<uint8_t>(L, 12), To<uint8_t>(L, 13), To<uint8_t>(L, 14)});
+                return 0;
+            });
+            //drawCardinalSpline drawCatmullRom
+            SetFieldCClosure(L, "drawDot", [](auto L)->int {
+                To<U>(L)->drawDot({ To<float>(L, 2), To<float>(L, 3) }
+                    , To<float>(L, 4)
+                    , { To<uint8_t>(L, 5), To<uint8_t>(L, 6), To<uint8_t>(L, 7), To<uint8_t>(L, 8)});
+                return 0;
+            });
+            SetFieldCClosure(L, "drawRect", [](auto L)->int {
+                To<U>(L)->drawRect({ To<float>(L, 2), To<float>(L, 3) }
+                    , { To<float>(L, 4), To<float>(L, 5) }
+                    , { To<float>(L, 6), To<float>(L, 7) }
+                    , { To<float>(L, 8), To<float>(L, 9) }
+                    , { To<uint8_t>(L, 10), To<uint8_t>(L, 11), To<uint8_t>(L, 12), To<uint8_t>(L, 13)});
+                return 0;
+            });
+            SetFieldCClosure(L, "drawSolidRect", [](auto L)->int {
+                To<U>(L)->drawSolidRect({ To<float>(L, 2), To<float>(L, 3) }
+                    , { To<float>(L, 4), To<float>(L, 5) }
+                    , { To<uint8_t>(L, 6), To<uint8_t>(L, 7), To<uint8_t>(L, 8), To<uint8_t>(L, 9) });
+                return 0;
+            });
+            SetFieldCClosure(L, "drawSolidPoly", [](auto L)->int {
+                auto top = lua_gettop(L);
+                if (top < 7 || ((top - 7) & 1) == 1) return luaL_error(L, "%s", "DrawNode:drawSolidPoly error! need 7+ args: self, Color4B color{ byte r,g,b,a }, Vec2{ float x, y }[] points...");
+                auto c = (top - 5) << 1;
+                auto p = _bh.Get<cocos2d::Vec2>(c);
+                auto o = p;
+                for (auto i = 6; i < top; i += 2, ++o) {
+                    (*o).x = To<float>(L, i);
+                    (*o).y = To<float>(L, i + 1);
+                }
+                To<U>(L)->drawSolidPoly(p, c, { To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) });
+                return 0;
+            });
+            SetFieldCClosure(L, "drawSolidCircle", [](auto L)->int {
+                To<U>(L)->drawSolidCircle({ To<float>(L, 2), To<float>(L, 3) }
+                    , To<float>(L, 4), To<float>(L, 5)
+                    , To<uint32_t>(L, 6)
+                    , To<float>(L, 7), To<float>(L, 8)
+                    , { To<uint8_t>(L, 9), To<uint8_t>(L, 10), To<uint8_t>(L, 11), To<uint8_t>(L, 12) }
+                    , To<float>(L, 13)
+                    , { To<uint8_t>(L, 14), To<uint8_t>(L, 15), To<uint8_t>(L, 16), To<uint8_t>(L, 17) });
+                return 0;
+            });
+            SetFieldCClosure(L, "drawSegment", [](auto L)->int {
+                To<U>(L)->drawSegment({ To<float>(L, 2), To<float>(L, 3) }
+                    , { To<float>(L, 4), To<float>(L, 5) }
+                    , To<float>(L, 6)
+                    , { To<uint8_t>(L, 7), To<uint8_t>(L, 8), To<uint8_t>(L, 9), To<uint8_t>(L, 10) });
+                return 0;
+            });
+            // todo: drawPolygon
+            SetFieldCClosure(L, "drawTriangle", [](auto L)->int {
+                To<U>(L)->drawTriangle({ To<float>(L, 2), To<float>(L, 3) }
+                    , { To<float>(L, 4), To<float>(L, 5) }
+                    , { To<float>(L, 6), To<float>(L, 7) }
+                    , { To<uint8_t>(L, 8), To<uint8_t>(L, 9), To<uint8_t>(L, 10), To<uint8_t>(L, 11) });
+                return 0;
+            });
         }
     };
 
