@@ -2202,7 +2202,21 @@ namespace xx::Lua {
                     , { To<uint8_t>(L, 7), To<uint8_t>(L, 8), To<uint8_t>(L, 9), To<uint8_t>(L, 10) });
                 return 0;
             });
-            // todo: drawPolygon
+            SetFieldCClosure(L, "drawPolygon", [](auto L)->int {
+                auto top = lua_gettop(L);
+                if (top < 12 || ((top - 12) & 1) == 1) return luaL_error(L, "%s", "DrawNode:drawPolygon error! need 12+ args: self, Color4B fillColor{ byte r,g,b,a }, float borderWidth, Color4B borderColor{ byte r,g,b,a }, Vec2{ float x, y }[] verts...");
+                auto c = (top - 10) << 1;
+                auto p = _bh.Get<cocos2d::Vec2>(c);
+                auto o = p;
+                for (auto i = 11; i < top; i += 2, ++o) {
+                    (*o).x = To<float>(L, i);
+                    (*o).y = To<float>(L, i + 1);
+                }
+                To<U>(L)->drawPolygon(p, c, { To<uint8_t>(L, 2), To<uint8_t>(L, 3), To<uint8_t>(L, 4), To<uint8_t>(L, 5) }
+                    , To<float>(L, 6)
+                , { To<uint8_t>(L, 7), To<uint8_t>(L, 8), To<uint8_t>(L, 9), To<uint8_t>(L, 10) });
+                return 0;
+            });
             SetFieldCClosure(L, "drawTriangle", [](auto L)->int {
                 To<U>(L)->drawTriangle({ To<float>(L, 2), To<float>(L, 3) }
                     , { To<float>(L, 4), To<float>(L, 5) }
@@ -2210,6 +2224,7 @@ namespace xx::Lua {
                     , { To<uint8_t>(L, 8), To<uint8_t>(L, 9), To<uint8_t>(L, 10), To<uint8_t>(L, 11) });
                 return 0;
             });
+            std::vector<int> v;
         }
     };
 
