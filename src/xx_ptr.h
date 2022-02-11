@@ -22,7 +22,7 @@ namespace xx {
     };
 
     template<typename T, typename ENABLED = void>
-    using PtrHeader_t = PtrHeaderSwitcher<T>::type;
+    using PtrHeader_t = typename PtrHeaderSwitcher<T>::type;
 
 
     /************************************************************************************/
