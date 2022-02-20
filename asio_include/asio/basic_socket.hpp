@@ -32,6 +32,8 @@
 # include "asio/detail/null_socket_service.hpp"
 #elif defined(ASIO_HAS_IOCP)
 # include "asio/detail/win_iocp_socket_service.hpp"
+#elif defined(ASIO_HAS_IO_URING_AS_DEFAULT)
+# include "asio/detail/io_uring_socket_service.hpp"
 #else
 # include "asio/detail/reactive_socket_service.hpp"
 #endif
@@ -86,6 +88,9 @@ public:
     Protocol>::native_handle_type native_handle_type;
 #elif defined(ASIO_HAS_IOCP)
   typedef typename detail::win_iocp_socket_service<
+    Protocol>::native_handle_type native_handle_type;
+#elif defined(ASIO_HAS_IO_URING_AS_DEFAULT)
+  typedef typename detail::io_uring_socket_service<
     Protocol>::native_handle_type native_handle_type;
 #else
   typedef typename detail::reactive_socket_service<
@@ -939,6 +944,16 @@ public:
    *     asio::ip::address::from_string("1.2.3.4"), 12345);
    * socket.async_connect(endpoint, connect_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code))
@@ -1772,6 +1787,16 @@ public:
    * ...
    * socket.async_wait(asio::ip::tcp::socket::wait_read, wait_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code))
@@ -1802,6 +1827,9 @@ protected:
 #elif defined(ASIO_HAS_IOCP)
   detail::io_object_impl<
     detail::win_iocp_socket_service<Protocol>, Executor> impl_;
+#elif defined(ASIO_HAS_IO_URING_AS_DEFAULT)
+  detail::io_object_impl<
+    detail::io_uring_socket_service<Protocol>, Executor> impl_;
 #else
   detail::io_object_impl<
     detail::reactive_socket_service<Protocol>, Executor> impl_;

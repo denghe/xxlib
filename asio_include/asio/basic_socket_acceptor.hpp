@@ -31,6 +31,8 @@
 # include "asio/detail/null_socket_service.hpp"
 #elif defined(ASIO_HAS_IOCP)
 # include "asio/detail/win_iocp_socket_service.hpp"
+#elif defined(ASIO_HAS_IO_URING_AS_DEFAULT)
+# include "asio/detail/io_uring_socket_service.hpp"
 #else
 # include "asio/detail/reactive_socket_service.hpp"
 #endif
@@ -102,6 +104,9 @@ public:
     Protocol>::native_handle_type native_handle_type;
 #elif defined(ASIO_HAS_IOCP)
   typedef typename detail::win_iocp_socket_service<
+    Protocol>::native_handle_type native_handle_type;
+#elif defined(ASIO_HAS_IO_URING_AS_DEFAULT)
+  typedef typename detail::io_uring_socket_service<
     Protocol>::native_handle_type native_handle_type;
 #else
   typedef typename detail::reactive_socket_service<
@@ -1224,6 +1229,16 @@ public:
    *     asio::ip::tcp::acceptor::wait_read,
    *     wait_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code))
@@ -1341,6 +1356,16 @@ public:
    * asio::ip::tcp::socket socket(my_context);
    * acceptor.async_accept(socket, accept_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <typename Protocol1, typename Executor1,
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code))
@@ -1454,6 +1479,16 @@ public:
    * not, the handler will not be invoked from within this function. On
    * immediate completion, invocation of the handler will be performed in a
    * manner equivalent to using asio::post().
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <typename Executor1,
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code))
@@ -1576,6 +1611,16 @@ public:
    * ...
    * acceptor.async_accept(accept_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code,
@@ -1802,6 +1847,16 @@ public:
    * ...
    * acceptor.async_accept(my_context2, accept_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <typename Executor1,
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code,
@@ -1872,6 +1927,16 @@ public:
    * ...
    * acceptor.async_accept(my_context2, accept_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <typename ExecutionContext,
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code,
@@ -2020,6 +2085,16 @@ public:
    * asio::ip::tcp::endpoint endpoint;
    * acceptor.async_accept(endpoint, accept_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code,
@@ -2278,6 +2353,16 @@ public:
    * asio::ip::tcp::endpoint endpoint;
    * acceptor.async_accept(my_context2, endpoint, accept_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <typename Executor1,
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code,
@@ -2354,6 +2439,16 @@ public:
    * asio::ip::tcp::endpoint endpoint;
    * acceptor.async_accept(my_context2, endpoint, accept_handler);
    * @endcode
+   *
+   * @par Per-Operation Cancellation
+   * On POSIX or Windows operating systems, this asynchronous operation supports
+   * cancellation for the following asio::cancellation_type values:
+   *
+   * @li @c cancellation_type::terminal
+   *
+   * @li @c cancellation_type::partial
+   *
+   * @li @c cancellation_type::total
    */
   template <typename ExecutionContext,
       ASIO_COMPLETION_TOKEN_FOR(void (asio::error_code,
@@ -2495,6 +2590,9 @@ private:
 #elif defined(ASIO_HAS_IOCP)
   detail::io_object_impl<
     detail::win_iocp_socket_service<Protocol>, Executor> impl_;
+#elif defined(ASIO_HAS_IO_URING_AS_DEFAULT)
+  detail::io_object_impl<
+    detail::io_uring_socket_service<Protocol>, Executor> impl_;
 #else
   detail::io_object_impl<
     detail::reactive_socket_service<Protocol>, Executor> impl_;
