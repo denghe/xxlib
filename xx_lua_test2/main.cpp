@@ -1,104 +1,159 @@
-﻿// 测试结论：返回 self 实现连 : 写法，比不返回，要慢 1/10 左右. 成员函数（走元表）和缓存到local 的性能差异，大约 1/10。
+﻿// 测试 lua 调用损耗
 #include "xx_lua_bind.h"
+#include "xx_string.h"
+
 namespace XL = xx::Lua;
-struct Foo {
-    float counter = 0;
-    void xxxx(float x, float y) {
-        counter += x;
-        counter += y;
-    }
-};
-namespace xx::Lua {
-    template<>
-    struct MetaFuncs<std::shared_ptr<Foo>, void> {
-        using U = std::shared_ptr<Foo>;
-        inline static std::string name = std::string(TypeName_v<U>);
-        static void Fill(lua_State* const& L) {
-            SetType<U>(L);
-            SetFieldCClosure(L, "xxxx", [](auto L)->int {
-                To<U>(L)->xxxx(To<float>(L, 2), To<float>(L, 3));
-                return 0;
-            });
-            SetFieldCClosure(L, "yyyy", [](auto L)->int {
-                To<U>(L)->xxxx(To<float>(L, 2), To<float>(L, 3));
-                lua_settop(L, 1);
-                return 1;
-            });
-            SetFieldCClosure(L, "counter", [](auto L)->int {
-                return Push(L, To<U>(L)->counter);
-            });
-        }
-    };
-    template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::shared_ptr<Foo>>>> {
-        using U = std::decay_t<T>;
-        static int Push(lua_State* const& L, T&& in) {
-            return PushUserdata<U>(L, in);
-        }
-        static void To(lua_State* const& L, int const& idx, T& out) {
-#if XX_LUA_TO_ENABLE_TYPE_CHECK
-            EnsureType<U>(L, idx);  // 在 Release 也生效
-#endif
-            out = *(U*)lua_touserdata(L, idx);
-        }
-    };
-}
 int main() {
     XL::State L;
-    XL::SetGlobalCClosure(L, "create_Foo", [](auto L){
-        return XL::Push(L, std::make_shared<Foo>());
-    });
-    for (int i = 0; i < 10; ++i) {
+    if (auto r = XL::Try(L, [&]{
+        XL::DoString(L, R"(
+counter = 0
+
+function test_counter_get()
+    return counter
+end
+
+function test_counter_inc()
+    counter = counter + 1
+end
+
+function test_sum_n_times(n)
+    local f = sum
+    for i = 1, n, 1 do
+        f(i, i)
+    end
+end
+)");
+        XL::SetGlobalCClosure(L, "sum", [](lua_State* L)->int {
+            return XL::Push(L, XL::To<int>(L, 1) + XL::To<int>(L, 2));
+        });
+        auto test_sum_n_times = XL::GetGlobalFunc(L, "test_sum_n_times");
         auto secs = xx::NowEpochSeconds();
-        XL::DoString(L, R"(
-local foo = create_Foo()
-local f = foo.xxxx
-for i = 1, 10000000 do
-    f( foo, 12, 34 )
-end
-print(foo:counter())
-)");
-        xx::CoutN("f( foo, 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
-        XL::DoString(L, R"(
-local foo = create_Foo()
-local f = foo.xxxx
-local t = {}
-t.xxxx = function(a, b) f(foo, a, b) end
-for i = 1, 10000000 do
-    t.xxxx( 12, 34 )
-end
-print(foo:counter())
-)");
-        xx::CoutN("t.xxxx( 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
-        XL::DoString(L, R"(
-local foo = create_Foo()
-local f = foo.xxxx
-local ff = function(a, b) f(foo, a, b) end
-for i = 1, 10000000 do
-    ff( 12, 34 )
-end
-print(foo:counter())
-)");
-        xx::CoutN("ff( 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
-        XL::DoString(L, R"(
-local foo = create_Foo()
-for i = 1,10000000 do
-    foo:xxxx( 12, 34 )
-end
-print(foo:counter())
-)");
-        xx::CoutN("foo:xxxx( 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
-//        XL::DoString(L, R"(
-//local foo = create_Foo()
-//for i = 1,10000000 do
-//    foo:yyyy( foo, 12, 34 ):yyyy( 12, 34 ):yyyy( 12, 34 )
-//end
-//print(foo:counter())
-//)");
-//        xx::CoutN("foo::yyyy call 3 times secs = ", xx::NowEpochSeconds(secs));
+        test_sum_n_times(100000000);
+        std::cout << "call test_sum_n_times(100000000)  elapsed secs = " << xx::NowEpochSeconds(secs) << std::endl;
+
+        auto fg = XL::GetGlobalFunc(L, "test_counter_get");
+        auto fi = XL::GetGlobalFunc(L, "test_counter_inc");
+        secs = xx::NowEpochSeconds();
+        for (size_t i = 0; i < 100000000; i++) {
+            fi();
+        }
+        std::cout << "for 100000000 test_counter_inc  elapsed secs = " << xx::NowEpochSeconds(secs) << std::endl;
+        auto r = fg.Call<int>();
+        std::cout << "counter = " << r << std::endl;
+    })) {
+        xx::CoutN("catch error n = ", r.n, " m = ", r.m);
     }
     return 0;
 }
+
+
+
+
+
+
+
+//// 测试结论：返回 self 实现连 : 写法，比不返回，要慢 1/10 左右. 成员函数（走元表）和缓存到local 的性能差异，大约 1/10。
+//#include "xx_lua_bind.h"
+//namespace XL = xx::Lua;
+//struct Foo {
+//    float counter = 0;
+//    void xxxx(float x, float y) {
+//        counter += x;
+//        counter += y;
+//    }
+//};
+//namespace xx::Lua {
+//    template<>
+//    struct MetaFuncs<std::shared_ptr<Foo>, void> {
+//        using U = std::shared_ptr<Foo>;
+//        inline static std::string name = std::string(TypeName_v<U>);
+//        static void Fill(lua_State* const& L) {
+//            SetType<U>(L);
+//            SetFieldCClosure(L, "xxxx", [](auto L)->int {
+//                To<U>(L)->xxxx(To<float>(L, 2), To<float>(L, 3));
+//                return 0;
+//            });
+//            SetFieldCClosure(L, "yyyy", [](auto L)->int {
+//                To<U>(L)->xxxx(To<float>(L, 2), To<float>(L, 3));
+//                lua_settop(L, 1);
+//                return 1;
+//            });
+//            SetFieldCClosure(L, "counter", [](auto L)->int {
+//                return Push(L, To<U>(L)->counter);
+//            });
+//        }
+//    };
+//    template<typename T>
+//    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::shared_ptr<Foo>>>> {
+//        using U = std::decay_t<T>;
+//        static int Push(lua_State* const& L, T&& in) {
+//            return PushUserdata<U>(L, in);
+//        }
+//        static void To(lua_State* const& L, int const& idx, T& out) {
+//#if XX_LUA_TO_ENABLE_TYPE_CHECK
+//            EnsureType<U>(L, idx);  // 在 Release 也生效
+//#endif
+//            out = *(U*)lua_touserdata(L, idx);
+//        }
+//    };
+//}
+//int main() {
+//    XL::State L;
+//    XL::SetGlobalCClosure(L, "create_Foo", [](auto L){
+//        return XL::Push(L, std::make_shared<Foo>());
+//    });
+//    for (int i = 0; i < 10; ++i) {
+//        auto secs = xx::NowEpochSeconds();
+//        XL::DoString(L, R"(
+//local foo = create_Foo()
+//local f = foo.xxxx
+//for i = 1, 10000000 do
+//    f( foo, 12, 34 )
+//end
+//print(foo:counter())
+//)");
+//        xx::CoutN("f( foo, 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
+//        XL::DoString(L, R"(
+//local foo = create_Foo()
+//local f = foo.xxxx
+//local t = {}
+//t.xxxx = function(a, b) f(foo, a, b) end
+//for i = 1, 10000000 do
+//    t.xxxx( 12, 34 )
+//end
+//print(foo:counter())
+//)");
+//        xx::CoutN("t.xxxx( 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
+//        XL::DoString(L, R"(
+//local foo = create_Foo()
+//local f = foo.xxxx
+//local ff = function(a, b) f(foo, a, b) end
+//for i = 1, 10000000 do
+//    ff( 12, 34 )
+//end
+//print(foo:counter())
+//)");
+//        xx::CoutN("ff( 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
+//        XL::DoString(L, R"(
+//local foo = create_Foo()
+//for i = 1,10000000 do
+//    foo:xxxx( 12, 34 )
+//end
+//print(foo:counter())
+//)");
+//        xx::CoutN("foo:xxxx( 12, 34 ) secs = ", xx::NowEpochSeconds(secs));
+////        XL::DoString(L, R"(
+////local foo = create_Foo()
+////for i = 1,10000000 do
+////    foo:yyyy( foo, 12, 34 ):yyyy( 12, 34 ):yyyy( 12, 34 )
+////end
+////print(foo:counter())
+////)");
+////        xx::CoutN("foo::yyyy call 3 times secs = ", xx::NowEpochSeconds(secs));
+//    }
+//    return 0;
+//}
 
 
 
