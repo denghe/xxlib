@@ -840,4 +840,11 @@ template<class F> auto MakeScopeGuard(F&& f) noexcept {
     std::size_t n = co_await socket.async_read_some(asio::buffer(data), asio::use_awaitable);
     //timer.cancel();
 
+
+
+    		//asio::steady_timer timer(ioc);
+		//timer.expires_after(100ms);
+		//co_await timer.async_wait(asio::use_awaitable);
+
+
 */
