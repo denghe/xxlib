@@ -28,36 +28,39 @@ asio::awaitable<void> dialer(asio::io_context& ioc, std::string_view domain, std
 	catch (std::exception& e) {
 		std::printf("dialer Exception: %s\n", e.what());
 	}
-	counter = -1;
 }
+
+struct Client {
+	int Run() {
+		std::thread t{ [&] {
+			try {
+				asio::io_context ioc(1);
+				asio::signal_set signals(ioc, SIGINT, SIGTERM);
+				signals.async_wait([&](auto, auto) { ioc.stop(); });
+
+				asio::co_spawn(ioc, dialer(ioc, "192.168.1.235", "55555"), asio::detached);
+
+				ioc.run();
+			}
+			catch (std::exception& e) {
+				std::printf("main Exception: %s\n", e.what());
+			}
+		} };
+		t.detach();
+	}
+};
 
 int main() {
 	std::thread t{ [&] {
 		while (true) {
 			std::this_thread::sleep_for(1s);
-			if (beginTime == defaultBeginTime) continue;
-			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - beginTime).count();
-			if (ms == 0) continue;
 			auto c = (int64_t)counter;
-			if (c < 0) break;
-			auto qps = (double)c / ((double)(ms) / 1000.);
-			std::printf("qps = %f\n", qps);
+			counter = 0;
+			std::printf("qps = %lld\n", c);
 		}
 	} };
 	t.detach();
 
-	try {
-		asio::io_context ioc(1);
-		asio::signal_set signals(ioc, SIGINT, SIGTERM);
-		signals.async_wait([&](auto, auto) { ioc.stop(); });
-
-		asio::co_spawn(ioc, dialer(ioc, "192.168.1.235", "55555"), asio::detached);
-
-		ioc.run();
-	}
-	catch (std::exception& e) {
-		std::printf("main Exception: %s\n", e.what());
-		return -1;
-	}
+	auto clients = std::make_unique<Client[]>(16);
 	return 0;
 }
