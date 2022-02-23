@@ -16,10 +16,9 @@ struct Worker : public asio::noncopyable {
 
 	asio::io_context _ioc;
 	std::thread _thread;
-	std::atomic_int _num;
 };
 
-asio::awaitable<void> echo(Worker& worker, asio::ip::tcp::socket socket) {
+asio::awaitable<void> echo(asio::ip::tcp::socket socket) {
 	try {
 		char data[2048];
 		for (;;) {
@@ -42,7 +41,7 @@ asio::awaitable<void> listener(uint16_t port, Worker* workers, int workers_count
 				asio::ip::tcp::socket socket(w._ioc);
 				co_await acceptor.async_accept(socket, asio::use_awaitable);
 				std::cout << i << ", " << socket.local_endpoint() << std::endl;
-				asio::co_spawn(w._ioc, echo(w, std::move(socket)), asio::detached);
+				asio::co_spawn(w._ioc, echo(std::move(socket)), asio::detached);
 			}
 			catch (std::exception& e) {
 				std::printf("listener Exception: %s\n", e.what());
