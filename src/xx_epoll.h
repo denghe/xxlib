@@ -23,9 +23,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifndef XX_DISABLE_READLINE
 #include <termios.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 
 #include <iostream>
 #include <string>
@@ -305,6 +307,7 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // CommandHandler
     // 处理键盘输入指令的专用类( 单例 ). 直接映射到 STDIN_FILENO ( fd == 0 ). 由首个创建的 epoll context 来注册和反注册
+#ifndef XX_DISABLE_READLINE
     struct CommandHandler : Item {
         inline static Shared<CommandHandler> self;
         std::vector<std::string> args;
@@ -324,6 +327,7 @@ namespace xx::Epoll {
         // 解析 row 内容并调用 cmd 绑定 handler
         void Exec(char const *const &row, size_t const &len);
     };
+#endif
 
     /***********************************************************************************************************/
     // Context
@@ -370,11 +374,13 @@ namespace xx::Epoll {
         // 延迟执行一个函数( Wait 之后 )
         void DelayExecute(fu2::function<void()> &&func);
 
+#ifndef XX_DISABLE_READLINE
         // 启用命令行输入控制. 支持方向键, tab 补齐, 上下历史
         int EnableCommandLine();
 
         // 关闭命令行输入控制( 减持 Context 的引用计数 )
         void DisableCommandLine();
+#endif
 
         /************************************************************************/
         // 下面的东西内部使用，别乱搞
@@ -861,6 +867,8 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // CommandHandler
+
+#ifndef XX_DISABLE_READLINE
     inline CommandHandler::CommandHandler(Context* const &ec) : Item(ec, STDIN_FILENO) {
         rl_attempted_completion_function = (rl_completion_func_t *) &CompleteCallback;
         rl_callback_handler_install("# ", (rl_vcpfunc_t *) &ReadLineCallback);
@@ -962,7 +970,7 @@ namespace xx::Epoll {
         ec->fdMappings[fd] = nullptr;
         fd = -1;
     }
-
+#endif
 
     /***********************************************************************************************************/
     // Context
@@ -986,6 +994,7 @@ namespace xx::Epoll {
         }
     }
 
+#ifndef XX_DISABLE_READLINE
     inline int Context::EnableCommandLine() {
         // 已存在：直接短路返回
         if (CommandHandler::self) return -1;
@@ -1001,6 +1010,7 @@ namespace xx::Epoll {
             CommandHandler::self.Reset();
         }
     }
+#endif
 
     inline int
     Context::MakeSocketFD(int const &port, int const &sockType, char const *const &hostName, bool const &reusePort,

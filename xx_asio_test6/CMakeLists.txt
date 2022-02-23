@@ -34,9 +34,9 @@ link_directories(
 include_directories(
 		${dirs}
 )
-add_executable(xx_asio_test5
+add_executable(xx_asio_test6
 		${srcs}
 		)
-target_link_libraries(xx_asio_test5
+target_link_libraries(xx_asio_test6
 		${libs}
 		)

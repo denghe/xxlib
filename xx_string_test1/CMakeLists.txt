@@ -3,7 +3,7 @@ project(xx_string_test1)
 
 set(CMAKE_CXX_STANDARD 20)
 if(UNIX)
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -static")
 endif()
 
 include_directories(
