@@ -31,7 +31,7 @@ asio::awaitable<void> dialer(asio::io_context& ioc, std::string_view domain, std
 }
 
 struct Client {
-	int Run() {
+	void Run() {
 		std::thread t{ [&] {
 			try {
 				asio::io_context ioc(1);
@@ -50,6 +50,9 @@ struct Client {
 	}
 };
 
+#include <array>
+#include <iostream>
+
 int main() {
 	std::thread t{ [&] {
 		while (true) {
@@ -61,6 +64,8 @@ int main() {
 	} };
 	t.detach();
 
-	auto clients = std::make_unique<Client[]>(16);
+	std::array<Client, 16> clients;
+	for (auto& c : clients) c.Run();
+	std::cin.get();
 	return 0;
 }
