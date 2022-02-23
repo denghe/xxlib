@@ -2,8 +2,6 @@
 #include <iostream>
 
 using namespace std::chrono_literals;
-std::chrono::system_clock::time_point defaultBeginTime;
-std::chrono::system_clock::time_point beginTime;
 std::atomic_int64_t counter;
 
 struct Worker : public asio::noncopyable {
@@ -59,18 +57,14 @@ asio::awaitable<void> listener(uint16_t port, Worker* workers, int workers_count
 int main() {
 	std::thread t{ [&] {
 		while (true) {
+			counter = 0;
 			std::this_thread::sleep_for(1s);
-			if (beginTime == defaultBeginTime) continue;
-			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - beginTime).count();
-			if (ms == 0) continue;
 			auto c = (int64_t)counter;
 			if (c < 0) break;
-			auto qps = (double)c / ((double)(ms) / 1000.);
-			std::printf("qps = %f\n", qps);
+			std::printf("qps = %lld\n", c);
 		}
 	} };
 	t.detach();
-
 
 	try {
 		auto workers_count = std::thread::hardware_concurrency();
