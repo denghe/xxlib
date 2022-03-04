@@ -1,0 +1,312 @@
+<!DOCTYPE HTML>
+<html>
+<body>
+    <script>
+        "use strict";
+
+        /* ************************************************************ */
+        // 放到独立公用 .js
+
+        class Data {
+            buf = null; // ArrayBuffer
+            len = 0;    // 已 write 数据长
+            offset = 0; // 已 read 偏移量
+
+            // buf 的操作视图
+            dv = null; // new DataView(this.buf);
+            ua = null; // new Uint8Array(this.buf);
+
+            // string 转换器
+            static td = new TextDecoder();
+            static te = new TextEncoder();
+
+            // 通过 type array 构造
+            constructor(a) {
+                let cap = a ? a.byteLength : 256;
+                this.buf = new ArrayBuffer(cap);
+                this.dv = new DataView(this.buf);
+                this.ua = new Uint8Array(this.buf);
+                if (a) {
+                    this.ua.set(a);
+                    this.len = cap;
+                }
+            }
+
+            // 获取 buf 的视图
+            GetArray() {
+                return this.ua.slice(0, this.len);
+            }
+
+            // 确保剩余空间 足够容纳 siz 并返回当前 len
+            Ensure(siz) {
+                let cap = this.buf.byteLength;
+                let len = this.len;
+                let newCap = len + siz;
+                if (newCap <= cap) return len;
+                while (cap < newCap) {
+                    cap *= 2;
+                }
+                let buf = new ArrayBuffer(cap);
+                this.buf = buf;
+                this.dv = new DataView(buf);
+                let ua = new Uint8Array(buf);
+                ua.set(this.ua.slice(0, len));
+                this.ua = ua;
+                return len;
+            }
+
+            // 复位写长度和读偏移量
+            Clear() {
+                this.len = 0;
+                this.offset = 0;
+            }
+
+            // 跳过 siz 空间不写。返回起始 len
+            Wj(siz) {
+                let len = this.Ensure(siz);
+                this.len = len + siz;
+                return len;
+            }
+
+            // 写入 定长uint8
+            Wu8(v) {
+                let len = this.Ensure(1);
+                this.ua[len] = v;
+                this.len = len + 1;
+            }
+
+            // 写入 定长uint32 到指定位置( 不扩容: unsafe )
+            Wu32at(pos, v) {
+                this.dv.setUint32(pos, v, true);
+            }
+
+            // 写入 定长float( 小尾 )
+            Wf(v) {
+                let len = this.Ensure(4);
+                this.dv.setFloat32(len, v, true);
+                this.len = len + 4;
+            }
+
+            // 写入 定长double( 小尾 )
+            Wd(v) {
+                let len = this.Ensure(8);
+                this.dv.setFloat64(len, v, true);
+                this.len = len + 8;
+            }
+
+            // 写入 变长无符号整数
+            Wvu(v) {
+                let len = this.Ensure(9);
+                let ua = this.ua;
+                v >>>= 0;
+                while (v >= 0x80) {
+                    ua[len++] = (v & 0x7f) | 0x80;
+                    v >>>= 7;
+                }
+                ua[len++] = v;
+                this.len = len;
+            }
+
+            // 写入 utf8 string ( 变长siz + text )
+            Wstr(s) {
+                let a = Data.te.encode(s);
+                let siz = a.byteLength;
+                this.Wvu(siz);
+                if (siz > 0) {
+                    let len = this.Ensure(siz);
+                    this.ua.set(a, len);
+                    this.len = len + siz;
+                }
+            }
+
+            // 写入 data ( 变长len + buf )
+            Wdata(d) {
+                let siz = d.len;
+                this.Wvu(siz);
+                let len = this.Ensure(siz);
+                this.ua.set(d.ua.slice(0, siz), len);
+                this.len = len + siz;
+            }
+
+            // 读出 定长uint8
+            Ru8() {
+                let offset = this.offset;
+                if (offset + 1 > this.len) throw new Error("Ru8 out of range");
+                this.offset = offset + 1;
+                return this.ua[offset];
+            }
+
+            // 读出 定长uint32 从指定位置
+            Ru32at(pos) {
+                if (pos + 4 > this.len) throw new Error("Ru32at out of range");
+                return this.dv.getUint32(pos, true);
+            }
+
+            // 读出 定长float( 小尾 )
+            Rf() {
+                let offset = this.offset;
+                if (offset + 4 > this.len) throw new Error("Rf out of range");
+                this.offset = offset + 4;
+                return this.dv.getFloat32(offset, true);
+            }
+
+            // 读出 定长double( 小尾 )
+            Rd() {
+                let offset = this.offset;
+                if (offset + 8 > this.len) throw new Error("Rd out of range");
+                this.offset = offset + 8;
+                return this.dv.getFloat64(offset, true);
+            }
+
+            // 读出 变长无符号整数
+            Rvu() {
+                let v = 0x0;
+                let ua = this.ua;
+                let len = this.len;
+                let offset = this.offset;
+                for (let shift = 0; shift < 64; shift += 7) {
+                    if (offset == len) throw new Error("Ru8 out of range");
+                    let b = ua[offset++];
+                    v |= (b & 0x7F) << shift;
+                    if ((b & 0x80) == 0) break;
+                }
+                this.offset = offset;
+                return v;
+            }
+
+            // 读出 string
+            Rstr() {
+                let siz = this.Rvu();
+                let offset = this.offset;
+                this.offset = offset + siz;
+                return Data.td.decode(this.ua.slice(offset, offset + siz));
+            }
+
+            // 读出 data
+            Rdata() {
+                let siz = this.Rvu();
+                let offset = this.offset;
+                this.offset = offset + siz;
+                return new Data(this.ua.slice(offset, offset + siz));
+            }
+        }
+
+        let d1 = new Data();
+        console.log(d1);
+        let p = d1.Wj(4);
+        d1.Wstr("abcde");
+        d1.Wu8(123);
+        d1.Wu8(12);
+        d1.Wu32at(p, d1.len - 4);
+
+        d1.offset = 4;
+        console.log(d1.Rstr());
+        console.log(d1.Ru8());
+        console.log(d1.Ru8());
+
+
+        let d = new Data();
+        console.log(d);
+        console.log(d.len);
+        d.Wstr("asdf");
+        console.log(d.len);
+        d.Wf(1);
+        console.log(d.len);
+        d.Wd(1);
+        console.log(d.len);
+        d.Wdata(d1);
+        console.log(d.len);
+
+        console.log(d.Rstr());
+        console.log(d.Rf());
+        console.log(d.Rd());
+        console.log(d.Rdata());
+        
+
+
+
+
+        class ObjManager {
+            fs = [];
+            Register(c) {
+                this.fs[c.__typeId__] = c;
+            }
+            // todo: read write ...
+        }
+
+        // 全局公用
+        var __om__ = new ObjManager();
+
+
+
+
+        /* ************************************************************ */
+        // 下面是生成物模拟
+        var CodeGen_cfgName_md5 = "!@#$@$@#$$!@#!@#@#!@#!$#@%@#%#$^#%$#%@%";
+
+        // enum
+        class E {
+            static a = 1;
+            static b = 2;
+        }
+
+        class A {
+            typeId = 1;
+
+            x = 1;
+            y = 2;
+
+            Read(om) {
+                console.log("A.Read(om) x = ", this.x);
+                console.log("A.Read(om) y = ", this.y);
+                return 0;
+            }
+            Write(om) {
+
+            }
+        }
+
+        class B extends A {
+            typeId = 2;
+
+            name = "asdf";
+            e = E.b;
+
+            Read(om) {
+                let r = super.Read(om)
+                if (r != 0) return r;
+                console.log("B.Read(om) name = ", this.name);
+                console.log("B.Read(om) e = ", this.e);
+                return 0;
+            }
+            Write(om) {
+
+            }
+        }
+
+        //__om__.Register(A);
+        //__om__.Register(B);
+
+        //let a = new A();
+        //let b = new B();
+
+        //var Dump = function (tar) {
+        //    for (let v of Object.entries(tar)) {
+        //        console.log(v);
+        //    }
+        //}
+
+        ////console.log(a.Read());
+        //console.log(b.Read());
+
+        //let d = new Data();
+        //Dump(d);
+
+        //let uint8array = Data.te.encode("asdf");
+        //console.log(uint8array);
+
+
+
+    </script>
+</body>
+</html>
