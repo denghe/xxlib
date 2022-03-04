@@ -124,6 +124,11 @@
                 this.len = len;
             }
 
+            // 写入 变长整数
+            Wvi(v) {
+                Wvu(((v |= 0) << 1) ^ (v >> 31));
+            }
+
             // 写入 utf8 string ( 变长siz + text )
             Wstr(s) {
                 let a = Data.te.encode(s);
@@ -191,6 +196,12 @@
                 return v;
             }
 
+            // 读出 变长整数
+            Rvi() {
+                let n = Rvu();
+                return ((n >>> 1) ^ -(n & 1)) | 0;
+            }
+
             // 读出 string
             Rstr() {
                 let siz = this.Rvu();
@@ -206,56 +217,89 @@
                 this.offset = offset + siz;
                 return new Data(this.ua.slice(offset, offset + siz));
             }
-        }
-
-        let d1 = new Data();
-        let p = d1.Wj(4);
-        d1.Wstr("abcde");
-        d1.Wu8(123);
-        d1.Wu8(12);
-        d1.Wu32at(p, d1.len - 4);
-
-        d1.offset = 4;
-        console.log(d1.Rstr());
-        console.log(d1.Ru8());
-        console.log(d1.Ru8());
-        console.log(d1.GetView());
-
-
-        let d = new Data();
-        console.log(d);
-        console.log(d.len);
-        d.Wstr("asdf");
-        console.log(d.len);
-        d.Wf(1);
-        console.log(d.len);
-        d.Wd(1);
-        console.log(d.len);
-        d.Wdata(d1);
-        console.log(d.len);
-
-        console.log(d.Rstr());
-        console.log(d.Rf());
-        console.log(d.Rd());
-        console.log(d.Rdata());
-        console.log(d.GetView());
-        
 
 
 
-
-        class ObjManager {
-            fs = [];
-            Register(c) {
-                this.fs[c.__typeId__] = c;
+            // 类注册( c 需要从 ObjBase 继承 )
+            static Register(c) {
+                this[c.typeId] = c;
             }
-            // todo: read write ...
+
+            // 入口函数: 始向 d 写入一个 类实例
+            static WriteTo(d, o) {
+                let m = new Map();
+                m.set(o, 1);
+                d.m = m;
+                d.n = 1;
+                d.Wvu(o.GetTypeId());
+                o.Write(d);
+            }
+
+            // 入口函数: 开始从 d 读出一个 类实例 并返回
+            static ReadFrom(d) {
+                d.m = new Map();
+                return d.ReadFirst();
+            }
+
+            // 内部函数: 向 d 写入一个 类实例. 格式: idx + typeId + content
+            Write(o) {
+                if (o === null) {
+                    d.Wu8(0);
+                }
+                else {
+                    let m = this.m;
+                    let n = m.get(o);
+                    if (n === undefined) {
+                        n = this.n + 1;
+                        this.n = n;
+                        m.set(o, n);
+                        this.Wvu(n);
+                        this.Wvu(o.GetTypeId());
+                        o.Write(this);
+                    }
+                    else {
+                        d.Wvu32(n);
+                    }
+                }
+            }
+
+            // 内部函数: 从 d 读出一个 类实例 并返回( 针对第一个特化 )
+            ReadFirst() {
+                let m = this.m;
+                let typeId = this.Rvu();
+                if (typeId === 0) throw new Error("ReadFirst error: typeId === 0");
+                let c = this[typeId];
+                if (c === undefined) throw new Error("ReadFirst error: c === undefined. typeId = ${typeId}");
+                let v = new c();
+                m.set(1, v);
+                v.Read(this);
+                return v
+            }
+
+            // 内部函数: 从 d 读出一个 类实例 并返回
+            Read() {
+                let n = this.Rvu();
+                if (n === 0) return null;
+                let m = this.m;
+
+                let len = m.size;
+                let typeId = 0;
+                if (n === len + 1) {
+                    typeId = this.Rvu();
+                    if (typeId === 0) throw new Error("Read error: typeId === 0");
+                    let c = this[typeId];
+                    if (c === undefined) throw new Error("Read error: c === undefined. typeId = ${typeId}");
+                    let v = new c();
+                    m.set(n, v);
+                    v.Read(this);
+                    return v;
+                }
+                else {
+                    if (n > len) throw new Error("Read error: n > len. n = ${n}, len = ${len}");
+                    return m.get(n);
+                }
+            }
         }
-
-        // 全局公用
-        var __om__ = new ObjManager();
-
-
 
 
         /* ************************************************************ */
@@ -268,45 +312,62 @@
             static b = 2;
         }
 
-        class A {
-            typeId = 1;
+        class ObjBase {
+            GetTypeId() {
+                return this.constructor.typeId;
+            }
+        }
+
+        class A extends ObjBase {
+            static typeId = 1;
 
             x = 1;
             y = 2;
 
-            Read(om) {
-                console.log("A.Read(om) x = ", this.x);
-                console.log("A.Read(om) y = ", this.y);
+            Read(d) {
+                //x = d.R
                 return 0;
             }
-            Write(om) {
+            Write(d) {
 
             }
         }
 
         class B extends A {
-            typeId = 2;
+            static typeId = 2;
 
             name = "asdf";
             e = E.b;
 
-            Read(om) {
-                let r = super.Read(om)
+            Read(d) {
+                let r = super.Read(d)
                 if (r != 0) return r;
                 console.log("B.Read(om) name = ", this.name);
                 console.log("B.Read(om) e = ", this.e);
                 return 0;
             }
-            Write(om) {
+            Write(d) {
 
             }
         }
 
-        //__om__.Register(A);
-        //__om__.Register(B);
+        let a = new A();
+        let b = new B();
 
-        //let a = new A();
-        //let b = new B();
+        console.log(a instanceof A);
+        console.log(b instanceof A);
+        console.log(a instanceof B);
+        console.log(b instanceof B);
+
+
+        console.log(a.GetTypeId());
+        console.log(b.GetTypeId());
+
+        console.log(a);
+        console.log(b);
+
+        Data.Register(A);
+        Data.Register(B);
 
         //var Dump = function (tar) {
         //    for (let v of Object.entries(tar)) {
@@ -322,6 +383,41 @@
 
         //let uint8array = Data.te.encode("asdf");
         //console.log(uint8array);
+
+
+
+
+        //let d1 = new Data();
+        //let p = d1.Wj(4);
+        //d1.Wstr("abcde");
+        //d1.Wu8(123);
+        //d1.Wu8(12);
+        //d1.Wu32at(p, d1.len - 4);
+
+        //d1.offset = 4;
+        //console.log(d1.Rstr());
+        //console.log(d1.Ru8());
+        //console.log(d1.Ru8());
+        //console.log(d1.GetView());
+
+
+        //let d = new Data();
+        //console.log(d);
+        //console.log(d.len);
+        //d.Wstr("asdf");
+        //console.log(d.len);
+        //d.Wf(1);
+        //console.log(d.len);
+        //d.Wd(1);
+        //console.log(d.len);
+        //d.Wdata(d1);
+        //console.log(d.len);
+
+        //console.log(d.Rstr());
+        //console.log(d.Rf());
+        //console.log(d.Rd());
+        //console.log(d.Rdata());
+        //console.log(d.GetView());
 
 
 
