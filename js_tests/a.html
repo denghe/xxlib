@@ -20,20 +20,37 @@
             static td = new TextDecoder();
             static te = new TextEncoder();
 
-            // 通过 type array 构造
+            // 通过 cap 或 TypeArray 复制构造
             constructor(a) {
-                let cap = a ? a.byteLength : 256;
+                let cap, isTypeArray;
+                switch (typeof a) {
+                    case "null":
+                    case "undefined":
+                        cap = 64;
+                        break;
+                    case "number":
+                        cap = a;
+                        break;
+                    case "object":
+                        if (a instanceof Uint8Array) {
+                            cap = a.byteLength;
+                            isTypeArray = true;
+                            break;
+                        }
+                    default:
+                        throw new Error("new Data( cap or Uint8Array expected )");
+                }
                 this.buf = new ArrayBuffer(cap);
                 this.dv = new DataView(this.buf);
                 this.ua = new Uint8Array(this.buf);
-                if (a) {
+                if (isTypeArray) {
                     this.ua.set(a);
                     this.len = cap;
                 }
             }
 
             // 获取 buf 的视图
-            GetArray() {
+            GetView() {
                 return this.ua.slice(0, this.len);
             }
 
@@ -192,7 +209,6 @@
         }
 
         let d1 = new Data();
-        console.log(d1);
         let p = d1.Wj(4);
         d1.Wstr("abcde");
         d1.Wu8(123);
@@ -203,6 +219,7 @@
         console.log(d1.Rstr());
         console.log(d1.Ru8());
         console.log(d1.Ru8());
+        console.log(d1.GetView());
 
 
         let d = new Data();
@@ -221,6 +238,7 @@
         console.log(d.Rf());
         console.log(d.Rd());
         console.log(d.Rdata());
+        console.log(d.GetView());
         
 
 
