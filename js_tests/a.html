@@ -1,29 +1,33 @@
-<!DOCTYPE HTML>
+ï»¿<!DOCTYPE HTML>
 <html>
 <body>
     <script>
         "use strict";
 
         /* ************************************************************ */
-        // ·Åµ½¶ÀÁ¢¹«ÓÃ .js
+        // æ”¾åˆ°ç‹¬ç«‹å…¬ç”¨ .js
 
         class Data {
             buf = null; // ArrayBuffer
-            len = 0;    // ÒÑ write Êı¾İ³¤
-            offset = 0; // ÒÑ read Æ«ÒÆÁ¿
+            len = 0;    // å·² write æ•°æ®é•¿
+            offset = 0; // å·² read åç§»é‡
 
-            // buf µÄ²Ù×÷ÊÓÍ¼
+            // buf çš„æ“ä½œè§†å›¾
             dv = null; // new DataView(this.buf);
             ua = null; // new Uint8Array(this.buf);
 
-            // string ×ª»»Æ÷
+            // string è½¬æ¢å™¨
             static td = new TextDecoder();
             static te = new TextEncoder();
 
-            // ÀàÊµÀı´´½¨º¯Êı¼¯ºÏ
+            // wasm [u]int64 helpers
+            static wa = null;   // wasm [u]int64 seder
+            static waUa = null; // was.mbuf[16] Uint8Array
+
+            // ç±»å®ä¾‹åˆ›å»ºå‡½æ•°é›†åˆ
             static fs = [];
 
-            // Í¨¹ı cap »ò TypeArray ¸´ÖÆ¹¹Ôì
+            // é€šè¿‡ cap æˆ– TypeArray å¤åˆ¶æ„é€ 
             constructor(a) {
                 let cap, isTypedArray;
                 switch (typeof a) {
@@ -52,12 +56,12 @@
                 }
             }
 
-            // »ñÈ¡ buf µÄÊÓÍ¼
+            // è·å– buf çš„è§†å›¾
             View() {
                 return this.ua.slice(0, this.len);
             }
 
-            // È·±£Ê£Óà¿Õ¼ä ×ã¹»ÈİÄÉ siz ²¢·µ»Øµ±Ç° len
+            // ç¡®ä¿å‰©ä½™ç©ºé—´ è¶³å¤Ÿå®¹çº³ siz å¹¶è¿”å›å½“å‰ len
             Ensure(siz) {
                 let cap = this.buf.byteLength;
                 let len = this.len;
@@ -75,48 +79,48 @@
                 return len;
             }
 
-            // ¸´Î»Ğ´³¤¶ÈºÍ¶ÁÆ«ÒÆÁ¿
+            // å¤ä½å†™é•¿åº¦å’Œè¯»åç§»é‡
             Clear() {
                 this.len = 0;
                 this.offset = 0;
             }
 
-            // Ìø¹ı siz ¿Õ¼ä²»Ğ´¡£·µ»ØÆğÊ¼ len
+            // è·³è¿‡ siz ç©ºé—´ä¸å†™ã€‚è¿”å›èµ·å§‹ len
             Wj(siz) {
                 let len = this.Ensure(siz);
                 this.len = len + siz;
                 return len;
             }
 
-            // Ğ´Èë ¶¨³¤uint8
+            // å†™å…¥ å®šé•¿uint8
             Wu8(v) {
                 let len = this.Ensure(1);
                 this.ua[len] = v;
                 this.len = len + 1;
             }
 
-            // Ğ´Èë ¶¨³¤uint32 µ½Ö¸¶¨Î»ÖÃ( ²»À©Èİ: unsafe )
+            // å†™å…¥ å®šé•¿uint32 åˆ°æŒ‡å®šä½ç½®( ä¸æ‰©å®¹: unsafe )
             Wu32at(pos, v) {
                 this.dv.setUint32(pos, v, true);
             }
 
-            // Ğ´Èë ¶¨³¤float( Ğ¡Î² )
+            // å†™å…¥ å®šé•¿float( å°å°¾ )
             Wf(v) {
                 let len = this.Ensure(4);
                 this.dv.setFloat32(len, v, true);
                 this.len = len + 4;
             }
 
-            // Ğ´Èë ¶¨³¤double( Ğ¡Î² )
+            // å†™å…¥ å®šé•¿double( å°å°¾ )
             Wd(v) {
                 let len = this.Ensure(8);
                 this.dv.setFloat64(len, v, true);
                 this.len = len + 8;
             }
 
-            // Ğ´Èë ±ä³¤ÎŞ·ûºÅÕûÊı
+            // å†™å…¥ å˜é•¿æ— ç¬¦å·æ•´æ•°( 32b )
             Wvu(v) {
-                let len = this.Ensure(9);
+                let len = this.Ensure(5);
                 let ua = this.ua;
                 v >>>= 0;
                 while (v >= 0x80) {
@@ -127,12 +131,36 @@
                 this.len = len;
             }
 
-            // Ğ´Èë ±ä³¤ÕûÊı
+            // å†™å…¥ å˜é•¿æ•´æ•°( 32b )
             Wvi(v) {
                 this.Wvu(((v |= 0) << 1) ^ (v >> 31));
             }
 
-            // Ğ´Èë utf8 string ( ±ä³¤siz + text )
+            // å†™å…¥ å˜é•¿æ— ç¬¦å·æ•´æ•°( 64b )  BigInt.asUintN(64, ?n);
+            Wvu64(v) {
+                let len = this.Ensure(10);
+                let ua = this.ua;
+                v >>= 0n;
+                while (v >= 0x80n) {
+                    ua[len++] = Number((v & 0x7fn) | 0x80n);
+                    v >>= 7n;
+                }
+                ua[len++] = Number(v);
+                this.len = len;
+            }
+
+            // å†™å…¥ å˜é•¿æ•´æ•°( 64b )   ?n   BigInt(?)
+            Wvi64(v) {
+                if (v >= 0) {
+                    v = BigInt.asUintN(64, v) * 2n;
+                }
+                else {
+                    v = BigInt.asUintN(64, -v) * 2n - 1n;
+                }
+                this.Wvu64(v);
+            }
+
+            // å†™å…¥ utf8 string ( å˜é•¿siz + text )
             Wstr(s) {
                 let a = Data.te.encode(s);
                 let siz = a.byteLength;
@@ -144,7 +172,7 @@
                 }
             }
 
-            // Ğ´Èë data ( ±ä³¤len + buf )
+            // å†™å…¥ data ( å˜é•¿len + buf )
             Wdata(d) {
                 let siz = d.len;
                 this.Wvu(siz);
@@ -153,7 +181,7 @@
                 this.len = len + siz;
             }
 
-            // ¶Á³ö ¶¨³¤uint8
+            // è¯»å‡º å®šé•¿uint8
             Ru8() {
                 let offset = this.offset;
                 if (offset + 1 > this.len) throw new Error("Ru8 out of range");
@@ -161,13 +189,13 @@
                 return this.ua[offset];
             }
 
-            // ¶Á³ö ¶¨³¤uint32 ´ÓÖ¸¶¨Î»ÖÃ
+            // è¯»å‡º å®šé•¿uint32 ä»æŒ‡å®šä½ç½®
             Ru32at(pos) {
                 if (pos + 4 > this.len) throw new Error("Ru32at out of range");
                 return this.dv.getUint32(pos, true);
             }
 
-            // ¶Á³ö ¶¨³¤float( Ğ¡Î² )
+            // è¯»å‡º å®šé•¿float( å°å°¾ )
             Rf() {
                 let offset = this.offset;
                 if (offset + 4 > this.len) throw new Error("Rf out of range");
@@ -175,7 +203,7 @@
                 return this.dv.getFloat32(offset, true);
             }
 
-            // ¶Á³ö ¶¨³¤double( Ğ¡Î² )
+            // è¯»å‡º å®šé•¿double( å°å°¾ )
             Rd() {
                 let offset = this.offset;
                 if (offset + 8 > this.len) throw new Error("Rd out of range");
@@ -183,14 +211,14 @@
                 return this.dv.getFloat64(offset, true);
             }
 
-            // ¶Á³ö ±ä³¤ÎŞ·ûºÅÕûÊı
+            // è¯»å‡º å˜é•¿æ— ç¬¦å·æ•´æ•°
             Rvu() {
                 let v = 0x0;
                 let ua = this.ua;
                 let len = this.len;
                 let offset = this.offset;
                 for (let shift = 0; shift < 64; shift += 7) {
-                    if (offset == len) throw new Error("Ru8 out of range");
+                    if (offset == len) throw new Error("Rvu out of range");
                     let b = ua[offset++];
                     v |= (b & 0x7F) << shift;
                     if ((b & 0x80) == 0) break;
@@ -199,13 +227,35 @@
                 return v;
             }
 
-            // ¶Á³ö ±ä³¤ÕûÊı
+            // è¯»å‡º å˜é•¿æ•´æ•°
             Rvi() {
-                let n = Rvu();
+                let n = this.Rvu();
                 return ((n >>> 1) ^ -(n & 1)) | 0;
             }
 
-            // ¶Á³ö string
+            // è¯»å‡º å˜é•¿æ— ç¬¦å·æ•´æ•° BigInt
+            Rvu64() {
+                let v = 0n;
+                let ua = this.ua;
+                let len = this.len;
+                let offset = this.offset;
+                for (let shift = 0n; shift < 64n; shift += 7n) {
+                    if (offset == len) throw new Error("Rvu64 out of range");
+                    let b = BigInt(ua[offset++]);
+                    v |= (b & 0x7Fn) << shift;
+                    if ((b & 0x80n) == 0n) break;
+                }
+                this.offset = offset;
+                return v;
+            }
+
+            // è¯»å‡º å˜é•¿æ•´æ•° BigInt
+            Rvi64() {
+                let n = this.Rvu64();
+                return BigInt.asIntN(64, (n >> 1n) ^ -BigInt.asIntN(64, n & 1n));
+            }
+
+            // è¯»å‡º string
             Rstr() {
                 let siz = this.Rvu();
                 let offset = this.offset;
@@ -213,7 +263,7 @@
                 return Data.td.decode(this.ua.slice(offset, offset + siz));
             }
 
-            // ¶Á³ö data
+            // è¯»å‡º data
             Rdata() {
                 let siz = this.Rvu();
                 let offset = this.offset;
@@ -223,12 +273,12 @@
 
 
 
-            // Àà×¢²á( c ĞèÒª´Ó ObjBase ¼Ì³Ğ )
+            // ç±»æ³¨å†Œ( c éœ€è¦ä» ObjBase ç»§æ‰¿ )
             static Register(c) {
                 Data.fs[c.typeId] = c;
             }
 
-            // Èë¿Úº¯Êı: Ê¼Ïò d Ğ´ÈëÒ»¸ö ÀàÊµÀı
+            // å…¥å£å‡½æ•°: å§‹å‘ d å†™å…¥ä¸€ä¸ª ç±»å®ä¾‹
             WriteRoot(o) {
                 let m = new Map();
                 m.set(o, 1);
@@ -238,13 +288,13 @@
                 o.Write(this);
             }
 
-            // Èë¿Úº¯Êı: ¿ªÊ¼´Ó d ¶Á³öÒ»¸ö ÀàÊµÀı ²¢·µ»Ø
+            // å…¥å£å‡½æ•°: å¼€å§‹ä» d è¯»å‡ºä¸€ä¸ª ç±»å®ä¾‹ å¹¶è¿”å›
             ReadRoot() {
                 this.m = new Map();
                 return this.ReadFirst();
             }
 
-            // ÄÚ²¿º¯Êı: Ïò d Ğ´ÈëÒ»¸ö ÀàÊµÀı. ¸ñÊ½: idx + typeId + content
+            // å†…éƒ¨å‡½æ•°: å‘ d å†™å…¥ä¸€ä¸ª ç±»å®ä¾‹. æ ¼å¼: idx + typeId + content
             Write(o) {
                 if (o === null) {
                     d.Wu8(0);
@@ -267,20 +317,20 @@
                 }
             }
 
-            // ÄÚ²¿º¯Êı: ´Ó d ¶Á³öÒ»¸ö ÀàÊµÀı ²¢·µ»Ø( Õë¶ÔµÚÒ»¸öÌØ»¯ )
+            // å†…éƒ¨å‡½æ•°: ä» d è¯»å‡ºä¸€ä¸ª ç±»å®ä¾‹ å¹¶è¿”å›( é’ˆå¯¹ç¬¬ä¸€ä¸ªç‰¹åŒ– )
             ReadFirst() {
                 let m = this.m;
                 let typeId = this.Rvu();
                 if (typeId === 0) throw new Error("ReadFirst error: typeId === 0");
                 let c = Data.fs[typeId];
-                if (c === undefined) throw new Error("ReadFirst error: c === undefined. typeId = ${typeId}");
+                if (c === undefined) throw new Error(`ReadFirst error: c === undefined. typeId = ${typeId}`);
                 let v = new c();
                 m.set(1, v);
                 v.Read(this);
                 return v
             }
 
-            // ÄÚ²¿º¯Êı: ´Ó d ¶Á³öÒ»¸ö ÀàÊµÀı ²¢·µ»Ø
+            // å†…éƒ¨å‡½æ•°: ä» d è¯»å‡ºä¸€ä¸ª ç±»å®ä¾‹ å¹¶è¿”å›
             Read() {
                 let n = this.Rvu();
                 if (n === 0) return null;
@@ -292,20 +342,80 @@
                     typeId = this.Rvu();
                     if (typeId === 0) throw new Error("Read error: typeId === 0");
                     let c = Data.fs[typeId];
-                    if (c === undefined) throw new Error("Read error: c === undefined. typeId = ${typeId}");
+                    if (c === undefined) throw new Error(`Read error: c === undefined. typeId = ${typeId}`);
                     let v = new c();
                     m.set(n, v);
                     v.Read(this);
                     return v;
                 }
                 else {
-                    if (n > len) throw new Error("Read error: n > len. n = ${n}, len = ${len}");
+                    if (n > len) throw new Error(`Read error: n > len. n = ${n}, len = ${len}`);
                     return m.get(n);
                 }
             }
         }
 
-        // »ùÀà
+        //// å°è¯•åŠ è½½ webm ç‰ˆæœ¬çš„ WriteU64 Write64 å®ç°æ›¿æ¢æ‰ Data çš„æˆå‘˜å‡½æ•°( firefox ä¸æ›¿æ¢å¿«ä¸€ä¸ )
+        //if (navigator.userAgent.toLowerCase().indexOf('firefox') === -1) {
+        //    try {
+        //        let u8a = Uint8Array.from(window.atob(
+        //            'AGFzbQEAAAABIAdgAAF/YAABfmABfgF/YAAAYAJ/fwF/YAF/AGABfwF/AwwLAwABAQICBAAFBgAEBQFwAQICBQYBAYACgAIGCQF/AUGgiMACCwepAQ0GbWVtb3J5AgAGR2V0QnVmAAEHUmVhZFU2NAACBlJlYWQ2NAADCFdyaXRlVTY0AAQHV3JpdGU2NAAFBmFkZFR3bwAGGV9faW5kaXJlY3RfZnVuY3Rpb25fdGFibGUBAAtfaW5pdGlhbGl6ZQAAEF9fZXJybm9fbG9jYXRpb24ACglzdGFja1NhdmUABwxzdGFja1Jlc3RvcmUACApzdGFja0FsbG9jAAkJBwEAQQELAQAKrwILAwABCwUAQYAIC0UCA34BfwJAA0AgA0GACGoxAAAiAkL/AIMgAYYgAIQhACACQoABg1ANASABQgd8IQEgA0EBaiIDQQpHDQALQgAhAAsgAAs0AgF/AX4jAEEQayIAJAAgABACNwMIIAApAwgiAUIBiEIAIAFCAYN9hSEBIABBEGokACABC0sBAn8gAEKAAVoEQANAIAFBgAhqIACnQYABcjoAACABQQFqIQEgAEL//wBWIQIgAEIHiCEAIAINAAsLIAFBgAhqIAA8AAAgAUEBagsxAQJ/IwBBEGsiASQAIAEgADcDCCABKQMIIgBCAYYgAEI/h4UQBCECIAFBEGokACACCwcAIAAgAWoLBAAjAAsGACAAJAALEAAjACAAa0FwcSIAJAAgAAsFAEGQCAs='
+        //        ), (v) => v.charCodeAt(0));
+        //        let wa = new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
+        //        Data.waUa = new Uint8Array(wa.memory.buffer, wa.GetBuf(), 10);
+        //        Data.wa = wa;
+
+        //        Data.prototype.Wvu64 = function (v) {
+        //            let len = this.Ensure(10);
+        //            let siz = Data.wa.WriteU64(v);
+        //            this.ua.set(Data.waUa.subarray(0, siz), len);
+        //            this.len = len + siz;
+        //        };
+
+        //        Data.prototype.Wvi64 = function (v) {
+        //            let len = this.Ensure(10);
+        //            let siz = Data.wa.Write64(v);
+        //            this.ua.set(Data.waUa.subarray(0, siz), len);
+        //            this.len = len + siz;
+        //        }
+
+        //        // todo: Rvu64 Rvi64
+        //    }
+        //    catch (e) {
+        //        console.log(e);
+        //    }
+        //}
+
+        //// æµ‹è¯• Wvi64 js ç‰ˆ å’Œ wasm ç‰ˆçš„æ€§èƒ½å·®å¼‚. 
+        //// æµ‹è¯•ç»“æœï¼š
+        //// chrome js ç‰ˆ 27xx ms, wasm ç‰ˆ 4xx ms
+        //// firefox js ç‰ˆ & wasm ç‰ˆ å‡ä¸º 8xx ms
+        //{
+        //    let d = new Data();
+        //    let t = new Date().getTime();
+        //    for (let i = 0; i < 1000000; ++i) {
+        //        d.len = 0;
+        //        d.Wvi64(BigInt(-i));
+        //        d.Wvi64(BigInt(i));
+        //        d.Wvu64(BigInt.asUintN(64, BigInt(-i)));
+        //        d.Wvu64(BigInt.asUintN(64, BigInt(i)));
+        //    }
+        //    console.log(new Date().getTime() - t);
+        //    console.log(d.View());
+        //}
+
+        //let d = new Data();
+        //d.Wvi64(-1n);
+        //console.log(d.View());
+        //console.log(d.Rvi64());
+
+
+
+
+
+
+
+        // åŸºç±»
         class ObjBase {
             // static typeId = ?;
             GetTypeId() {
@@ -314,10 +424,10 @@
         }
 
         /* ************************************************************ */
-        // ÏÂÃæÊÇÉú³ÉÎïÄ£Äâ
+        // ä¸‹é¢æ˜¯ç”Ÿæˆç‰©æ¨¡æ‹Ÿ
         var CodeGen_cfgName_md5 = "!@#$@$@#$$!@#!@#@#!@#!$#@%@#%#$^#%$#%@%";
 
-        // enum Ä£Äâ
+        // enum æ¨¡æ‹Ÿ
         class E {
             static a = 1;
             static b = 2;
@@ -327,16 +437,16 @@
         class A extends ObjBase {
             static typeId = 1;
 
-            x = 1;
-            y = 2;
+            int32 = -1;
+            int64 = -1n;
 
             Read(d) {
-                this.x = d.Rf();
-                this.y = d.Rf();
+                this.int32 = d.Rvi();
+                this.int64 = d.Rvi64();
             }
             Write(d) {
-                d.Wf(this.x);
-                d.Wf(this.y);
+                d.Wvi(this.int32);
+                d.Wvi64(this.int64);
             }
         }
 
@@ -361,16 +471,16 @@
 
         // struct
         class XY {
-            x = 3;
-            y = 4;
+            x = 1.2;
+            y = 3.4;
 
             Read(d) {
-                this.x = d.Rvi();
-                this.y = d.Rvi();
+                this.x = d.Rf();
+                this.y = d.Rf();
             }
             Write(d) {
-                d.Wvi(this.x);
-                d.Wvi(this.y);
+                d.Wf(this.x);
+                d.Wf(this.y);
             }
         }
 
@@ -395,7 +505,6 @@
         Data.Register(A);
         Data.Register(B);
         Data.Register(C);
-
 
 
         let c = new C();
