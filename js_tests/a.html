@@ -1,11 +1,11 @@
 ﻿<!DOCTYPE HTML>
 <html>
 <body>
-    <script>
-        "use strict";
+    <script type="module">
+        // 放到独立公用 .js
 
         /* ************************************************************ */
-        // 放到独立公用 .js
+        // Data 数据存储 & 序列化 & 反序列化器
 
         class Data {
             buf = null; // ArrayBuffer
@@ -311,7 +311,7 @@
                         o.Write(this);
                     }
                     else {
-                        d.Wvu32(n);
+                        d.Wvu(n);
                     }
                 }
             }
@@ -354,21 +354,56 @@
             }
         }
 
-        {
-            let d = new Data();
-            d.Wvi64(-1n);
-            d.Wvi64(1n);
-            d.Wvu64(BigInt.asUintN(64, -1n));
-            d.Wvu64(BigInt.asUintN(64, 1n));
 
-            console.log(d.Rvi64());
-            console.log(d.Rvi64());
-            console.log(d.Rvu64());
-            console.log(d.Rvu64());
+        // 尝试加载 webm 版本的 WriteU64 Write64 实现替换掉 Data 的成员函数( firefox 替换了没改善 )
+        if (navigator.userAgent.toLowerCase().indexOf('firefox') === -1) {
+            try {
+                let u8a = Uint8Array.from(window.atob(
+                    'AGFzbQEAAAABIQdgAAF/YAF/AX5gAX4Bf2AAAGACf38Bf2ABfwBgAX8BfwMMCwMAAQECAgQABQYABAUBcAECAgUGAQGAAoACBgkBfwFBoIjAAgsHqQENBm1lbW9yeQIABkdldEJ1ZgABB1JlYWRVNjQAAgZSZWFkNjQAAwhXcml0ZVU2NAAEB1dyaXRlNjQABQZhZGRUd28ABhlfX2luZGlyZWN0X2Z1bmN0aW9uX3RhYmxlAQALX2luaXRpYWxpemUAABBfX2Vycm5vX2xvY2F0aW9uAAoJc3RhY2tTYXZlAAcMc3RhY2tSZXN0b3JlAAgKc3RhY2tBbGxvYwAJCQcBAEEBCwEACvwCCwMAAQsFAEGACAuPAQIDfgR/Qf8BIQQCQAJAIABBCiAAQQpIGyIARQ0AIABBAWsiAEEJIABBCUkbIQZBACEAA0ACQCAAQQFqIQUgAEGACGoxAAAiA0L/AIMgAoYgAYQhASADQoABg1ANACACQgd8IQIgACAGRiEHIAUhACAHRQ0BDAILCyAFIQQMAQtCACEBC0GPCCAEOgAAIAELNgIBfwF+IwBBEGsiASQAIAEgABACNwMIIAEpAwgiAkIBiEIAIAJCAYN9hSECIAFBEGokACACC0sBAn8gAEKAAVoEQANAIAFBgAhqIACnQYABcjoAACABQQFqIQEgAEL//wBWIQIgAEIHiCEAIAINAAsLIAFBgAhqIAA8AAAgAUEBagsxAQJ/IwBBEGsiASQAIAEgADcDCCABKQMIIgBCAYYgAEI/h4UQBCECIAFBEGokACACCwcAIAAgAWoLBAAjAAsGACAAJAALEAAjACAAa0FwcSIAJAAgAAsFAEGQCAs='
+                ), (v) => v.charCodeAt(0));
+                let wa = new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
+
+                Data.waUa = new Uint8Array(wa.memory.buffer, wa.GetBuf(), 16);
+                Data.wa = wa;
+
+                Data.prototype.Wvu64 = function (v) {
+                    let len = this.Ensure(10);
+                    let siz = Data.wa.WriteU64(v);
+                    this.ua.set(Data.waUa.subarray(0, siz), len);
+                    this.len = len + siz;
+                };
+
+                Data.prototype.Wvi64 = function (v) {
+                    let len = this.Ensure(10);
+                    let siz = Data.wa.Write64(v);
+                    this.ua.set(Data.waUa.subarray(0, siz), len);
+                    this.len = len + siz;
+                };
+
+                Data.prototype.Rvu64 = function () {
+                    let left = Math.min(this.len - this.offset, 10);
+                    Data.waUa.set(this.ua.subarray(this.offset, this.offset + left), 0);
+                    let v = Data.wa.ReadU64(left);
+                    let siz = Data.waUa[15];
+                    if (siz == 255) throw new Error("Rvu64 out of range");
+                    this.offset += siz;
+                    return BigInt.asUintN(64, v);
+                };
+
+                Data.prototype.Rvi64 = function () {
+                    let left = Math.min(this.len - this.offset, 10);
+                    Data.waUa.set(this.ua.subarray(this.offset, this.offset + left), 0);
+                    let v = Data.wa.Read64(left);
+                    let siz = Data.waUa[15];
+                    if (siz == 255) throw new Error("Rvi64 out of range");
+                    this.offset += siz;
+                    return v;
+                };
+            }
+            catch (e) {
+                console.log(e);
+            }
         }
-
-
-
 
 
 
@@ -433,12 +468,12 @@
             y = 3.4;
 
             Read(d) {
-                this.x = d.Rf();
-                this.y = d.Rf();
+                this.x = d.Rd();
+                this.y = d.Rd();
             }
             Write(d) {
-                d.Wf(this.x);
-                d.Wf(this.y);
+                d.Wd(this.x);
+                d.Wd(this.y);
             }
         }
 
@@ -452,10 +487,12 @@
 
             Read(d) {
                 this.b = d.Read();
+                this.c = d.Read();
                 this.xy.Read(d);
             }
             Write(d) {
                 d.Write(this.b);
+                d.Write(this.c);
                 this.xy.Write(d);
             }
         }
@@ -465,15 +502,20 @@
         Data.Register(C);
 
 
-        //let c = new C();
-        //c.b = new B();
-        //c.c = c;
+        let c = new C();
+        c.b = new B();
+        c.c = c;
 
-        //let d = new Data();
-        //d.WriteRoot(c);
-        //console.log(d.View());
+        let d = new Data();
+        d.WriteRoot(c);
+        console.log(d.View());
 
-        //console.log("done");
+        let c2 = d.ReadRoot();
+
+        console.log(c);
+        console.log(c2);
+
+        console.log("done");
 
 
 

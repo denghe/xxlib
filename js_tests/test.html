@@ -9,17 +9,17 @@
   	<script type="module">
         // 加载 wasm 模块
 
-        //let wa = (await WebAssembly.instantiateStreaming(fetch('test.wasm'))).instance.exports;
+        let wa = (await WebAssembly.instantiateStreaming(fetch('test.wasm'))).instance.exports;
 
-        // 创建一个 u/int64 序列化 & 反序列化器 并返回
-        function CreateSeder64() {
-            let u8a = Uint8Array.from(window.atob(
-                'AGFzbQEAAAABIAdgAAF/YAABfmABfgF/YAAAYAJ/fwF/YAF/AGABfwF/AwwLAwABAQICBAAFBgAEBQFwAQICBQYBAYACgAIGCQF/AUGgiMACCwepAQ0GbWVtb3J5AgAGR2V0QnVmAAEHUmVhZFU2NAACBlJlYWQ2NAADCFdyaXRlVTY0AAQHV3JpdGU2NAAFBmFkZFR3bwAGGV9faW5kaXJlY3RfZnVuY3Rpb25fdGFibGUBAAtfaW5pdGlhbGl6ZQAAEF9fZXJybm9fbG9jYXRpb24ACglzdGFja1NhdmUABwxzdGFja1Jlc3RvcmUACApzdGFja0FsbG9jAAkJBwEAQQELAQAKrwILAwABCwUAQYAIC0UCA34BfwJAA0AgA0GACGoxAAAiAkL/AIMgAYYgAIQhACACQoABg1ANASABQgd8IQEgA0EBaiIDQQpHDQALQgAhAAsgAAs0AgF/AX4jAEEQayIAJAAgABACNwMIIAApAwgiAUIBiEIAIAFCAYN9hSEBIABBEGokACABC0sBAn8gAEKAAVoEQANAIAFBgAhqIACnQYABcjoAACABQQFqIQEgAEL//wBWIQIgAEIHiCEAIAINAAsLIAFBgAhqIAA8AAAgAUEBagsxAQJ/IwBBEGsiASQAIAEgADcDCCABKQMIIgBCAYYgAEI/h4UQBCECIAFBEGokACACCwcAIAAgAWoLBAAjAAsGACAAJAALEAAjACAAa0FwcSIAJAAgAAsFAEGQCAs='
-            ), (v) => v.charCodeAt(0));
-            return new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
-        }
+        //// 创建一个 u/int64 序列化 & 反序列化器 并返回
+        //function CreateSeder64() {
+        //    let u8a = Uint8Array.from(window.atob(
+        //        'AGFzbQEAAAABIAdgAAF/YAABfmABfgF/YAAAYAJ/fwF/YAF/AGABfwF/AwwLAwABAQICBAAFBgAEBQFwAQICBQYBAYACgAIGCQF/AUGgiMACCwepAQ0GbWVtb3J5AgAGR2V0QnVmAAEHUmVhZFU2NAACBlJlYWQ2NAADCFdyaXRlVTY0AAQHV3JpdGU2NAAFBmFkZFR3bwAGGV9faW5kaXJlY3RfZnVuY3Rpb25fdGFibGUBAAtfaW5pdGlhbGl6ZQAAEF9fZXJybm9fbG9jYXRpb24ACglzdGFja1NhdmUABwxzdGFja1Jlc3RvcmUACApzdGFja0FsbG9jAAkJBwEAQQELAQAKrwILAwABCwUAQYAIC0UCA34BfwJAA0AgA0GACGoxAAAiAkL/AIMgAYYgAIQhACACQoABg1ANASABQgd8IQEgA0EBaiIDQQpHDQALQgAhAAsgAAs0AgF/AX4jAEEQayIAJAAgABACNwMIIAApAwgiAUIBiEIAIAFCAYN9hSEBIABBEGokACABC0sBAn8gAEKAAVoEQANAIAFBgAhqIACnQYABcjoAACABQQFqIQEgAEL//wBWIQIgAEIHiCEAIAINAAsLIAFBgAhqIAA8AAAgAUEBagsxAQJ/IwBBEGsiASQAIAEgADcDCCABKQMIIgBCAYYgAEI/h4UQBCECIAFBEGokACACCwcAIAAgAWoLBAAjAAsGACAAJAALEAAjACAAa0FwcSIAJAAgAAsFAEGQCAs='
+        //    ), (v) => v.charCodeAt(0));
+        //    return new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
+        //}
 
-        let wa = CreateSeder64();
+        //let wa = CreateSeder64();
 
         // 映射函数到本地变量以快速调用
         let GetBuf = wa.GetBuf;
@@ -35,24 +35,26 @@
         let bufOffset = GetBuf();
 
         // 创建 buf 的操作视图
-        let ua = new Uint8Array(bufRoot, bufOffset, 10);
+        let ua = new Uint8Array(bufRoot, bufOffset, 16);
 
         // Write 64
-        let r = Write64(-1n);
+        let v = -(1n << 62n);
+        let r = Write64(v);
+        console.log(`Write64(${v}) = ${r}`);
+        console.log(`Read64(${r}) = ${Read64(r)}`);
+        console.log(`buf[15] = ${ua[15]}`);
         console.log(ua);
-        console.log(`r = ${r}`);
 
-        // Write U64
-        r = WriteU64(1n);
-        console.log(ua);
-        console.log(`r = ${r}`);
+        //// Write U64
+        //r = WriteU64(1n);
+        //console.log(ua);
+        //console.log(`r = ${r}`);
 
         // Read 64
-        ua[0] = 1;
-        console.log(Read64());
+        //ua.set([255,255,255,255,255,255,255,255,255,1]);
 
-        // Read U64
-        console.log(ReadU64());
+        //// Read U64
+        //console.log(ReadU64(10));
 
 
   //      // 测试函数调用性能. 调用 一亿 次.
