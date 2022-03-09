@@ -140,7 +140,6 @@
             Wvu64(v) {
                 let len = this.Ensure(10);
                 let ua = this.ua;
-                v >>= 0n;
                 while (v >= 0x80n) {
                     ua[len++] = Number((v & 0x7fn) | 0x80n);
                     v >>= 7n;
@@ -355,59 +354,18 @@
             }
         }
 
-        //// 尝试加载 webm 版本的 WriteU64 Write64 实现替换掉 Data 的成员函数( firefox 不替换快一丝 )
-        //if (navigator.userAgent.toLowerCase().indexOf('firefox') === -1) {
-        //    try {
-        //        let u8a = Uint8Array.from(window.atob(
-        //            'AGFzbQEAAAABIAdgAAF/YAABfmABfgF/YAAAYAJ/fwF/YAF/AGABfwF/AwwLAwABAQICBAAFBgAEBQFwAQICBQYBAYACgAIGCQF/AUGgiMACCwepAQ0GbWVtb3J5AgAGR2V0QnVmAAEHUmVhZFU2NAACBlJlYWQ2NAADCFdyaXRlVTY0AAQHV3JpdGU2NAAFBmFkZFR3bwAGGV9faW5kaXJlY3RfZnVuY3Rpb25fdGFibGUBAAtfaW5pdGlhbGl6ZQAAEF9fZXJybm9fbG9jYXRpb24ACglzdGFja1NhdmUABwxzdGFja1Jlc3RvcmUACApzdGFja0FsbG9jAAkJBwEAQQELAQAKrwILAwABCwUAQYAIC0UCA34BfwJAA0AgA0GACGoxAAAiAkL/AIMgAYYgAIQhACACQoABg1ANASABQgd8IQEgA0EBaiIDQQpHDQALQgAhAAsgAAs0AgF/AX4jAEEQayIAJAAgABACNwMIIAApAwgiAUIBiEIAIAFCAYN9hSEBIABBEGokACABC0sBAn8gAEKAAVoEQANAIAFBgAhqIACnQYABcjoAACABQQFqIQEgAEL//wBWIQIgAEIHiCEAIAINAAsLIAFBgAhqIAA8AAAgAUEBagsxAQJ/IwBBEGsiASQAIAEgADcDCCABKQMIIgBCAYYgAEI/h4UQBCECIAFBEGokACACCwcAIAAgAWoLBAAjAAsGACAAJAALEAAjACAAa0FwcSIAJAAgAAsFAEGQCAs='
-        //        ), (v) => v.charCodeAt(0));
-        //        let wa = new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
-        //        Data.waUa = new Uint8Array(wa.memory.buffer, wa.GetBuf(), 10);
-        //        Data.wa = wa;
+        {
+            let d = new Data();
+            d.Wvi64(-1n);
+            d.Wvi64(1n);
+            d.Wvu64(BigInt.asUintN(64, -1n));
+            d.Wvu64(BigInt.asUintN(64, 1n));
 
-        //        Data.prototype.Wvu64 = function (v) {
-        //            let len = this.Ensure(10);
-        //            let siz = Data.wa.WriteU64(v);
-        //            this.ua.set(Data.waUa.subarray(0, siz), len);
-        //            this.len = len + siz;
-        //        };
-
-        //        Data.prototype.Wvi64 = function (v) {
-        //            let len = this.Ensure(10);
-        //            let siz = Data.wa.Write64(v);
-        //            this.ua.set(Data.waUa.subarray(0, siz), len);
-        //            this.len = len + siz;
-        //        }
-
-        //        // todo: Rvu64 Rvi64
-        //    }
-        //    catch (e) {
-        //        console.log(e);
-        //    }
-        //}
-
-        //// 测试 Wvi64 js 版 和 wasm 版的性能差异. 
-        //// 测试结果：
-        //// chrome js 版 27xx ms, wasm 版 4xx ms
-        //// firefox js 版 & wasm 版 均为 8xx ms
-        //{
-        //    let d = new Data();
-        //    let t = new Date().getTime();
-        //    for (let i = 0; i < 1000000; ++i) {
-        //        d.len = 0;
-        //        d.Wvi64(BigInt(-i));
-        //        d.Wvi64(BigInt(i));
-        //        d.Wvu64(BigInt.asUintN(64, BigInt(-i)));
-        //        d.Wvu64(BigInt.asUintN(64, BigInt(i)));
-        //    }
-        //    console.log(new Date().getTime() - t);
-        //    console.log(d.View());
-        //}
-
-        //let d = new Data();
-        //d.Wvi64(-1n);
-        //console.log(d.View());
-        //console.log(d.Rvi64());
+            console.log(d.Rvi64());
+            console.log(d.Rvi64());
+            console.log(d.Rvu64());
+            console.log(d.Rvu64());
+        }
 
 
 
@@ -507,15 +465,15 @@
         Data.Register(C);
 
 
-        let c = new C();
-        c.b = new B();
-        c.c = c;
+        //let c = new C();
+        //c.b = new B();
+        //c.c = c;
 
-        let d = new Data();
-        d.WriteRoot(c);
-        console.log(d.View());
+        //let d = new Data();
+        //d.WriteRoot(c);
+        //console.log(d.View());
 
-        console.log("done");
+        //console.log("done");
 
 
 
