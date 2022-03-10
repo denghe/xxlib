@@ -4,6 +4,7 @@
   "files": [ "pkg_generic.cs" ],
   "!outdir_cs": "cs",
   "!outdir_lua": "lua",
+  "outdir_js": "js",
   "outdir_cpp": "cpp",
   "typeid_from": 1,
   "typeid_to": 9

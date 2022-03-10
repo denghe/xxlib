@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <pkg_generic.h.inc>
 struct CodeGen_pkg_generic {
-	inline static const ::std::string md5 = "#*MD5<d26fb32354a5f194e227dd18ba274c57>*#";
+	inline static const ::std::string md5 = "#*MD5<3ac483c5994b8136d387417a1c8379ae>*#";
     static void Register();
     CodeGen_pkg_generic() { Register(); }
 };

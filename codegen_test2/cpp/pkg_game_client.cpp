@@ -157,12 +157,12 @@ namespace Game1{
 }
 namespace Game1{
     void Scene::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->players);
-        d.Write(this->messages);
+        om.Write(d, this->players);
+        om.Write(d, this->messages);
     }
     int Scene::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->players)) return r;
-        if (int r = d.Read(this->messages)) return r;
+        if (int r = om.Read(d, this->players)) return r;
+        if (int r = om.Read(d, this->messages)) return r;
         return 0;
     }
     void Scene::Append(::xx::ObjManager& om, std::string& s) const {
@@ -199,12 +199,12 @@ namespace Game1{
 }
 namespace Game1_Client{
     void FullSync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->scene);
-        d.Write(this->self);
+        om.Write(d, this->scene);
+        om.Write(d, this->self);
     }
     int FullSync::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->scene)) return r;
-        if (int r = d.Read(this->self)) return r;
+        if (int r = om.Read(d, this->scene)) return r;
+        if (int r = om.Read(d, this->self)) return r;
         return 0;
     }
     void FullSync::Append(::xx::ObjManager& om, std::string& s) const {
@@ -241,10 +241,10 @@ namespace Game1_Client{
 }
 namespace Game1_Client{
     void Sync::Write(::xx::ObjManager& om, ::xx::Data& d) const {
-        d.Write(this->events);
+        om.Write(d, this->events);
     }
     int Sync::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
-        if (int r = d.Read(this->events)) return r;
+        if (int r = om.Read(d, this->events)) return r;
         return 0;
     }
     void Sync::Append(::xx::ObjManager& om, std::string& s) const {
@@ -385,11 +385,11 @@ namespace Client_Game1{
 namespace Game1{
     void Event_PlayerEnter::Write(::xx::ObjManager& om, ::xx::Data& d) const {
         this->BaseType::Write(om, d);
-        d.Write(this->player);
+        om.Write(d, this->player);
     }
     int Event_PlayerEnter::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
         if (int r = this->BaseType::Read(om, d)) return r;
-        if (int r = d.Read(this->player)) return r;
+        if (int r = om.Read(d, this->player)) return r;
         return 0;
     }
     void Event_PlayerEnter::Append(::xx::ObjManager& om, std::string& s) const {

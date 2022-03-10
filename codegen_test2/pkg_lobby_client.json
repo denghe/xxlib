@@ -5,6 +5,7 @@
   "!outdir_cs": "cs",
   "!outdir_lua": "lua",
   "outdir_cpp": "cpp",
+  "outdir_js": "js",
   "typeid_from": 10,
   "typeid_to": 49
 }

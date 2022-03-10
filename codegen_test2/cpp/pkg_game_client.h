@@ -2,7 +2,7 @@
 #include <pkg_generic.h>
 #include <pkg_game_client.h.inc>
 struct CodeGen_pkg_game_client {
-	inline static const ::std::string md5 = "#*MD5<762fc7aa94d127ff70543977f9be04c8>*#";
+	inline static const ::std::string md5 = "#*MD5<2858c91557089c22317b05c26ebbb436>*#";
     static void Register();
     CodeGen_pkg_game_client() { Register(); }
 };
@@ -38,6 +38,7 @@ namespace Game1 {
     // 事件--基类
     struct Event : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(Event, ::xx::ObjBase)
+        using IsSimpleType_v = Event;
         // 同 Game1.Message.timestamp
         int64_t timestamp = 0;
         static void WriteTo(xx::Data& d, int64_t const& timestamp);
