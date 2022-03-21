@@ -11,6 +11,17 @@ class Data {
     ua = null; // new Uint8Array(this.buf);
     ia = null; // new Int8Array(this.buf);
 
+    // wasm 功能扩展( 针对 int64, uint64 啥的 )
+    static wa = function () {
+        let u8a = Uint8Array.from(window.atob(
+            'AGFzbQEAAAABIQdgAXwBf2AAAX9gAX8Bf2ABfAF8YAAAYAJ+fwF/YAF/AAMQDwQBAgIAAAAFAAMDAQYCAQQFAXABAgIFBgEBgAKAAgYJAX8BQbCIwAILB6wBEAZtZW1vcnkCAARHZXRHAAEEUlU2NAACA1I2NAADBFdVNjQABANXNjQABQVUU1U2NAAGBFRTNjQACARUVTY0AAkDVDY0AAoZX19pbmRpcmVjdF9mdW5jdGlvbl90YWJsZQEAC19pbml0aWFsaXplAAAQX19lcnJub19sb2NhdGlvbgAOCXN0YWNrU2F2ZQALDHN0YWNrUmVzdG9yZQAMCnN0YWNrQWxsb2MADQkHAQBBAQsBAAqbBA8DAAELBQBBgAgLWQICfwN+A0AgACABRgRAQVAPCyABQQFqIQIgAUGACGoxAAAiBUL/AIMgA4YgBIQhBCAFQoABg1AEQEGACCAENwMAIAIPCyADQgd8IQMgAiIBQQpHDQALQUgLLAEBfiAAEAIiAEEASgRAQYAIQgBBgAgpAwAiAUIBg30gAUIBiIU3AwALIAALUAICfwF+IAC9IgNCgAFaBEADQCABQYAIaiADp0GAAXI6AAAgAUEBaiEBIANC//8AViECIANCB4ghAyACDQALCyABQYAIaiADPAAAIAFBAWoLFQEBfiAAvSIBQgGGIAFCP4eFvxAECwkAIAC9QQAQBwt5AgR/AX4jAEEgayEEA0AgBCABIgNqIAAgAEIKgCIGQgp+fadBMHI6AAAgA0EBaiEBIABCCVYhAiAGIQAgAg0ACyADQQBOBEBBACECA0AgAkGACGogBCADIAJrai0AADoAACACIANGIQUgAkEBaiECIAVFDQALCyABCykCAX8BfiAAvSICQgBTBH5BgAhBLToAAEEBIQFCACACfQUgAgsgARAHCykAAn4gAEQAAAAAAADwQ2MgAEQAAAAAAAAAAGZxBEAgALEMAQtCAAu/CyYAAn4gAJlEAAAAAAAA4ENjBEAgALAMAQtCgICAgICAgICAfwu/CwQAIwALBgAgACQACxAAIwAgAGtBcHEiACQAIAALBQBBoAgL'
+        ), (v) => v.charCodeAt(0));
+        return new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
+    }();
+    // 指向 wasm.g 的两个常用视图
+    static waUa = new Uint8Array(Data.wa.memory.buffer, Data.wa.GetG(), 32);
+    static waDv = new DataView(Data.wa.memory.buffer, Data.wa.GetG(), 32);
+
     // string 转换器
     static td = new TextDecoder();
     static te = new TextEncoder();
@@ -117,7 +128,7 @@ class Data {
     }
 
     // 写入 定长uint32( 小尾 )
-    Wu32(pos, v) {
+    Wu32(v) {
         let len = this.Ensure(4);
         this.dv.setUint32(len, v, true);
         this.len = len + 4;
@@ -155,27 +166,20 @@ class Data {
         this.Wvu(((v |= 0) << 1) ^ (v >> 31));
     }
 
-    // 写入 变长无符号整数( 64b )  BigInt.asUintN(64, ?n);
+    // 写入 变长无符号整数 (double)uint64
     Wvu64(v) {
         let len = this.Ensure(10);
-        let ua = this.ua;
-        while (v >= 0x80n) {
-            ua[len++] = Number((v & 0x7fn) | 0x80n);
-            v >>= 7n;
-        }
-        ua[len++] = Number(v);
-        this.len = len;
+        let siz = Data.wa.WU64(v);
+        this.ua.set(Data.waUa.slice(0, siz), len);
+        this.len += siz;
     }
 
-    // 写入 变长整数( 64b )   ?n   BigInt(?)
+    // 写入 变长整数 (double)int64
     Wvi64(v) {
-        if (v >= 0) {
-            v = BigInt.asUintN(64, v) * 2n;
-        }
-        else {
-            v = BigInt.asUintN(64, -v) * 2n - 1n;
-        }
-        this.Wvu64(v);
+        let len = this.Ensure(10);
+        let siz = Data.wa.W64(v);
+        this.ua.set(Data.waUa.slice(0, siz), len);
+        this.len += siz;
     }
 
     // 写入 utf8 string ( 变长siz + text )
@@ -275,26 +279,26 @@ class Data {
         return ((n >>> 1) ^ -(n & 1)) | 0;
     }
 
-    // 读出 变长无符号整数 BigInt
+    // 读出 变长无符号整数 (double)uint64
     Rvu64() {
-        let v = 0n;
-        let ua = this.ua;
-        let len = this.len;
         let offset = this.offset;
-        for (let shift = 0n; shift < 64n; shift += 7n) {
-            if (offset == len) throw new Error("Rvu64 out of range");
-            let b = BigInt(ua[offset++]);
-            v |= (b & 0x7Fn) << shift;
-            if ((b & 0x80n) == 0n) break;
-        }
-        this.offset = offset;
-        return v;
+        let siz = Math.min(10, this.len - offset);
+        Data.waUa.set(this.ua.slice(offset, offset + siz));
+        let r = Data.wa.RU64(siz);
+        if (r < 0) throw new Error(`Rvu64 error. __LINE__ = ${-r}`);
+        this.offset = offset + r;
+        return Data.waDv.getFloat64(0, true);
     }
 
-    // 读出 变长整数 BigInt
+    // 读出 变长整数 (double)int64
     Rvi64() {
-        let n = this.Rvu64();
-        return BigInt.asIntN(64, (n >> 1n) ^ -BigInt.asIntN(64, n & 1n));
+        let offset = this.offset;
+        let siz = Math.min(10, this.len - offset);
+        Data.waUa.set(this.ua.slice(offset, offset + siz));
+        let r = Data.wa.R64(siz);
+        if (r < 0) throw new Error(`Rvi64 error. __LINE__ = ${-r}`);
+        this.offset = offset + r;
+        return Data.waDv.getFloat64(0, true);
     }
 
     // 读出 string
@@ -313,6 +317,28 @@ class Data {
         return new Data(this.ua.slice(offset, offset + siz));
     }
 
+
+    // double 转 (double)int64
+    static ToDouble64(v) {
+        return Data.wa.T64(v);
+    }
+
+    // double 转 (double)uint64
+    static ToDoubleU64(v) {
+        return Data.wa.TU64(v);
+    }
+
+    // (double)int64 tostring
+    static ToString64(v) {
+        let siz = Data.wa.TS64(v);
+        return Data.td.decode(Data.waUa.slice(0, siz));
+    }
+
+    // (double)uint64 tostring
+    static ToStringU64(v) {
+        let siz = Data.wa.TSU64(v);
+        return Data.td.decode(Data.waUa.slice(0, siz));
+    }
 
 
     // 类注册( c 需要从 ObjBase 继承 )
@@ -395,58 +421,6 @@ class Data {
             if (n > len) throw new Error(`Read error: n > len. n = ${n}, len = ${len}`);
             return m.get(n);
         }
-    }
-}
-
-// 尝试加载 webm 版本的 WriteU64 Write64 实现替换掉 Data 的成员函数( firefox 替换了没改善 )
-if (navigator.userAgent.toLowerCase().indexOf('firefox') === -1) {
-    try {
-        let u8a = Uint8Array.from(window.atob(
-            'AGFzbQEAAAABIQdgAAF/YAF/AX5gAX4Bf2AAAGACf38Bf2ABfwBgAX8BfwMMCwMAAQECAgQABQYABAUBcAECAgUGAQGAAoACBgkBfwFBoIjAAgsHqQENBm1lbW9yeQIABkdldEJ1ZgABB1JlYWRVNjQAAgZSZWFkNjQAAwhXcml0ZVU2NAAEB1dyaXRlNjQABQZhZGRUd28ABhlfX2luZGlyZWN0X2Z1bmN0aW9uX3RhYmxlAQALX2luaXRpYWxpemUAABBfX2Vycm5vX2xvY2F0aW9uAAoJc3RhY2tTYXZlAAcMc3RhY2tSZXN0b3JlAAgKc3RhY2tBbGxvYwAJCQcBAEEBCwEACvwCCwMAAQsFAEGACAuPAQIDfgR/Qf8BIQQCQAJAIABBCiAAQQpIGyIARQ0AIABBAWsiAEEJIABBCUkbIQZBACEAA0ACQCAAQQFqIQUgAEGACGoxAAAiA0L/AIMgAoYgAYQhASADQoABg1ANACACQgd8IQIgACAGRiEHIAUhACAHRQ0BDAILCyAFIQQMAQtCACEBC0GPCCAEOgAAIAELNgIBfwF+IwBBEGsiASQAIAEgABACNwMIIAEpAwgiAkIBiEIAIAJCAYN9hSECIAFBEGokACACC0sBAn8gAEKAAVoEQANAIAFBgAhqIACnQYABcjoAACABQQFqIQEgAEL//wBWIQIgAEIHiCEAIAINAAsLIAFBgAhqIAA8AAAgAUEBagsxAQJ/IwBBEGsiASQAIAEgADcDCCABKQMIIgBCAYYgAEI/h4UQBCECIAFBEGokACACCwcAIAAgAWoLBAAjAAsGACAAJAALEAAjACAAa0FwcSIAJAAgAAsFAEGQCAs='
-        ), (v) => v.charCodeAt(0));
-        let wa = new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
-
-        Data.waUa = new Uint8Array(wa.memory.buffer, wa.GetBuf(), 16);
-        Data.wa = wa;
-
-        Data.prototype.Wvu64 = function (v) {
-            let len = this.Ensure(10);
-            let siz = Data.wa.WriteU64(v);
-            this.ua.set(Data.waUa.subarray(0, siz), len);
-            this.len = len + siz;
-        };
-
-        Data.prototype.Wvi64 = function (v) {
-            let len = this.Ensure(10);
-            let siz = Data.wa.Write64(v);
-            this.ua.set(Data.waUa.subarray(0, siz), len);
-            this.len = len + siz;
-        };
-
-        Data.prototype.Rvu64 = function () {
-            let left = Math.min(this.len - this.offset, 10);
-            Data.waUa.set(this.ua.subarray(this.offset, this.offset + left), 0);
-            let v = Data.wa.ReadU64(left);
-            let siz = Data.waUa[15];
-            if (siz == 255) throw new Error("Rvu64 out of range");
-            this.offset += siz;
-            return BigInt.asUintN(64, v);
-        };
-
-        Data.prototype.Rvi64 = function () {
-            let left = Math.min(this.len - this.offset, 10);
-            Data.waUa.set(this.ua.subarray(this.offset, this.offset + left), 0);
-            let v = Data.wa.Read64(left);
-            let siz = Data.waUa[15];
-            if (siz == 255) throw new Error("Rvi64 out of range");
-            this.offset += siz;
-            return v;
-        };
-
-        console.log("Data wasm loaded.");
-    }
-    catch (e) {
-        console.log(e);
     }
 }
 

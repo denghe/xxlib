@@ -9,6 +9,17 @@ export class Data {
     ua = null; // new Uint8Array(this.buf);
     ia = null; // new Int8Array(this.buf);
 
+    // wasm 功能扩展( 针对 int64, uint64 啥的 )
+    static wa = function () {
+        let u8a = Uint8Array.from(window.atob(
+            'AGFzbQEAAAABIQdgAXwBf2AAAX9gAX8Bf2ABfAF8YAAAYAJ+fwF/YAF/AAMQDwQBAgIAAAAFAAMDAQYCAQQFAXABAgIFBgEBgAKAAgYJAX8BQbCIwAILB6wBEAZtZW1vcnkCAARHZXRHAAEEUlU2NAACA1I2NAADBFdVNjQABANXNjQABQVUU1U2NAAGBFRTNjQACARUVTY0AAkDVDY0AAoZX19pbmRpcmVjdF9mdW5jdGlvbl90YWJsZQEAC19pbml0aWFsaXplAAAQX19lcnJub19sb2NhdGlvbgAOCXN0YWNrU2F2ZQALDHN0YWNrUmVzdG9yZQAMCnN0YWNrQWxsb2MADQkHAQBBAQsBAAqbBA8DAAELBQBBgAgLWQICfwN+A0AgACABRgRAQVAPCyABQQFqIQIgAUGACGoxAAAiBUL/AIMgA4YgBIQhBCAFQoABg1AEQEGACCAENwMAIAIPCyADQgd8IQMgAiIBQQpHDQALQUgLLAEBfiAAEAIiAEEASgRAQYAIQgBBgAgpAwAiAUIBg30gAUIBiIU3AwALIAALUAICfwF+IAC9IgNCgAFaBEADQCABQYAIaiADp0GAAXI6AAAgAUEBaiEBIANC//8AViECIANCB4ghAyACDQALCyABQYAIaiADPAAAIAFBAWoLFQEBfiAAvSIBQgGGIAFCP4eFvxAECwkAIAC9QQAQBwt5AgR/AX4jAEEgayEEA0AgBCABIgNqIAAgAEIKgCIGQgp+fadBMHI6AAAgA0EBaiEBIABCCVYhAiAGIQAgAg0ACyADQQBOBEBBACECA0AgAkGACGogBCADIAJrai0AADoAACACIANGIQUgAkEBaiECIAVFDQALCyABCykCAX8BfiAAvSICQgBTBH5BgAhBLToAAEEBIQFCACACfQUgAgsgARAHCykAAn4gAEQAAAAAAADwQ2MgAEQAAAAAAAAAAGZxBEAgALEMAQtCAAu/CyYAAn4gAJlEAAAAAAAA4ENjBEAgALAMAQtCgICAgICAgICAfwu/CwQAIwALBgAgACQACxAAIwAgAGtBcHEiACQAIAALBQBBoAgL'
+        ), (v) => v.charCodeAt(0));
+        return new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
+    }();
+    // 指向 wasm.g 的两个常用视图
+    static waUa = new Uint8Array(Data.wa.memory.buffer, Data.wa.GetG(), 32);
+    static waDv = new DataView(Data.wa.memory.buffer, Data.wa.GetG(), 32);
+
     // string 转换器
     static td = new TextDecoder();
     static te = new TextEncoder();
@@ -20,7 +31,7 @@ export class Data {
     n: number;
 
     // 通过 cap 或 TypeArray 复制构造
-    constructor(a) {
+    constructor(a?) {
         let cap, isTypedArray;
         switch (typeof a) {
             case "undefined":
@@ -155,27 +166,20 @@ export class Data {
         this.Wvu(((v |= 0) << 1) ^ (v >> 31));
     }
 
-    // 写入 变长无符号整数( 64b )  BigInt.asUintN(64, ?n);
-    Wvu64(v: bigint) {
+    // 写入 变长无符号整数 (double)uint64
+    Wvu64(v: number) {
         let len = this.Ensure(10);
-        let ua = this.ua;
-        while (v >= 0x80n) {
-            ua[len++] = Number((v & 0x7fn) | 0x80n);
-            v >>= 7n;
-        }
-        ua[len++] = Number(v);
-        this.len = len;
+        let siz = Data.wa.WU64(v);
+        this.ua.set(Data.waUa.slice(0, siz), len);
+        this.len += siz;
     }
 
-    // 写入 变长整数( 64b )   ?n   BigInt(?)
-    Wvi64(v: bigint) {
-        if (v >= 0) {
-            v = BigInt.asUintN(64, v) * 2n;
-        }
-        else {
-            v = BigInt.asUintN(64, -v) * 2n - 1n;
-        }
-        this.Wvu64(v);
+    // 写入 变长整数 (double)int64
+    Wvi64(v: number) {
+        let len = this.Ensure(10);
+        let siz = Data.wa.W64(v);
+        this.ua.set(Data.waUa.slice(0, siz), len);
+        this.len += siz;
     }
 
     // 写入 utf8 string ( 变长siz + text )
@@ -275,26 +279,26 @@ export class Data {
         return ((n >>> 1) ^ -(n & 1)) | 0;
     }
 
-    // 读出 变长无符号整数 BigInt
+    // 读出 变长无符号整数 (double)uint64
     Rvu64() {
-        let v = 0n;
-        let ua = this.ua;
-        let len = this.len;
         let offset = this.offset;
-        for (let shift = 0n; shift < 64n; shift += 7n) {
-            if (offset == len) throw new Error("Rvu64 out of range");
-            let b = BigInt(ua[offset++]);
-            v |= (b & 0x7Fn) << shift;
-            if ((b & 0x80n) == 0n) break;
-        }
-        this.offset = offset;
-        return v;
+        let siz = Math.min(10, this.len - offset);
+        Data.waUa.set(this.ua.slice(offset, offset + siz));
+        let r = Data.wa.RU64(siz);
+        if (r < 0) throw new Error(`Rvu64 error. __LINE__ = ${-r}`);
+        this.offset = offset + r;
+        return Data.waDv.getFloat64(0, true);
     }
 
-    // 读出 变长整数 BigInt
+    // 读出 变长整数 (double)int64
     Rvi64() {
-        let n = this.Rvu64();
-        return BigInt.asIntN(64, (n >> 1n) ^ -BigInt.asIntN(64, n & 1n));
+        let offset = this.offset;
+        let siz = Math.min(10, this.len - offset);
+        Data.waUa.set(this.ua.slice(offset, offset + siz));
+        let r = Data.wa.R64(siz);
+        if (r < 0) throw new Error(`Rvi64 error. __LINE__ = ${-r}`);
+        this.offset = offset + r;
+        return Data.waDv.getFloat64(0, true);
     }
 
     // 读出 string
@@ -314,7 +318,27 @@ export class Data {
     }
 
 
+    // double 转 (double)int64
+    static ToDouble64(v: number) {
+        return Data.wa.T64(v);
+    }
 
+    // double 转 (double)uint64
+    static ToDoubleU64(v: number) {
+        return Data.wa.TU64(v);
+    }
+
+    // (double)int64 tostring
+    static ToString64(v: number) {
+        let siz = Data.wa.TS64(v);
+        return Data.td.decode(Data.waUa.slice(0, siz));
+    }
+
+    // (double)uint64 tostring
+    static ToStringU64(v: number) {
+        let siz = Data.wa.TSU64(v);
+        return Data.td.decode(Data.waUa.slice(0, siz));
+    }
     // 类注册( c 需要从 ObjBase 继承 )
     static Register(c) {
         if (Data.fs[c.typeId]) throw new Error(`duplicate register typeId = ${c.typeId}`);

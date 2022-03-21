@@ -1,78 +1,127 @@
 #include <emscripten/emscripten.h>
 #include <cstdint>
+#include <memory>
 #include <utility>
 
-// 供 js 转为 ByteArray + UInt8Array, 读 + 写 实现 传参 & 返回
-// Write 后从该处复制结果, Read 前复制目标数据到此，Read 后 buf[15] 为 offset 增量
-// 如果 buf[15] 为 255 则表示溢出
-uint8_t buf[16];
+// 映射到 js bytes array 以供函数调用交互
+union Global {
+    uint8_t buf[32];
+    int64_t i;
+    uint64_t u;
+};
+inline static Global g;
 
-inline int64_t ZigZagDecode(uint64_t const& in) {
+
+inline int64_t ZigZagDecode(uint64_t in) {
     return (int64_t)(in >> 1) ^ (-(int64_t)(in & 1));
 }
 
-inline uint64_t ZigZagEncode(int64_t const& in) {
+inline uint64_t ZigZagEncode(int64_t in) {
     return (in << 1) ^ (in >> 63);
 }
 
+inline int ToString(uint64_t n, int idx = 0) {
+    uint8_t buf[32];
+    do {
+        buf[idx++] = n % 10 + 48;
+        n /= 10;
+    } while (n);
+    for (int i = 0; i < idx; ++i) g.buf[i] = buf[idx - i - 1];
+    return idx;
+}
+
 extern "C" {
-    // 从 js 拿 buf 指针
-    uint8_t* EMSCRIPTEN_KEEPALIVE GetBuf() {
-        return buf;
+    // 供 js 拿 g 所在内存偏移地址
+    void* EMSCRIPTEN_KEEPALIVE GetG() {
+        return &g;
     }
 
-    // issue: 下面这个函数还有点问题
-
-    // 从 buf 读出一个 uint64 并返回
-	uint64_t EMSCRIPTEN_KEEPALIVE ReadU64(int leftLen) {
+    /*
+    1. js 先填充最多 10 字节待读数据到 g.buf, len 为实际传递长度
+    2. 函数 7bit 变长 读出 uint64 写入 g.u
+    3. 成功返回 offset. 出错返回 负数 行号
+    */
+	int EMSCRIPTEN_KEEPALIVE RU64(int len) {
         int offset = 0;
         uint64_t u = 0;
-        if (leftLen > 10) leftLen = 10;
         for (int shift = 0; shift < 64; shift += 7) {
-            if (offset == leftLen) break;
-            auto b = (uint64_t)buf[offset++];
+            if (offset == len) return -__LINE__;
+            auto b = (uint64_t)g.buf[offset++];
             u |= uint64_t((b & 0x7Fu) << shift);
             if ((b & 0x80) == 0) {
-                buf[15] = (uint8_t)offset;
-                return u;
+                g.u = u;
+                return offset;
             }
         }
-        buf[15] = 0xFFu;
-        return 0;
+        return -__LINE__;
     }
 
-    // 从 buf 读出一个 int64 并返回
-	int64_t EMSCRIPTEN_KEEPALIVE Read64(int leftLen) {
-        return ZigZagDecode(ReadU64(leftLen));
+    // ReadU64 的 有符号版
+	int EMSCRIPTEN_KEEPALIVE R64(int len) {
+        int r = RU64(len);
+        if (r > 0) {
+            g.i = ZigZagDecode(g.u);
+        }
+        return r;
 	}
-
-    // 向 buf 写入一个 uint64 并返回 写入长度
-    int EMSCRIPTEN_KEEPALIVE WriteU64(uint64_t u) {
+    
+    /*
+        1. 向 g.buf 写入一个 (double)uint64 并返回 写入长度
+        2. js 从 g.buf memcpy 走数据
+    */
+    int EMSCRIPTEN_KEEPALIVE WU64(double d) {
+        auto& u = *(uint64_t*)&d;
         int len = 0;
         while (u >= 1 << 7) {
-            buf[len++] = uint8_t((u & 0x7fu) | 0x80u);
+            g.buf[len++] = uint8_t((u & 0x7fu) | 0x80u);
             u = uint64_t(u >> 7);
         }
-        buf[len++] = uint8_t(u);
+        g.buf[len++] = uint8_t(u);
         return len;
     }
 
-    // 向 buf 写入一个 int64 并返回 写入长度
-    int EMSCRIPTEN_KEEPALIVE Write64(int64_t v) {
-        return WriteU64(ZigZagEncode(v));
+    // WriteU64 的 有符号版
+    int EMSCRIPTEN_KEEPALIVE W64(double d) {
+        auto du = ZigZagEncode(*(int64_t*)&d);
+        return WU64(*(double*)&du);
     }
 
-    // test
-    int EMSCRIPTEN_KEEPALIVE addTwo(int a, int b) {
-        return a + b;
+    /*
+        1. 向 g.buf 写入一个 (double)uint64 的 10 进制 string 并返回 写入长度
+        2. js 从 g.buf memcpy 走数据
+    */
+    int EMSCRIPTEN_KEEPALIVE TSU64(double d) {
+        return ToString(*(uint64_t*)&d);
     }
+
+    // ToStringDU64 的 有符号版
+    int EMSCRIPTEN_KEEPALIVE TS64(double d) {
+        auto& n = *(int64_t*)&d;
+        int idx = 0;
+        if (n < 0) {
+            n = -n;
+            g.buf[idx++] = '-';
+        }
+        return ToString(n, idx);
+    }
+
+    // 正常 double 转为 (double)uint64. 会丢失精度
+    double EMSCRIPTEN_KEEPALIVE TU64(double d) {
+        auto u = (uint64_t)d;
+        return *(double*)&u;
+    }
+
+    // 正常 double 转为 (double)int64. 会丢失精度
+    double EMSCRIPTEN_KEEPALIVE T64(double d) {
+        auto i = (int64_t)d;
+        return *(double*)&i;
+    }
+
+    // todo: 可能需要提供更多的 (double)int64 的运算函数
 }
 
+
 /*
-
-// 提速思路: Data 的 buf 可以直接来自 wasm 的 buf. 这样就能省掉一次 memcpy
-// 甚至 len, offset 也可以内置到 buf 的开头直接交互
-
 
         // 尝试加载 webm 版本的 WriteU64 Write64 实现替换掉 Data 的成员函数( firefox 不替换快一丝 )
         if (navigator.userAgent.toLowerCase().indexOf('firefox') === -1) {

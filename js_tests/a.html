@@ -7,43 +7,59 @@
 
     <script language="javascript">
 
+        //{
+        //    let c = new Lobby_Client_GameClose();
+        //    c.gameIds.push(1, 2, 3);
+
+        //    let d = new Data();
+        //    d.WriteRoot(c);
+        //    console.log(d.View());
+
+        //    let c2 = d.ReadRoot();
+
+        //    console.log(c);
+        //    console.log(c2);
+        //}
+
+
+        //{
+        //    let c = new Lobby_Client_GameOpen();
+        //    let gi = new Generic_GameInfo();
+        //    gi.gameId = 1;
+        //    gi.info = "asdfff";
+        //    c.gameInfos.push(gi);
+        //    gi = new Generic_GameInfo();
+        //    gi.gameId = 2;
+        //    gi.info = "qwerrrr";
+        //    c.gameInfos.push(gi);
+
+        //    let d = new Data();
+        //    d.WriteRoot(c);
+        //    console.log(d.View());
+
+        //    let c2 = d.ReadRoot();
+
+        //    console.log(c);
+        //    console.log(c2);
+        //}
+
+        //{
+        //    let d = Data.ToDouble64(1234567890123);
+        //    console.log(d);
+        //    let s = Data.ToString64(d);
+        //    console.log(s);
+        //}
+
         {
-            let c = new Lobby_Client_GameClose();
-            c.gameIds.push(1, 2, 3);
-
             let d = new Data();
-            d.WriteRoot(c);
+            d.Wvi64(Data.ToDouble64(1));
+            let i = d.Rvi64();
+            console.log(Data.ToString64(i));
+            d.Wvi64(Data.ToDoubleU64(1));
+            let u = d.Rvu64();
+            console.log(Data.ToStringU64(u));
             console.log(d.View());
-
-            let c2 = d.ReadRoot();
-
-            console.log(c);
-            console.log(c2);
         }
-
-
-        {
-            let c = new Lobby_Client_GameOpen();
-            let gi = new Generic_GameInfo();
-            gi.gameId = 1;
-            gi.info = "asdfff";
-            c.gameInfos.push(gi);
-            gi = new Generic_GameInfo();
-            gi.gameId = 2;
-            gi.info = "qwerrrr";
-            c.gameInfos.push(gi);
-
-            let d = new Data();
-            d.WriteRoot(c);
-            console.log(d.View());
-
-            let c2 = d.ReadRoot();
-
-            console.log(c);
-            console.log(c2);
-        }
-
-
 
 
         console.log("done");

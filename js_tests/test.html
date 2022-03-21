@@ -9,41 +9,52 @@
   	<script type="module">
         // 加载 wasm 模块
 
-        let wa = (await WebAssembly.instantiateStreaming(fetch('test.wasm'))).instance.exports;
-
-        //// 创建一个 u/int64 序列化 & 反序列化器 并返回
-        //function CreateSeder64() {
+        //let wa = function () {
         //    let u8a = Uint8Array.from(window.atob(
-        //        'AGFzbQEAAAABIAdgAAF/YAABfmABfgF/YAAAYAJ/fwF/YAF/AGABfwF/AwwLAwABAQICBAAFBgAEBQFwAQICBQYBAYACgAIGCQF/AUGgiMACCwepAQ0GbWVtb3J5AgAGR2V0QnVmAAEHUmVhZFU2NAACBlJlYWQ2NAADCFdyaXRlVTY0AAQHV3JpdGU2NAAFBmFkZFR3bwAGGV9faW5kaXJlY3RfZnVuY3Rpb25fdGFibGUBAAtfaW5pdGlhbGl6ZQAAEF9fZXJybm9fbG9jYXRpb24ACglzdGFja1NhdmUABwxzdGFja1Jlc3RvcmUACApzdGFja0FsbG9jAAkJBwEAQQELAQAKrwILAwABCwUAQYAIC0UCA34BfwJAA0AgA0GACGoxAAAiAkL/AIMgAYYgAIQhACACQoABg1ANASABQgd8IQEgA0EBaiIDQQpHDQALQgAhAAsgAAs0AgF/AX4jAEEQayIAJAAgABACNwMIIAApAwgiAUIBiEIAIAFCAYN9hSEBIABBEGokACABC0sBAn8gAEKAAVoEQANAIAFBgAhqIACnQYABcjoAACABQQFqIQEgAEL//wBWIQIgAEIHiCEAIAINAAsLIAFBgAhqIAA8AAAgAUEBagsxAQJ/IwBBEGsiASQAIAEgADcDCCABKQMIIgBCAYYgAEI/h4UQBCECIAFBEGokACACCwcAIAAgAWoLBAAjAAsGACAAJAALEAAjACAAa0FwcSIAJAAgAAsFAEGQCAs='
+        //        'AGFzbQEAAAABJghgAXwBf2AAAX9gAX8Bf2ABfAF8YAAAYAF/AX5gAn5/AX9gAX8AAxAPBAECBQAAAAYAAwMBBwIBBAUBcAECAgUGAQGAAoACBgkBfwFBsIjAAgsHrAEQBm1lbW9yeQIABEdldEcAAQRSVTY0AAIDUjY0AAMEV1U2NAAEA1c2NAAFBVRTVTY0AAYEVFM2NAAIBFRVNjQACQNUNjQAChlfX2luZGlyZWN0X2Z1bmN0aW9uX3RhYmxlAQALX2luaXRpYWxpemUAABBfX2Vycm5vX2xvY2F0aW9uAA4Jc3RhY2tTYXZlAAsMc3RhY2tSZXN0b3JlAAwKc3RhY2tBbGxvYwANCQcBAEEBCwEACpwEDwMAAQsFAEGACAtZAgJ/A34DQCAAIAFGBEBBUA8LIAFBAWohAiABQYAIajEAACIFQv8AgyADhiAEhCEEIAVCgAGDUARAQYAIIAQ3AwAgAg8LIANCB3whAyACIgFBCkcNAAtBSAstAQF+IAAQAiIAQQBKBEBBgAhCAEGACCkDACIBQgGDfSABQgGIhTcDAAsgAKwLUAICfwF+IAC9IgNCgAFaBEADQCABQYAIaiADp0GAAXI6AAAgAUEBaiEBIANC//8AViECIANCB4ghAyACDQALCyABQYAIaiADPAAAIAFBAWoLFQEBfiAAvSIBQgGGIAFCP4eFvxAECwkAIAC9QQAQBwt5AgR/AX4jAEEgayEEA0AgBCABIgNqIAAgAEIKgCIGQgp+fadBMHI6AAAgA0EBaiEBIABCCVYhAiAGIQAgAg0ACyADQQBOBEBBACECA0AgAkGACGogBCADIAJrai0AADoAACACIANGIQUgAkEBaiECIAVFDQALCyABCykCAX8BfiAAvSICQgBTBH5BgAhBLToAAEEBIQFCACACfQUgAgsgARAHCykAAn4gAEQAAAAAAADwQ2MgAEQAAAAAAAAAAGZxBEAgALEMAQtCAAu/CyYAAn4gAJlEAAAAAAAA4ENjBEAgALAMAQtCgICAgICAgICAfwu/CwQAIwALBgAgACQACxAAIwAgAGtBcHEiACQAIAALBQBBoAgL'
         //    ), (v) => v.charCodeAt(0));
         //    return new WebAssembly.Instance(new WebAssembly.Module(u8a), {}).exports;
-        //}
+        //}();
+        let wa = (await WebAssembly.instantiateStreaming(fetch('test.wasm'))).instance.exports;
 
-        //let wa = CreateSeder64();
-
-        // 映射函数到本地变量以快速调用
-        let GetBuf = wa.GetBuf;
-        let Write64 = wa.Write64;
-        let WriteU64 = wa.WriteU64;
-        let Read64 = wa.Read64;
-        let ReadU64 = wa.ReadU64;
 
         // 定位到 wasm 内存区起始地址 ( ByteArray )
         let bufRoot = wa.memory.buffer;
 
         // 拿到到 wasm 里面的 全局 buf 偏移量
-        let bufOffset = GetBuf();
+        let bufOffset = wa.GetG();
 
         // 创建 buf 的操作视图
-        let ua = new Uint8Array(bufRoot, bufOffset, 16);
+        let ua = new Uint8Array(bufRoot, bufOffset, 32);
+        let dv = new DataView(bufRoot, bufOffset, 32);
 
-        // Write 64
-        let v = -(1n << 62n);
-        let r = Write64(v);
-        console.log(`Write64(${v}) = ${r}`);
-        console.log(`Read64(${r}) = ${Read64(r)}`);
-        console.log(`buf[15] = ${ua[15]}`);
+        // string 转换器
+        let td = new TextDecoder();
+
+        let d64 = wa.T64(1);
+        console.log(d64);
+
+        let siz = wa.TS64(d64);
+        let str = td.decode(ua.slice(0, siz));
+        console.log(str);
+
+        wa.W64(d64);
         console.log(ua);
+
+        let r = wa.R64(1);
+        console.log(r);
+        console.log(ua);
+        let d64_2 = dv.getFloat64(0, true);
+        console.log(d64_2);
+        let str2 = td.decode(ua.slice(0, wa.TS64(d64_2)));
+        console.log(str2);
+
+
+
+        //ua.set([1]);
+        //let d = wa.RU64();
+        //console.log(ua);
+        //console.log(d);
 
         //// Write U64
         //r = WriteU64(1n);
