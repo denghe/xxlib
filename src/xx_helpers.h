@@ -431,6 +431,15 @@ namespace xx {
 
     template<typename T, typename Tuple>
     constexpr size_t TupleTypeIndex_v = TupleTypeIndex<T, Tuple>::value;
+    
+    
+    /************************************************************************************/
+    // 获取指定下标参数
+    
+    template <int I, typename...Args>
+    decltype(auto) GetAt(Args&&...args) {
+        return std::get<I>(std::forward_as_tuple(args...));
+    }
 
 
     /************************************************************************************/
