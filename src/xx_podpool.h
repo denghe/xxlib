@@ -66,8 +66,8 @@ namespace xx {
 		}
 
 		void Clear() {
-			char zeros[sizeof(D)] = { 0 };
 			if (Empty()) return;
+			char zeros[sizeof(D)] = { 0 };
 			while (freeCount) {
 				memset(&pods[freeList], 0, sizeof(D));
 				freeList = *(int*)&pods[freeList];
