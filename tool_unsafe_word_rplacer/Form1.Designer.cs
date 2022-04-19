@@ -46,6 +46,7 @@
             this.mRandomSelected = new System.Windows.Forms.ToolStripMenuItem();
             this.mRandomAll = new System.Windows.Forms.ToolStripMenuItem();
             this.mMoveAllWordsToSafes = new System.Windows.Forms.ToolStripMenuItem();
+            this.mMoveSelectedWordToSafes = new System.Windows.Forms.ToolStripMenuItem();
             this.mHelp = new System.Windows.Forms.ToolStripMenuItem();
             this.mAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.tbIgnores = new System.Windows.Forms.RichTextBox();
@@ -54,6 +55,8 @@
             this.From = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.To = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Nums = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.label5 = new System.Windows.Forms.Label();
+            this.tbResExts = new System.Windows.Forms.RichTextBox();
             this.menuRoot.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgWords)).BeginInit();
             this.SuspendLayout();
@@ -63,9 +66,9 @@
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(10, 25);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(209, 12);
+            this.label1.Size = new System.Drawing.Size(245, 12);
             this.label1.TabIndex = 1;
-            this.label1.Text = "directories: ( \\* mean recursive )";
+            this.label1.Text = "directories: ( # = res, \\* = recursive )";
             // 
             // tbPreview
             // 
@@ -85,13 +88,12 @@
             this.tbDirs.Name = "tbDirs";
             this.tbDirs.Size = new System.Drawing.Size(354, 116);
             this.tbDirs.TabIndex = 0;
-            this.tbDirs.Text = "C:\\Users\\xx\\Documents\\adxe1\nC:\\Users\\xx\\Documents\\adxe2\\*\nC:\\Users\\xx\\Documents\\a" +
-    "dxe3\\*";
+            this.tbDirs.Text = "C:\\Users\\xx\\Documents\\adxe1\\src\\*\n#C:\\Users\\xx\\Documents\\adxe1\\res\\*";
             // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(619, 25);
+            this.label2.Location = new System.Drawing.Point(698, 25);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(41, 12);
             this.label2.TabIndex = 7;
@@ -101,9 +103,9 @@
             // 
             this.tbSafes.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.tbSafes.Location = new System.Drawing.Point(621, 40);
+            this.tbSafes.Location = new System.Drawing.Point(700, 40);
             this.tbSafes.Name = "tbSafes";
-            this.tbSafes.Size = new System.Drawing.Size(601, 116);
+            this.tbSafes.Size = new System.Drawing.Size(522, 116);
             this.tbSafes.TabIndex = 3;
             this.tbSafes.Text = "";
             // 
@@ -146,9 +148,9 @@
             this.label7.AutoSize = true;
             this.label7.Location = new System.Drawing.Point(371, 25);
             this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(35, 12);
+            this.label7.Size = new System.Drawing.Size(65, 12);
             this.label7.TabIndex = 17;
-            this.label7.Text = "exts:";
+            this.label7.Text = "code exts:";
             // 
             // menuRoot
             // 
@@ -160,6 +162,7 @@
             this.mRandomSelected,
             this.mRandomAll,
             this.mMoveAllWordsToSafes,
+            this.mMoveSelectedWordToSafes,
             this.mHelp});
             this.menuRoot.Location = new System.Drawing.Point(0, 0);
             this.menuRoot.Name = "menuRoot";
@@ -169,6 +172,7 @@
             // 
             // mImport
             // 
+            this.mImport.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.mImport.Name = "mImport";
             this.mImport.Size = new System.Drawing.Size(60, 22);
             this.mImport.Text = "&Import";
@@ -183,6 +187,7 @@
             // 
             // mScan
             // 
+            this.mScan.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.mScan.Name = "mScan";
             this.mScan.Size = new System.Drawing.Size(82, 22);
             this.mScan.Text = "&Scan / Run";
@@ -197,6 +202,7 @@
             // 
             // mRandomAll
             // 
+            this.mRandomAll.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.mRandomAll.Name = "mRandomAll";
             this.mRandomAll.Size = new System.Drawing.Size(87, 22);
             this.mRandomAll.Text = "Random &All";
@@ -208,6 +214,14 @@
             this.mMoveAllWordsToSafes.Size = new System.Drawing.Size(160, 22);
             this.mMoveAllWordsToSafes.Text = "&Move all words to safes";
             this.mMoveAllWordsToSafes.Click += new System.EventHandler(this.mMoveAllWordsToSafes_Click);
+            // 
+            // mMoveSelectedWordToSafes
+            // 
+            this.mMoveSelectedWordToSafes.BackColor = System.Drawing.SystemColors.ActiveCaption;
+            this.mMoveSelectedWordToSafes.Name = "mMoveSelectedWordToSafes";
+            this.mMoveSelectedWordToSafes.Size = new System.Drawing.Size(191, 22);
+            this.mMoveSelectedWordToSafes.Text = "move selected &Word to safes";
+            this.mMoveSelectedWordToSafes.Click += new System.EventHandler(this.mMoveSelectedWordToSafes_Click);
             // 
             // mHelp
             // 
@@ -297,11 +311,30 @@
             this.Nums.ReadOnly = true;
             this.Nums.Width = 40;
             // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(621, 25);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(59, 12);
+            this.label5.TabIndex = 21;
+            this.label5.Text = "res exts:";
+            // 
+            // tbResExts
+            // 
+            this.tbResExts.Location = new System.Drawing.Point(621, 40);
+            this.tbResExts.Name = "tbResExts";
+            this.tbResExts.Size = new System.Drawing.Size(73, 116);
+            this.tbResExts.TabIndex = 22;
+            this.tbResExts.Text = ".png\n.jpg\n.webp\n.pkm\n.pkm.gz\n.plist";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1234, 711);
+            this.Controls.Add(this.tbResExts);
+            this.Controls.Add(this.label5);
             this.Controls.Add(this.dgWords);
             this.Controls.Add(this.label8);
             this.Controls.Add(this.tbIgnores);
@@ -352,10 +385,13 @@
         private System.Windows.Forms.ToolStripMenuItem mImport;
         private System.Windows.Forms.ToolStripMenuItem mExport;
         private System.Windows.Forms.ToolStripMenuItem mRandomAll;
-        private System.Windows.Forms.ToolStripMenuItem mMoveAllWordsToSafes;
+        private System.Windows.Forms.ToolStripMenuItem mMoveSelectedWordToSafes;
         private System.Windows.Forms.DataGridViewTextBoxColumn From;
         private System.Windows.Forms.DataGridViewTextBoxColumn To;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.RichTextBox tbResExts;
+        private System.Windows.Forms.ToolStripMenuItem mMoveAllWordsToSafes;
     }
 }
 
