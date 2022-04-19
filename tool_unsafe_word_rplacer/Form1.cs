@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Json;
@@ -35,14 +36,38 @@ namespace UnsafeWordReplacer
         DataTable wordsTable = new DataTable();
 
         /// <summary>
+        /// replaceTo 的集合。用于快速判断是否重复
+        /// </summary>
+        public HashSet<string> replaces = new HashSet<string>();
+
+        /// <summary>
+        /// 随机生成 replaceTo 用
+        /// </summary>
+        public Random rnd = new Random(DateTime.Now.Millisecond);
+
+        /// <summary>
+        /// 随机生成 replaceTo 的字符范围. 首字母不含数字
+        /// </summary>
+        public string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789";
+
+        /// <summary>
+        /// 记录 dgWord 最后焦点行号 以便响应 Random 菜单
+        /// </summary>
+        public int lastWordIndex = -1;
+
+
+        /// <summary>
         /// words -> replaces
         /// </summary>
         public void FillReplacesByWords()
         {
             cfg.replaces.Clear();
+            replaces.Clear();
             foreach (var o in words)
             {
                 cfg.replaces.Add(new UWR.FromTo { from = o.Key, to = o.Value.replaceTo });
+                var ok = replaces.Add(o.Value.replaceTo);
+                Debug.Assert(ok);
             }
         }
 
@@ -88,17 +113,33 @@ namespace UnsafeWordReplacer
 
         private void mRandomAll_Click(object sender, EventArgs e)
         {
-            // todo
+            replaces.Clear();
+            cfg.replaces.Clear();
+            foreach (var kv in words)
+            {
+                kv.Value.replaceTo = GenRandomReplaceWord(kv.Key, false);
+                var ok = replaces.Add(kv.Value.replaceTo);
+                Debug.Assert(ok);
+                cfg.replaces.Add(new UWR.FromTo { from = kv.Key, to = kv.Value.replaceTo });
+            }
+            FillWordsTableByWords();
+            UpdateUI();
         }
 
         private void mAbout_Click(object sender, EventArgs e)
         {
-            // todo
+            MessageBox.Show("Any question, please contact author.", "info", MessageBoxButtons.OK);
         }
 
         private void mRandomSelected_Click(object sender, EventArgs e)
         {
-            // todo
+            var cs = dgWords.Rows[lastWordIndex].Cells;
+            var word = cs[0].Value.ToString();
+            var v = words[word];
+            v.replaceTo = GenRandomReplaceWord(word, false);
+            FillReplacesByWords();
+            wordsTable.Rows[lastWordIndex][1] = v.replaceTo;
+            WordSelected(word);
         }
 
 
@@ -332,6 +373,39 @@ namespace UnsafeWordReplacer
         }
 
 
+        private void dgWords_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != 1) return;
+            var cells = dgWords.Rows[e.RowIndex].Cells;
+            var word = (string)cells[0].Value;
+            var newValue = (string)cells[e.ColumnIndex].Value;
+            if (newValue == word) return;
+            // 重复检查。如果已存在 就要 报错 & 恢复回去
+            if (words.ContainsKey(newValue))
+            {
+                MessageBox.Show("Duplicated !!", "warning", MessageBoxButtons.OK);
+                cells[e.ColumnIndex].Value = word;
+                return;
+            }
+            // 更新并同步
+            words[word].replaceTo = newValue;
+            FillReplacesByWords();
+            WordSelected(word);
+        }
+
+        private void dgWords_RowEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0)
+            {
+                WordSelected(null);
+                lastWordIndex = -1;
+                return;
+            }
+            lastWordIndex = e.RowIndex;
+            var word = (string)dgWords.Rows[e.RowIndex].Cells[0].Value;
+            WordSelected(word);
+        }
+
 
 
         /// <summary>
@@ -432,7 +506,36 @@ namespace UnsafeWordReplacer
             tbIgnores.Text = String.Join("\n", cfg.ignores);
             tbSafes.Text = String.Join(" ", cfg.safes);
             dgWords.DataSource = wordsTable;
+            dgWords.ClearSelection();
+            dgWords.CurrentCell = null;
             WordSelected(null);
+        }
+
+        /// <summary>
+        /// 随机生成一个单词的替换内容。和别的已存在的不重复    // todo: 似乎可根据应用场景替换为 白名单中的等长词汇? 可能需要符合语言语法规则
+        /// </summary>
+        private string GenRandomReplaceWord(string word, bool searchInSafesFirst)
+        {
+            if (searchInSafesFirst)
+            {
+                var oo = from o in cfg.safes where o.Length == word.Length && !replaces.Contains(o) select o;
+                var ss = oo.ToArray();
+                if (ss.Length > 0)
+                {
+                    return ss[rnd.Next(ss.Length)];
+                }
+            }
+            var buf = new char[word.Length];
+            var s = "";
+            do
+            {
+                for (int i = 0; i < word.Length; i++)
+                {
+                    buf[i] = chars[rnd.Next(chars.Length - (i == 0 ? 11 : 1))];
+                }
+                s = new string(buf);
+            } while (replaces.Contains(s));
+            return s;
         }
 
         /// <summary>
@@ -440,6 +543,7 @@ namespace UnsafeWordReplacer
         /// </summary>
         private void WordSelected(string word)
         {
+            tbPreview.ScrollBars = RichTextBoxScrollBars.None;
             tbPreview.Text = "";
             if (word == null) return;
             // 加载所有 含有 word 的文件内容，填充到 tbPreview, 每个文件生成 彩色头部，正文 word 上下行数保留 10 行, word 染色
@@ -469,9 +573,7 @@ namespace UnsafeWordReplacer
                 tbPreview.DeselectAll();
                 tbPreview.SelectionColor = System.Drawing.Color.Blue;
                 tbPreview.SelectionBackColor = System.Drawing.Color.Yellow;
-                tbPreview.AppendText($@"===============================================================================
-{ kv.Key }
-===============================================================================
+                tbPreview.AppendText($@"{ kv.Key }
 ");
                 // 拼接 显示
                 foreach (var n in ns)
@@ -520,37 +622,10 @@ namespace UnsafeWordReplacer
                     }
                 }
             }
+
+            tbPreview.ScrollBars = RichTextBoxScrollBars.Vertical;
         }
 
-        private void dgWords_CellValueChanged(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0 || e.ColumnIndex != 1) return;
-            var cells = dgWords.Rows[e.RowIndex].Cells;
-            var word = (string)cells[0].Value;
-            var newValue = (string)cells[e.ColumnIndex].Value;
-            if (newValue == word) return;
-            // 重复检查。如果已存在 就要 报错 & 恢复回去
-            if (words.ContainsKey(newValue))
-            {
-                MessageBox.Show("Duplicated !!", "warning", MessageBoxButtons.OK);
-                cells[e.ColumnIndex].Value = word;
-                return;
-            }
-            // 更新并同步
-            words[word].replaceTo = newValue;
-            FillReplacesByWords();
-            WordSelected(word);
-        }
 
-        private void dgWords_RowEnter(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0)
-            {
-                WordSelected(null);
-                return;
-            }
-            var word = (string)dgWords.Rows[e.RowIndex].Cells[0].Value;
-            WordSelected(word);
-        }
     }
 }
