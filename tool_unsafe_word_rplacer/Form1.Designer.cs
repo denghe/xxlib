@@ -40,20 +40,20 @@
             this.tbExts = new System.Windows.Forms.RichTextBox();
             this.label7 = new System.Windows.Forms.Label();
             this.menuRoot = new System.Windows.Forms.MenuStrip();
+            this.mImport = new System.Windows.Forms.ToolStripMenuItem();
+            this.mExport = new System.Windows.Forms.ToolStripMenuItem();
+            this.mScan = new System.Windows.Forms.ToolStripMenuItem();
+            this.mRandomSelected = new System.Windows.Forms.ToolStripMenuItem();
+            this.mRandomAll = new System.Windows.Forms.ToolStripMenuItem();
+            this.mMoveAllWordsToSafes = new System.Windows.Forms.ToolStripMenuItem();
             this.mHelp = new System.Windows.Forms.ToolStripMenuItem();
             this.mAbout = new System.Windows.Forms.ToolStripMenuItem();
-            this.mRandomSelected = new System.Windows.Forms.ToolStripMenuItem();
             this.tbIgnores = new System.Windows.Forms.RichTextBox();
             this.label8 = new System.Windows.Forms.Label();
             this.dgWords = new System.Windows.Forms.DataGridView();
             this.From = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.To = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Nums = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.mScan = new System.Windows.Forms.ToolStripMenuItem();
-            this.mImport = new System.Windows.Forms.ToolStripMenuItem();
-            this.mExport = new System.Windows.Forms.ToolStripMenuItem();
-            this.mRandomAll = new System.Windows.Forms.ToolStripMenuItem();
-            this.mMoveAllWordsToSafes = new System.Windows.Forms.ToolStripMenuItem();
             this.menuRoot.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgWords)).BeginInit();
             this.SuspendLayout();
@@ -75,7 +75,7 @@
             this.tbPreview.Location = new System.Drawing.Point(520, 186);
             this.tbPreview.Name = "tbPreview";
             this.tbPreview.ReadOnly = true;
-            this.tbPreview.Size = new System.Drawing.Size(452, 363);
+            this.tbPreview.Size = new System.Drawing.Size(702, 513);
             this.tbPreview.TabIndex = 5;
             this.tbPreview.Text = "";
             // 
@@ -103,7 +103,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tbSafes.Location = new System.Drawing.Point(621, 40);
             this.tbSafes.Name = "tbSafes";
-            this.tbSafes.Size = new System.Drawing.Size(351, 116);
+            this.tbSafes.Size = new System.Drawing.Size(601, 116);
             this.tbSafes.TabIndex = 3;
             this.tbSafes.Text = "";
             // 
@@ -152,6 +152,7 @@
             // 
             // menuRoot
             // 
+            this.menuRoot.ImageScalingSize = new System.Drawing.Size(32, 32);
             this.menuRoot.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mImport,
             this.mExport,
@@ -162,15 +163,58 @@
             this.mHelp});
             this.menuRoot.Location = new System.Drawing.Point(0, 0);
             this.menuRoot.Name = "menuRoot";
-            this.menuRoot.Size = new System.Drawing.Size(984, 25);
+            this.menuRoot.Padding = new System.Windows.Forms.Padding(3, 1, 0, 1);
+            this.menuRoot.Size = new System.Drawing.Size(1234, 24);
             this.menuRoot.TabIndex = 18;
+            // 
+            // mImport
+            // 
+            this.mImport.Name = "mImport";
+            this.mImport.Size = new System.Drawing.Size(60, 22);
+            this.mImport.Text = "&Import";
+            this.mImport.Click += new System.EventHandler(this.mImport_Click);
+            // 
+            // mExport
+            // 
+            this.mExport.Name = "mExport";
+            this.mExport.Size = new System.Drawing.Size(58, 22);
+            this.mExport.Text = "&Export";
+            this.mExport.Click += new System.EventHandler(this.mExport_Click);
+            // 
+            // mScan
+            // 
+            this.mScan.Name = "mScan";
+            this.mScan.Size = new System.Drawing.Size(82, 22);
+            this.mScan.Text = "&Scan / Run";
+            this.mScan.Click += new System.EventHandler(this.mScan_Click);
+            // 
+            // mRandomSelected
+            // 
+            this.mRandomSelected.Name = "mRandomSelected";
+            this.mRandomSelected.Size = new System.Drawing.Size(122, 22);
+            this.mRandomSelected.Text = "&Random Selected";
+            this.mRandomSelected.Click += new System.EventHandler(this.mRandomSelected_Click);
+            // 
+            // mRandomAll
+            // 
+            this.mRandomAll.Name = "mRandomAll";
+            this.mRandomAll.Size = new System.Drawing.Size(87, 22);
+            this.mRandomAll.Text = "Random &All";
+            this.mRandomAll.Click += new System.EventHandler(this.mRandomAll_Click);
+            // 
+            // mMoveAllWordsToSafes
+            // 
+            this.mMoveAllWordsToSafes.Name = "mMoveAllWordsToSafes";
+            this.mMoveAllWordsToSafes.Size = new System.Drawing.Size(160, 22);
+            this.mMoveAllWordsToSafes.Text = "&Move all words to safes";
+            this.mMoveAllWordsToSafes.Click += new System.EventHandler(this.mMoveAllWordsToSafes_Click);
             // 
             // mHelp
             // 
             this.mHelp.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mAbout});
             this.mHelp.Name = "mHelp";
-            this.mHelp.Size = new System.Drawing.Size(47, 21);
+            this.mHelp.Size = new System.Drawing.Size(47, 22);
             this.mHelp.Text = "&Help";
             // 
             // mAbout
@@ -179,13 +223,6 @@
             this.mAbout.Size = new System.Drawing.Size(111, 22);
             this.mAbout.Text = "&About";
             this.mAbout.Click += new System.EventHandler(this.mAbout_Click);
-            // 
-            // mRandomSelected
-            // 
-            this.mRandomSelected.Name = "mRandomSelected";
-            this.mRandomSelected.Size = new System.Drawing.Size(122, 21);
-            this.mRandomSelected.Text = "&Random Selected";
-            this.mRandomSelected.Click += new System.EventHandler(this.mRandomSelected_Click);
             // 
             // tbIgnores
             // 
@@ -216,13 +253,14 @@
             this.To,
             this.Nums});
             this.dgWords.Location = new System.Drawing.Point(12, 186);
+            this.dgWords.MultiSelect = false;
             this.dgWords.Name = "dgWords";
+            this.dgWords.RowHeadersWidth = 33;
             this.dgWords.RowTemplate.Height = 23;
-            this.dgWords.Size = new System.Drawing.Size(502, 363);
+            this.dgWords.Size = new System.Drawing.Size(502, 513);
             this.dgWords.TabIndex = 4;
-            this.dgWords.CellStateChanged += new System.Windows.Forms.DataGridViewCellStateChangedEventHandler(this.dgWords_CellStateChanged);
             this.dgWords.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgWords_CellValueChanged);
-            this.dgWords.RowStateChanged += new System.Windows.Forms.DataGridViewRowStateChangedEventHandler(this.dgWords_RowStateChanged);
+            this.dgWords.RowEnter += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgWords_RowEnter);
             // 
             // From
             // 
@@ -231,6 +269,7 @@
             this.From.Frozen = true;
             this.From.HeaderText = "From";
             this.From.MaxInputLength = 64;
+            this.From.MinimumWidth = 10;
             this.From.Name = "From";
             this.From.ReadOnly = true;
             this.From.Width = 200;
@@ -242,60 +281,27 @@
             this.To.Frozen = true;
             this.To.HeaderText = "To";
             this.To.MaxInputLength = 64;
+            this.To.MinimumWidth = 10;
             this.To.Name = "To";
             this.To.Width = 200;
             // 
             // Nums
             // 
             this.Nums.DataPropertyName = "Nums";
-            this.Nums.FillWeight = 35F;
+            this.Nums.FillWeight = 40F;
             this.Nums.Frozen = true;
             this.Nums.HeaderText = "Nums";
             this.Nums.MaxInputLength = 64;
+            this.Nums.MinimumWidth = 40;
             this.Nums.Name = "Nums";
             this.Nums.ReadOnly = true;
-            this.Nums.Width = 35;
-            // 
-            // mScan
-            // 
-            this.mScan.Name = "mScan";
-            this.mScan.Size = new System.Drawing.Size(82, 21);
-            this.mScan.Text = "&Scan / Run";
-            this.mScan.Click += new System.EventHandler(this.mScan_Click);
-            // 
-            // mImport
-            // 
-            this.mImport.Name = "mImport";
-            this.mImport.Size = new System.Drawing.Size(60, 21);
-            this.mImport.Text = "&Import";
-            this.mImport.Click += new System.EventHandler(this.mImport_Click);
-            // 
-            // mExport
-            // 
-            this.mExport.Name = "mExport";
-            this.mExport.Size = new System.Drawing.Size(58, 21);
-            this.mExport.Text = "&Export";
-            this.mExport.Click += new System.EventHandler(this.mExport_Click);
-            // 
-            // mRandomAll
-            // 
-            this.mRandomAll.Name = "mRandomAll";
-            this.mRandomAll.Size = new System.Drawing.Size(87, 21);
-            this.mRandomAll.Text = "Random &All";
-            this.mRandomAll.Click += new System.EventHandler(this.mRandomAll_Click);
-            // 
-            // mMoveAllWordsToSafes
-            // 
-            this.mMoveAllWordsToSafes.Name = "mMoveAllWordsToSafes";
-            this.mMoveAllWordsToSafes.Size = new System.Drawing.Size(160, 21);
-            this.mMoveAllWordsToSafes.Text = "&Move all words to safes";
-            this.mMoveAllWordsToSafes.Click += new System.EventHandler(this.mMoveAllWordsToSafes_Click);
+            this.Nums.Width = 40;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(984, 561);
+            this.ClientSize = new System.Drawing.Size(1234, 711);
             this.Controls.Add(this.dgWords);
             this.Controls.Add(this.label8);
             this.Controls.Add(this.tbIgnores);
@@ -311,7 +317,7 @@
             this.Controls.Add(this.menuRoot);
             this.MainMenuStrip = this.menuRoot;
             this.Margin = new System.Windows.Forms.Padding(2);
-            this.MinimumSize = new System.Drawing.Size(1000, 600);
+            this.MinimumSize = new System.Drawing.Size(1250, 750);
             this.Name = "Form1";
             this.Text = "Unsafe Word Replacer";
             this.Load += new System.EventHandler(this.Form1_Load);
@@ -342,14 +348,14 @@
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.DataGridView dgWords;
         private System.Windows.Forms.ToolStripMenuItem mRandomSelected;
-        private System.Windows.Forms.DataGridViewTextBoxColumn From;
-        private System.Windows.Forms.DataGridViewTextBoxColumn To;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
         private System.Windows.Forms.ToolStripMenuItem mScan;
         private System.Windows.Forms.ToolStripMenuItem mImport;
         private System.Windows.Forms.ToolStripMenuItem mExport;
         private System.Windows.Forms.ToolStripMenuItem mRandomAll;
         private System.Windows.Forms.ToolStripMenuItem mMoveAllWordsToSafes;
+        private System.Windows.Forms.DataGridViewTextBoxColumn From;
+        private System.Windows.Forms.DataGridViewTextBoxColumn To;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
     }
 }
 

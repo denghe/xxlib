@@ -18,16 +18,16 @@ namespace UnsafeWordReplacer
         /// </summary>
         List<string> files = new List<string>();
 
-        public class ReplaceToFileLineNumber
+        public class ReplaceToFileLineNumberFromTo
         {
             public string replaceTo = "";
-            public Dictionary<string, HashSet<int>> fileLineNumbers = new Dictionary<string, HashSet<int>>();
+            public Dictionary<string, Dictionary<int, List<int>>> fileLineNumbers = new Dictionary<string, Dictionary<int, List<int>>>();
         }
 
         /// <summary>
         /// 用来记录所有要替换的词. Dictionary(词, Tuple(替换为, Dictionary(文件名, 行号)))
         /// </summary>
-        Dictionary<string, ReplaceToFileLineNumber> words = new Dictionary<string, ReplaceToFileLineNumber>();
+        Dictionary<string, ReplaceToFileLineNumberFromTo> words = new Dictionary<string, ReplaceToFileLineNumberFromTo>();
 
         /// <summary>
         /// 用于 datagrid 数据源 bind 显示
@@ -112,9 +112,9 @@ namespace UnsafeWordReplacer
                 // todo: fill words & wordsTable
                 words.Clear();
                 wordsTable.Clear();
-                foreach(var o in cfg.replaces)
+                foreach (var o in cfg.replaces)
                 {
-                    words.Add(o.from, new ReplaceToFileLineNumber { replaceTo = o.to });
+                    words.Add(o.from, new ReplaceToFileLineNumberFromTo { replaceTo = o.to });
                 }
                 FillWordsTableByWords();
                 UpdateUI();
@@ -259,19 +259,27 @@ namespace UnsafeWordReplacer
             // 按 \n 切割成行，trim 掉前后 空格\t\r\n, 再 扫出 连续 2 个以上长度字符在 大小写a-z, 0-9, _ 的
             // 需要记录原始行号
 
-            // 数据格式 Dict<word, Dict<file name, List<line number>>>
-            //words.Clear();
+
+            foreach (var o in words.Keys.ToArray())
+            {
+                if (cfg.safes.Contains(o))
+                {
+                    words.Remove(o);
+                }
+            }
+
+
             foreach (var f in files)
             {
                 var ss = File.ReadAllLines(f, Encoding.UTF8);
                 for (int i = 0; i < ss.Length; i++)
                 {
-                    var line = ss[i].Trim(' ', '\t', '\r', '\n');
+                    var line = ss[i];//.Trim(' ', '\t', '\r', '\n');
                     int x = -1;
                     for (int j = 0; j < line.Length; j++)
                     {
                         var c = line[j];
-                        if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_')
+                        if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || c == '-')
                         {
                             if (x == -1)
                             {
@@ -285,20 +293,26 @@ namespace UnsafeWordReplacer
                                 var word = line.Substring(x, j - x);
                                 if (!cfg.safes.Contains(word))
                                 {
-                                    ReplaceToFileLineNumber fileLineNumbers;
-                                    HashSet<int> lineNumbers;
+                                    ReplaceToFileLineNumberFromTo fileLineNumbers;
+                                    Dictionary<int, List<int>> lineNumbers;
+                                    List<int> idxs;
                                     if (!words.TryGetValue(word, out fileLineNumbers))
                                     {
-                                        fileLineNumbers = new ReplaceToFileLineNumber();
+                                        fileLineNumbers = new ReplaceToFileLineNumberFromTo();
                                         fileLineNumbers.replaceTo = word;
                                         words.Add(word, fileLineNumbers);
                                     }
                                     if (!fileLineNumbers.fileLineNumbers.TryGetValue(f, out lineNumbers))
                                     {
-                                        lineNumbers = new HashSet<int>();
+                                        lineNumbers = new Dictionary<int, List<int>>();
                                         fileLineNumbers.fileLineNumbers.Add(f, lineNumbers);
                                     }
-                                    lineNumbers.Add(i);
+                                    if (!lineNumbers.TryGetValue(i, out idxs))
+                                    {
+                                        idxs = new List<int>();
+                                        lineNumbers.Add(i, idxs);
+                                    }
+                                    idxs.Add(x);
                                 }
                             }
                             x = -1;
@@ -426,51 +440,116 @@ namespace UnsafeWordReplacer
         /// </summary>
         private void WordSelected(string word)
         {
-            if (word == null)
+            tbPreview.Text = "";
+            if (word == null) return;
+            // 加载所有 含有 word 的文件内容，填充到 tbPreview, 每个文件生成 彩色头部，正文 word 上下行数保留 10 行, word 染色
+            var info = words[word];
+            var ns = new HashSet<int>();
+            foreach (var kv in info.fileLineNumbers)
             {
-                tbPreview.Text = "";
-            }
-            else
-            {
-                // todo: 加载所有 含有 word 的文件内容，填充到 tbPreview, 每个文件生成 彩色头部，正文 word 上下行数保留 10 行, word 染色
-                var info = words[word];
-                foreach(var kv in info.fileLineNumbers)
+                // 读出所有行
+                var lines = File.ReadLines(kv.Key).ToArray();
+
+                // 算行号. 保留 上下 各 ? 行. 合并重复的行
+                ns.Clear();
+                foreach (var n in kv.Value)
                 {
-                    var lines = File.ReadLines(kv.Key);
-                    tbPreview.Text = "";
-                    // todo
-                    // 追加 文件名
-                    // 每行前面加行号
-                    // word 替换处 染色
-                    tbPreview.Text = String.Join("\n", lines);
+                    var begin = n.Key - 8;
+                    var end = n.Key + 8;
+                    if (begin < 0) begin = 0;
+                    if (end >= lines.Length) end = lines.Length - 1;
+
+                    for (int i = begin; i <= end; i++)
+                    {
+                        ns.Add(i);
+                    }
                 }
-            }
-        }
 
-        private void dgWords_RowStateChanged(object sender, DataGridViewRowStateChangedEventArgs e)
-        {
-            if(e.StateChanged == DataGridViewElementStates.Selected)
-            {
-                WordSelected((string)e.Row.Cells[0].Value);
-            }
-        }
-
-        private void dgWords_CellStateChanged(object sender, DataGridViewCellStateChangedEventArgs e)
-        {
-            if (e.StateChanged == DataGridViewElementStates.Selected)
-            {
-                WordSelected((string)e.Cell.OwningRow.Cells[0].Value);
+                // 彩色头部, 包含文件路径
+                tbPreview.DeselectAll();
+                tbPreview.SelectionColor = System.Drawing.Color.Blue;
+                tbPreview.SelectionBackColor = System.Drawing.Color.Yellow;
+                tbPreview.AppendText($@"===============================================================================
+{ kv.Key }
+===============================================================================
+");
+                // 拼接 显示
+                foreach (var n in ns)
+                {
+                    // 行号染色
+                    {
+                        var s = (n + 1).ToString();
+                        s += new string(' ', 7 - s.Length);
+                        tbPreview.SelectionColor = System.Drawing.Color.Blue;
+                        tbPreview.AppendText(s);
+                    }
+                    // 关键字染色 并替换显示
+                    // 已知问题：下列代码只替换了当前关键字。如果附近还有别的要替换，并不体现
+                    if (kv.Value.ContainsKey(n))
+                    {
+                        var L = lines[n];
+                        var idxs = kv.Value[n];
+                        int i = 0;
+                        foreach (var idx in idxs)
+                        {
+                            if (idx > i)
+                            {
+                                var s = L.Substring(i, idx - i);
+                                tbPreview.SelectionColor = System.Drawing.Color.Black;
+                                tbPreview.SelectionBackColor = System.Drawing.Color.White;
+                                tbPreview.AppendText(s);
+                            }
+                            tbPreview.SelectionColor = System.Drawing.Color.White;
+                            tbPreview.SelectionBackColor = System.Drawing.Color.BlueViolet;
+                            tbPreview.AppendText(info.replaceTo);
+                            i = idx + word.Length;
+                        }
+                        tbPreview.SelectionColor = System.Drawing.Color.Black;
+                        tbPreview.SelectionBackColor = System.Drawing.Color.White;
+                        if (i < L.Length - 1)
+                        {
+                            tbPreview.AppendText(L.Substring(i));
+                        }
+                        tbPreview.AppendText("\r\n");
+                    }
+                    else
+                    {
+                        tbPreview.SelectionColor = System.Drawing.Color.Black;
+                        tbPreview.SelectionBackColor = System.Drawing.Color.White;
+                        tbPreview.AppendText(lines[n] + "\r\n");
+                    }
+                }
             }
         }
 
         private void dgWords_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != 1) return;
-            var word = (string)dgWords.Rows[e.RowIndex].Cells[0].Value;
-            var newValue = (string)dgWords.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
-            // todo: 重复检查。如果已存在 就要 恢复回去
+            var cells = dgWords.Rows[e.RowIndex].Cells;
+            var word = (string)cells[0].Value;
+            var newValue = (string)cells[e.ColumnIndex].Value;
+            if (newValue == word) return;
+            // 重复检查。如果已存在 就要 报错 & 恢复回去
+            if (words.ContainsKey(newValue))
+            {
+                MessageBox.Show("Duplicated !!", "warning", MessageBoxButtons.OK);
+                cells[e.ColumnIndex].Value = word;
+                return;
+            }
+            // 更新并同步
             words[word].replaceTo = newValue;
             FillReplacesByWords();
+            WordSelected(word);
+        }
+
+        private void dgWords_RowEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0)
+            {
+                WordSelected(null);
+                return;
+            }
+            var word = (string)dgWords.Rows[e.RowIndex].Cells[0].Value;
             WordSelected(word);
         }
     }
