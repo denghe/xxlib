@@ -47,6 +47,7 @@
             this.mRandomAll = new System.Windows.Forms.ToolStripMenuItem();
             this.mMoveAllWordsToSafes = new System.Windows.Forms.ToolStripMenuItem();
             this.mMoveSelectedWordToSafes = new System.Windows.Forms.ToolStripMenuItem();
+            this.mDeleteSelectedWords = new System.Windows.Forms.ToolStripMenuItem();
             this.mHelp = new System.Windows.Forms.ToolStripMenuItem();
             this.mAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.tbIgnores = new System.Windows.Forms.RichTextBox();
@@ -66,9 +67,9 @@
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(10, 25);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(245, 12);
+            this.label1.Size = new System.Drawing.Size(299, 12);
             this.label1.TabIndex = 1;
-            this.label1.Text = "directories: ( # = res, \\* = recursive )";
+            this.label1.Text = "directories: ( # = rem, ! = res, \\* = recursive )";
             // 
             // tbPreview
             // 
@@ -88,7 +89,7 @@
             this.tbDirs.Name = "tbDirs";
             this.tbDirs.Size = new System.Drawing.Size(354, 116);
             this.tbDirs.TabIndex = 0;
-            this.tbDirs.Text = "C:\\Users\\xx\\Documents\\adxe1\\src\\*\n#C:\\Users\\xx\\Documents\\adxe1\\res\\*";
+            this.tbDirs.Text = "C:\\Users\\xx\\Documents\\adxe1\\src\\*\n!C:\\Users\\xx\\Documents\\adxe1\\res\\*\n#asdfqwer";
             // 
             // label2
             // 
@@ -141,7 +142,7 @@
             this.tbExts.Name = "tbExts";
             this.tbExts.Size = new System.Drawing.Size(73, 116);
             this.tbExts.TabIndex = 1;
-            this.tbExts.Text = ".cpp\n.lua\n.h\n.inc\n.cs";
+            this.tbExts.Text = ".cpp\n.lua\n.h\n.inc\n.cs\n.plist";
             // 
             // label7
             // 
@@ -163,6 +164,7 @@
             this.mRandomAll,
             this.mMoveAllWordsToSafes,
             this.mMoveSelectedWordToSafes,
+            this.mDeleteSelectedWords,
             this.mHelp});
             this.menuRoot.Location = new System.Drawing.Point(0, 0);
             this.menuRoot.Name = "menuRoot";
@@ -223,8 +225,16 @@
             this.mMoveSelectedWordToSafes.Text = "move selected &Word to safes";
             this.mMoveSelectedWordToSafes.Click += new System.EventHandler(this.mMoveSelectedWordToSafes_Click);
             // 
+            // mDeleteSelectedWords
+            // 
+            this.mDeleteSelectedWords.Name = "mDeleteSelectedWords";
+            this.mDeleteSelectedWords.Size = new System.Drawing.Size(149, 22);
+            this.mDeleteSelectedWords.Text = "&Delete selected words";
+            this.mDeleteSelectedWords.Click += new System.EventHandler(this.mDeleteSelectedWords_Click);
+            // 
             // mHelp
             // 
+            this.mHelp.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.mHelp.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mAbout});
             this.mHelp.Name = "mHelp";
@@ -258,7 +268,10 @@
             // 
             // dgWords
             // 
+            this.dgWords.AllowUserToDeleteRows = false;
             this.dgWords.AllowUserToOrderColumns = true;
+            this.dgWords.AllowUserToResizeColumns = false;
+            this.dgWords.AllowUserToResizeRows = false;
             this.dgWords.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
             this.dgWords.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
@@ -267,7 +280,6 @@
             this.To,
             this.Nums});
             this.dgWords.Location = new System.Drawing.Point(12, 186);
-            this.dgWords.MultiSelect = false;
             this.dgWords.Name = "dgWords";
             this.dgWords.RowHeadersWidth = 33;
             this.dgWords.RowTemplate.Height = 23;
@@ -286,6 +298,7 @@
             this.From.MinimumWidth = 10;
             this.From.Name = "From";
             this.From.ReadOnly = true;
+            this.From.Resizable = System.Windows.Forms.DataGridViewTriState.False;
             this.From.Width = 200;
             // 
             // To
@@ -297,6 +310,7 @@
             this.To.MaxInputLength = 64;
             this.To.MinimumWidth = 10;
             this.To.Name = "To";
+            this.To.Resizable = System.Windows.Forms.DataGridViewTriState.False;
             this.To.Width = 200;
             // 
             // Nums
@@ -309,6 +323,7 @@
             this.Nums.MinimumWidth = 40;
             this.Nums.Name = "Nums";
             this.Nums.ReadOnly = true;
+            this.Nums.Resizable = System.Windows.Forms.DataGridViewTriState.False;
             this.Nums.Width = 40;
             // 
             // label5
@@ -326,7 +341,7 @@
             this.tbResExts.Name = "tbResExts";
             this.tbResExts.Size = new System.Drawing.Size(73, 116);
             this.tbResExts.TabIndex = 22;
-            this.tbResExts.Text = ".png\n.jpg\n.webp\n.pkm\n.pkm.gz\n.plist";
+            this.tbResExts.Text = ".png\n.jpg\n.webp\n.pkm\n.pkm.gz\n.plist\n.lua";
             // 
             // Form1
             // 
@@ -386,12 +401,13 @@
         private System.Windows.Forms.ToolStripMenuItem mExport;
         private System.Windows.Forms.ToolStripMenuItem mRandomAll;
         private System.Windows.Forms.ToolStripMenuItem mMoveSelectedWordToSafes;
-        private System.Windows.Forms.DataGridViewTextBoxColumn From;
-        private System.Windows.Forms.DataGridViewTextBoxColumn To;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.RichTextBox tbResExts;
         private System.Windows.Forms.ToolStripMenuItem mMoveAllWordsToSafes;
+        private System.Windows.Forms.DataGridViewTextBoxColumn From;
+        private System.Windows.Forms.DataGridViewTextBoxColumn To;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
+        private System.Windows.Forms.ToolStripMenuItem mDeleteSelectedWords;
     }
 }
 

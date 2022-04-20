@@ -36,6 +36,7 @@ namespace UnsafeWordReplacer
         /// 用于 datagrid 数据源 bind 显示
         /// </summary>
         DataTable wordsTable = new DataTable();
+        DataTable emptyWordsTable = new DataTable();
 
         /// <summary>
         /// replaceTo 的集合。用于快速判断是否重复
@@ -57,6 +58,11 @@ namespace UnsafeWordReplacer
         /// </summary>
         public int lastWordIndex = -1;
 
+        /// <summary>
+        /// warnings
+        /// </summary>
+        public List<string> warnings = new List<string>();
+
 
         public Form1()
         {
@@ -65,7 +71,15 @@ namespace UnsafeWordReplacer
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            //mScan_Click(null, null);
+            emptyWordsTable.Columns.Add(new DataColumn("From"));
+            emptyWordsTable.Columns.Add(new DataColumn("To"));
+            emptyWordsTable.Columns.Add(new DataColumn("Nums"));
+
+            wordsTable.Columns.Add(new DataColumn("From"));
+            wordsTable.Columns.Add(new DataColumn("To"));
+            wordsTable.Columns.Add(new DataColumn("Nums"));
+
+            dgWords.DataSource = emptyWordsTable;
         }
 
         private void mExport_Click(object sender, EventArgs e)
@@ -132,30 +146,108 @@ namespace UnsafeWordReplacer
 
         private void mMoveAllWordsToSafes_Click(object sender, EventArgs e)
         {
-            if (MessageBox.Show("Are you sure you want to add all words to the safe list?", "warning", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            bool hasRes = false;
+            foreach (var v in words.Values)
+            {
+                if (v.resFilePaths.Count > 0)
+                {
+                    hasRes = true;
+                    break;
+                }
+            }
+            DialogResult r = DialogResult.No;
+            if (hasRes)
+            {
+                r = MessageBox.Show("Contain res file name & path words ?", "warning", MessageBoxButtons.YesNo);
+            }
+            if (r == DialogResult.No)
+            {
+                foreach (var k in words.Keys.ToArray())
+                {
+                    if (words[k].resFilePaths.Count > 0) continue;
+                    cfg.safes.Add(k);
+                    words.Remove(k);
+                }
+            }
+            else
             {
                 foreach (var o in words)
                 {
                     cfg.safes.Add(o.Key);
                 }
                 words.Clear();
-                FillReplacesByWords();
-                FillWordsTableByWords();
-                UpdateUI();
             }
+            FillReplacesByWords();
+            FillWordsTableByWords();
+            UpdateUI();
+        }
+
+        private string[] GetSelectedWords()
+        {
+            var src = dgWords.SelectedRows.Count;
+            var scc = dgWords.SelectedCells.Count;
+            if (src + scc == 0) return null;
+
+            var ws = new HashSet<string>();
+            if (src > 0)
+            {
+                foreach (DataGridViewRow row in dgWords.SelectedRows)
+                {
+                    ws.Add((string)row.Cells[0].Value);
+                }
+            }
+            else
+            {
+                foreach (DataGridViewCell cell in dgWords.SelectedCells)
+                {
+                    ws.Add((string)dgWords.Rows[cell.RowIndex].Cells[0].Value);
+                }
+            }
+
+            return ws.Where(o => o != null).ToArray();
         }
 
         private void mMoveSelectedWordToSafes_Click(object sender, EventArgs e)
         {
-            // todo: 从各个容器逐个删除
-            //words.Clear();
-            //FillReplacesByWords();
-            //FillWordsTableByWords();
-            //UpdateUI();
+            var ss = GetSelectedWords();
+            if (ss == null) return;
+
+            foreach (var s in ss)
+            {
+                var r = cfg.safes.Add(s);
+                Debug.Assert(r);
+
+                words.Remove(s);
+            }
+            FillReplacesByWords();
+            FillWordsTableByWords();
+            UpdateUI();
+        }
+
+
+        private void mDeleteSelectedWords_Click(object sender, EventArgs e)
+        {
+            var ss = GetSelectedWords();
+            if (ss == null) return;
+
+            foreach (var s in ss)
+            {
+                words.Remove(s);
+            }
+            FillReplacesByWords();
+            FillWordsTableByWords();
+            UpdateUI();
         }
 
         private void mScan_Click(object sender, EventArgs e)
         {
+            // clean up
+            foreach (var o in words)
+            {
+                o.Value.resFilePaths.Clear();
+                o.Value.fileLineNumbers.Clear();
+            }
+
             // 导入忽略列表
             FillStrings(cfg.ignores, tbIgnores.Text);
 
@@ -244,6 +336,8 @@ namespace UnsafeWordReplacer
             // 扫原始列表
             foreach (var s in cfg.dirs)
             {
+                if (s.StartsWith("#")) continue;
+
                 var dir = s;
                 bool recursive = false;
                 bool isRes = false;
@@ -260,11 +354,12 @@ namespace UnsafeWordReplacer
                     recursive = true;
                 }
 
-                if (dir.StartsWith("#"))
+                if (dir.StartsWith("!"))
                 {
                     dir = dir.Substring(1);
                     isRes = true;
                 }
+
 
                 if (!Directory.Exists(dir))
                 {
@@ -281,14 +376,16 @@ namespace UnsafeWordReplacer
                     dirs.Add(dir);
                     dirIsRess.Add(isRes);
                 }
-
-                if (isRes)
-                {
-                    FillRess(dir);
-                }
                 else
                 {
-                    FillFiles(dir);
+                    if (isRes)
+                    {
+                        FillRess(dir);
+                    }
+                    else
+                    {
+                        FillFiles(dir);
+                    }
                 }
             }
 
@@ -337,54 +434,7 @@ namespace UnsafeWordReplacer
 
             foreach (var f in files)
             {
-                var ss = File.ReadAllLines(f, Encoding.UTF8);
-                for (int i = 0; i < ss.Length; i++)
-                {
-                    var line = ss[i];//.Trim(' ', '\t', '\r', '\n');
-                    int x = -1;
-                    for (int j = 0; j < line.Length; j++)
-                    {
-                        var c = line[j];
-                        if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || c == '-')
-                        {
-                            if (x == -1)
-                            {
-                                x = j;
-                            }
-                        }
-                        else if (x != -1)
-                        {
-                            if (j - x > 1)
-                            {
-                                var word = line.Substring(x, j - x);
-                                if (!cfg.safes.Contains(word))
-                                {
-                                    ReplaceToFileLineNumberFromTo fileLineNumbers;
-                                    Dictionary<int, List<int>> lineNumbers;
-                                    List<int> idxs;
-                                    if (!words.TryGetValue(word, out fileLineNumbers))
-                                    {
-                                        fileLineNumbers = new ReplaceToFileLineNumberFromTo();
-                                        fileLineNumbers.replaceTo = word;
-                                        words.Add(word, fileLineNumbers);
-                                    }
-                                    if (!fileLineNumbers.fileLineNumbers.TryGetValue(f, out lineNumbers))
-                                    {
-                                        lineNumbers = new Dictionary<int, List<int>>();
-                                        fileLineNumbers.fileLineNumbers.Add(f, lineNumbers);
-                                    }
-                                    if (!lineNumbers.TryGetValue(i, out idxs))
-                                    {
-                                        idxs = new List<int>();
-                                        lineNumbers.Add(i, idxs);
-                                    }
-                                    idxs.Add(x);
-                                }
-                            }
-                            x = -1;
-                        }
-                    }
-                }
+                FillFileWords(f);
             }
 
             // 写入导出 json 要用的字段
@@ -395,6 +445,13 @@ namespace UnsafeWordReplacer
 
             // 绑定显示
             dgWords.DataSource = wordsTable;
+
+            // 如果有警告就提示
+            if (warnings.Count > 0)
+            {
+                MessageBox.Show(string.Join("\n", warnings));
+                warnings.Clear();
+            }
         }
 
 
@@ -431,7 +488,73 @@ namespace UnsafeWordReplacer
             WordSelected(word);
         }
 
+        /// <summary>
+        /// 返回 s 是否是个数字
+        /// </summary>
+        private bool IsNumber(string s)
+        {
+            if (s.All(o => o >= '0' && o <= '9')) return true;
+            s = s.ToLower();
+            if (s.StartsWith("0x") || s.StartsWith("0b"))
+            {
+                s = s.Substring(2);
+                if (s.All(o => o >= '0' && o <= '9' || o >= 'a' && o <= 'f')) return true;
+            }
+            if (s.EndsWith("e") && s.Substring(0, s.Length - 1).All(o => o >= '0' && o <= '9')) return true;
+            return false;
+        }
 
+        private void FillFileWords(string f)
+        {
+            var ss = File.ReadAllLines(f, Encoding.UTF8);
+            for (int i = 0; i < ss.Length; i++)
+            {
+                var line = ss[i];//.Trim(' ', '\t', '\r', '\n');
+                int x = -1;
+                for (int j = 0; j < line.Length; j++)
+                {
+                    var c = line[j];
+                    if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_')
+                    {
+                        if (x == -1)
+                        {
+                            x = j;
+                        }
+                    }
+                    else if (x != -1)
+                    {
+                        if (j - x > 1)
+                        {
+                            var word = line.Substring(x, j - x);
+                            if (!IsNumber(word) && !cfg.safes.Contains(word))
+                            {
+                                ReplaceToFileLineNumberFromTo fileLineNumbers;
+                                Dictionary<int, List<int>> lineNumbers;
+                                List<int> idxs;
+                                if (!words.TryGetValue(word, out fileLineNumbers))
+                                {
+                                    fileLineNumbers = new ReplaceToFileLineNumberFromTo();
+                                    fileLineNumbers.replaceTo = word;
+                                    words.Add(word, fileLineNumbers);
+                                }
+                                if (!fileLineNumbers.fileLineNumbers.TryGetValue(f, out lineNumbers))
+                                {
+                                    lineNumbers = new Dictionary<int, List<int>>();
+                                    fileLineNumbers.fileLineNumbers.Add(f, lineNumbers);
+                                }
+                                if (!lineNumbers.TryGetValue(i, out idxs))
+                                {
+                                    idxs = new List<int>();
+                                    lineNumbers.Add(i, idxs);
+                                }
+                                idxs.Add(x);
+                            }
+                        }
+                        x = -1;
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// 将 content 按 \n 切割 并 trim, 去重后塞入 tar. 塞前 clear
@@ -453,6 +576,31 @@ namespace UnsafeWordReplacer
         }
 
         /// <summary>
+        /// 提取文件扩展名( 倒着找 . 并记录位置, 直到遇到 \ 停止，从最后 . 的位置切割 )
+        /// </summary>
+        private string GetFileExt(string fn)
+        {
+            if (fn == null || fn.Length == 0) return "";
+            int pos = -1;
+            for (int i = fn.Length - 1; i >= 0; i--)
+            {
+                switch (fn[i])
+                {
+                    case '.':
+                        pos = i;
+                        break;
+                    case '\\':
+                        goto TheEnd;
+                    default:
+                        continue;
+                }
+            }
+        TheEnd:
+            if (pos == -1) return "";
+            return fn.Substring(pos);
+        }
+
+        /// <summary>
         /// 将指定目录下所有文件( 表层 ) path 塞到 files
         /// </summary>
         private void FillFiles(string dir)
@@ -461,9 +609,7 @@ namespace UnsafeWordReplacer
             foreach (var f in fs)
             {
                 var s = f.Replace("/", "\\").Replace("\\\\", "\\");
-                var i = s.LastIndexOf('.');
-                if (i == -1) continue;  // 已知问题: 暂不支持无扩展名文件
-                var ext = s.Substring(i, f.Length - i);
+                var ext = GetFileExt(s).ToLower();
                 if (cfg.exts.Contains(ext))
                 {
                     files.Add(s);
@@ -476,33 +622,68 @@ namespace UnsafeWordReplacer
         /// </summary>
         private void FillRess(string dir)
         {
-            // 处理逻辑：资源文件名 如果不在白名单，在代码中要能定位到。如果不能 则属于异常行为
-            var fs = Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly);
+            var fs = Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly).ToArray();
+            dir = dir.Replace("/", "\\").Replace("\\\\", "\\");
             foreach (var f in fs)
             {
                 var path = f.Replace("/", "\\").Replace("\\\\", "\\");
+
+                // 顺便检查 路径, 文件名 是否符合规范（ 全小写_蛇 )
+                var tmp = path.Substring(dir.Length).Replace("\\", "").Replace(".", "");
+                if (tmp.Any(o => !(o >= '0' && o <= '9' || o >= 'a' && o <= 'z' || o == '_')))
+                {
+                    warnings.Add("bad res path( 0-9 a-z _ ): " + path);
+                }
+
                 var s = path;
-                var i = s.LastIndexOf('.');
-                if (i == -1) continue;  // 已知问题: 暂不支持无扩展名文件
-                var ext = f.Substring(i, f.Length - i);
+                var ext = GetFileExt(s).ToLower();
                 if (cfg.resExts.Contains(ext))
                 {
-                    s = s.Substring(0, i);
-                    i = s.LastIndexOf('\\');
+                    s = s.Substring(0, s.Length - ext.Length);
+                    var i = s.LastIndexOf('\\');
                     s = s.Substring(i + 1);
-
-                    var word = s;
-                    if (!cfg.safes.Contains(word))
                     {
-                        ReplaceToFileLineNumberFromTo fileLineNumbers;
-                        if (!words.TryGetValue(word, out fileLineNumbers))
+                        var word = s;
+                        if (!cfg.safes.Contains(word))
                         {
-                            fileLineNumbers = new ReplaceToFileLineNumberFromTo();
-                            fileLineNumbers.replaceTo = word;
-                            words.Add(word, fileLineNumbers);
+                            ReplaceToFileLineNumberFromTo fileLineNumbers;
+                            if (!words.TryGetValue(word, out fileLineNumbers))
+                            {
+                                fileLineNumbers = new ReplaceToFileLineNumberFromTo();
+                                fileLineNumbers.replaceTo = word;
+                                words.Add(word, fileLineNumbers);
+                            }
+                            fileLineNumbers.resFilePaths.Add(path);
                         }
-                        fileLineNumbers.resFilePaths.Add(path);
                     }
+
+                    // 目录名 切割后 纳入 words
+                    var subPath = path.Substring(dir.Length, path.Length - dir.Length - s.Length - ext.Length);
+                    var ww = subPath.Split(new char[] { '\\', '.' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (ww.Length > 0)
+                    {
+                        foreach (var word in ww)
+                        {
+                            if (!cfg.safes.Contains(word))
+                            {
+                                ReplaceToFileLineNumberFromTo fileLineNumbers;
+                                if (!words.TryGetValue(word, out fileLineNumbers))
+                                {
+                                    fileLineNumbers = new ReplaceToFileLineNumberFromTo();
+                                    fileLineNumbers.replaceTo = word;
+                                    words.Add(word, fileLineNumbers);
+                                }
+                                fileLineNumbers.resFilePaths.Add(subPath);
+                            }
+                        }
+                    }
+
+                    // 如果该资源文件是代码，就提取内容 words
+                    if (cfg.exts.Contains(ext))
+                    {
+                        FillFileWords(f);
+                    }
+
                 }
             }
         }
@@ -564,9 +745,6 @@ namespace UnsafeWordReplacer
             tbExts.Text = String.Join("\n", cfg.exts);
             tbIgnores.Text = String.Join("\n", cfg.ignores);
             tbSafes.Text = String.Join(" ", cfg.safes);
-            dgWords.DataSource = wordsTable;
-            dgWords.ClearSelection();
-            dgWords.CurrentCell = null;
             WordSelected(null);
         }
 
@@ -607,6 +785,21 @@ namespace UnsafeWordReplacer
             if (word == null) return;
             // 加载所有 含有 word 的文件内容，填充到 tbPreview, 每个文件生成 彩色头部，正文 word 上下行数保留 10 行, word 染色
             var info = words[word];
+
+            // 如果 resFilePaths 有东西就显示在头部
+            if (info.resFilePaths.Count > 0)
+            {
+                var sb = new StringBuilder();
+                foreach (var p in info.resFilePaths)
+                {
+                    sb.AppendLine(p);
+                }
+                tbPreview.DeselectAll();
+                tbPreview.SelectionColor = System.Drawing.Color.White;
+                tbPreview.SelectionBackColor = System.Drawing.Color.Red;
+                tbPreview.AppendText(sb.ToString());
+            }
+
             var ns = new HashSet<int>();
             foreach (var kv in info.fileLineNumbers)
             {
@@ -653,9 +846,6 @@ namespace UnsafeWordReplacer
                         int i = 0;
                         foreach (var idx in idxs)
                         {
-
-                            // todo: 如果是资源文件名 似乎显示不正常
-
                             if (idx > i)
                             {
                                 var s = L.Substring(i, idx - i);
@@ -709,17 +899,19 @@ namespace UnsafeWordReplacer
         /// </summary>
         public void FillWordsTableByWords()
         {
-            if (wordsTable.Columns.Count == 0)
-            {
-                wordsTable.Columns.Add(new DataColumn("From"));
-                wordsTable.Columns.Add(new DataColumn("To"));
-                wordsTable.Columns.Add(new DataColumn("Nums"));
-            }
+            var bak = dgWords.FirstDisplayedScrollingRowIndex;
+            dgWords.DataSource = emptyWordsTable;
+            dgWords.ClearSelection();
+            dgWords.CurrentCell = null;
+
             wordsTable.Rows.Clear();
             foreach (var o in words)
             {
                 wordsTable.Rows.Add(o.Key, o.Value.replaceTo, o.Value.fileLineNumbers.Count);
             }
+
+            dgWords.DataSource = wordsTable;
+            dgWords.FirstDisplayedScrollingRowIndex = bak;
         }
 
     }
