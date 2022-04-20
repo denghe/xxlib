@@ -58,6 +58,7 @@
             this.label5 = new System.Windows.Forms.Label();
             this.tbResExts = new System.Windows.Forms.RichTextBox();
             this.wPreview = new System.Windows.Forms.WebBrowser();
+            this.cbIgnoreSuffixNumber = new System.Windows.Forms.CheckBox();
             this.menuRoot.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgWords)).BeginInit();
             this.SuspendLayout();
@@ -77,7 +78,8 @@
             this.tbDirs.Name = "tbDirs";
             this.tbDirs.Size = new System.Drawing.Size(354, 116);
             this.tbDirs.TabIndex = 0;
-            this.tbDirs.Text = "C:\\Users\\xx\\Documents\\adxe1\\src\\*\n!C:\\Users\\xx\\Documents\\adxe1\\res\\*\n#asdfqwer";
+            this.tbDirs.Text = "C:\\Users\\xx\\Documents\\adxe1\\src\\*\n!C:\\Users\\xx\\Documents\\adxe1\\res\\*\n#C:\\Users\\xx" +
+    "\\Documents\\fish2\\*";
             // 
             // label2
             // 
@@ -101,7 +103,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(10, 168);
+            this.label3.Location = new System.Drawing.Point(12, 195);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(59, 12);
             this.label3.TabIndex = 9;
@@ -110,7 +112,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(518, 168);
+            this.label4.Location = new System.Drawing.Point(519, 195);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(179, 12);
             this.label4.TabIndex = 10;
@@ -267,11 +269,11 @@
             this.From,
             this.To,
             this.Nums});
-            this.dgWords.Location = new System.Drawing.Point(12, 186);
+            this.dgWords.Location = new System.Drawing.Point(12, 210);
             this.dgWords.Name = "dgWords";
             this.dgWords.RowHeadersWidth = 33;
             this.dgWords.RowTemplate.Height = 23;
-            this.dgWords.Size = new System.Drawing.Size(502, 513);
+            this.dgWords.Size = new System.Drawing.Size(502, 489);
             this.dgWords.TabIndex = 4;
             this.dgWords.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgWords_CellValueChanged);
             this.dgWords.RowEnter += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgWords_RowEnter);
@@ -333,20 +335,34 @@
             // 
             // wPreview
             // 
-            this.wPreview.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.wPreview.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.wPreview.Location = new System.Drawing.Point(521, 186);
+            this.wPreview.Location = new System.Drawing.Point(521, 210);
             this.wPreview.MinimumSize = new System.Drawing.Size(20, 20);
             this.wPreview.Name = "wPreview";
-            this.wPreview.Size = new System.Drawing.Size(701, 513);
+            this.wPreview.Size = new System.Drawing.Size(701, 489);
             this.wPreview.TabIndex = 23;
             this.wPreview.DocumentCompleted += new System.Windows.Forms.WebBrowserDocumentCompletedEventHandler(this.wPreview_DocumentCompleted);
+            // 
+            // cbIgnoreSuffixNumber
+            // 
+            this.cbIgnoreSuffixNumber.AutoSize = true;
+            this.cbIgnoreSuffixNumber.Checked = true;
+            this.cbIgnoreSuffixNumber.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.cbIgnoreSuffixNumber.Location = new System.Drawing.Point(12, 163);
+            this.cbIgnoreSuffixNumber.Name = "cbIgnoreSuffixNumber";
+            this.cbIgnoreSuffixNumber.Size = new System.Drawing.Size(174, 16);
+            this.cbIgnoreSuffixNumber.TabIndex = 24;
+            this.cbIgnoreSuffixNumber.Text = "ignore word suffix number";
+            this.cbIgnoreSuffixNumber.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1234, 711);
+            this.Controls.Add(this.cbIgnoreSuffixNumber);
             this.Controls.Add(this.wPreview);
             this.Controls.Add(this.tbResExts);
             this.Controls.Add(this.label5);
@@ -407,6 +423,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
         private System.Windows.Forms.ToolStripMenuItem mDeleteSelectedWords;
         private System.Windows.Forms.WebBrowser wPreview;
+        private System.Windows.Forms.CheckBox cbIgnoreSuffixNumber;
     }
 }
 

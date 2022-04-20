@@ -546,8 +546,23 @@ namespace UnsafeWordReplacer
             return false;
         }
 
+        /// <summary>
+        /// 移除尾部数字
+        /// </summary>
+        private string RemoveSuffixNumber(string s)
+        {
+            int i = s.Length - 1;
+            for (; i >= 0; --i)
+            {
+                if (!(s[i] >= '0' && s[i] <= '9')) return s.Substring(0, i + 1);
+            }
+            Debug.Assert(false);
+            return null;
+        }
+
         private void FillFileWords(string f)
         {
+            var ignoreSuffixNumber = cbIgnoreSuffixNumber.Checked;
             var ss = File.ReadAllLines(f, Encoding.UTF8);
             for (int i = 0; i < ss.Length; i++)
             {
@@ -556,7 +571,7 @@ namespace UnsafeWordReplacer
                 for (int j = 0; j < line.Length; j++)
                 {
                     var c = line[j];
-                    if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_')
+                    if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c > 255)
                     {
                         if (x == -1)
                         {
@@ -565,31 +580,39 @@ namespace UnsafeWordReplacer
                     }
                     else if (x != -1)
                     {
-                        if (j - x > 1)
+                        // len > 2 mean unsafe
+                        if (j - x > 2)
                         {
                             var word = line.Substring(x, j - x);
-                            if (!IsNumber(word) && !cfg.safes.Contains(word))
+                            if (!IsNumber(word))
                             {
-                                ReplaceToFileLineNumberFromTo fileLineNumbers;
-                                Dictionary<int, List<int>> lineNumbers;
-                                List<int> idxs;
-                                if (!words.TryGetValue(word, out fileLineNumbers))
+                                if (ignoreSuffixNumber)
                                 {
-                                    fileLineNumbers = new ReplaceToFileLineNumberFromTo();
-                                    fileLineNumbers.replaceTo = word;
-                                    words.Add(word, fileLineNumbers);
+                                    word = RemoveSuffixNumber(word);
                                 }
-                                if (!fileLineNumbers.fileLineNumbers.TryGetValue(f, out lineNumbers))
+                                if (word.Length > 2 && !cfg.safes.Contains(word))
                                 {
-                                    lineNumbers = new Dictionary<int, List<int>>();
-                                    fileLineNumbers.fileLineNumbers.Add(f, lineNumbers);
+                                    ReplaceToFileLineNumberFromTo fileLineNumbers;
+                                    Dictionary<int, List<int>> lineNumbers;
+                                    List<int> idxs;
+                                    if (!words.TryGetValue(word, out fileLineNumbers))
+                                    {
+                                        fileLineNumbers = new ReplaceToFileLineNumberFromTo();
+                                        fileLineNumbers.replaceTo = word;
+                                        words.Add(word, fileLineNumbers);
+                                    }
+                                    if (!fileLineNumbers.fileLineNumbers.TryGetValue(f, out lineNumbers))
+                                    {
+                                        lineNumbers = new Dictionary<int, List<int>>();
+                                        fileLineNumbers.fileLineNumbers.Add(f, lineNumbers);
+                                    }
+                                    if (!lineNumbers.TryGetValue(i, out idxs))
+                                    {
+                                        idxs = new List<int>();
+                                        lineNumbers.Add(i, idxs);
+                                    }
+                                    idxs.Add(x);
                                 }
-                                if (!lineNumbers.TryGetValue(i, out idxs))
-                                {
-                                    idxs = new List<int>();
-                                    lineNumbers.Add(i, idxs);
-                                }
-                                idxs.Add(x);
                             }
                         }
                         x = -1;
@@ -976,7 +999,11 @@ namespace UnsafeWordReplacer
             }
 
             dgWords.DataSource = wordsTable;
-            dgWords.FirstDisplayedScrollingRowIndex = bak;
+            try
+            {
+                dgWords.FirstDisplayedScrollingRowIndex = bak;
+            }
+            catch { }
         }
 
         private void wPreview_DocumentCompleted(object sender, WebBrowserDocumentCompletedEventArgs e)
