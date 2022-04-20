@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.label1 = new System.Windows.Forms.Label();
-            this.tbPreview = new System.Windows.Forms.RichTextBox();
             this.tbDirs = new System.Windows.Forms.RichTextBox();
             this.label2 = new System.Windows.Forms.Label();
             this.tbSafes = new System.Windows.Forms.RichTextBox();
@@ -58,6 +57,7 @@
             this.Nums = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.label5 = new System.Windows.Forms.Label();
             this.tbResExts = new System.Windows.Forms.RichTextBox();
+            this.wPreview = new System.Windows.Forms.WebBrowser();
             this.menuRoot.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgWords)).BeginInit();
             this.SuspendLayout();
@@ -70,18 +70,6 @@
             this.label1.Size = new System.Drawing.Size(299, 12);
             this.label1.TabIndex = 1;
             this.label1.Text = "directories: ( # = rem, ! = res, \\* = recursive )";
-            // 
-            // tbPreview
-            // 
-            this.tbPreview.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.tbPreview.Location = new System.Drawing.Point(520, 186);
-            this.tbPreview.Name = "tbPreview";
-            this.tbPreview.ReadOnly = true;
-            this.tbPreview.Size = new System.Drawing.Size(702, 513);
-            this.tbPreview.TabIndex = 5;
-            this.tbPreview.Text = "";
             // 
             // tbDirs
             // 
@@ -343,11 +331,23 @@
             this.tbResExts.TabIndex = 22;
             this.tbResExts.Text = ".png\n.jpg\n.webp\n.pkm\n.pkm.gz\n.plist\n.lua";
             // 
+            // wPreview
+            // 
+            this.wPreview.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.wPreview.Location = new System.Drawing.Point(521, 186);
+            this.wPreview.MinimumSize = new System.Drawing.Size(20, 20);
+            this.wPreview.Name = "wPreview";
+            this.wPreview.Size = new System.Drawing.Size(701, 513);
+            this.wPreview.TabIndex = 23;
+            this.wPreview.DocumentCompleted += new System.Windows.Forms.WebBrowserDocumentCompletedEventHandler(this.wPreview_DocumentCompleted);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1234, 711);
+            this.Controls.Add(this.wPreview);
             this.Controls.Add(this.tbResExts);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.dgWords);
@@ -360,7 +360,6 @@
             this.Controls.Add(this.tbSafes);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.tbDirs);
-            this.Controls.Add(this.tbPreview);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.menuRoot);
             this.MainMenuStrip = this.menuRoot;
@@ -379,7 +378,6 @@
 
         #endregion
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.RichTextBox tbPreview;
         private System.Windows.Forms.RichTextBox tbDirs;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.RichTextBox tbSafes;
@@ -408,6 +406,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn To;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
         private System.Windows.Forms.ToolStripMenuItem mDeleteSelectedWords;
+        private System.Windows.Forms.WebBrowser wPreview;
     }
 }
 

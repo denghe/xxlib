@@ -7,6 +7,8 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Threading;
+using System.Web;
 using System.Windows.Forms;
 
 namespace UnsafeWordReplacer
@@ -63,7 +65,44 @@ namespace UnsafeWordReplacer
         /// </summary>
         public List<string> warnings = new List<string>();
 
-
+        public string htmlEmpty = @"
+<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>selected words replace preview</title>
+</head>
+<body>
+<style type=""text/css"">
+    b {
+        font-family: SimSun;
+        line-height: 110%;
+    }
+    .r {
+        background:red;
+        color:white;
+    }
+    .f {
+        background:yellow;
+        color:blue;
+    }
+    .L {
+        background:gray;
+        color:blue;
+    }
+    .n {
+        background:white;
+        color:blue;
+    }
+    .h {
+        background:blue;
+        color:white;
+    }
+</style>
+</body>
+</html>
+";
         public Form1()
         {
             InitializeComponent();
@@ -80,6 +119,9 @@ namespace UnsafeWordReplacer
             wordsTable.Columns.Add(new DataColumn("Nums"));
 
             dgWords.DataSource = emptyWordsTable;
+
+            wPreview.DocumentText = htmlEmpty;
+            //wPreview.Navigate("about:blank");
         }
 
         private void mExport_Click(object sender, EventArgs e)
@@ -775,29 +817,58 @@ namespace UnsafeWordReplacer
             return s;
         }
 
+        private void HtmlBodyAppendContext()
+        {
+            var o = wPreview.Document.CreateElement("P");
+            o.SetAttribute("id", "ctx");
+            wPreview.Document.Body.AppendChild(o);
+        }
+
+        private void HtmlBodyRemoveContext()
+        {
+            var e = wPreview.Document.GetElementById("ctx");
+            if (e != null)
+            {
+                e.OuterHtml = "";
+            }
+        }
+
+        private void HtmlBodyAppend(string tag, string c = null, string t = null)
+        {
+            var parent = wPreview.Document.GetElementById("ctx");
+            var o = wPreview.Document.CreateElement(tag);
+            if (c != null)
+            {
+                o.SetAttribute("ClassName", c);
+            }
+            if (t != null)
+            {
+                o.InnerText = t;
+            }
+            parent.AppendChild(o);
+        }
+
         /// <summary>
         /// word 被选中后，更新 UI
         /// </summary>
         private void WordSelected(string word)
         {
-            tbPreview.ScrollBars = RichTextBoxScrollBars.None;
-            tbPreview.Text = "";
+            HtmlBodyRemoveContext();
             if (word == null) return;
+
+            HtmlBodyAppendContext();
+
             // 加载所有 含有 word 的文件内容，填充到 tbPreview, 每个文件生成 彩色头部，正文 word 上下行数保留 10 行, word 染色
             var info = words[word];
 
             // 如果 resFilePaths 有东西就显示在头部
             if (info.resFilePaths.Count > 0)
             {
-                var sb = new StringBuilder();
                 foreach (var p in info.resFilePaths)
                 {
-                    sb.AppendLine(p);
+                    HtmlBodyAppend("b", "r", p);
+                    HtmlBodyAppend("br");
                 }
-                tbPreview.DeselectAll();
-                tbPreview.SelectionColor = System.Drawing.Color.White;
-                tbPreview.SelectionBackColor = System.Drawing.Color.Red;
-                tbPreview.AppendText(sb.ToString());
             }
 
             var ns = new HashSet<int>();
@@ -822,20 +893,19 @@ namespace UnsafeWordReplacer
                 }
 
                 // 彩色头部, 包含文件路径
-                tbPreview.DeselectAll();
-                tbPreview.SelectionColor = System.Drawing.Color.Blue;
-                tbPreview.SelectionBackColor = System.Drawing.Color.Yellow;
-                tbPreview.AppendText($@"{ kv.Key }
-");
+                {
+                    HtmlBodyAppend("b", "f", kv.Key);
+                    HtmlBodyAppend("br");
+                }
+
+
                 // 拼接 显示
                 foreach (var n in ns)
                 {
                     // 行号染色
                     {
                         var s = (n + 1).ToString();
-                        s += new string(' ', 7 - s.Length);
-                        tbPreview.SelectionColor = System.Drawing.Color.Blue;
-                        tbPreview.AppendText(s);
+                        HtmlBodyAppend("b", "L", s + new string(' ', 7 - s.Length));
                     }
                     // 关键字染色 并替换显示
                     // 已知问题：下列代码只替换了当前关键字。如果附近还有别的要替换，并不体现
@@ -849,33 +919,28 @@ namespace UnsafeWordReplacer
                             if (idx > i)
                             {
                                 var s = L.Substring(i, idx - i);
-                                tbPreview.SelectionColor = System.Drawing.Color.Black;
-                                tbPreview.SelectionBackColor = System.Drawing.Color.White;
-                                tbPreview.AppendText(s);
+                                {
+                                    HtmlBodyAppend("b", "n", s);
+                                }
                             }
-                            tbPreview.SelectionColor = System.Drawing.Color.White;
-                            tbPreview.SelectionBackColor = System.Drawing.Color.BlueViolet;
-                            tbPreview.AppendText(info.replaceTo);
+                            HtmlBodyAppend("b", "h", info.replaceTo);
+
                             i = idx + word.Length;
                         }
-                        tbPreview.SelectionColor = System.Drawing.Color.Black;
-                        tbPreview.SelectionBackColor = System.Drawing.Color.White;
                         if (i < L.Length - 1)
                         {
-                            tbPreview.AppendText(L.Substring(i));
+                            var tmp = L.Substring(i);
+                            HtmlBodyAppend("b", "n", tmp);
                         }
-                        tbPreview.AppendText("\r\n");
+                        HtmlBodyAppend("br");
                     }
                     else
                     {
-                        tbPreview.SelectionColor = System.Drawing.Color.Black;
-                        tbPreview.SelectionBackColor = System.Drawing.Color.White;
-                        tbPreview.AppendText(lines[n] + "\r\n");
+                        HtmlBodyAppend("b", "n", lines[n]);
+                        HtmlBodyAppend("br");
                     }
                 }
             }
-
-            tbPreview.ScrollBars = RichTextBoxScrollBars.Vertical;
         }
 
 
@@ -914,6 +979,10 @@ namespace UnsafeWordReplacer
             dgWords.FirstDisplayedScrollingRowIndex = bak;
         }
 
+        private void wPreview_DocumentCompleted(object sender, WebBrowserDocumentCompletedEventArgs e)
+        {
+
+        }
     }
 
     [DataContract]
