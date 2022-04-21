@@ -1,14 +1,14 @@
-﻿using System;
+﻿using FastColoredTextBoxNS;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using System.Threading;
-using System.Web;
 using System.Windows.Forms;
 
 namespace UnsafeWordReplacer
@@ -65,44 +65,6 @@ namespace UnsafeWordReplacer
         /// </summary>
         public List<string> warnings = new List<string>();
 
-        public string htmlEmpty = @"
-<!DOCTYPE html>
-<html lang=""en"">
-<head>
-    <meta charset=""UTF-8"">
-    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-    <title>selected words replace preview</title>
-</head>
-<body>
-<style type=""text/css"">
-    b {
-        font-family: SimSun;
-        line-height: 110%;
-    }
-    .r {
-        background:red;
-        color:white;
-    }
-    .f {
-        background:yellow;
-        color:blue;
-    }
-    .L {
-        background:gray;
-        color:blue;
-    }
-    .n {
-        background:white;
-        color:blue;
-    }
-    .h {
-        background:blue;
-        color:white;
-    }
-</style>
-</body>
-</html>
-";
         public Form1()
         {
             InitializeComponent();
@@ -112,16 +74,15 @@ namespace UnsafeWordReplacer
         {
             emptyWordsTable.Columns.Add(new DataColumn("From"));
             emptyWordsTable.Columns.Add(new DataColumn("To"));
-            emptyWordsTable.Columns.Add(new DataColumn("Nums"));
+            emptyWordsTable.Columns.Add(new DataColumn("Nums", typeof(int)));
 
             wordsTable.Columns.Add(new DataColumn("From"));
             wordsTable.Columns.Add(new DataColumn("To"));
-            wordsTable.Columns.Add(new DataColumn("Nums"));
+            wordsTable.Columns.Add(new DataColumn("Nums", typeof(int)));
 
             dgWords.DataSource = emptyWordsTable;
 
-            wPreview.DocumentText = htmlEmpty;
-            //wPreview.Navigate("about:blank");
+            ctbPreview.Text = "";
         }
 
         private void mExport_Click(object sender, EventArgs e)
@@ -163,6 +124,7 @@ namespace UnsafeWordReplacer
             var v = words[word];
             v.replaceTo = GenRandomReplaceWord(word, false);
             FillReplacesByWords();
+            cs[1].Value = v.replaceTo;
             wordsTable.Rows[lastWordIndex][1] = v.replaceTo;
             WordSelected(word);
         }
@@ -476,7 +438,7 @@ namespace UnsafeWordReplacer
 
             foreach (var f in files)
             {
-                FillFileWords(f);
+                FillFileWords2(f);
             }
 
             // 写入导出 json 要用的字段
@@ -560,15 +522,50 @@ namespace UnsafeWordReplacer
             return null;
         }
 
+        private void TryFillWord(string word, string fn, int lineNumber, int pos, bool c255, bool ignoreSuffixNumber)
+        {
+            if (!IsNumber(word))
+            {
+                if (ignoreSuffixNumber)
+                {
+                    word = RemoveSuffixNumber(word);
+                }
+                if (word.Length > (c255 ? 1 : 2) && !cfg.safes.Contains(word))
+                {
+                    ReplaceToFileLineNumberFromTo fileLineNumbers;
+                    Dictionary<int, List<int>> lineNumbers;
+                    List<int> idxs;
+                    if (!words.TryGetValue(word, out fileLineNumbers))
+                    {
+                        fileLineNumbers = new ReplaceToFileLineNumberFromTo();
+                        fileLineNumbers.replaceTo = word;
+                        words.Add(word, fileLineNumbers);
+                    }
+                    if (!fileLineNumbers.fileLineNumbers.TryGetValue(fn, out lineNumbers))
+                    {
+                        lineNumbers = new Dictionary<int, List<int>>();
+                        fileLineNumbers.fileLineNumbers.Add(fn, lineNumbers);
+                    }
+                    if (!lineNumbers.TryGetValue(lineNumber, out idxs))
+                    {
+                        idxs = new List<int>();
+                        lineNumbers.Add(lineNumber, idxs);
+                    }
+                    idxs.Add(pos);
+                }
+            }
+        }
         private void FillFileWords(string f)
         {
             var ignoreSuffixNumber = cbIgnoreSuffixNumber.Checked;
             var ss = File.ReadAllLines(f, Encoding.UTF8);
             for (int i = 0; i < ss.Length; i++)
             {
-                var line = ss[i];//.Trim(' ', '\t', '\r', '\n');
+                var line = ss[i];
                 int x = -1;
-                for (int j = 0; j < line.Length; j++)
+                bool c255 = false;
+                int j = 0;
+                for (; j < line.Length; j++)
                 {
                     var c = line[j];
                     if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c > 255)
@@ -577,47 +574,78 @@ namespace UnsafeWordReplacer
                         {
                             x = j;
                         }
+                        if (c > 255)
+                        {
+                            c255 = true;
+                        }
                     }
                     else if (x != -1)
                     {
-                        // len > 2 mean unsafe
-                        if (j - x > 2)
+                        // len > 2 mean unsafe( 普通字符 ). > 255有 1 个就 unsafe
+                        if (j - x > (c255 ? 1 : 2))
                         {
                             var word = line.Substring(x, j - x);
-                            if (!IsNumber(word))
-                            {
-                                if (ignoreSuffixNumber)
-                                {
-                                    word = RemoveSuffixNumber(word);
-                                }
-                                if (word.Length > 2 && !cfg.safes.Contains(word))
-                                {
-                                    ReplaceToFileLineNumberFromTo fileLineNumbers;
-                                    Dictionary<int, List<int>> lineNumbers;
-                                    List<int> idxs;
-                                    if (!words.TryGetValue(word, out fileLineNumbers))
-                                    {
-                                        fileLineNumbers = new ReplaceToFileLineNumberFromTo();
-                                        fileLineNumbers.replaceTo = word;
-                                        words.Add(word, fileLineNumbers);
-                                    }
-                                    if (!fileLineNumbers.fileLineNumbers.TryGetValue(f, out lineNumbers))
-                                    {
-                                        lineNumbers = new Dictionary<int, List<int>>();
-                                        fileLineNumbers.fileLineNumbers.Add(f, lineNumbers);
-                                    }
-                                    if (!lineNumbers.TryGetValue(i, out idxs))
-                                    {
-                                        idxs = new List<int>();
-                                        lineNumbers.Add(i, idxs);
-                                    }
-                                    idxs.Add(x);
-                                }
-                            }
+                            TryFillWord(word, f, i, x, c255, ignoreSuffixNumber);
                         }
                         x = -1;
+                        c255 = false;
                     }
                 }
+                if (x != -1)
+                {
+                    // len > 2 mean unsafe( 普通字符 ). > 255有 1 个就 unsafe
+                    if (j - x > (c255 ? 1 : 2))
+                    {
+                        var word = line.Substring(x, j - x);
+                        TryFillWord(word, f, i, x, c255, ignoreSuffixNumber);
+                    }
+                }
+            }
+        }
+
+        // 怀疑 read all lines 慢，故来一发 bytes 版. 自己判断 \n 来 ++行号. 
+        private void FillFileWords2(string f)
+        {
+            var ignoreSuffixNumber = cbIgnoreSuffixNumber.Checked;
+            var ss = File.ReadAllText(f);
+            if (string.IsNullOrEmpty(ss)) return;
+            ss += " ";
+
+            int lineNumber = 0;
+            int i = 0;
+            int x = -1;
+            bool c255 = false;
+            for (int j = 0; j < ss.Length; j++)
+            {
+                var c = ss[j];
+                if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c > 255)
+                {
+                    if (x == -1)
+                    {
+                        x = i;
+                    }
+                    if (c > 255)
+                    {
+                        c255 = true;
+                    }
+                }
+                else if (x != -1)
+                {
+                    if (i - x > (c255 ? 1 : 2))
+                    {
+                        var word = ss.Substring(j - i + x, i - x);
+                        TryFillWord(word, f, lineNumber, x, c255, ignoreSuffixNumber);
+                    }
+                    x = -1;
+                    c255 = false;
+                }
+                if (c == '\n')
+                {
+                    ++lineNumber;
+                    i = 0;
+                    continue;
+                }
+                ++i;
             }
         }
 
@@ -746,7 +774,7 @@ namespace UnsafeWordReplacer
                     // 如果该资源文件是代码，就提取内容 words
                     if (cfg.exts.Contains(ext))
                     {
-                        FillFileWords(f);
+                        FillFileWords2(f);
                     }
 
                 }
@@ -840,46 +868,21 @@ namespace UnsafeWordReplacer
             return s;
         }
 
-        private void HtmlBodyAppendContext()
-        {
-            var o = wPreview.Document.CreateElement("P");
-            o.SetAttribute("id", "ctx");
-            wPreview.Document.Body.AppendChild(o);
-        }
-
-        private void HtmlBodyRemoveContext()
-        {
-            var e = wPreview.Document.GetElementById("ctx");
-            if (e != null)
-            {
-                e.OuterHtml = "";
-            }
-        }
-
-        private void HtmlBodyAppend(string tag, string c = null, string t = null)
-        {
-            var parent = wPreview.Document.GetElementById("ctx");
-            var o = wPreview.Document.CreateElement(tag);
-            if (c != null)
-            {
-                o.SetAttribute("ClassName", c);
-            }
-            if (t != null)
-            {
-                o.InnerText = t;
-            }
-            parent.AppendChild(o);
-        }
+        private TextStyle tsRes = new TextStyle(Brushes.White, Brushes.Red, FontStyle.Regular);
+        private TextStyle tsFile = new TextStyle(Brushes.Blue, Brushes.Yellow, FontStyle.Regular);
+        private TextStyle tsLineNumber = new TextStyle(Brushes.Blue, Brushes.Gray, FontStyle.Regular);
+        private TextStyle tsNormal = new TextStyle(Brushes.Blue, Brushes.White, FontStyle.Regular);
+        private TextStyle tsHighlight = new TextStyle(Brushes.White, Brushes.Blue, FontStyle.Regular);
 
         /// <summary>
         /// word 被选中后，更新 UI
         /// </summary>
         private void WordSelected(string word)
         {
-            HtmlBodyRemoveContext();
+            ctbPreview.Clear();
             if (word == null) return;
-
-            HtmlBodyAppendContext();
+            ctbPreview.BeginUpdate();
+            ctbPreview.Selection.BeginUpdate();
 
             // 加载所有 含有 word 的文件内容，填充到 tbPreview, 每个文件生成 彩色头部，正文 word 上下行数保留 10 行, word 染色
             var info = words[word];
@@ -889,8 +892,7 @@ namespace UnsafeWordReplacer
             {
                 foreach (var p in info.resFilePaths)
                 {
-                    HtmlBodyAppend("b", "r", p);
-                    HtmlBodyAppend("br");
+                    ctbPreview.AppendText(p + "\n", tsRes);
                 }
             }
 
@@ -916,11 +918,7 @@ namespace UnsafeWordReplacer
                 }
 
                 // 彩色头部, 包含文件路径
-                {
-                    HtmlBodyAppend("b", "f", kv.Key);
-                    HtmlBodyAppend("br");
-                }
-
+                ctbPreview.AppendText(kv.Key + "\n", tsFile);
 
                 // 拼接 显示
                 foreach (var n in ns)
@@ -928,7 +926,8 @@ namespace UnsafeWordReplacer
                     // 行号染色
                     {
                         var s = (n + 1).ToString();
-                        HtmlBodyAppend("b", "L", s + new string(' ', 7 - s.Length));
+                        s += new string(' ', 7 - s.Length);
+                        ctbPreview.AppendText(s, tsLineNumber);
                     }
                     // 关键字染色 并替换显示
                     // 已知问题：下列代码只替换了当前关键字。如果附近还有别的要替换，并不体现
@@ -943,29 +942,34 @@ namespace UnsafeWordReplacer
                             {
                                 var s = L.Substring(i, idx - i);
                                 {
-                                    HtmlBodyAppend("b", "n", s);
+                                    ctbPreview.AppendText(s, tsNormal);
                                 }
                             }
-                            HtmlBodyAppend("b", "h", info.replaceTo);
+                            ctbPreview.AppendText(info.replaceTo, tsHighlight);
 
                             i = idx + word.Length;
                         }
                         if (i < L.Length - 1)
                         {
-                            var tmp = L.Substring(i);
-                            HtmlBodyAppend("b", "n", tmp);
+                            ctbPreview.AppendText(L.Substring(i), tsNormal);
                         }
-                        HtmlBodyAppend("br");
+                        ctbPreview.AppendText("\n");
                     }
                     else
                     {
-                        HtmlBodyAppend("b", "n", lines[n]);
-                        HtmlBodyAppend("br");
+                        ctbPreview.AppendText(lines[n] + "\n", tsNormal);
                     }
                 }
             }
+            ctbPreview.Selection.EndUpdate();
+            ctbPreview.EndUpdate();
         }
 
+        private void NavgateToHtml(string ctx)
+        {
+            var s = new TextStyle(Brushes.Blue, Brushes.Yellow, FontStyle.Regular);
+            ctbPreview.AppendText(ctx, s);
+        }
 
         /// <summary>
         /// words -> replaces
@@ -1006,10 +1010,6 @@ namespace UnsafeWordReplacer
             catch { }
         }
 
-        private void wPreview_DocumentCompleted(object sender, WebBrowserDocumentCompletedEventArgs e)
-        {
-
-        }
     }
 
     [DataContract]

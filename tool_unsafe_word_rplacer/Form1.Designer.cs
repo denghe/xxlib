@@ -28,6 +28,8 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.label1 = new System.Windows.Forms.Label();
             this.tbDirs = new System.Windows.Forms.RichTextBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -57,10 +59,11 @@
             this.Nums = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.label5 = new System.Windows.Forms.Label();
             this.tbResExts = new System.Windows.Forms.RichTextBox();
-            this.wPreview = new System.Windows.Forms.WebBrowser();
             this.cbIgnoreSuffixNumber = new System.Windows.Forms.CheckBox();
+            this.ctbPreview = new FastColoredTextBoxNS.FastColoredTextBox();
             this.menuRoot.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgWords)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.ctbPreview)).BeginInit();
             this.SuspendLayout();
             // 
             // label1
@@ -98,7 +101,7 @@
             this.tbSafes.Name = "tbSafes";
             this.tbSafes.Size = new System.Drawing.Size(522, 116);
             this.tbSafes.TabIndex = 3;
-            this.tbSafes.Text = "";
+            this.tbSafes.Text = resources.GetString("tbSafes.Text");
             // 
             // label3
             // 
@@ -259,8 +262,6 @@
             // dgWords
             // 
             this.dgWords.AllowUserToDeleteRows = false;
-            this.dgWords.AllowUserToOrderColumns = true;
-            this.dgWords.AllowUserToResizeColumns = false;
             this.dgWords.AllowUserToResizeRows = false;
             this.dgWords.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
@@ -285,7 +286,7 @@
             this.From.Frozen = true;
             this.From.HeaderText = "From";
             this.From.MaxInputLength = 64;
-            this.From.MinimumWidth = 10;
+            this.From.MinimumWidth = 200;
             this.From.Name = "From";
             this.From.ReadOnly = true;
             this.From.Resizable = System.Windows.Forms.DataGridViewTriState.False;
@@ -298,7 +299,7 @@
             this.To.Frozen = true;
             this.To.HeaderText = "To";
             this.To.MaxInputLength = 64;
-            this.To.MinimumWidth = 10;
+            this.To.MinimumWidth = 200;
             this.To.Name = "To";
             this.To.Resizable = System.Windows.Forms.DataGridViewTriState.False;
             this.To.Width = 200;
@@ -333,18 +334,6 @@
             this.tbResExts.TabIndex = 22;
             this.tbResExts.Text = ".png\n.jpg\n.webp\n.pkm\n.pkm.gz\n.plist\n.lua";
             // 
-            // wPreview
-            // 
-            this.wPreview.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.wPreview.Location = new System.Drawing.Point(521, 210);
-            this.wPreview.MinimumSize = new System.Drawing.Size(20, 20);
-            this.wPreview.Name = "wPreview";
-            this.wPreview.Size = new System.Drawing.Size(701, 489);
-            this.wPreview.TabIndex = 23;
-            this.wPreview.DocumentCompleted += new System.Windows.Forms.WebBrowserDocumentCompletedEventHandler(this.wPreview_DocumentCompleted);
-            // 
             // cbIgnoreSuffixNumber
             // 
             this.cbIgnoreSuffixNumber.AutoSize = true;
@@ -357,13 +346,48 @@
             this.cbIgnoreSuffixNumber.Text = "ignore word suffix number";
             this.cbIgnoreSuffixNumber.UseVisualStyleBackColor = true;
             // 
+            // ctbPreview
+            // 
+            this.ctbPreview.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.ctbPreview.AutoCompleteBracketsList = new char[] {
+        '(',
+        ')',
+        '{',
+        '}',
+        '[',
+        ']',
+        '\"',
+        '\"',
+        '\'',
+        '\''};
+            this.ctbPreview.AutoScrollMinSize = new System.Drawing.Size(2, 14);
+            this.ctbPreview.BackBrush = null;
+            this.ctbPreview.CharHeight = 14;
+            this.ctbPreview.CharWidth = 8;
+            this.ctbPreview.Cursor = System.Windows.Forms.Cursors.IBeam;
+            this.ctbPreview.DisabledColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(180)))), ((int)(((byte)(180)))), ((int)(((byte)(180)))));
+            this.ctbPreview.Font = new System.Drawing.Font("Courier New", 9.75F);
+            this.ctbPreview.IsReplaceMode = false;
+            this.ctbPreview.Location = new System.Drawing.Point(521, 210);
+            this.ctbPreview.Name = "ctbPreview";
+            this.ctbPreview.Paddings = new System.Windows.Forms.Padding(0);
+            this.ctbPreview.ReadOnly = true;
+            this.ctbPreview.SelectionColor = System.Drawing.Color.FromArgb(((int)(((byte)(60)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(255)))));
+            this.ctbPreview.ServiceColors = ((FastColoredTextBoxNS.ServiceColors)(resources.GetObject("ctbPreview.ServiceColors")));
+            this.ctbPreview.ShowLineNumbers = false;
+            this.ctbPreview.Size = new System.Drawing.Size(701, 489);
+            this.ctbPreview.TabIndex = 26;
+            this.ctbPreview.Zoom = 100;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1234, 711);
+            this.Controls.Add(this.ctbPreview);
             this.Controls.Add(this.cbIgnoreSuffixNumber);
-            this.Controls.Add(this.wPreview);
             this.Controls.Add(this.tbResExts);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.dgWords);
@@ -387,6 +411,7 @@
             this.menuRoot.ResumeLayout(false);
             this.menuRoot.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgWords)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.ctbPreview)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -418,12 +443,12 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.RichTextBox tbResExts;
         private System.Windows.Forms.ToolStripMenuItem mMoveAllWordsToSafes;
+        private System.Windows.Forms.ToolStripMenuItem mDeleteSelectedWords;
+        private System.Windows.Forms.CheckBox cbIgnoreSuffixNumber;
+        private FastColoredTextBoxNS.FastColoredTextBox ctbPreview;
         private System.Windows.Forms.DataGridViewTextBoxColumn From;
         private System.Windows.Forms.DataGridViewTextBoxColumn To;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nums;
-        private System.Windows.Forms.ToolStripMenuItem mDeleteSelectedWords;
-        private System.Windows.Forms.WebBrowser wPreview;
-        private System.Windows.Forms.CheckBox cbIgnoreSuffixNumber;
     }
 }
 
