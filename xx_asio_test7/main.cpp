@@ -2,7 +2,6 @@
 // 总体架构为 单线程, 和 gateway 1 对 多
 
 #include <asio.hpp>
-#include <unordered_set>
 #include <unordered_map>
 #include <deque>
 #include <iostream>
@@ -184,25 +183,44 @@ protected:
 	}
 };
 
+/***********************************************************************************************************/
+// logic
 
-struct MyPeer : Peer {
+struct Peer1 : Peer {
 	using Peer::Peer;
 	virtual int HandleMessage(std::string msg) override {
 		if (msg == "1") {
 			ResetTimeout(10s);
-			Send(std::string("peer id = ") + std::to_string(id) + "\r\n");
+			Send(std::string("Peer1 peer id = ") + std::to_string(id) + "\r\n");
 		}
 		else if (msg == "2") {
 			DelayStop(3s);
-			Send("DelayStop(3s)\r\n");
+			Send("Peer1 DelayStop(3s)\r\n");
 		}
 		else {
-			std::cout << addr << " recv unhandled msg = " << msg << std::endl;
+			std::cout << addr << " Peer1 recv unhandled msg = " << msg << std::endl;
 		}
 		return 0;
 	}
 };
 
+struct Peer2 : Peer {
+	using Peer::Peer;
+	virtual int HandleMessage(std::string msg) override {
+		if (msg == "1") {
+			ResetTimeout(10s);
+			Send(std::string("Peer2 peer id = ") + std::to_string(id) + "\r\n");
+		}
+		else if (msg == "2") {
+			DelayStop(3s);
+			Send("Peer2 DelayStop(3s)\r\n");
+		}
+		else {
+			std::cout << addr << " Peer2 recv unhandled msg = " << msg << std::endl;
+		}
+		return 0;
+	}
+};
 
 /***********************************************************************************************************/
 // main
@@ -210,7 +228,8 @@ struct MyPeer : Peer {
 int main() {
 	try {
 		Server server;
-		server.Listen<MyPeer>(55555);
+		server.Listen<Peer1>(55551);
+		server.Listen<Peer2>(55552);
 		server.Run();
 	}
 	catch (std::exception& e) {
