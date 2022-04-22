@@ -365,10 +365,10 @@
             this.ctbPreview.AutoScrollMinSize = new System.Drawing.Size(2, 14);
             this.ctbPreview.BackBrush = null;
             this.ctbPreview.CharHeight = 14;
-            this.ctbPreview.CharWidth = 8;
+            this.ctbPreview.CharWidth = 7;
             this.ctbPreview.Cursor = System.Windows.Forms.Cursors.IBeam;
             this.ctbPreview.DisabledColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(180)))), ((int)(((byte)(180)))), ((int)(((byte)(180)))));
-            this.ctbPreview.Font = new System.Drawing.Font("Courier New", 9.75F);
+            this.ctbPreview.Font = new System.Drawing.Font("NSimSun", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ctbPreview.IsReplaceMode = false;
             this.ctbPreview.Location = new System.Drawing.Point(521, 210);
             this.ctbPreview.Name = "ctbPreview";
