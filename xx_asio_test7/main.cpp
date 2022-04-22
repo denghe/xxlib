@@ -84,32 +84,63 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 	asio::ip::tcp::socket socket;
 	size_t id;
 	asio::steady_timer timer;
+	asio::steady_timer timeouter;
 	std::string addr;
 	std::deque<std::string> writeQueue;
+	bool stoping = false;
+	bool stoped = false;
 
 	Peer(Server& server_, asio::ip::tcp::socket&& socket_)
 		: server(server_)
 		, id(++server_.peerAutoId)
 		, socket(std::move(socket_))
 		, timer(server_.ioc)
+		, timeouter(server_.ioc)
 	{
 		timer.expires_at(std::chrono::steady_clock::time_point::max());
+		ResetTimeout(5s);
 	}
 
 	void Start() {
+		server.peers.insert({ id, shared_from_this() });	// hold
+
 		ToString(addr, socket);
 		std::cout << addr << " accepted." << std::endl;
-		server.peers.insert({ id, shared_from_this() });
+
 		asio::co_spawn(server.ioc, [self = shared_from_this()]{ return self->Read(); }, asio::detached);
 		asio::co_spawn(server.ioc, [self = shared_from_this()]{ return self->Write(); }, asio::detached);
-		// todo: logic here
+
+		// todo: logic here( send first package ? )
 	}
 
 	void Stop() {
-		server.peers.erase(id);
+		if (stoped) return;
+		stoped = true;
+
+		std::cout << addr << " stoped." << std::endl;
 		socket.close();
 		timer.cancel();
-		std::cout << addr << " stoped." << std::endl;
+		timeouter.cancel();
+
+		assert(server.peers.contains(id));
+		server.peers.erase(id);		// 可能触发析构
+	}
+
+	void DelayStop(std::chrono::steady_clock::duration const& d) {
+		if (stoping || stoped) return;
+		stoping = true;
+
+		std::cout << addr << " stoping..." << std::endl;
+		ResetTimeout(d);
+	}
+
+	void ResetTimeout(std::chrono::steady_clock::duration const& d) {
+		timeouter.expires_from_now(d);
+		timeouter.async_wait([this](auto&& ec) {
+			if (!ec) {
+				Stop();
+			}
+		});
 	}
 
 	virtual void Send(std::string&& msg) override {
@@ -127,22 +158,21 @@ protected:
 		try {
 			for (std::string buf;;) {
 				auto n = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), "\n", asio::use_awaitable);
-				auto msg = buf.substr(0, n);
+				auto msg = buf.substr(0, n - 2);	// remove \r\n
 
-				std::cout << addr << " recv msg = " << msg << std::endl;
-				if (msg == "id") {
-					Send(std::to_string(id));
+				if (!stoping) {
+					if (msg == "1") {
+						ResetTimeout(10s);
+						Send(std::string("peer id = ") + std::to_string(id) + "\r\n");
+					}
+					else if (msg == "2") {
+						DelayStop(3s);
+						Send("DelayStop(3s)\r\n");
+					}
+					else {
+						std::cout << addr << " recv unhandled msg = " << msg << std::endl;
+					}
 				}
-				else if (msg == "hi") {
-					Send("ni hao!");
-				}
-				// todo: 超时逻辑. 得测试是否能这么用，使用 expires_at 来续命
-				//deadline_timer t;
-				//t.expires_at(now + 10s)
-				//	t.async_wait(kill logic)
-				//	...
-				//	t.expires_at(now + 10s)
-				//	...
 
 				buf.erase(0, n);
 			}
