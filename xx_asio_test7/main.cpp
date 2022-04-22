@@ -102,11 +102,12 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 	}
 
 	void Start() {
-		server.peers.insert({ id, shared_from_this() });	// hold
+		server.peers.insert({ id, shared_from_this() });	// 容器持有
 
 		ToString(addr, socket);
 		std::cout << addr << " accepted." << std::endl;
 
+		// 启动读写协程( 顺便持有. 协程退出时可能触发析构 )
 		asio::co_spawn(server.ioc, [self = shared_from_this()]{ return self->Read(); }, asio::detached);
 		asio::co_spawn(server.ioc, [self = shared_from_this()]{ return self->Write(); }, asio::detached);
 
@@ -117,13 +118,14 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 		if (stoped) return;
 		stoped = true;
 
-		std::cout << addr << " stoped." << std::endl;
 		socket.close();
 		timer.cancel();
 		timeouter.cancel();
 
 		assert(server.peers.contains(id));
-		server.peers.erase(id);		// 可能触发析构
+
+		// 可能触发析构, 写在最后面, 避免访问成员失效
+		server.peers.erase(id);
 	}
 
 	void DelayStop(std::chrono::steady_clock::duration const& d) {
@@ -157,29 +159,30 @@ protected:
 	asio::awaitable<void> Read() {
 		try {
 			for (std::string buf;;) {
-				auto n = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), "\n", asio::use_awaitable);
-				auto msg = buf.substr(0, n - 2);	// remove \r\n
+				auto n = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), " ", asio::use_awaitable);
+				if (stoping || stoped) break;
 
-				if (!stoping) {
-					if (msg == "1") {
-						ResetTimeout(10s);
-						Send(std::string("peer id = ") + std::to_string(id) + "\r\n");
-					}
-					else if (msg == "2") {
-						DelayStop(3s);
-						Send("DelayStop(3s)\r\n");
-					}
-					else {
-						std::cout << addr << " recv unhandled msg = " << msg << std::endl;
-					}
+				auto msg = buf.substr(0, n - 1);
+				if (msg == "1") {
+					ResetTimeout(10s);
+					Send(std::string("peer id = ") + std::to_string(id) + "\r\n");
+				}
+				else if (msg == "2") {
+					DelayStop(3s);
+					Send("DelayStop(3s)\r\n");
+				}
+				else {
+					std::cout << addr << " recv unhandled msg = " << msg << std::endl;
 				}
 
 				buf.erase(0, n);
 			}
 		}
-		catch (std::exception&) {
+		catch (std::exception& ec) {
+			std::cout << addr << " Read() ec = " << ec.what() << std::endl;
 			Stop();
 		}
+		std::cout << addr << " Read() end." << std::endl;
 	}
 
 	asio::awaitable<void> Write() {
@@ -193,11 +196,14 @@ protected:
 					co_await asio::async_write(socket, asio::buffer(writeQueue.front()), asio::use_awaitable);
 					writeQueue.pop_front();
 				}
+				if (stoped) break;
 			}
 		}
-		catch (std::exception&) {
+		catch (std::exception& ec) {
+			std::cout << addr << " Write() ec = " << ec.what() << std::endl;
 			Stop();
 		}
+		std::cout << addr << " Write() end." << std::endl;
 	}
 };
 
