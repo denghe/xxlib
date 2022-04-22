@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(xx_asio_test6)
+project(xx_asio_test7)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -15,7 +15,7 @@ if (UNIX)
 			pthread
 			)
 else()
-	add_definitions("-D_WIN32_WINNT=0x0602")	# for asio
+	add_definitions("-D_WIN32_WINNT=0x0602")	# for asio 0602 win8
 endif ()
 
 list(APPEND dirs
@@ -34,9 +34,9 @@ link_directories(
 include_directories(
 		${dirs}
 )
-add_executable(xx_asio_test6
+add_executable(xx_asio_test7
 		${srcs}
 		)
-target_link_libraries(xx_asio_test6
+target_link_libraries(xx_asio_test7
 		${libs}
 		)
