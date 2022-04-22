@@ -1,31 +1,16 @@
 ﻿// asio c++20 lobby
 // 总体架构为 单线程, 和 gateway 1 对 多
 
-/***********************************************************************************************************/
-// includes
-/***********************************************************************************************************/
-
 #include <asio.hpp>
-#include <asio/experimental/as_tuple.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
-using namespace asio::experimental::awaitable_operators;
-constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
-#include <chrono>
-using namespace std::literals::chrono_literals;
 #include <unordered_set>
 #include <unordered_map>
 #include <deque>
 #include <iostream>
+#include <chrono>
+using namespace std::literals::chrono_literals;
 
 /***********************************************************************************************************/
 // utils
-/***********************************************************************************************************/
-
-asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
-	asio::steady_timer t(co_await asio::this_coro::executor);
-	t.expires_after(d);
-	co_await t.async_wait(use_nothrow_awaitable);
-}
 
 std::string ToString(asio::ip::tcp::socket const& sock) {
 	auto ep = sock.remote_endpoint();
@@ -39,7 +24,6 @@ void ToString(std::string& s, asio::ip::tcp::socket const& sock) {
 
 /***********************************************************************************************************/
 // PeerBase
-/***********************************************************************************************************/
 
 struct PeerBase : asio::noncopyable {
 	virtual ~PeerBase() {}
@@ -50,7 +34,6 @@ typedef std::shared_ptr<PeerBase> PeerBase_p;
 
 /***********************************************************************************************************/
 // Server
-/***********************************************************************************************************/
 
 struct Server : asio::noncopyable {
 	asio::io_context ioc;
@@ -76,7 +59,6 @@ struct Server : asio::noncopyable {
 
 /***********************************************************************************************************/
 // Peer
-/***********************************************************************************************************/
 
 struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 	Server& server;
@@ -225,7 +207,6 @@ asio::awaitable<void> Server::Listen(uint16_t port) {
 
 /***********************************************************************************************************/
 // main
-/***********************************************************************************************************/
 
 int main() {
 	try {
