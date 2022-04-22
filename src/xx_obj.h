@@ -536,7 +536,12 @@ namespace xx {
 				typename T::value_type o;
 				for (size_t i = 0; i < siz; ++i) {
 					if (int r = Read_(d, o)) return r;
-					v.emplace(std::move(o));
+					if constexpr (IsDeque_v<T>) {
+						v.push_back(std::move(o));
+					}
+					else {
+						v.insert(std::move(o));
+					}
 				}
 				return 0;
 			}
