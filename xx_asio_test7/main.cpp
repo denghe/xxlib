@@ -81,11 +81,12 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 		, timeouter(server_.ioc)
 	{
 		writeBarrier.expires_at(std::chrono::steady_clock::time_point::max());
-		ResetTimeout(5s);
+		ResetTimeout(20s);
 	}
 
+	// 由于 shared_from_this 无法在构造函数中使用，故拆分出来。平时不可以调用
 	void Start() {
-		server.peers.insert({ id, shared_from_this() });	// 容器持有
+		server.peers.insert(std::make_pair(id, shared_from_this()));	// 容器持有
 
 		auto ep = socket.remote_endpoint();
 		addr = ep.address().to_string() + ":" + std::to_string(ep.port());
@@ -112,27 +113,27 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 
 	void DelayStop(std::chrono::steady_clock::duration const& d) {
 		if (stoping || stoped) return;
-		stoping = true;
-
-		std::cout << addr << " stoping..." << std::endl;
 		ResetTimeout(d);
+		stoping = true;
+		std::cout << addr << " stoping..." << std::endl;
 	}
 
 	void ResetTimeout(std::chrono::steady_clock::duration const& d) {
-		timeouter.expires_from_now(d);
+		timeouter.expires_at(std::chrono::steady_clock::now() + d);
 		timeouter.async_wait([this](auto&& ec) {
-			if (!ec) {
-				Stop();
-			}
+			if (ec) return;
+			Stop();
 		});
 	}
 
 	void Send(std::string&& msg) {
+		if (stoped) return;
 		writeQueue.push_back(std::move(msg));
 		writeBarrier.cancel_one();
 	}
 
 	void Send(std::string const& msg) {
+		if (stoped) return;
 		writeQueue.push_back(msg);
 		writeBarrier.cancel_one();
 	}
@@ -190,12 +191,8 @@ struct Peer1 : Peer {
 	using Peer::Peer;
 	virtual int HandleMessage(std::string msg) override {
 		if (msg == "1") {
-			ResetTimeout(10s);
+			ResetTimeout(20s);
 			Send(std::string("Peer1 peer id = ") + std::to_string(id) + "\r\n");
-		}
-		else if (msg == "2") {
-			DelayStop(3s);
-			Send("Peer1 DelayStop(3s)\r\n");
 		}
 		else {
 			std::cout << addr << " Peer1 recv unhandled msg = " << msg << std::endl;
@@ -207,11 +204,7 @@ struct Peer1 : Peer {
 struct Peer2 : Peer {
 	using Peer::Peer;
 	virtual int HandleMessage(std::string msg) override {
-		if (msg == "1") {
-			ResetTimeout(10s);
-			Send(std::string("Peer2 peer id = ") + std::to_string(id) + "\r\n");
-		}
-		else if (msg == "2") {
+		if (msg == "2") {
 			DelayStop(3s);
 			Send("Peer2 DelayStop(3s)\r\n");
 		}
