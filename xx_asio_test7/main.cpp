@@ -1,5 +1,9 @@
 ﻿// asio c++20 lobby
 
+/******************************************************************************************************************************/
+// xx_asio
+/******************************************************************************************************************************/
+
 #include <asio.hpp>
 #include <asio/experimental/as_tuple.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
@@ -107,17 +111,20 @@ double NowMS() {
 	return std::chrono::system_clock::now().time_since_epoch().count() / 10000.;
 }
 
-int main() {
-	asio::io_context ios(1);
-	auto&& iosGuard = asio::make_work_guard(ios);
 
-	asio::co_spawn(ios, logic(ios), asio::detached);
+
+
+int main() {
+	asio::io_context ioc(1);
+	auto&& iocGuard = asio::make_work_guard(ioc);
+
+	asio::co_spawn(ioc, logic(ioc), asio::detached);
 
 	auto ms = NowMS();
 	while (true) {
 		std::this_thread::sleep_for(500ms);			// 模拟游戏每帧来一发
 		std::cout << "------------------------------------------------- frame ms = " << (NowMS() - ms) << std::endl;
-		ios.poll_one();
+		ioc.poll_one();
 	}
 	return 0;
 }
