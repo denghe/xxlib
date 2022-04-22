@@ -85,34 +85,38 @@ struct Server : public asio::noncopyable {
 		: ioc(1)
 		, signals(ioc, SIGINT, SIGTERM)
 	{
-		asio::co_spawn(ioc, listen(55555), asio::detached);
+		asio::co_spawn(ioc, Listen(55555), asio::detached);
 	}
 
 	void Run() {
 		ioc.run();
 	}
 
-	asio::awaitable<void> listen(uint16_t port) {
-		auto executor = co_await asio::this_coro::executor;
-		asio::ip::tcp::acceptor acceptor(executor, { asio::ip::tcp::v4(), port });
+	asio::awaitable<void> Listen(uint16_t port) {
+		asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });
+
 		for (;;) {
 			for (int i = 0; i < workers.size; ++i) {
 				auto& w = workers[i];
 				try {
 					asio::ip::tcp::socket socket(w.ioc);
 					co_await acceptor.async_accept(socket, asio::use_awaitable);
-					std::cout << i << ", " << socket.local_endpoint() << std::endl;
-					asio::co_spawn(w.ioc, echo(std::move(socket)), asio::detached);
+					asio::co_spawn(w.ioc, Echo(std::move(socket)), asio::detached);
 				}
 				catch (std::exception& e) {
-					std::printf("listener Exception: %s\n", e.what());
+					std::cout << "Server.Listen() Exception : " << e.what() << std::endl;
 				}
 			}
 		}
 	}
 
-	asio::awaitable<void> echo(asio::ip::tcp::socket socket) {
+	asio::awaitable<void> Echo(asio::ip::tcp::socket socket) {
+		std::string addr;
 		try {
+			auto ep = socket.remote_endpoint();
+			addr = ep.address().to_string() + ":" + std::to_string(ep.port());
+			std::cout << addr << " accepted." << std::endl;
+
 			char data[2048];
 			for (;;) {
 				auto n = co_await socket.async_read_some(asio::buffer(data), asio::use_awaitable);
@@ -120,7 +124,7 @@ struct Server : public asio::noncopyable {
 			}
 		}
 		catch (std::exception& e) {
-			std::printf("echo Exception: %s\n", e.what());
+			std::cout << addr << " echo Exception : " << e.what() << std::endl;
 		}
 	}
 };
@@ -136,7 +140,7 @@ int main() {
 		server.Run();
 	}
 	catch (std::exception& e) {
-		std::printf("main Exception: %s\n", e.what());
+		std::cout << "main() Exception : " << e.what() << std::endl;
 		return -1;
 	}
 	return 0;
