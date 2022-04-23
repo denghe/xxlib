@@ -188,6 +188,17 @@ protected:
 /***********************************************************************************************************/
 // logic
 
+#include <asio/experimental/as_tuple.hpp>
+#include <asio/experimental/awaitable_operators.hpp>
+using namespace asio::experimental::awaitable_operators;
+constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
+
+asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
+	asio::steady_timer t(co_await asio::this_coro::executor);
+	t.expires_after(d);
+	co_await t.async_wait(use_nothrow_awaitable);
+}
+
 struct MyPeer;
 struct MyServer : Server {
 	std::unordered_map<std::string, std::function<int(MyPeer&)>> msgHandlers;
@@ -198,23 +209,31 @@ using MyServerPeer = Peer<MyServer>;
 struct MyPeer : MyServerPeer {
 	using MyServerPeer::MyServerPeer;
 	virtual int HandleMessage(std::string msg) override {
-		auto iter = server.msgHandlers.find(msg);
-		if (iter != server.msgHandlers.end()) {
-			return iter->second(*this);
-		}
+		if (auto iter = server.msgHandlers.find(msg); iter != server.msgHandlers.end()) return iter->second(*this);
 		std::cout << addr << " Peer1 recv unhandled msg = " << msg << std::endl;
 		return 0;
 	}
 };
 MyServer::MyServer() {
-	msgHandlers.insert({ "1", [](MyPeer& p) { 
+	msgHandlers.insert({ "1", [this](MyPeer& p) {
 		p.Send("1 = timeout 20s\r\n");
 		p.ResetTimeout(20s);
 		return 0;
 	} });
-	msgHandlers.insert({ "2", [](MyPeer& p) { 
+	msgHandlers.insert({ "2", [this](MyPeer& p) {
 		p.Send("2 = DelayStop 3s\r\n");
 		p.DelayStop(3s);
+		return 0;
+	} });
+	msgHandlers.insert({ "3", [this](MyPeer& p) { 
+		asio::co_spawn(ioc, [this, p = p.shared_from_this()]()->asio::awaitable<void> {
+			for (int i = 5; i >= 0; --i) {
+				p->Send(std::to_string(i) + "\r\n");
+				co_await Timeout(1s);
+			}
+			p->Stop();
+			co_return;
+		}, asio::detached);
 		return 0;
 	} });
 }
