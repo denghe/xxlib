@@ -2,6 +2,7 @@
 // 总体架构为 单线程, 和 gateway 1 对 多
 
 #include <asio.hpp>
+#include <unordered_set>
 #include <unordered_map>
 #include <deque>
 #include <iostream>
@@ -193,15 +194,11 @@ protected:
 using namespace asio::experimental::awaitable_operators;
 constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
 
-asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
-	asio::steady_timer t(co_await asio::this_coro::executor);
-	t.expires_after(d);
-	co_await t.async_wait(use_nothrow_awaitable);
-}
-
 struct MyPeer;
 struct MyServer : Server {
 	std::unordered_map<std::string, std::function<int(MyPeer&)>> msgHandlers;
+
+	std::unordered_set<std::shared_ptr<MyPeer>> broadcasts;
 	MyServer();
 };
 using MyServerPeer = Peer<MyServer>;
@@ -227,15 +224,44 @@ MyServer::MyServer() {
 	} });
 	msgHandlers.insert({ "3", [this](MyPeer& p) { 
 		asio::co_spawn(ioc, [this, p = p.shared_from_this()]()->asio::awaitable<void> {
+			asio::steady_timer delay(ioc);
 			for (int i = 5; i >= 0; --i) {
 				p->Send(std::to_string(i) + "\r\n");
-				co_await Timeout(1s);
+				delay.expires_after(1s); co_await delay.async_wait(use_nothrow_awaitable);
 			}
 			p->Stop();
 			co_return;
 		}, asio::detached);
 		return 0;
 	} });
+
+	msgHandlers.insert({ "4", [this](MyPeer& p) { 
+		broadcasts.insert(std::static_pointer_cast<MyPeer>(p.shared_from_this()));
+		return 0;
+	} });
+	msgHandlers.insert({ "5", [this](MyPeer& p) { 
+		broadcasts.erase(std::static_pointer_cast<MyPeer>(p.shared_from_this()));
+		return 0;
+	} });
+
+	asio::co_spawn(ioc, [this]()->asio::awaitable<void> {
+		int frameNumber = 0;
+		asio::steady_timer delay(ioc);
+		while (true) {
+			++frameNumber;
+			auto iter = broadcasts.begin();
+			while (iter != broadcasts.end()) {
+				if (!(*iter)->stoped) {
+					(*iter)->Send(std::to_string(frameNumber) + " ");
+					++iter;
+				}
+				else {
+					iter = broadcasts.erase(iter);
+				}
+			}
+			delay.expires_after(10ms); co_await delay.async_wait(use_nothrow_awaitable);	// yield 10ms
+		}
+	}, asio::detached);
 }
 
 int main() {
