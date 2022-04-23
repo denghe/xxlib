@@ -48,7 +48,7 @@ struct Server : asio::noncopyable {
 			try {
 				asio::ip::tcp::socket socket(ioc);
 				co_await acceptor.async_accept(socket, asio::use_awaitable);
-				std::make_shared<PeerType>(*this, std::move(socket))->Start();
+				std::make_shared<PeerType>((decltype(PeerType::server))*this, std::move(socket))->Start();
 			}
 			catch (std::exception& e) {
 				std::cout << "Server.Listen() Exception : " << e.what() << std::endl;
@@ -60,8 +60,9 @@ struct Server : asio::noncopyable {
 /***********************************************************************************************************/
 // Peer
 
-struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
-	Server& server;
+template<typename ServerType>
+struct Peer : PeerBase, std::enable_shared_from_this<Peer<ServerType>> {
+	ServerType& server;
 
 	size_t id;
 	asio::ip::tcp::socket socket;
@@ -73,7 +74,7 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 	bool stoping = false;
 	bool stoped = false;
 
-	Peer(Server& server_, asio::ip::tcp::socket&& socket_)
+	Peer(ServerType& server_, asio::ip::tcp::socket&& socket_)
 		: server(server_)
 		, id(++server_.peerAutoId)
 		, socket(std::move(socket_))
@@ -86,15 +87,15 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 
 	// 由于 shared_from_this 无法在构造函数中使用，故拆分出来。平时不可以调用
 	void Start() {
-		server.peers.insert(std::make_pair(id, shared_from_this()));	// 容器持有
+		server.peers.insert(std::make_pair(id, this->shared_from_this()));	// 容器持有
 
 		auto ep = socket.remote_endpoint();
 		addr = ep.address().to_string() + ":" + std::to_string(ep.port());
 		std::cout << addr << " accepted." << std::endl;
 
 		// 启动读写协程( 顺便持有. 协程退出时可能触发析构 )
-		asio::co_spawn(server.ioc, [self = shared_from_this()]{ return self->Read(); }, asio::detached);
-		asio::co_spawn(server.ioc, [self = shared_from_this()]{ return self->Write(); }, asio::detached);
+		asio::co_spawn(server.ioc, [self = this->shared_from_this()]{ return self->Read(); }, asio::detached);
+		asio::co_spawn(server.ioc, [self = this->shared_from_this()]{ return self->Write(); }, asio::detached);
 	}
 
 	void Stop() {
@@ -187,42 +188,41 @@ protected:
 /***********************************************************************************************************/
 // logic
 
-struct Peer1 : Peer {
-	using Peer::Peer;
+struct MyPeer;
+struct MyServer : Server {
+	std::unordered_map<std::string, std::function<int(MyPeer&)>> msgHandlers;
+	MyServer();
+};
+using MyServerPeer = Peer<MyServer>;
+
+struct MyPeer : MyServerPeer {
+	using MyServerPeer::MyServerPeer;
 	virtual int HandleMessage(std::string msg) override {
-		if (msg == "1") {
-			ResetTimeout(20s);
-			Send(std::string("Peer1 peer id = ") + std::to_string(id) + "\r\n");
+		auto iter = server.msgHandlers.find(msg);
+		if (iter != server.msgHandlers.end()) {
+			return iter->second(*this);
 		}
-		else {
-			std::cout << addr << " Peer1 recv unhandled msg = " << msg << std::endl;
-		}
+		std::cout << addr << " Peer1 recv unhandled msg = " << msg << std::endl;
 		return 0;
 	}
 };
-
-struct Peer2 : Peer {
-	using Peer::Peer;
-	virtual int HandleMessage(std::string msg) override {
-		if (msg == "2") {
-			DelayStop(3s);
-			Send("Peer2 DelayStop(3s)\r\n");
-		}
-		else {
-			std::cout << addr << " Peer2 recv unhandled msg = " << msg << std::endl;
-		}
+MyServer::MyServer() {
+	msgHandlers.insert({ "1", [](MyPeer& p) { 
+		p.Send("1 = timeout 20s\r\n");
+		p.ResetTimeout(20s);
 		return 0;
-	}
-};
-
-/***********************************************************************************************************/
-// main
+	} });
+	msgHandlers.insert({ "2", [](MyPeer& p) { 
+		p.Send("2 = DelayStop 3s\r\n");
+		p.DelayStop(3s);
+		return 0;
+	} });
+}
 
 int main() {
 	try {
-		Server server;
-		server.Listen<Peer1>(55551);
-		server.Listen<Peer2>(55552);
+		MyServer server;
+		server.Listen<MyPeer>(55551);
 		server.Run();
 	}
 	catch (std::exception& e) {
