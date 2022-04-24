@@ -45,23 +45,18 @@ struct Server : asio::noncopyable {
 
 	template<typename PeerType, class = std::enable_if_t<std::is_base_of_v<PeerBase, PeerType>>>
 	void Listen(uint16_t port) {
-		asio::co_spawn(ioc, ListenCore<PeerType>(port), asio::detached);
-	}
-
-protected:
-	template<typename PeerType, class = std::enable_if_t<std::is_base_of_v<PeerBase, PeerType>>>
-	asio::awaitable<void> ListenCore(uint16_t port) {
-		asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
-		for (;;) {
-			try {
-				asio::ip::tcp::socket socket(ioc);
-				co_await acceptor.async_accept(socket, asio::use_awaitable);
-				std::make_shared<PeerType>((decltype(PeerType::server))*this, std::move(socket))->Start();
-			}
-			catch (std::exception& e) {
-				std::cout << "Server.Listen() Exception : " << e.what() << std::endl;
-			}
-		}
+		asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
+            asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
+            for (;;) {
+                try {
+                    asio::ip::tcp::socket socket(ioc);
+                    co_await acceptor.async_accept(socket, asio::use_awaitable);
+                    std::make_shared<PeerType>((decltype(PeerType::server))*this, std::move(socket))->Start();
+                }
+                catch (std::exception& e) {
+                    std::cout << "Server.Listen() Exception : " << e.what() << std::endl;
+                }
+            }}, asio::detached);
 	}
 };
 
