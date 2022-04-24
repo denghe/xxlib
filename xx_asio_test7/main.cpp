@@ -282,7 +282,7 @@ struct MyPeer : MyServerPeer {
 			// 单词, 走指令流程. 找到处理函数就 call
 			auto word = std::string(msg.substr(0, n));
 			if (auto iter = server.msgHandlers.find(word); iter != server.msgHandlers.end()) return iter->second(*this, msg.substr(n + 1));
-			Send(std::string("invalid message: word = ") + word + " can't find. " + std::string(msg) + "\r\n");
+			Send("avaliable commands: login, stop ( stop play ), quit ( delaystop 3s ), exit ( direct stop ).\r\n");
 		}
 		return 0;
 	}
@@ -301,11 +301,6 @@ auto MakeScopeGuard(F&& f) noexcept {
 }
 
 MyServer::MyServer() {
-	msgHandlers.insert({ "help", [this](MyPeer& p, std::string_view const& msg) {
-		p.Send("avaliable commands: help, login, stop( stop play ), quit( delaystop 3s ), exit( direct stop ).\r\n");
-		p.ResetTimeout(20s);
-		return 0;
-	} });
 
 	msgHandlers.insert({ "login", [this](MyPeer& p, std::string_view const& args) {
 		// 模拟一个和玩家的交互流程
