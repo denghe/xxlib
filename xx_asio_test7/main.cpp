@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <charconv>
+#include <utility>
 #include <chrono>
 using namespace std::literals;
 using namespace std::literals::chrono_literals;
@@ -42,12 +43,13 @@ struct Server : asio::noncopyable {
 		ioc.run();
 	}
 
-	template<typename PeerType>
+	template<typename PeerType, class = std::enable_if_t<std::is_base_of_v<PeerBase, PeerType>>>
 	void Listen(uint16_t port) {
 		asio::co_spawn(ioc, ListenCore<PeerType>(port), asio::detached);
 	}
 
-	template<typename PeerType>
+protected:
+	template<typename PeerType, class = std::enable_if_t<std::is_base_of_v<PeerBase, PeerType>>>
 	asio::awaitable<void> ListenCore(uint16_t port) {
 		asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
 		for (;;) {
