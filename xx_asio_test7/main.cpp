@@ -18,34 +18,36 @@ using namespace std::literals::chrono_literals;
 using namespace asio::experimental::awaitable_operators;
 constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
 
-struct PeerBase : asio::noncopyable {
-	virtual ~PeerBase() {}
-};
-
+// 可继承并加料
 struct Server : asio::noncopyable {
 	asio::io_context ioc;				// .run() execute
 	asio::signal_set signals;
-	Server() : ioc(1) , signals(ioc, SIGINT, SIGTERM) { }
+	Server() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
 
-	template<typename PeerType, class = std::enable_if_t<std::is_base_of_v<PeerBase, PeerType>>>
+	template<typename PeerType>
 	void Listen(uint16_t port) {
 		asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
-            asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
-            for (;;) {
-                asio::ip::tcp::socket socket(ioc);
+			asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
+			for (;;) {
+				asio::ip::tcp::socket socket(ioc);
 				if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
 					std::make_shared<PeerType>((decltype(PeerType::server))*this, std::move(socket))->Start();
 				}
-            }
+			}
 		}, asio::detached);
 	}
 };
 
-struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
+
+
+// 该类需要被继承并实现 HandleMessage. 用法: struct MyPeer : Peer<MyPeer>, std::enable_shared_from_this<MyPeer> {
+template<typename CT>
+struct Peer : asio::noncopyable {
 	asio::io_context& ioc;
 	asio::ip::tcp::socket socket;
 	asio::steady_timer writeBlocker;
 	std::deque<std::string> writeQueue;
+	bool connected = false;
 	bool stoped = false;
 
 	Peer(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_)
@@ -54,9 +56,27 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 		, writeBlocker(ioc_, std::chrono::steady_clock::time_point::max())
 	{
 	}
+
 	void Start() {
-		asio::co_spawn(ioc, [self = this->shared_from_this()]{ return self->Read(); }, asio::detached);
-		asio::co_spawn(ioc, [self = this->shared_from_this()]{ return self->Write(); }, asio::detached);
+		asio::co_spawn(ioc, [self = ((CT*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
+		asio::co_spawn(ioc, [self = ((CT*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
+	}
+
+	virtual ~Peer() {}
+
+	asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
+		asio::steady_timer t(ioc);
+		t.expires_after(d);
+		co_await t.async_wait(use_nothrow_awaitable);
+	}
+
+	asio::awaitable<int> Connect(asio::ip::address const& ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+		auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
+		if (r.index()) co_return 2;
+		if (auto& [e] = std::get<0>(r); e) co_return 3;
+		connected = true;
+		Start();
+		co_return 0;
 	}
 
 	void Stop() {
@@ -136,13 +156,13 @@ struct MyServer : Server {
 	// 指令处理函数集合
 	std::unordered_map<std::string, std::function<int(MyPeer& p, std::string_view const& args)>> msgHandlers;
 
-	// 游戏循环参与者集合
-	std::unordered_set<std::shared_ptr<MyPeer>> broadcasts;
+	// 玩家集合
+	std::unordered_set<std::shared_ptr<MyPeer>> players;
 
 	MyServer();
 };
 
-struct MyPeer : Peer {
+struct MyPeer : Peer<MyPeer>, std::enable_shared_from_this<MyPeer> {
 	// 引用到宿主 & ioc for easy use
 	MyServer& server;
 	asio::io_context& ioc;
@@ -171,11 +191,6 @@ struct MyPeer : Peer {
 		, timeouter(ioc)
 	{
 		ResetTimeout(20s);
-	}
-
-	// 便于拿到派生类型指针
-	std::shared_ptr<MyPeer> SharedFromThis() {
-		return std::static_pointer_cast<MyPeer>(shared_from_this());
 	}
 
 	// 创建一个 req 上下文并返回 iter. 顺便重置一下超时
@@ -264,6 +279,24 @@ auto MakeSimpleScopeGuard(F&& f) noexcept {
 	return SG(std::forward<F>(f));
 }
 
+
+struct Dialer : Peer<Dialer>, std::enable_shared_from_this<Dialer> {
+	asio::io_context& ioc;
+	asio::steady_timer blocker;
+
+	Dialer(asio::io_context& ioc_)
+		: Peer(ioc_, asio::ip::tcp::socket(ioc_))
+		, ioc(ioc_)
+		, blocker(ioc_, std::chrono::steady_clock::time_point::max())
+	{
+	}
+
+	virtual void HandleMessage(std::string_view const& msg) override {
+		std::cout << "Dialer receive msg = " << msg << std::endl;
+	}
+};
+
+
 MyServer::MyServer() {
 
 	msgHandlers.insert({ "login", [this](MyPeer& p, std::string_view const& args) {
@@ -286,7 +319,7 @@ MyServer::MyServer() {
 		p.ResetTimeout(15s);
 
 		// 起个协程, 开始问答逻辑
-		asio::co_spawn(ioc, [this, p = p.SharedFromThis()]()->asio::awaitable<void> {
+		asio::co_spawn(ioc, [this, p = p.shared_from_this()]()->asio::awaitable<void> {
 
 			// 退出函数自动解锁
 			auto sgLock = MakeSimpleScopeGuard([&] { p->lockLogin = false; });
@@ -320,7 +353,7 @@ MyServer::MyServer() {
 			}
 
 			// 模拟进入了游戏场景，开始收到帧推送
-			broadcasts.insert(p);
+			players.insert(p);
 
 			// 标记正在玩的状态
 			p->playing = true;
@@ -336,7 +369,7 @@ MyServer::MyServer() {
 		else {
 			p.ResetTimeout(20s);
 			p.playing = false;
-			broadcasts.erase(std::static_pointer_cast<MyPeer>(p.shared_from_this()));
+			players.erase(std::static_pointer_cast<MyPeer>(p.shared_from_this()));
 		}
 		return 0;
 	} });
@@ -345,7 +378,7 @@ MyServer::MyServer() {
 		p.Send("bye!\r\n");
 		if (p.playing) {
 			p.playing = false;
-			broadcasts.erase(std::static_pointer_cast<MyPeer>(p.shared_from_this()));
+			players.erase(std::static_pointer_cast<MyPeer>(p.shared_from_this()));
 		}
 		p.DelayStop(3s);
 		return 0;
@@ -356,24 +389,41 @@ MyServer::MyServer() {
 		return 1;
 	} });
 
-	// 模拟一个固定帧率的游戏循环。玩家 peer 如果纳入 broadcasts 就能收到 "广播". 如果玩家还有别的上下文信息，可以和 peer 双向关联
+	// 模拟一个固定帧率的游戏循环。玩家 peer 如果纳入 players 就能收到 "广播". 如果玩家还有别的上下文信息，可以和 peer 双向关联
 	asio::co_spawn(ioc, [this]()->asio::awaitable<void> {
 		int frameNumber = 0;
 		asio::steady_timer delay(ioc);
 		while (true) {
 			++frameNumber;
-			auto iter = broadcasts.begin();
-			while (iter != broadcasts.end()) {
+			auto iter = players.begin();
+			while (iter != players.end()) {
 				if (!(*iter)->stoped) {
 					(*iter)->Send(std::to_string(frameNumber) + "\r");
 					++iter;
 				}
 				else {
-					iter = broadcasts.erase(iter);
+					iter = players.erase(iter);
 				}
 			}
 			delay.expires_after(10ms); co_await delay.async_wait(use_nothrow_awaitable);	// yield 10ms
 		}
+	}, asio::detached);
+
+	// 模拟一个客户端连上来
+	asio::co_spawn(ioc, [this]()->asio::awaitable<void> {
+		auto d = std::make_shared<Dialer>(ioc);
+		// 如果没连上，就反复的连     // todo:退出机制?
+		while (!d->connected) {
+			auto r = co_await d->Connect(asio::ip::address::from_string("127.0.0.1"), 55551);
+			std::cout << "client Connect r = " << r << std::endl;
+		}
+		// 连上了，发点啥
+		d->Send("asdf\r\n");
+
+		std::cout << "client send asdf" << std::endl;
+
+		// 等一段时间退出
+		co_await d->Timeout(60s);
 	}, asio::detached);
 }
 
