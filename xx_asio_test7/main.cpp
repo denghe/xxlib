@@ -47,7 +47,6 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 	asio::steady_timer writeBarrier;
 	std::deque<std::string> writeQueue;
 	bool stoped = false;
-	bool stoping = false;
 
 	Peer(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_)
 		: ioc(ioc_)
@@ -80,11 +79,11 @@ protected:
 	asio::awaitable<void> Read() {
 		for (std::string buf;;) {
 			auto [ec, n] = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), "\n", use_nothrow_awaitable);
-			if (ec || stoping || stoped) break;
+			if (ec) break;
 			if (n > 1) {
 				if (auto siz = n - (buf[n - 2] == '\r' ? 2 : 1)) {
 					HandleMessage({ buf.data(), siz });
-					if (stoping || stoped) break;
+					if (stoped) co_return;
 				}
 			}
 			buf.erase(0, n);
@@ -161,6 +160,9 @@ struct MyPeer : Peer {
 	bool lockLogin = false;
 	bool playing = false;
 
+	// for DelayStop
+	bool stoping = false;
+
 	// 配合 Listen 的构造需求
 	MyPeer(MyServer& server_, asio::ip::tcp::socket&& socket_) 
 		: Peer(server_.ioc, std::move(socket_))
@@ -208,6 +210,8 @@ struct MyPeer : Peer {
 
 	// 消息路由( 投递进来的不会是 0 长度 )
 	virtual void HandleMessage(std::string_view const& msg) override {
+		// delay close 状态不处理任何读到的东西
+		if (stoping) return;
 
 		// 找一下空格，方便切割出首个 word / number
 		auto n = msg.find_first_of(' ');
