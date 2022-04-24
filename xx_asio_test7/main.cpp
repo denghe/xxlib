@@ -44,14 +44,14 @@ struct Server : asio::noncopyable {
 struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 	asio::io_context& ioc;
 	asio::ip::tcp::socket socket;
-	asio::steady_timer writeBarrier;
+	asio::steady_timer writeBlocker;
 	std::deque<std::string> writeQueue;
 	bool stoped = false;
 
 	Peer(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_)
 		: ioc(ioc_)
 		, socket(std::move(socket_))
-		, writeBarrier(ioc_, std::chrono::steady_clock::time_point::max())
+		, writeBlocker(ioc_, std::chrono::steady_clock::time_point::max())
 	{
 	}
 	void Start() {
@@ -63,7 +63,7 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 		if (stoped) return;
 		stoped = true;
 		socket.close();
-		writeBarrier.cancel();
+		writeBlocker.cancel();
 		StopEx();
 	}
 	virtual void StopEx() {}
@@ -71,7 +71,7 @@ struct Peer : PeerBase, std::enable_shared_from_this<Peer> {
 	void Send(std::string&& msg) {
 		if (stoped) return;
 		writeQueue.emplace_back(std::move(msg));
-		writeBarrier.cancel_one();
+		writeBlocker.cancel_one();
 	}
 
 	virtual void HandleMessage(std::string_view const& msg) = 0;
@@ -94,7 +94,7 @@ protected:
 	asio::awaitable<void> Write() {
 		while (socket.is_open()) {
 			if (writeQueue.empty()) {
-				co_await writeBarrier.async_wait(use_nothrow_awaitable);
+				co_await writeBlocker.async_wait(use_nothrow_awaitable);
 				if (stoped) co_return;
 			}
 			auto& msg = writeQueue.front();
