@@ -289,15 +289,9 @@ struct MyPeer : MyServerPeer {
 };
 
 template<class F>
-auto MakeScopeGuard(F&& f) noexcept {
-	struct ScopeGuard {
-		F f; bool cancel;
-		explicit ScopeGuard(F&& f) noexcept : f(std::move(f)), cancel(false) {}
-		~ScopeGuard() noexcept { if (!cancel) { f(); } }
-		inline void Cancel() noexcept { cancel = true; }
-		inline void operator()(bool cancel = false) { f(); this->cancel = cancel; }
-	};
-	return ScopeGuard(std::forward<F>(f));
+auto MakeSimpleScopeGuard(F&& f) noexcept {
+	struct SG { F f; SG(F&& f) noexcept : f(std::move(f)) {} ~SG() { f(); } };
+	return SG(std::forward<F>(f));
 }
 
 MyServer::MyServer() {
@@ -325,7 +319,7 @@ MyServer::MyServer() {
 		asio::co_spawn(ioc, [this, p = p.SharedFromThis()]()->asio::awaitable<void> {
 
 			// 退出函数自动解锁
-			auto sgLock = MakeScopeGuard([&] { p->lockLogin = false; });
+			auto sgLock = MakeSimpleScopeGuard([&] { p->lockLogin = false; });
 
 			// 对客户端发起请求
 			auto iter = p->CreateReqs();
