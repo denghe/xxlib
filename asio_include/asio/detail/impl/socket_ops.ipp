@@ -2,7 +2,7 @@
 // detail/impl/socket_ops.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2022 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -481,7 +481,12 @@ int connect(socket_type s, const socket_addr_type* addr,
   get_last_error(ec, result != 0);
 #if defined(__linux__)
   if (result != 0 && ec == asio::error::try_again)
-    ec = asio::error::no_buffer_space;
+  {
+    if (addr->sa_family == AF_UNIX)
+      ec = asio::error::in_progress;
+    else
+      ec = asio::error::no_buffer_space;
+  }
 #endif // defined(__linux__)
   return result;
 }
@@ -641,7 +646,7 @@ bool sockatmark(socket_type s, asio::error_code& ec)
 # endif // defined(ENOTTY)
 #else // defined(SIOCATMARK)
   int value = ::sockatmark(s);
-  get_last_error(ec, result < 0);
+  get_last_error(ec, value < 0);
 #endif // defined(SIOCATMARK)
 
   return ec ? false : value != 0;
