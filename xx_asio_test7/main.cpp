@@ -15,19 +15,13 @@
 using namespace std::literals;
 using namespace std::literals::chrono_literals;
 
-/***********************************************************************************************************/
-// PeerBase
-
 struct PeerBase : asio::noncopyable {
 	virtual ~PeerBase() {}
 };
 typedef std::shared_ptr<PeerBase> PeerBase_p;
 
-/***********************************************************************************************************/
-// Server
-
 struct Server : asio::noncopyable {
-	asio::io_context ioc;
+	asio::io_context ioc;			// .run() execute
 	asio::signal_set signals;
 
 	size_t peerAutoId = 0;
@@ -37,10 +31,6 @@ struct Server : asio::noncopyable {
 		: ioc(1)
 		, signals(ioc, SIGINT, SIGTERM)
 	{
-	}
-
-	void Run() {
-		ioc.run();
 	}
 
 	template<typename PeerType, class = std::enable_if_t<std::is_base_of_v<PeerBase, PeerType>>>
@@ -59,9 +49,6 @@ struct Server : asio::noncopyable {
             }}, asio::detached);
 	}
 };
-
-/***********************************************************************************************************/
-// Peer
 
 template<typename ServerType>
 struct Peer : PeerBase, std::enable_shared_from_this<Peer<ServerType>> {
@@ -435,7 +422,7 @@ int main() {
 	try {
 		MyServer server;
 		server.Listen<MyPeer>(55551);
-		server.Run();
+		server.ioc.run();
 	}
 	catch (std::exception& e) {
 		std::cout << "main() Exception : " << e.what() << std::endl;
