@@ -280,19 +280,25 @@ auto MakeSimpleScopeGuard(F&& f) noexcept {
 }
 
 
-struct Dialer : Peer<Dialer>, std::enable_shared_from_this<Dialer> {
+struct Client : Peer<Client>, std::enable_shared_from_this<Client> {
 	asio::io_context& ioc;
-	asio::steady_timer blocker;
+	asio::steady_timer recvBlocker;
+	std::vector<std::string> recvs;
 
-	Dialer(asio::io_context& ioc_)
+	Client(asio::io_context& ioc_)
 		: Peer(ioc_, asio::ip::tcp::socket(ioc_))
 		, ioc(ioc_)
-		, blocker(ioc_, std::chrono::steady_clock::time_point::max())
+		, recvBlocker(ioc_, std::chrono::steady_clock::time_point::max())
 	{
 	}
 
+	virtual void StopEx() override {
+		recvBlocker.cancel();
+	}
+
 	virtual void HandleMessage(std::string_view const& msg) override {
-		std::cout << "Dialer receive msg = " << msg << std::endl;
+		recvs.emplace_back(std::string(msg));
+		recvBlocker.cancel_one();
 	}
 };
 
@@ -411,7 +417,7 @@ MyServer::MyServer() {
 
 	// 模拟一个客户端连上来
 	asio::co_spawn(ioc, [this]()->asio::awaitable<void> {
-		auto d = std::make_shared<Dialer>(ioc);
+		auto d = std::make_shared<Client>(ioc);
 		// 如果没连上，就反复的连     // todo:退出机制?
 		while (!d->connected) {
 			auto r = co_await d->Connect(asio::ip::address::from_string("127.0.0.1"), 55551);
