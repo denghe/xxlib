@@ -18,7 +18,7 @@ using namespace std::literals::chrono_literals;
 using namespace asio::experimental::awaitable_operators;
 constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
 
-namespace yy {
+namespace xx {
 
 	template<typename T>
 	concept PeerDeriveType = requires(T t) {
@@ -161,7 +161,7 @@ namespace yy {
 
 
 struct MyPeer;
-struct MyServer : yy::ServerCode<MyServer> {
+struct MyServer : xx::ServerCode<MyServer> {
 
 	// 指令处理函数集合
 	std::unordered_map<std::string, std::function<int(MyPeer& p, std::string_view const& args)>> msgHandlers;
@@ -172,7 +172,7 @@ struct MyServer : yy::ServerCode<MyServer> {
 	MyServer();
 };
 
-struct MyPeer : yy::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
+struct MyPeer : xx::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 	// 引用到宿主 & ioc for easy use
 	MyServer& server;
 	asio::io_context& ioc;
@@ -292,7 +292,7 @@ auto MakeSimpleScopeGuard(F&& f) noexcept {
 }
 
 
-struct Client : yy::PeerCode<Client>, std::enable_shared_from_this<Client> {
+struct Client : xx::PeerCode<Client>, std::enable_shared_from_this<Client> {
 	asio::io_context& ioc;
 	asio::steady_timer recvBlocker;
 	std::vector<std::string> recvs;
@@ -443,7 +443,7 @@ MyServer::MyServer() {
 		std::cout << "client send asdf" << std::endl;
 
 		// 等一段时间退出
-		co_await yy::Timeout(60s);
+		co_await xx::Timeout(60s);
 	}, asio::detached);
 }
 
