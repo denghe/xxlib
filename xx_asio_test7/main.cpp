@@ -18,65 +18,37 @@ using namespace std::literals::chrono_literals;
 using namespace asio::experimental::awaitable_operators;
 constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
 
-// 可继承并加料
-struct Server : asio::noncopyable {
-	asio::io_context ioc;				// .run() execute
-	asio::signal_set signals;
-	Server() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
-
-	template<typename PeerType>
-	void Listen(uint16_t port) {
-		asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
-			asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
-			for (;;) {
-				asio::ip::tcp::socket socket(ioc);
-				if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
-					std::make_shared<PeerType>((decltype(PeerType::server))*this, std::move(socket))->Start();
-				}
-			}
-		}, asio::detached);
-	}
+template<typename T>
+concept PeerDeriveType = requires(T t) {
+	t.shared_from_this();	// 需要 PeerDeriveType 继承 std::enable_shared_from_this<MyPeer>
+	t.StartEx();
+	t.StopEx();
+	t.HandleMessage();
 };
 
-
-
-// 该类需要被继承并实现 HandleMessage. 用法: struct MyPeer : Peer<MyPeer>, std::enable_shared_from_this<MyPeer> {
-template<typename CT>
-struct Peer : asio::noncopyable {
+template<typename PeerDeriveType>
+struct PeerCode : asio::noncopyable {
 	asio::io_context& ioc;
 	asio::ip::tcp::socket socket;
 	asio::steady_timer writeBlocker;
 	std::deque<std::string> writeQueue;
-	bool connected = false;
-	bool stoped = false;
+	bool stoped = true;
 
-	Peer(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_)
+	PeerCode(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_)
 		: ioc(ioc_)
 		, socket(std::move(socket_))
-		, writeBlocker(ioc_, std::chrono::steady_clock::time_point::max())
+		, writeBlocker(ioc_)
 	{
 	}
 
 	void Start() {
-		asio::co_spawn(ioc, [self = ((CT*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
-		asio::co_spawn(ioc, [self = ((CT*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
-	}
-
-	virtual ~Peer() {}
-
-	asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
-		asio::steady_timer t(ioc);
-		t.expires_after(d);
-		co_await t.async_wait(use_nothrow_awaitable);
-	}
-
-	asio::awaitable<int> Connect(asio::ip::address const& ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
-		auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
-		if (r.index()) co_return 2;
-		if (auto& [e] = std::get<0>(r); e) co_return 3;
-		connected = true;
-		Start();
-		co_return 0;
+		if (!stoped) return;
+		stoped = false;
+		writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
+		writeQueue.clear();
+		asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
+		asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
+		((PeerDeriveType*)(this))->StartEx();
 	}
 
 	void Stop() {
@@ -84,9 +56,24 @@ struct Peer : asio::noncopyable {
 		stoped = true;
 		socket.close();
 		writeBlocker.cancel();
-		StopEx();
+		((PeerDeriveType*)(this))->StopEx();
 	}
-	virtual void StopEx() {}
+
+	asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
+		asio::steady_timer t(ioc);
+		t.expires_after(d);
+		co_await t.async_wait(use_nothrow_awaitable);
+	}
+
+	// for client dial connect to server only
+	asio::awaitable<int> Connect(asio::ip::address const& ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+		if (!stoped) co_return 1;
+		auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
+		if (r.index()) co_return 2;
+		if (auto& [e] = std::get<0>(r); e) co_return 3;
+		Start();
+		co_return 0;
+	}
 
 	void Send(std::string&& msg) {
 		if (stoped) return;
@@ -94,7 +81,6 @@ struct Peer : asio::noncopyable {
 		writeBlocker.cancel_one();
 	}
 
-	virtual void HandleMessage(std::string_view const& msg) = 0;
 protected:
 	asio::awaitable<void> Read() {
 		for (std::string buf;;) {
@@ -102,7 +88,7 @@ protected:
 			if (ec) break;
 			if (n > 1) {
 				if (auto siz = n - (buf[n - 2] == '\r' ? 2 : 1)) {
-					HandleMessage({ buf.data(), siz });
+					((PeerDeriveType*)(this))->HandleMessage({ buf.data(), siz });
 					if (stoped) co_return;
 				}
 			}
@@ -134,6 +120,26 @@ protected:
 	}
 };
 
+template<typename ServerDeriveType>
+struct ServerCode : asio::noncopyable {
+	asio::io_context ioc;				// .run() execute
+	asio::signal_set signals;
+	ServerCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
+
+	template<typename PeerType>
+	void Listen(uint16_t port) {
+		asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
+			asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
+			for (;;) {
+				asio::ip::tcp::socket socket(ioc);
+				if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
+					std::make_shared<PeerType>(*(ServerDeriveType*)this, std::move(socket))->Start();
+				}
+			}
+		}, asio::detached);
+	}
+};
+
 
 
 
@@ -151,7 +157,7 @@ protected:
 
 
 struct MyPeer;
-struct MyServer : Server {
+struct MyServer : ServerCode<MyServer> {
 
 	// 指令处理函数集合
 	std::unordered_map<std::string, std::function<int(MyPeer& p, std::string_view const& args)>> msgHandlers;
@@ -162,13 +168,13 @@ struct MyServer : Server {
 	MyServer();
 };
 
-struct MyPeer : Peer<MyPeer>, std::enable_shared_from_this<MyPeer> {
+struct MyPeer : PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 	// 引用到宿主 & ioc for easy use
 	MyServer& server;
 	asio::io_context& ioc;
 
 	// 业务自增序号
-	uint32_t autoSerial = 0;
+	int32_t autoSerial = 0;
 
 	// 客户端的回应 临时容器. 发起请求时先插入 自增序号, 阻塞器到此. 收到回应时, 写入 string 并令 timer 解除阻塞
 	std::unordered_map<int, std::pair<asio::steady_timer, std::string>> reqs;
@@ -185,7 +191,7 @@ struct MyPeer : Peer<MyPeer>, std::enable_shared_from_this<MyPeer> {
 
 	// 配合 Listen 的构造需求
 	MyPeer(MyServer& server_, asio::ip::tcp::socket&& socket_) 
-		: Peer(server_.ioc, std::move(socket_))
+		: PeerCode(server_.ioc, std::move(socket_))
 		, server(server_) 
 		, ioc(server_.ioc)
 		, timeouter(ioc)
@@ -193,13 +199,15 @@ struct MyPeer : Peer<MyPeer>, std::enable_shared_from_this<MyPeer> {
 		ResetTimeout(20s);
 	}
 
+	void StartEx() {}
+
 	// 创建一个 req 上下文并返回 iter. 顺便重置一下超时
 	auto CreateReqs() {
 		return reqs.emplace(++autoSerial, std::make_pair(asio::steady_timer(ioc, std::chrono::steady_clock::time_point::max()), "")).first;
 	}
 
 	// Stop 的同时取消所有 timers
-	virtual void StopEx() override {
+	void StopEx() {
 		timeouter.cancel();
 		for (auto& kv : reqs) {
 			kv.second.first.cancel();
@@ -224,7 +232,7 @@ struct MyPeer : Peer<MyPeer>, std::enable_shared_from_this<MyPeer> {
 
 
 	// 消息路由( 投递进来的不会是 0 长度 )
-	virtual void HandleMessage(std::string_view const& msg) override {
+	void HandleMessage(std::string_view const& msg) {
 		// delay close 状态不处理任何读到的东西
 		if (stoping) return;
 
@@ -280,23 +288,25 @@ auto MakeSimpleScopeGuard(F&& f) noexcept {
 }
 
 
-struct Client : Peer<Client>, std::enable_shared_from_this<Client> {
+struct Client : PeerCode<Client>, std::enable_shared_from_this<Client> {
 	asio::io_context& ioc;
 	asio::steady_timer recvBlocker;
 	std::vector<std::string> recvs;
 
 	Client(asio::io_context& ioc_)
-		: Peer(ioc_, asio::ip::tcp::socket(ioc_))
+		: PeerCode(ioc_, asio::ip::tcp::socket(ioc_))
 		, ioc(ioc_)
 		, recvBlocker(ioc_, std::chrono::steady_clock::time_point::max())
 	{
 	}
 
-	virtual void StopEx() override {
+	void StartEx() {}
+
+	void StopEx() {
 		recvBlocker.cancel();
 	}
 
-	virtual void HandleMessage(std::string_view const& msg) override {
+	void HandleMessage(std::string_view const& msg) {
 		recvs.emplace_back(std::string(msg));
 		recvBlocker.cancel_one();
 	}
@@ -419,7 +429,7 @@ MyServer::MyServer() {
 	asio::co_spawn(ioc, [this]()->asio::awaitable<void> {
 		auto d = std::make_shared<Client>(ioc);
 		// 如果没连上，就反复的连     // todo:退出机制?
-		while (!d->connected) {
+		while (d->stoped) {
 			auto r = co_await d->Connect(asio::ip::address::from_string("127.0.0.1"), 55551);
 			std::cout << "client Connect r = " << r << std::endl;
 		}
