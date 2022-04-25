@@ -21,14 +21,14 @@ namespace xx {
 	template<typename T>
 	concept PeerDeriveType = requires(T t) {
 		t.shared_from_this();	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
-		t.HandleMessage();		// 核心消息处理函数( 参数为 xx::Data& msg, 需要自行 msg.RemoveFront )
+		t.HandleMessage();		// int ( char*, len ) 返回值为 已处理长度, 将从 buf 中移除. 返回 <= 0 表示出错，将 Stop()
 	};
 
 	// 成员函数 / 组合探测器
-	template<typename T> concept HasPeerStartAfter = requires(T t) { t.StartAfter(); };
-	template<typename T> concept HasPeerStopAfter = requires(T t) { t.StopAfter(); };
+	template<typename T> concept HasStart_ = requires(T t) { t.Start_(); };
+	template<typename T> concept HasStop_ = requires(T t) { t.Stop_(); };
 
-	template<typename PeerDeriveType, bool hasRequestCode = false, bool hasTimeoutCode = false>
+	template<typename PeerDeriveType, bool hasTimeoutCode = true, bool hasRequestCode = true>
 	struct PeerCode : asio::noncopyable {
 		asio::io_context& ioc;
 		asio::ip::tcp::socket socket;
@@ -53,8 +53,8 @@ namespace xx {
 			}
 			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
 			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
-			if constexpr(HasPeerStartAfter<PeerDeriveType>) {
-				((PeerDeriveType*)(this))->StartAfter();
+			if constexpr(HasStart_<PeerDeriveType>) {
+				((PeerDeriveType*)(this))->Start_();
 			}
 		}
 
@@ -71,8 +71,8 @@ namespace xx {
 					kv.second.first.cancel();
 				}
 			}
-			if constexpr (HasPeerStopAfter<PeerDeriveType>) {
-				((PeerDeriveType*)(this))->StopAfter();
+			if constexpr (HasStop_<PeerDeriveType>) {
+				((PeerDeriveType*)(this))->Stop_();
 			}
 		}
 
@@ -94,23 +94,28 @@ namespace xx {
 
 	protected:
 		asio::awaitable<void> Read() {
-			for (Data msg(1024 * 256);;) {
-				auto [ec, n] = co_await socket.async_read_some(asio::buffer(msg.buf + msg.len, msg.cap - msg.len), use_nothrow_awaitable);
+			uint8_t buf[1024 * 256];
+			size_t len = 0;
+			for (;;) {
+				auto [ec, n] = co_await socket.async_read_some(asio::buffer(buf + len, sizeof(buf) - len), use_nothrow_awaitable);
 				if (ec) break;
 				if (stoped) co_return;
 				if (!n) continue;
 				if constexpr (hasTimeoutCode) {
 					if (((PeerDeriveType*)(this))->stoping) {
-						msg.Clear();
+						len = 0;
 						continue;
 					}
 				}
-				else {
-					msg.len += n;
-					((PeerDeriveType*)(this))->HandleMessage(msg);
-				}
+				len += n;
+				n = ((PeerDeriveType*)(this))->HandleMessage(buf, len);
 				if (stoped) co_return;
-				msg.offset = 0;
+				if constexpr (hasTimeoutCode) {
+					if (((PeerDeriveType*)(this))->stoping) co_return;
+				}
+				if (!n) break;
+				len -= n;
+				memmove(buf, buf + n, len);
 			}
 			Stop();
 		}
@@ -185,40 +190,33 @@ namespace xx {
 	};
 
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
-	/* 需要手工添加下列代码到相应函数
-	void HandleMessage(....msg) {
-		...
-		反序列化出 serial, o
-		TriggerReq( serial, std::move(o) );
-		 ...
+	/* 需要手工添加下列函数
+	int HandlePush(xx::ObjBase_s&& o) {
+		// handle o
+		return 0;
 	}
 	*/
 	template<typename PeerDeriveType>
 	struct PeerRequestCode {
 		int32_t reqAutoId = 0;
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
+		ObjManager& om;
 
-		int TriggerReq(int32_t const& serial, ObjBase_s&& o) {
-			if (auto iter = reqs.find(serial); iter != reqs.end()) {
-				iter->second.second = std::move(o);
-				iter->second.first.cancel();
-				return 0;
-			}
-			return __LINE__;
-		}
+		PeerRequestCode(ObjManager& om_) : om(om_) {}
 
-		void FillTo(ObjManager& om, Data& d, ObjBase_s const& o) {
+		void FillTo(Data& d, int32_t const& serial, ObjBase_s const& o) {
 			auto bak = d.WriteJump(sizeof(uint32_t));	// package len
-			d.WriteVarInteger(reqAutoId);				// serial
+			// todo: 网关包这里有个 投递地址 占用
+			d.WriteVarInteger(serial);					// serial
 			om.WriteTo(d, o);							// typeid + data
 			d.WriteFixedAt(bak, d.len);					// fill package len
 		}
 
-		asio::awaitable<ObjBase_s> SendRequest(ObjManager& om, ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
+		asio::awaitable<ObjBase_s> SendRequest(ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
 			// 创建请求
 			auto iter = reqs.emplace(++reqAutoId, std::make_pair(asio::steady_timer(((PeerDeriveType*)(this))->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
 			Data d;
-			FillTo(d, o);
+			FillTo(d, reqAutoId, o);
 			((PeerDeriveType*)(this))->Send(std::move(d));
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);	// 等回包 或 超时
 			auto r = std::move(iter->second.second);	// 拿出 网络回包
@@ -226,7 +224,71 @@ namespace xx {
 			co_return r;	// 返回 网络回包( 超时 为 空 )
 		}
 
-		// todo: SendResponse, SendPush
+		void SendPush(ObjBase_s const& o) {
+			Data d;
+			FillTo(d, 0, o);
+			((PeerDeriveType*)(this))->Send(std::move(d));
+		}
+
+		void SendResponse(int32_t serial, ObjBase_s const& o) {
+			Data d;
+			FillTo(d, -serial, o);
+			((PeerDeriveType*)(this))->Send(std::move(d));
+		}
+
+		size_t HandleMessage(uint8_t* inBuf, size_t len) {
+			// 正在停止，直接吞掉所有数据
+			if (((PeerDeriveType*)(this))->stoping) return len;
+
+			// 取出指针备用
+			auto buf = (uint8_t*)inBuf;
+			auto end = (uint8_t*)inBuf + len;
+
+			// 包头
+			uint32_t dataLen = 0;
+			//uint32_t addr = 0;
+
+			// 确保包头长度充足
+			while (buf + sizeof(dataLen) <= end) {
+				// 取长度
+				dataLen = *(uint32_t*)buf;
+
+				// 计算包总长( 包头长 + 数据长 )
+				auto totalLen = sizeof(dataLen) + dataLen;
+
+				// 如果包不完整 就 跳出
+				if (buf + totalLen > end) break;
+
+				{
+					auto dr = xx::Data_r(buf + sizeof(dataLen), dataLen);
+
+					// todo: 网关包这里有个 投递地址 占用
+
+					int32_t serial;
+					if (dr.Read(serial)) return 0;
+
+					xx::ObjBase_s o;
+					if (om.ReadFrom(dr, o) || !o) return 0;
+
+					if (serial > 0) {
+						if (auto iter = reqs.find(serial); iter != reqs.end()) {
+							iter->second.second = std::move(o);
+							iter->second.first.cancel();
+						}
+					}
+					else {
+						if (((PeerDeriveType*)(this))->HandlePush(std::move(o))) return 0;
+						if (((PeerDeriveType*)(this))->stoping || ((PeerDeriveType*)(this))->stoped) return 0;
+					}
+				}
+
+				// 跳到下一个包的开头
+				buf += totalLen;
+			}
+
+			// 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
+			return buf - inBuf;
+		}
 	};
 
 	// todo: more xxxxCode here
