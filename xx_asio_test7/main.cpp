@@ -18,129 +18,133 @@ using namespace std::literals::chrono_literals;
 using namespace asio::experimental::awaitable_operators;
 constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
 
-template<typename T>
-concept PeerDeriveType = requires(T t) {
-	t.shared_from_this();	// 需要 PeerDeriveType 继承 std::enable_shared_from_this<MyPeer>
-	t.StartEx();
-	t.StopEx();
-	t.HandleMessage();
-};
+namespace yy {
 
-template<typename PeerDeriveType>
-struct PeerCode : asio::noncopyable {
-	asio::io_context& ioc;
-	asio::ip::tcp::socket socket;
-	asio::steady_timer writeBlocker;
-	std::deque<std::string> writeQueue;
-	bool stoped = true;
-
-	PeerCode(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_)
-		: ioc(ioc_)
-		, socket(std::move(socket_))
-		, writeBlocker(ioc_)
-	{
-	}
-
-	void Start() {
-		if (!stoped) return;
-		stoped = false;
-		writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
-		writeQueue.clear();
-		asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
-		asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
-		((PeerDeriveType*)(this))->StartEx();
-	}
-
-	void Stop() {
-		if (stoped) return;
-		stoped = true;
-		socket.close();
-		writeBlocker.cancel();
-		((PeerDeriveType*)(this))->StopEx();
-	}
+	template<typename T>
+	concept PeerDeriveType = requires(T t) {
+		t.shared_from_this();	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
+		t.StartAfter();			// 便于在 Start 尾部追加别的处理代码
+		t.StopAfter();			// 便于在 Stop 尾部追加别的处理代码
+		t.HandleMessage();		// 核心消息处理函数
+	};
 
 	asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
-		asio::steady_timer t(ioc);
+		asio::steady_timer t(co_await asio::this_coro::executor);
 		t.expires_after(d);
 		co_await t.async_wait(use_nothrow_awaitable);
 	}
 
-	// for client dial connect to server only
-	asio::awaitable<int> Connect(asio::ip::address const& ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
-		if (!stoped) co_return 1;
-		auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
-		if (r.index()) co_return 2;
-		if (auto& [e] = std::get<0>(r); e) co_return 3;
-		Start();
-		co_return 0;
-	}
+	template<typename PeerDeriveType>
+	struct PeerCode : asio::noncopyable {
+		asio::io_context& ioc;
+		asio::ip::tcp::socket socket;
+		asio::steady_timer writeBlocker;
+		std::deque<std::string> writeQueue;
+		bool stoped = true;
 
-	void Send(std::string&& msg) {
-		if (stoped) return;
-		writeQueue.emplace_back(std::move(msg));
-		writeBlocker.cancel_one();
-	}
+		PeerCode(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_)
+			: ioc(ioc_)
+			, socket(std::move(socket_))
+			, writeBlocker(ioc_)
+		{
+		}
 
-protected:
-	asio::awaitable<void> Read() {
-		for (std::string buf;;) {
-			auto [ec, n] = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), "\n", use_nothrow_awaitable);
-			if (ec) break;
-			if (n > 1) {
-				if (auto siz = n - (buf[n - 2] == '\r' ? 2 : 1)) {
-					((PeerDeriveType*)(this))->HandleMessage({ buf.data(), siz });
+		void Start() {
+			if (!stoped) return;
+			stoped = false;
+			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
+			writeQueue.clear();
+			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
+			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
+			((PeerDeriveType*)(this))->StartAfter();
+		}
+
+		void Stop() {
+			if (stoped) return;
+			stoped = true;
+			socket.close();
+			writeBlocker.cancel();
+			((PeerDeriveType*)(this))->StopAfter();
+		}
+
+		// for client dial connect to server only
+		asio::awaitable<int> Connect(asio::ip::address const& ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+			if (!stoped) co_return 1;
+			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
+			if (r.index()) co_return 2;
+			if (auto& [e] = std::get<0>(r); e) co_return 3;
+			Start();
+			co_return 0;
+		}
+
+		void Send(std::string&& msg) {
+			if (stoped) return;
+			writeQueue.emplace_back(std::move(msg));
+			writeBlocker.cancel_one();
+		}
+
+	protected:
+		asio::awaitable<void> Read() {
+			for (std::string buf;;) {
+				auto [ec, n] = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), "\n", use_nothrow_awaitable);
+				if (ec) break;
+				if (n > 1) {
+					if (auto siz = n - (buf[n - 2] == '\r' ? 2 : 1)) {
+						((PeerDeriveType*)(this))->HandleMessage({ buf.data(), siz });
+						if (stoped) co_return;
+					}
+				}
+				buf.erase(0, n);
+			}
+			Stop();
+		}
+
+		asio::awaitable<void> Write() {
+			while (socket.is_open()) {
+				if (writeQueue.empty()) {
+					co_await writeBlocker.async_wait(use_nothrow_awaitable);
 					if (stoped) co_return;
 				}
-			}
-			buf.erase(0, n);
-		}
-		Stop();
-	}
-
-	asio::awaitable<void> Write() {
-		while (socket.is_open()) {
-			if (writeQueue.empty()) {
-				co_await writeBlocker.async_wait(use_nothrow_awaitable);
-				if (stoped) co_return;
-			}
-			auto& msg = writeQueue.front();
-			auto buf = msg.data();
-			auto len = msg.size();
-		LabBegin:
-			auto [ec, n] = co_await asio::async_write(socket, asio::buffer(buf, len), use_nothrow_awaitable);
-			if (ec || stoped) co_return;
-			if (n < len) {
-				len -= n;
-				buf += n;
-				goto LabBegin;
-			}
-			writeQueue.pop_front();
-		}
-		Stop();
-	}
-};
-
-template<typename ServerDeriveType>
-struct ServerCode : asio::noncopyable {
-	asio::io_context ioc;				// .run() execute
-	asio::signal_set signals;
-	ServerCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
-
-	template<typename PeerType>
-	void Listen(uint16_t port) {
-		asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
-			asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
-			for (;;) {
-				asio::ip::tcp::socket socket(ioc);
-				if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
-					std::make_shared<PeerType>(*(ServerDeriveType*)this, std::move(socket))->Start();
+				auto& msg = writeQueue.front();
+				auto buf = msg.data();
+				auto len = msg.size();
+			LabBegin:
+				auto [ec, n] = co_await asio::async_write(socket, asio::buffer(buf, len), use_nothrow_awaitable);
+				if (ec || stoped) co_return;
+				if (n < len) {
+					len -= n;
+					buf += n;
+					goto LabBegin;
 				}
+				writeQueue.pop_front();
 			}
-		}, asio::detached);
-	}
-};
+			Stop();
+		}
+	};
 
+	template<typename ServerDeriveType>
+	struct ServerCode : asio::noncopyable {
+		asio::io_context ioc;				// .run() execute
+		asio::signal_set signals;
+		ServerCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
 
+		// 需要目标 Peer 实现( Server&, &&socket ) 构造函数
+		template<typename Peer>
+		void Listen(uint16_t port) {
+			asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
+				asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
+				for (;;) {
+					asio::ip::tcp::socket socket(ioc);
+					if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
+						std::make_shared<Peer>(*(ServerDeriveType*)this, std::move(socket))->Start();
+					}
+				}
+				}, asio::detached);
+		}
+	};
+
+	// todo: more xxxxCode here
+}
 
 
 
@@ -157,7 +161,7 @@ struct ServerCode : asio::noncopyable {
 
 
 struct MyPeer;
-struct MyServer : ServerCode<MyServer> {
+struct MyServer : yy::ServerCode<MyServer> {
 
 	// 指令处理函数集合
 	std::unordered_map<std::string, std::function<int(MyPeer& p, std::string_view const& args)>> msgHandlers;
@@ -168,7 +172,7 @@ struct MyServer : ServerCode<MyServer> {
 	MyServer();
 };
 
-struct MyPeer : PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
+struct MyPeer : yy::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 	// 引用到宿主 & ioc for easy use
 	MyServer& server;
 	asio::io_context& ioc;
@@ -199,7 +203,7 @@ struct MyPeer : PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 		ResetTimeout(20s);
 	}
 
-	void StartEx() {}
+	void StartAfter() {}
 
 	// 创建一个 req 上下文并返回 iter. 顺便重置一下超时
 	auto CreateReqs() {
@@ -207,7 +211,7 @@ struct MyPeer : PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 	}
 
 	// Stop 的同时取消所有 timers
-	void StopEx() {
+	void StopAfter() {
 		timeouter.cancel();
 		for (auto& kv : reqs) {
 			kv.second.first.cancel();
@@ -288,7 +292,7 @@ auto MakeSimpleScopeGuard(F&& f) noexcept {
 }
 
 
-struct Client : PeerCode<Client>, std::enable_shared_from_this<Client> {
+struct Client : yy::PeerCode<Client>, std::enable_shared_from_this<Client> {
 	asio::io_context& ioc;
 	asio::steady_timer recvBlocker;
 	std::vector<std::string> recvs;
@@ -300,9 +304,9 @@ struct Client : PeerCode<Client>, std::enable_shared_from_this<Client> {
 	{
 	}
 
-	void StartEx() {}
+	void StartAfter() {}
 
-	void StopEx() {
+	void StopAfter() {
 		recvBlocker.cancel();
 	}
 
@@ -439,7 +443,7 @@ MyServer::MyServer() {
 		std::cout << "client send asdf" << std::endl;
 
 		// 等一段时间退出
-		co_await d->Timeout(60s);
+		co_await yy::Timeout(60s);
 	}, asio::detached);
 }
 
