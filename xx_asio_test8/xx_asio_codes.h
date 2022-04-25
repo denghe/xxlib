@@ -191,9 +191,11 @@ namespace xx {
 
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
 	/* 需要手工添加下列函数
-	int HandlePush(xx::ObjBase_s&& o) {
-		// handle o
-		return 0;
+	int ReceiveRequest(xx::ObjBase_s&& o) {
+	int ReceivePush(xx::ObjBase_s&& o) {
+		// todo: handle o
+		// 非法 o 随手处理下 om.KillRecursive(o);
+		return 0;	// 要掐线就返回非 0
 	}
 	*/
 	template<typename PeerDeriveType>
@@ -207,16 +209,17 @@ namespace xx {
 		void FillTo(Data& d, int32_t const& serial, ObjBase_s const& o) {
 			auto bak = d.WriteJump(sizeof(uint32_t));	// package len
 			// todo: 网关包这里有个 投递地址 占用
-			d.WriteVarInteger(serial);					// serial
-			om.WriteTo(d, o);							// typeid + data
-			d.WriteFixedAt(bak, d.len);					// fill package len
+			d.WriteVarInteger(serial);
+			om.WriteTo(d, o);	// typeid + data
+			d.WriteFixedAt(bak, (uint32_t)(d.len - sizeof(uint32_t)));	// fill package len
 		}
 
 		asio::awaitable<ObjBase_s> SendRequest(ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
 			// 创建请求
-			auto iter = reqs.emplace(++reqAutoId, std::make_pair(asio::steady_timer(((PeerDeriveType*)(this))->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
+			reqAutoId = (reqAutoId + 1) % 0x7fffffff;
+			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(((PeerDeriveType*)(this))->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
 			Data d;
-			FillTo(d, reqAutoId, o);
+			FillTo(d, -reqAutoId, o);
 			((PeerDeriveType*)(this))->Send(std::move(d));
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);	// 等回包 或 超时
 			auto r = std::move(iter->second.second);	// 拿出 网络回包
@@ -232,7 +235,7 @@ namespace xx {
 
 		void SendResponse(int32_t serial, ObjBase_s const& o) {
 			Data d;
-			FillTo(d, -serial, o);
+			FillTo(d, serial, o);
 			((PeerDeriveType*)(this))->Send(std::move(d));
 		}
 
@@ -246,7 +249,7 @@ namespace xx {
 
 			// 包头
 			uint32_t dataLen = 0;
-			//uint32_t addr = 0;
+			//uint32_t addr = 0;	// todo
 
 			// 确保包头长度充足
 			while (buf + sizeof(dataLen) <= end) {
@@ -268,7 +271,11 @@ namespace xx {
 					if (dr.Read(serial)) return 0;
 
 					xx::ObjBase_s o;
-					if (om.ReadFrom(dr, o) || !o) return 0;
+					if (om.ReadFrom(dr, o)) {
+						om.KillRecursive(o);
+						return 0;
+					}
+					if (!o || !o.typeId()) return 0;
 
 					if (serial > 0) {
 						if (auto iter = reqs.find(serial); iter != reqs.end()) {
@@ -277,7 +284,12 @@ namespace xx {
 						}
 					}
 					else {
-						if (((PeerDeriveType*)(this))->HandlePush(std::move(o))) return 0;
+						if (serial == 0) {
+							if (((PeerDeriveType*)(this))->ReceivePush(std::move(o))) return 0;
+						}
+						else {	// serial < 0
+							if (((PeerDeriveType*)(this))->ReceiveRequest(-serial, std::move(o))) return 0;
+						}
 						if (((PeerDeriveType*)(this))->stoping || ((PeerDeriveType*)(this))->stoped) return 0;
 					}
 				}

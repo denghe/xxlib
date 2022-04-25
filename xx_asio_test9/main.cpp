@@ -16,16 +16,50 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 		, client(client_)
 	{}
 
-	void Start_() {
-		asio::co_spawn(ioc, [this, self = shared_from_this()]()->asio::awaitable<void> {
-			//co_await 
-			//SendRequest()
-		}, asio::detached);
+	int ReceivePush(xx::ObjBase_s&& o_) {
+		om.CoutN("ReceivePush ", o_);
+		om.KillRecursive(o_);
+		return 0;
+	}
+
+	int ReceiveRequest(int32_t const& serial_, xx::ObjBase_s&& o_) {
+		om.CoutN("ReceiveRequest ", o_);
+		om.KillRecursive(o_);
+		return 0;
 	}
 };
 
 void Client::Run(uint16_t const& port) {
+	// 模拟一个客户端连上来
+	asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
+		auto d = std::make_shared<CPeer>(*this);
 
+		// 如果没连上，就反复的连     // todo:退出机制?
+		while (d->stoped) {
+			auto r = co_await d->Connect(asio::ip::address::from_string("127.0.0.1"), port);
+			std::cout << "client Connect r = " << r << std::endl;
+		}
+		om.CoutN("d->stoped = ", d->stoped);
+
+		// 连上了，发点啥
+		auto pkg = xx::Make<Generic::Error>();
+		pkg->errorCode = 1;
+		pkg->errorMessage = "asdf";
+		om.CoutN("pkg = ", pkg);
+
+		if (auto o = co_await d->SendRequest(pkg); !o) {
+			om.CoutN("SendRequest timeout!");
+		}
+		else {
+			om.CoutN("receive o = ", o);
+		}
+
+		om.CoutN("d->stoped = ", d->stoped);
+
+		// 等一段时间退出
+		co_await xx::Timeout(60s);
+	}, asio::detached);
+	ioc.run();
 }
 
 int main() {
