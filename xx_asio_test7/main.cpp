@@ -1,6 +1,5 @@
 ﻿// asio simple telnet server for test features
 
-#include <asio.hpp>
 #include <unordered_set>
 #include <unordered_map>
 #include <deque>
@@ -11,6 +10,7 @@
 #include <charconv>
 #include <utility>
 #include <chrono>
+#include <asio.hpp>
 using namespace std::literals;
 using namespace std::literals::chrono_literals;
 #include <asio/experimental/as_tuple.hpp>
@@ -20,6 +20,12 @@ constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_aw
 
 namespace xx {
 
+	asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
+		asio::steady_timer t(co_await asio::this_coro::executor);
+		t.expires_after(d);
+		co_await t.async_wait(use_nothrow_awaitable);
+	}
+
 	template<typename T>
 	concept PeerDeriveType = requires(T t) {
 		t.shared_from_this();	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
@@ -27,12 +33,6 @@ namespace xx {
 		t.StopAfter();			// 便于在 Stop 尾部追加别的处理代码
 		t.HandleMessage();		// 核心消息处理函数
 	};
-
-	asio::awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
-		asio::steady_timer t(co_await asio::this_coro::executor);
-		t.expires_after(d);
-		co_await t.async_wait(use_nothrow_awaitable);
-	}
 
 	template<typename PeerDeriveType>
 	struct PeerCode : asio::noncopyable {
@@ -54,9 +54,9 @@ namespace xx {
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
+			((PeerDeriveType*)(this))->StartAfter();
 			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
 			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
-			((PeerDeriveType*)(this))->StartAfter();
 		}
 
 		void Stop() {
@@ -88,6 +88,7 @@ namespace xx {
 			for (std::string buf;;) {
 				auto [ec, n] = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), "\n", use_nothrow_awaitable);
 				if (ec) break;
+				if (stoped) co_return;
 				if (n > 1) {
 					if (auto siz = n - (buf[n - 2] == '\r' ? 2 : 1)) {
 						((PeerDeriveType*)(this))->HandleMessage({ buf.data(), siz });
@@ -110,7 +111,8 @@ namespace xx {
 				auto len = msg.size();
 			LabBegin:
 				auto [ec, n] = co_await asio::async_write(socket, asio::buffer(buf, len), use_nothrow_awaitable);
-				if (ec || stoped) co_return;
+				if (ec) break;
+				if (stoped) co_return;
 				if (n < len) {
 					len -= n;
 					buf += n;
@@ -194,9 +196,9 @@ struct MyPeer : xx::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 	bool stoping = false;
 
 	// 配合 Listen 的构造需求
-	MyPeer(MyServer& server_, asio::ip::tcp::socket&& socket_) 
+	MyPeer(MyServer& server_, asio::ip::tcp::socket&& socket_)
 		: PeerCode(server_.ioc, std::move(socket_))
-		, server(server_) 
+		, server(server_)
 		, ioc(server_.ioc)
 		, timeouter(ioc)
 	{
@@ -206,7 +208,7 @@ struct MyPeer : xx::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 	void StartAfter() {}
 
 	// 创建一个 req 上下文并返回 iter. 顺便重置一下超时
-	auto CreateReqs() {
+	auto CreateReq() {
 		return reqs.emplace(++autoSerial, std::make_pair(asio::steady_timer(ioc, std::chrono::steady_clock::time_point::max()), "")).first;
 	}
 
@@ -231,7 +233,7 @@ struct MyPeer : xx::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 		timeouter.async_wait([this](auto&& ec) {
 			if (ec) return;
 			Stop();
-		});
+			});
 	}
 
 
@@ -339,20 +341,20 @@ MyServer::MyServer() {
 		p.ResetTimeout(15s);
 
 		// 起个协程, 开始问答逻辑
-		asio::co_spawn(ioc, [this, p = p.shared_from_this()]()->asio::awaitable<void> {
+		asio::co_spawn(ioc,[this, p = p.shared_from_this()]()->asio::awaitable<void> {
 
 			// 退出函数自动解锁
 			auto sgLock = MakeSimpleScopeGuard([&] { p->lockLogin = false; });
 
 			// 对客户端发起请求
-			auto iter = p->CreateReqs();
+			auto iter = p->CreateReq();
 
 			// 下发请求文字( 前置业务号 )
 			p->Send(std::to_string(iter->first) + " | what's your name?\r\n");
 
 			// 开始等待
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);
-			
+
 			// 这里不关心 timer 退出原因, 直接检查 string 内容. 如果空的那就是超时
 			auto& s = iter->second.second;
 			if (s.empty()) co_return;
@@ -427,7 +429,7 @@ MyServer::MyServer() {
 			}
 			delay.expires_after(10ms); co_await delay.async_wait(use_nothrow_awaitable);	// yield 10ms
 		}
-	}, asio::detached);
+		}, asio::detached);
 
 	// 模拟一个客户端连上来
 	asio::co_spawn(ioc, [this]()->asio::awaitable<void> {
@@ -444,7 +446,7 @@ MyServer::MyServer() {
 
 		// 等一段时间退出
 		co_await xx::Timeout(60s);
-	}, asio::detached);
+		}, asio::detached);
 }
 
 int main() {
@@ -491,5 +493,14 @@ int main() {
 		//auto ep = socket.remote_endpoint();
 		//addr = ep.address().to_string() + ":" + std::to_string(ep.port());
 		//std::cout << addr << " accepted." << std::endl;
+
+
+
 // asio c++20 lobby
 // 总体架构为 单线程, 和 gateway 1 对 多
+
+// asio c++20 gateway
+// 总体架构为 伪多线程（ 独立线程负责 accept, socket 均匀分布到多个线程，每个线程逻辑完整独立，互相不通信，自己连别的服务，不共享 )
+// 和 lobby 多对 1, 和 client 1 对 多
+
+

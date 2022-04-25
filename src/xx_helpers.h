@@ -705,6 +705,12 @@ auto __cdecl xx::Detail::NameOf<
     }
 
 
+    template<class F>
+    auto MakeSimpleScopeGuard(F&& f) noexcept {
+        struct SG { F f; SG(F&& f) noexcept : f(std::move(f)) {} ~SG() { f(); } };
+        return SG(std::forward<F>(f));
+    }
+
 
     /************************************************************************************/
     // time_point <--> .net DateTime.Now.ToUniversalTime().Ticks converts
