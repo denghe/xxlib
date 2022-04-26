@@ -31,11 +31,20 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestC
 	}
 };
 
+struct EchoPeer : xx::PeerCode<EchoPeer>, std::enable_shared_from_this<EchoPeer> {
+	EchoPeer(Server& server_, asio::ip::tcp::socket&& socket_) : PeerCode(server_.ioc, std::move(socket_)) {}
+	size_t HandleMessage(uint8_t* inBuf, size_t len) {
+		Send({ inBuf, len });
+		return len;
+	}
+};
+
 int main() {
 	Server server;
-	uint16_t port = 55551;
-	server.Listen<SPeer>(port);
-	std::cout << "simple xx::Data server running... port = " << port << std::endl;
+	server.Listen<SPeer>(55551);
+	std::cout << "simple xx::Data server running... port = 55551" << std::endl;
+	server.Listen<EchoPeer>(55555);
+	std::cout << "simple echo server running... port = 55555" << std::endl;
 	server.ioc.run();
 	return 0;
 }

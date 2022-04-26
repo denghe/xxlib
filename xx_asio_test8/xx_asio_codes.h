@@ -162,9 +162,6 @@ namespace xx {
 					}
 					if (!n) break;
 				}
-				else {
-					std::cout << "Peer: HandleMessage func is not found. received " << n << " bytes data." << std::endl;
-				}
 				len -= n;
 				memmove(buf, buf + n, len);
 			}
@@ -344,7 +341,9 @@ namespace xx {
 								if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;
 							}
 						}
-						if (PEERTHIS->stoping || PEERTHIS->stoped) return 0;
+						if constexpr (HasReceivePush<PeerDeriveType> || HasReceiveRequest<PeerDeriveType>) {
+							if (PEERTHIS->stoping || PEERTHIS->stoped) return 0;
+						}
 					}
 				}
 

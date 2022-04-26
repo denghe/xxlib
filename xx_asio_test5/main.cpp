@@ -38,7 +38,7 @@ struct Client {
 				asio::signal_set signals(ioc, SIGINT, SIGTERM);
 				signals.async_wait([&](auto, auto) { ioc.stop(); });
 
-				asio::co_spawn(ioc, dialer(ioc, "192.168.1.235", "55555"), asio::detached);
+				asio::co_spawn(ioc, dialer(ioc, "127.0.0.1", "55555"), asio::detached);
 
 				ioc.run();
 			}
@@ -64,7 +64,7 @@ int main() {
 	} };
 	t.detach();
 
-	std::array<Client, 16> clients;
+	std::array<Client, 1> clients;
 	for (auto& c : clients) c.Run();
 	std::cin.get();
 	return 0;
