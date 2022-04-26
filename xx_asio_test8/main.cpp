@@ -14,13 +14,6 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestC
 		, PeerRequestCode(server_.om)
 		, server(server_)
 	{}
-
-	int ReceivePush(xx::ObjBase_s&& o) {
-		om.CoutN("ReceivePush ", o);
-		om.KillRecursive(o);
-		return 0;
-	}
-
 	int ReceiveRequest(int32_t const& serial_, xx::ObjBase_s&& o_) {
 		switch (o_.typeId()) {
 		case xx::TypeId_v<Generic::Error>: {
@@ -30,9 +23,8 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestC
 			SendResponse(serial_, o);
 			break;
 		}
-		default: {
+		default:
 			om.CoutN("ReceiveRequest unhandled package: ", o_);
-		}
 		}
 		om.KillRecursive(o_);
 		return 0;

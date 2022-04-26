@@ -15,23 +15,11 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 		, PeerRequestCode(client_.om)
 		, client(client_)
 	{}
-
-	int ReceivePush(xx::ObjBase_s&& o_) {
-		om.CoutN("ReceivePush ", o_);
-		om.KillRecursive(o_);
-		return 0;
-	}
-
-	int ReceiveRequest(int32_t const& serial_, xx::ObjBase_s&& o_) {
-		om.CoutN("ReceiveRequest ", o_);
-		om.KillRecursive(o_);
-		return 0;
-	}
 };
 
 void Client::Run(uint16_t const& port) {
 	// 模拟一个客户端连上来
-	asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
+	co_spawn(ioc, [this, port]()->awaitable<void> {
 		auto d = std::make_shared<CPeer>(*this);
 
 		// 如果没连上，就反复的连     // todo:退出机制?
@@ -52,7 +40,9 @@ void Client::Run(uint16_t const& port) {
 		}
 		else {
 			om.CoutN("receive o = ", o);
+			om.KillRecursive(o);
 		}
+		om.KillRecursive(pkg);
 
 		om.CoutN("d->stoped = ", d->stoped);
 

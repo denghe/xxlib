@@ -9,10 +9,12 @@ using namespace std::literals::chrono_literals;
 #include <asio/experimental/awaitable_operators.hpp>
 using namespace asio::experimental::awaitable_operators;
 constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
+using asio::co_spawn;
+using asio::awaitable;
 
 namespace xx {
 
-	asio::awaitable<void> Timeout(std::chrono::steady_clock::duration const& d) {
+	awaitable<void> Timeout(std::chrono::steady_clock::duration const& d) {
 		asio::steady_timer t(co_await asio::this_coro::executor);
 		t.expires_after(d);
 		co_await t.async_wait(use_nothrow_awaitable);
@@ -27,7 +29,7 @@ namespace xx {
 		// 需要目标 Peer 实现( Server&, &&socket ) 构造函数
 		template<typename Peer>
 		void Listen(uint16_t const& port) {
-			asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
+			co_spawn(ioc, [this, port]()->awaitable<void> {
 				asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
 				for (;;) {
 					asio::ip::tcp::socket socket(ioc);
@@ -87,8 +89,8 @@ namespace xx {
 			if constexpr (Has_SendRequest<PeerDeriveType>) {
 				PEERTHIS->reqAutoId = 0;
 			}
-			asio::co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, asio::detached);
-			asio::co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, asio::detached);
+			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, asio::detached);
+			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, asio::detached);
 			if constexpr(Has_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
@@ -113,7 +115,7 @@ namespace xx {
 		}
 
 		// for client dial connect to server only
-		asio::awaitable<int> Connect(asio::ip::address const& ip, uint16_t const& port, std::chrono::steady_clock::duration const& d = 5s) {
+		awaitable<int> Connect(asio::ip::address const& ip, uint16_t const& port, std::chrono::steady_clock::duration const& d = 5s) {
 			if (!stoped) co_return 1;
 			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
 			if (r.index()) co_return 2;
@@ -136,7 +138,7 @@ namespace xx {
 		}
 
 	protected:
-		asio::awaitable<void> Read() {
+		awaitable<void> Read() {
 			uint8_t buf[1024 * 256];
 			size_t len = 0;
 			for (;;) {
@@ -168,7 +170,7 @@ namespace xx {
 			Stop();
 		}
 
-		asio::awaitable<void> Write() {
+		awaitable<void> Write() {
 			while (socket.is_open()) {
 				if (writeQueue.empty()) {
 					co_await writeBlocker.async_wait(use_nothrow_awaitable);
@@ -247,7 +249,7 @@ namespace xx {
 			d.WriteFixedAt(bak, (uint32_t)(d.len - sizeof(uint32_t)));	// fill package len
 		}
 
-		asio::awaitable<ObjBase_s> SendRequest(ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
+		awaitable<ObjBase_s> SendRequest(ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
 			// 创建请求
 			reqAutoId = (reqAutoId + 1) % 0x7fffffff;
 			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
