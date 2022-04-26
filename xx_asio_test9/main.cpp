@@ -48,7 +48,7 @@ void Client::Run(uint16_t const& port) {
 
 		// 等一段时间退出
 		co_await xx::Timeout(60s);
-	}, asio::detached);
+	}, detached);
 	ioc.run();
 }
 

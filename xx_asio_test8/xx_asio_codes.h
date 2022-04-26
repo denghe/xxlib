@@ -11,6 +11,7 @@ using namespace asio::experimental::awaitable_operators;
 constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
 using asio::co_spawn;
 using asio::awaitable;
+using asio::detached;
 
 namespace xx {
 
@@ -37,7 +38,7 @@ namespace xx {
 						std::make_shared<Peer>(*(ServerDeriveType*)this, std::move(socket))->Start();
 					}
 				}
-			}, asio::detached);
+			}, detached);
 		}
 	};
 
@@ -89,8 +90,8 @@ namespace xx {
 			if constexpr (Has_SendRequest<PeerDeriveType>) {
 				PEERTHIS->reqAutoId = 0;
 			}
-			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, asio::detached);
-			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, asio::detached);
+			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, detached);
+			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, detached);
 			if constexpr(Has_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
