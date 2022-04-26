@@ -40,18 +40,31 @@ namespace xx {
 	};
 
 
-	// 成员函数 / 组合探测器
-	template<typename T>
-	concept PeerDeriveType = requires(T t) {
-		t.shared_from_this();	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
-		t.HandleMessage((uint8_t*)0, 0);	// int ( char*, len ) 返回值为 已处理长度, 将从 buf 头部移除. 返回 <= 0 表示出错，将 Stop(). 
-	};
-	template<typename T> concept HasStart_ = requires(T t) { t.Start_(); };
-	template<typename T> concept HasStop_ = requires(T t) { t.Stop_(); };
+	// 代码片段 / 成员函数 探测器系列
+
+	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
+	template<typename T> concept PeerDeriveType = requires(T t) { t.shared_from_this(); };
+
+	// 用于提供消息处理功能. 如果有继承 PeerRequestCode 则无需提供。具体写法可参考之
+	template<typename T> concept Has_HandleMessage = requires(T t) { t.HandleMessage((uint8_t*)0, 0); };
+
+	// 用于补充 Start 函数功能
+	template<typename T> concept Has_Start_ = requires(T t) { t.Start_(); };
+
+	// 用于补充 Stop 函数功能
+	template<typename T> concept Has_Stop_ = requires(T t) { t.Stop_(); };
+
+	// 用于检测是否继承了 PeerTimeoutCode 代码片段
+	template<typename T> concept Has_ResetTimeout = requires(T t) { t.ResetTimeout(1s); };
+
+	// 用于检测是否继承了 PeerRequestCode 代码片段
+	template<typename T> concept Has_SendRequest = requires(T t) { t.SendRequest(ObjBase_s(), 1s); };
+
+
 
 #define PEERTHIS ((PeerDeriveType*)(this))
 
-	template<typename PeerDeriveType, bool hasTimeoutCode = true, bool hasRequestCode = true>
+	template<typename PeerDeriveType>
 	struct PeerCode : asio::noncopyable {
 		asio::io_context& ioc;
 		asio::ip::tcp::socket socket;
@@ -71,12 +84,12 @@ namespace xx {
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
-			if constexpr (hasRequestCode) {
+			if constexpr (Has_SendRequest<PeerDeriveType>) {
 				PEERTHIS->reqAutoId = 0;
 			}
 			asio::co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, asio::detached);
 			asio::co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, asio::detached);
-			if constexpr(HasStart_<PeerDeriveType>) {
+			if constexpr(Has_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
 		}
@@ -86,15 +99,15 @@ namespace xx {
 			stoped = true;
 			socket.close();
 			writeBlocker.cancel();
-			if constexpr (hasTimeoutCode) {
+			if constexpr (Has_ResetTimeout<PeerDeriveType>) {
 				PEERTHIS->timeouter.cancel();
 			}
-			if constexpr (hasRequestCode) {
+			if constexpr (Has_SendRequest<PeerDeriveType>) {
 				for (auto& kv : PEERTHIS->reqs) {
 					kv.second.first.cancel();
 				}
 			}
-			if constexpr (HasStop_<PeerDeriveType>) {
+			if constexpr (Has_Stop_<PeerDeriveType>) {
 				PEERTHIS->Stop_();
 			}
 		}
@@ -116,7 +129,7 @@ namespace xx {
 		}
 
 		bool Alive() const {
-			if constexpr (hasTimeoutCode) {
+			if constexpr (Has_ResetTimeout<PeerDeriveType>) {
 				return !stoped && !PEERTHIS->stoping;
 			}
 			else return !stoped;
@@ -131,19 +144,24 @@ namespace xx {
 				if (ec) break;
 				if (stoped) co_return;
 				if (!n) continue;
-				if constexpr (hasTimeoutCode) {
+				if constexpr (Has_ResetTimeout<PeerDeriveType>) {
 					if (PEERTHIS->stoping) {
 						len = 0;
 						continue;
 					}
 				}
 				len += n;
-				n = PEERTHIS->HandleMessage(buf, len);
-				if (stoped) co_return;
-				if constexpr (hasTimeoutCode) {
-					if (PEERTHIS->stoping) co_return;
+				if constexpr (Has_HandleMessage<PeerDeriveType>) {
+					n = PEERTHIS->HandleMessage(buf, len);
+					if (stoped) co_return;
+					if constexpr (Has_ResetTimeout<PeerDeriveType>) {
+						if (PEERTHIS->stoping) co_return;
+					}
+					if (!n) break;
 				}
-				if (!n) break;
+				else {
+					std::cout << "Peer: HandleMessage func is not found. received " << n << " bytes data." << std::endl;
+				}
 				len -= n;
 				memmove(buf, buf + n, len);
 			}
@@ -197,6 +215,8 @@ namespace xx {
 				PEERTHIS->Stop();
 			});
 		}
+
+		void foo() {}
 	};
 
 	template<typename T> concept HasReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
@@ -211,7 +231,7 @@ namespace xx {
 		return 0;	// 要掐线就返回非 0
 	}
 	*/
-	template<typename PeerDeriveType, bool hasTimeoutCode = true>
+	template<typename PeerDeriveType>
 	struct PeerRequestCode {
 		int32_t reqAutoId = 0;
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
@@ -262,7 +282,7 @@ namespace xx {
 		}
 
 		size_t HandleMessage(uint8_t* inBuf, size_t len) {
-			if constexpr (hasTimeoutCode) {
+			if constexpr (Has_ResetTimeout<PeerDeriveType>) {
 				// 正在停止，直接吞掉所有数据
 				if (PEERTHIS->stoping) return len;
 			}
@@ -336,5 +356,6 @@ namespace xx {
 
 	// todo: more xxxxCode here
 
-#undef PEERTHIS;
+#undef PEERTHIS
+
 }
