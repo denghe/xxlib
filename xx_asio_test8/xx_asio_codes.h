@@ -18,15 +18,38 @@ namespace xx {
 		co_await t.async_wait(use_nothrow_awaitable);
 	}
 
+	template<typename ServerDeriveType>
+	struct ServerCode : asio::noncopyable {
+		asio::io_context ioc;				// .run() execute
+		asio::signal_set signals;
+		ServerCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
+
+		// 需要目标 Peer 实现( Server&, &&socket ) 构造函数
+		template<typename Peer>
+		void Listen(uint16_t const& port) {
+			asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
+				asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
+				for (;;) {
+					asio::ip::tcp::socket socket(ioc);
+					if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
+						std::make_shared<Peer>(*(ServerDeriveType*)this, std::move(socket))->Start();
+					}
+				}
+			}, asio::detached);
+		}
+	};
+
+
+	// 成员函数 / 组合探测器
 	template<typename T>
 	concept PeerDeriveType = requires(T t) {
 		t.shared_from_this();	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
-		t.HandleMessage();		// int ( char*, len ) 返回值为 已处理长度, 将从 buf 中移除. 返回 <= 0 表示出错，将 Stop()
+		t.HandleMessage((uint8_t*)0, 0);	// int ( char*, len ) 返回值为 已处理长度, 将从 buf 头部移除. 返回 <= 0 表示出错，将 Stop(). 
 	};
-
-	// 成员函数 / 组合探测器
 	template<typename T> concept HasStart_ = requires(T t) { t.Start_(); };
 	template<typename T> concept HasStop_ = requires(T t) { t.Stop_(); };
+
+#define PEERTHIS ((PeerDeriveType*)(this))
 
 	template<typename PeerDeriveType, bool hasTimeoutCode = true, bool hasRequestCode = true>
 	struct PeerCode : asio::noncopyable {
@@ -49,12 +72,12 @@ namespace xx {
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
 			if constexpr (hasRequestCode) {
-				((PeerDeriveType*)(this))->reqAutoId = 0;
+				PEERTHIS->reqAutoId = 0;
 			}
-			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
-			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
+			asio::co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, asio::detached);
+			asio::co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, asio::detached);
 			if constexpr(HasStart_<PeerDeriveType>) {
-				((PeerDeriveType*)(this))->Start_();
+				PEERTHIS->Start_();
 			}
 		}
 
@@ -64,15 +87,15 @@ namespace xx {
 			socket.close();
 			writeBlocker.cancel();
 			if constexpr (hasTimeoutCode) {
-				((PeerDeriveType*)(this))->timeouter.cancel();
+				PEERTHIS->timeouter.cancel();
 			}
 			if constexpr (hasRequestCode) {
-				for (auto& kv : ((PeerDeriveType*)(this))->reqs) {
+				for (auto& kv : PEERTHIS->reqs) {
 					kv.second.first.cancel();
 				}
 			}
 			if constexpr (HasStop_<PeerDeriveType>) {
-				((PeerDeriveType*)(this))->Stop_();
+				PEERTHIS->Stop_();
 			}
 		}
 
@@ -92,6 +115,13 @@ namespace xx {
 			writeBlocker.cancel_one();
 		}
 
+		bool Alive() const {
+			if constexpr (hasTimeoutCode) {
+				return !stoped && !PEERTHIS->stoping;
+			}
+			else return !stoped;
+		}
+
 	protected:
 		asio::awaitable<void> Read() {
 			uint8_t buf[1024 * 256];
@@ -102,16 +132,16 @@ namespace xx {
 				if (stoped) co_return;
 				if (!n) continue;
 				if constexpr (hasTimeoutCode) {
-					if (((PeerDeriveType*)(this))->stoping) {
+					if (PEERTHIS->stoping) {
 						len = 0;
 						continue;
 					}
 				}
 				len += n;
-				n = ((PeerDeriveType*)(this))->HandleMessage(buf, len);
+				n = PEERTHIS->HandleMessage(buf, len);
 				if (stoped) co_return;
 				if constexpr (hasTimeoutCode) {
-					if (((PeerDeriveType*)(this))->stoping) co_return;
+					if (PEERTHIS->stoping) co_return;
 				}
 				if (!n) break;
 				len -= n;
@@ -144,28 +174,8 @@ namespace xx {
 		}
 	};
 
-	template<typename ServerDeriveType>
-	struct ServerCode : asio::noncopyable {
-		asio::io_context ioc;				// .run() execute
-		asio::signal_set signals;
-		ServerCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
 
-		// 需要目标 Peer 实现( Server&, &&socket ) 构造函数
-		template<typename Peer>
-		void Listen(uint16_t const& port) {
-			asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
-				asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
-				for (;;) {
-					asio::ip::tcp::socket socket(ioc);
-					if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
-						std::make_shared<Peer>(*(ServerDeriveType*)this, std::move(socket))->Start();
-					}
-				}
-				}, asio::detached);
-		}
-	};
-
-	// 为 peer 附加超时代码段落
+	// 为 peer 附加 超时 & 延迟 Stop 代码段落
 	template<typename PeerDeriveType>
 	struct PeerTimeoutCode {
 
@@ -175,7 +185,7 @@ namespace xx {
 		PeerTimeoutCode(asio::io_context& ioc) : timeouter(ioc) {}
 
 		void DelayStop(std::chrono::steady_clock::duration const& d) {
-			if (stoping || ((PeerDeriveType*)(this))->stoped) return;
+			if (stoping || PEERTHIS->stoped) return;
 			stoping = true;
 			ResetTimeout(d);
 		}
@@ -184,10 +194,13 @@ namespace xx {
 			timeouter.expires_after(d);
 			timeouter.async_wait([this](auto&& ec) {
 				if (ec) return;
-				((PeerDeriveType*)(this))->Stop();
+				PEERTHIS->Stop();
 			});
 		}
 	};
+
+	template<typename T> concept HasReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
+	template<typename T> concept HasReceiveRequest = requires(T t) { t.ReceiveRequest(0, ObjBase_s()); };
 
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
 	/* 需要手工添加下列函数
@@ -198,7 +211,7 @@ namespace xx {
 		return 0;	// 要掐线就返回非 0
 	}
 	*/
-	template<typename PeerDeriveType>
+	template<typename PeerDeriveType, bool hasTimeoutCode = true>
 	struct PeerRequestCode {
 		int32_t reqAutoId = 0;
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
@@ -217,10 +230,10 @@ namespace xx {
 		asio::awaitable<ObjBase_s> SendRequest(ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
 			// 创建请求
 			reqAutoId = (reqAutoId + 1) % 0x7fffffff;
-			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(((PeerDeriveType*)(this))->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
+			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
 			Data d;
 			FillTo(d, -reqAutoId, o);
-			((PeerDeriveType*)(this))->Send(std::move(d));
+			PEERTHIS->Send(std::move(d));
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);	// 等回包 或 超时
 			auto r = std::move(iter->second.second);	// 拿出 网络回包
 			reqs.erase(iter);	// 移除请求
@@ -230,18 +243,29 @@ namespace xx {
 		void SendPush(ObjBase_s const& o) {
 			Data d;
 			FillTo(d, 0, o);
-			((PeerDeriveType*)(this))->Send(std::move(d));
+			PEERTHIS->Send(std::move(d));
 		}
 
 		void SendResponse(int32_t serial, ObjBase_s const& o) {
 			Data d;
 			FillTo(d, serial, o);
-			((PeerDeriveType*)(this))->Send(std::move(d));
+			PEERTHIS->Send(std::move(d));
+		}
+
+		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
+			xx::ObjBase_s o;
+			if (om.ReadFrom(dr, o) || (o && o.typeId() == 0)) {
+				om.KillRecursive(o);
+				return {};
+			}
+			return o;
 		}
 
 		size_t HandleMessage(uint8_t* inBuf, size_t len) {
-			// 正在停止，直接吞掉所有数据
-			if (((PeerDeriveType*)(this))->stoping) return len;
+			if constexpr (hasTimeoutCode) {
+				// 正在停止，直接吞掉所有数据
+				if (PEERTHIS->stoping) return len;
+			}
 
 			// 取出指针备用
 			auto buf = (uint8_t*)inBuf;
@@ -267,30 +291,37 @@ namespace xx {
 
 					// todo: 网关包这里有个 投递地址 占用
 
+					// 读出序号
 					int32_t serial;
 					if (dr.Read(serial)) return 0;
 
-					xx::ObjBase_s o;
-					if (om.ReadFrom(dr, o)) {
-						om.KillRecursive(o);
-						return 0;
-					}
-					if (!o || !o.typeId()) return 0;
-
+					// 如果是 Response 包，则在 req 字典查找。如果找到就 解包 + 传递 + 协程放行
 					if (serial > 0) {
 						if (auto iter = reqs.find(serial); iter != reqs.end()) {
+							auto o = ReadFrom(dr);
+							if (!o) return 0;
 							iter->second.second = std::move(o);
 							iter->second.first.cancel();
 						}
 					}
 					else {
+						// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
 						if (serial == 0) {
-							if (((PeerDeriveType*)(this))->ReceivePush(std::move(o))) return 0;
+							if constexpr (HasReceivePush<PeerDeriveType>) {
+								auto o = ReadFrom(dr);
+								if (!o) return 0;
+								if (PEERTHIS->ReceivePush(std::move(o))) return 0;
+							}
 						}
-						else {	// serial < 0
-							if (((PeerDeriveType*)(this))->ReceiveRequest(-serial, std::move(o))) return 0;
+						// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
+						else {
+							if constexpr (HasReceiveRequest<PeerDeriveType>) {
+								auto o = ReadFrom(dr);
+								if (!o) return 0;
+								if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;
+							}
 						}
-						if (((PeerDeriveType*)(this))->stoping || ((PeerDeriveType*)(this))->stoped) return 0;
+						if (PEERTHIS->stoping || PEERTHIS->stoped) return 0;
 					}
 				}
 
@@ -304,4 +335,6 @@ namespace xx {
 	};
 
 	// todo: more xxxxCode here
+
+#undef PEERTHIS;
 }
