@@ -49,19 +49,19 @@ namespace xx {
 	template<typename T> concept PeerDeriveType = requires(T t) { t.shared_from_this(); };
 
 	// 用于提供消息处理功能. 如果有继承 PeerRequestCode 则无需提供。具体写法可参考之
-	template<typename T> concept Has_HandleMessage = requires(T t) { t.HandleMessage((uint8_t*)0, 0); };
+	template<typename T> concept Has_Peer_HandleMessage = requires(T t) { t.HandleMessage((uint8_t*)0, 0); };
 
 	// 用于补充 Start 函数功能
-	template<typename T> concept Has_Start_ = requires(T t) { t.Start_(); };
+	template<typename T> concept Has_Peer_Start_ = requires(T t) { t.Start_(); };
 
 	// 用于补充 Stop 函数功能
-	template<typename T> concept Has_Stop_ = requires(T t) { t.Stop_(); };
+	template<typename T> concept Has_Peer_Stop_ = requires(T t) { t.Stop_(); };
 
 	// 用于检测是否继承了 PeerTimeoutCode 代码片段
-	template<typename T> concept Has_ResetTimeout = requires(T t) { t.ResetTimeout(1s); };
+	template<typename T> concept Has_Peer_ResetTimeout = requires(T t) { t.ResetTimeout(1s); };
 
 	// 用于检测是否继承了 PeerRequestCode 代码片段
-	template<typename T> concept Has_SendRequest = requires(T t) { t.SendRequest(ObjBase_s(), 1s); };
+	template<typename T> concept Has_Peer_SendRequest = requires(T t) { t.SendRequest(ObjBase_s(), 1s); };
 
 
 
@@ -87,12 +87,12 @@ namespace xx {
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
-			if constexpr (Has_SendRequest<PeerDeriveType>) {
+			if constexpr (Has_Peer_SendRequest<PeerDeriveType>) {
 				PEERTHIS->reqAutoId = 0;
 			}
 			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, detached);
 			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, detached);
-			if constexpr(Has_Start_<PeerDeriveType>) {
+			if constexpr(Has_Peer_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
 		}
@@ -102,15 +102,15 @@ namespace xx {
 			stoped = true;
 			socket.close();
 			writeBlocker.cancel();
-			if constexpr (Has_ResetTimeout<PeerDeriveType>) {
+			if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
 				PEERTHIS->timeouter.cancel();
 			}
-			if constexpr (Has_SendRequest<PeerDeriveType>) {
+			if constexpr (Has_Peer_SendRequest<PeerDeriveType>) {
 				for (auto& kv : PEERTHIS->reqs) {
 					kv.second.first.cancel();
 				}
 			}
-			if constexpr (Has_Stop_<PeerDeriveType>) {
+			if constexpr (Has_Peer_Stop_<PeerDeriveType>) {
 				PEERTHIS->Stop_();
 			}
 		}
@@ -132,7 +132,7 @@ namespace xx {
 		}
 
 		bool Alive() const {
-			if constexpr (Has_ResetTimeout<PeerDeriveType>) {
+			if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
 				return !stoped && !PEERTHIS->stoping;
 			}
 			else return !stoped;
@@ -147,17 +147,17 @@ namespace xx {
 				if (ec) break;
 				if (stoped) co_return;
 				if (!n) continue;
-				if constexpr (Has_ResetTimeout<PeerDeriveType>) {
+				if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
 					if (PEERTHIS->stoping) {
 						len = 0;
 						continue;
 					}
 				}
 				len += n;
-				if constexpr (Has_HandleMessage<PeerDeriveType>) {
+				if constexpr (Has_Peer_HandleMessage<PeerDeriveType>) {
 					n = PEERTHIS->HandleMessage(buf, len);
 					if (stoped) co_return;
-					if constexpr (Has_ResetTimeout<PeerDeriveType>) {
+					if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
 						if (PEERTHIS->stoping) co_return;
 					}
 					if (!n) break;
@@ -282,7 +282,7 @@ namespace xx {
 		}
 
 		size_t HandleMessage(uint8_t* inBuf, size_t len) {
-			if constexpr (Has_ResetTimeout<PeerDeriveType>) {
+			if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
 				// 正在停止，直接吞掉所有数据
 				if (PEERTHIS->stoping) return len;
 			}
