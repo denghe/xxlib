@@ -1,4 +1,8 @@
 ﻿#pragma once
+
+// 使用方法：xcode 需要配置 c++ 为 20 版本 并且去 other c++ flags 看看 如果有 17 字样 删掉
+// android 某 gradle 某行加点料 cppFlags "-frtti -fexceptions -fsigned-char -std=c++20 -fcoroutines-ts"
+
 #include <xx_obj.h>
 #include <iostream>
 #include <charconv>
@@ -44,6 +48,7 @@ namespace xx {
 
 
 	// 代码片段 / 成员函数 探测器系列
+#ifndef __ANDROID__
 
 	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
 	template<typename T> concept PeerDeriveType = requires(T t) { t.shared_from_this(); };
@@ -62,6 +67,62 @@ namespace xx {
 
 	// 用于检测是否继承了 PeerRequestCode 代码片段
 	template<typename T> concept Has_Peer_SendRequest = requires(T t) { t.SendRequest(ObjBase_s(), 1s); };
+
+	// PeerRequestCode 片段依赖的函数
+	template<typename T> concept Has_Peer_ReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
+	template<typename T> concept Has_Peer_ReceiveRequest = requires(T t) { t.ReceiveRequest(0, ObjBase_s()); };
+
+#else
+	template<class T, class = void>
+	struct _Has_Peer_HandleMessage : std::false_type {};
+	template<class T>
+	struct _Has_Peer_HandleMessage<T, std::void_t<decltype(std::declval<T&>().HandleMessage((uint8_t*)0, 0))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_HandleMessage = _Has_Peer_HandleMessage<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_Start_ : std::false_type {};
+	template<class T>
+	struct _Has_Peer_Start_<T, std::void_t<decltype(std::declval<T&>().Start_())>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_Start_ = _Has_Peer_Start_<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_Stop_ : std::false_type {};
+	template<class T>
+	struct _Has_Peer_Stop_<T, std::void_t<decltype(std::declval<T&>().Stop_())>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_Stop_ = _Has_Peer_Stop_<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_ResetTimeout : std::false_type {};
+	template<class T>
+	struct _Has_Peer_ResetTimeout<T, std::void_t<decltype(std::declval<T&>().ResetTimeout(1s))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_ResetTimeout = _Has_Peer_ResetTimeout<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_SendRequest : std::false_type {};
+	template<class T>
+	struct _Has_Peer_SendRequest<T, std::void_t<decltype(std::declval<T&>().SendRequest(1s))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_SendRequest = _Has_Peer_SendRequest<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_ReceivePush : std::false_type {};
+	template<class T>
+	struct _Has_Peer_ReceivePush<T, std::void_t<decltype(std::declval<T&>().ReceivePush(ObjBase_s()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_ReceivePush = _Has_Peer_ReceivePush<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_ReceiveRequest : std::false_type {};
+	template<class T>
+	struct _Has_Peer_ReceiveRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveRequest(0, ObjBase_s()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_ReceiveRequest = _Has_Peer_ReceiveRequest<T>::value;
+#endif
+
 
 
 
@@ -219,8 +280,6 @@ namespace xx {
 		void foo() {}
 	};
 
-	template<typename T> concept HasReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
-	template<typename T> concept HasReceiveRequest = requires(T t) { t.ReceiveRequest(0, ObjBase_s()); };
 
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
 	/* 需要手工添加下列函数
@@ -327,7 +386,7 @@ namespace xx {
 					else {
 						// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
 						if (serial == 0) {
-							if constexpr (HasReceivePush<PeerDeriveType>) {
+							if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
 								auto o = ReadFrom(dr);
 								if (!o) return 0;
 								if (PEERTHIS->ReceivePush(std::move(o))) return 0;
@@ -335,13 +394,13 @@ namespace xx {
 						}
 						// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
 						else {
-							if constexpr (HasReceiveRequest<PeerDeriveType>) {
+							if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
 								auto o = ReadFrom(dr);
 								if (!o) return 0;
 								if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;
 							}
 						}
-						if constexpr (HasReceivePush<PeerDeriveType> || HasReceiveRequest<PeerDeriveType>) {
+						if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
 							if (PEERTHIS->stoping || PEERTHIS->stoped) return 0;
 						}
 					}
