@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <xx_obj.h>
 #include <iostream>
 #include <charconv>
@@ -21,10 +21,10 @@ namespace xx {
 	template<typename T>
 	concept PeerDeriveType = requires(T t) {
 		t.shared_from_this();	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
-		t.HandleMessage();		// int ( char*, len ) ·µ»ØÖµÎª ÒÑ´¦Àí³¤¶È, ½«´Ó buf ÖĞÒÆ³ı. ·µ»Ø <= 0 ±íÊ¾³ö´í£¬½« Stop()
+		t.HandleMessage();		// int ( char*, len ) è¿”å›å€¼ä¸º å·²å¤„ç†é•¿åº¦, å°†ä» buf ä¸­ç§»é™¤. è¿”å› <= 0 è¡¨ç¤ºå‡ºé”™ï¼Œå°† Stop()
 	};
 
-	// ³ÉÔ±º¯Êı / ×éºÏÌ½²âÆ÷
+	// æˆå‘˜å‡½æ•° / ç»„åˆæ¢æµ‹å™¨
 	template<typename T> concept HasStart_ = requires(T t) { t.Start_(); };
 	template<typename T> concept HasStop_ = requires(T t) { t.Stop_(); };
 
@@ -150,7 +150,7 @@ namespace xx {
 		asio::signal_set signals;
 		ServerCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
 
-		// ĞèÒªÄ¿±ê Peer ÊµÏÖ( Server&, &&socket ) ¹¹Ôìº¯Êı
+		// éœ€è¦ç›®æ ‡ Peer å®ç°( Server&, &&socket ) æ„é€ å‡½æ•°
 		template<typename Peer>
 		void Listen(uint16_t const& port) {
 			asio::co_spawn(ioc, [this, port]()->asio::awaitable<void> {
@@ -165,7 +165,7 @@ namespace xx {
 		}
 	};
 
-	// Îª peer ¸½¼Ó³¬Ê±´úÂë¶ÎÂä
+	// ä¸º peer é™„åŠ è¶…æ—¶ä»£ç æ®µè½
 	template<typename PeerDeriveType>
 	struct PeerTimeoutCode {
 
@@ -189,13 +189,13 @@ namespace xx {
 		}
 	};
 
-	// Îª peer ¸½¼Ó Send( Obj )( SendPush, SendRequest, SendResponse ) µÈ Ïà¹Ø¹¦ÄÜ
-	/* ĞèÒªÊÖ¹¤Ìí¼ÓÏÂÁĞº¯Êı
+	// ä¸º peer é™„åŠ  Send( Obj )( SendPush, SendRequest, SendResponse ) ç­‰ ç›¸å…³åŠŸèƒ½
+	/* éœ€è¦æ‰‹å·¥æ·»åŠ ä¸‹åˆ—å‡½æ•°
 	int ReceiveRequest(xx::ObjBase_s&& o) {
 	int ReceivePush(xx::ObjBase_s&& o) {
 		// todo: handle o
-		// ·Ç·¨ o ËæÊÖ´¦ÀíÏÂ om.KillRecursive(o);
-		return 0;	// ÒªÆşÏß¾Í·µ»Ø·Ç 0
+		// éæ³• o éšæ‰‹å¤„ç†ä¸‹ om.KillRecursive(o);
+		return 0;	// è¦æçº¿å°±è¿”å›é 0
 	}
 	*/
 	template<typename PeerDeriveType>
@@ -208,23 +208,23 @@ namespace xx {
 
 		void FillTo(Data& d, int32_t const& serial, ObjBase_s const& o) {
 			auto bak = d.WriteJump(sizeof(uint32_t));	// package len
-			// todo: Íø¹Ø°üÕâÀïÓĞ¸ö Í¶µİµØÖ· Õ¼ÓÃ
+			// todo: ç½‘å…³åŒ…è¿™é‡Œæœ‰ä¸ª æŠ•é€’åœ°å€ å ç”¨
 			d.WriteVarInteger(serial);
 			om.WriteTo(d, o);	// typeid + data
 			d.WriteFixedAt(bak, (uint32_t)(d.len - sizeof(uint32_t)));	// fill package len
 		}
 
 		asio::awaitable<ObjBase_s> SendRequest(ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
-			// ´´½¨ÇëÇó
+			// åˆ›å»ºè¯·æ±‚
 			reqAutoId = (reqAutoId + 1) % 0x7fffffff;
 			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(((PeerDeriveType*)(this))->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
 			Data d;
 			FillTo(d, -reqAutoId, o);
 			((PeerDeriveType*)(this))->Send(std::move(d));
-			co_await iter->second.first.async_wait(use_nothrow_awaitable);	// µÈ»Ø°ü »ò ³¬Ê±
-			auto r = std::move(iter->second.second);	// ÄÃ³ö ÍøÂç»Ø°ü
-			reqs.erase(iter);	// ÒÆ³ıÇëÇó
-			co_return r;	// ·µ»Ø ÍøÂç»Ø°ü( ³¬Ê± Îª ¿Õ )
+			co_await iter->second.first.async_wait(use_nothrow_awaitable);	// ç­‰å›åŒ… æˆ– è¶…æ—¶
+			auto r = std::move(iter->second.second);	// æ‹¿å‡º ç½‘ç»œå›åŒ…
+			reqs.erase(iter);	// ç§»é™¤è¯·æ±‚
+			co_return r;	// è¿”å› ç½‘ç»œå›åŒ…( è¶…æ—¶ ä¸º ç©º )
 		}
 
 		void SendPush(ObjBase_s const& o) {
@@ -240,32 +240,32 @@ namespace xx {
 		}
 
 		size_t HandleMessage(uint8_t* inBuf, size_t len) {
-			// ÕıÔÚÍ£Ö¹£¬Ö±½ÓÍÌµôËùÓĞÊı¾İ
+			// æ­£åœ¨åœæ­¢ï¼Œç›´æ¥åæ‰æ‰€æœ‰æ•°æ®
 			if (((PeerDeriveType*)(this))->stoping) return len;
 
-			// È¡³öÖ¸Õë±¸ÓÃ
+			// å–å‡ºæŒ‡é’ˆå¤‡ç”¨
 			auto buf = (uint8_t*)inBuf;
 			auto end = (uint8_t*)inBuf + len;
 
-			// °üÍ·
+			// åŒ…å¤´
 			uint32_t dataLen = 0;
 			//uint32_t addr = 0;	// todo
 
-			// È·±£°üÍ·³¤¶È³ä×ã
+			// ç¡®ä¿åŒ…å¤´é•¿åº¦å……è¶³
 			while (buf + sizeof(dataLen) <= end) {
-				// È¡³¤¶È
+				// å–é•¿åº¦
 				dataLen = *(uint32_t*)buf;
 
-				// ¼ÆËã°ü×Ü³¤( °üÍ·³¤ + Êı¾İ³¤ )
+				// è®¡ç®—åŒ…æ€»é•¿( åŒ…å¤´é•¿ + æ•°æ®é•¿ )
 				auto totalLen = sizeof(dataLen) + dataLen;
 
-				// Èç¹û°ü²»ÍêÕû ¾Í Ìø³ö
+				// å¦‚æœåŒ…ä¸å®Œæ•´ å°± è·³å‡º
 				if (buf + totalLen > end) break;
 
 				{
 					auto dr = xx::Data_r(buf + sizeof(dataLen), dataLen);
 
-					// todo: Íø¹Ø°üÕâÀïÓĞ¸ö Í¶µİµØÖ· Õ¼ÓÃ
+					// todo: ç½‘å…³åŒ…è¿™é‡Œæœ‰ä¸ª æŠ•é€’åœ°å€ å ç”¨
 
 					int32_t serial;
 					if (dr.Read(serial)) return 0;
@@ -294,11 +294,11 @@ namespace xx {
 					}
 				}
 
-				// Ìøµ½ÏÂÒ»¸ö°üµÄ¿ªÍ·
+				// è·³åˆ°ä¸‹ä¸€ä¸ªåŒ…çš„å¼€å¤´
 				buf += totalLen;
 			}
 
-			// ÒÆ³ıµôÒÑ´¦ÀíµÄÊı¾İ( ½«ºóÃæÊ£ÏÂµÄÊı¾İÒÆ¶¯µ½Í·²¿ )
+			// ç§»é™¤æ‰å·²å¤„ç†çš„æ•°æ®( å°†åé¢å‰©ä¸‹çš„æ•°æ®ç§»åŠ¨åˆ°å¤´éƒ¨ )
 			return buf - inBuf;
 		}
 	};
