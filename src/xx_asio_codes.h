@@ -149,7 +149,7 @@ namespace xx {
 
 #define PEERTHIS ((PeerDeriveType*)(this))
 
-	template<typename PeerDeriveType>
+	template<typename PeerDeriveType, size_t readBufSize = 524288>
 	struct PeerCode : asio::noncopyable {
 		asio::io_context& ioc;
 		asio::ip::tcp::socket socket;
@@ -222,7 +222,7 @@ namespace xx {
 
 	protected:
 		awaitable<void> Read() {
-			uint8_t buf[1024 * 256];
+			uint8_t buf[readBufSize];
 			size_t len = 0;
 			for (;;) {
 				auto [ec, n] = co_await socket.async_read_some(asio::buffer(buf + len, sizeof(buf) - len), use_nothrow_awaitable);
@@ -338,7 +338,7 @@ namespace xx {
 			return 0;	// 要掐线就返回非 0
 		}
 	*/
-	template<typename PeerDeriveType, bool containTarget = false>
+	template<typename PeerDeriveType, bool containTarget = false, size_t sendCap = 8192, size_t maxDataLen = 524288>
 	struct PeerRequestCode {
 		int32_t reqAutoId = 0;
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
@@ -349,7 +349,7 @@ namespace xx {
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendCore(uint32_t const& target, int32_t const& serial, Args const &... args) {
 			Data d;
-			d.Reserve(8192);
+			d.Reserve(sendCap);
 			auto bak = d.WriteJump<false>(sizeof(uint32_t));
 			if constexpr(containTarget) {
 				d.WriteFixed<false>(target);
@@ -441,11 +441,14 @@ namespace xx {
 				// 取长度
 				dataLen = *(uint32_t*)buf;
 
+				// 长度保护
+				if (dataLen > maxDataLen) return 0;	// Stop
+
 				// 计算包总长( 包头长 + 数据长 )
 				auto totalLen = sizeof(dataLen) + dataLen;
 
 				// 如果包不完整 就 跳出
-				if (buf + totalLen > end) break;
+				if (buf + totalLen > end) break;	// continue
 
 				do {
 					auto dr = xx::Data_r(buf + sizeof(dataLen), dataLen);
@@ -463,7 +466,7 @@ namespace xx {
 
 					// 读出序号
 					int32_t serial;
-					if (dr.Read(serial)) return 0;
+					if (dr.Read(serial)) return 0;	// Stop
 
 					// 如果是 Response 包，则在 req 字典查找。如果找到就 解包 + 传递 + 协程放行
 					if (serial > 0) {
@@ -489,7 +492,7 @@ namespace xx {
 								static_assert(!Has_Peer_ReceiveTargetPush<PeerDeriveType>);
 								if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
 									auto o = ReadFrom(dr);
-									if (!o) return 0;
+									if (!o) return 0;		// Stop
 									if (PEERTHIS->ReceivePush(std::move(o))) return 0;	// Stop
 								}
 							}
@@ -500,7 +503,7 @@ namespace xx {
 								static_assert(!Has_Peer_ReceiveRequest<PeerDeriveType>);
 								if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
 									auto o = ReadFrom(dr);
-									if (!o) return 0;
+									if (!o) return 0;		// Stop
 									if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return 0;	// Stop
 								}
 							}
