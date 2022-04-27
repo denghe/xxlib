@@ -2,7 +2,7 @@
 #include "xx_asio_codes.h"
 #include "pkg.h"
 
-struct Client : xx::ServerCode<Client> {
+struct Client : xx::IOCCode<Client> {
 	xx::ObjManager om;
 	void Run(asio::ip::address const& addr, uint16_t const& port);
 };
@@ -39,6 +39,7 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 
 	awaitable<int> WaitOpen(uint32_t serviceId, std::chrono::steady_clock::duration const& d) {
 		for (int i = 0; i < (d / 100ms); ++i) {
+			if (stoped) co_return __LINE__;
 			if (openServerIds.contains(serviceId)) co_return 0;
 			co_await xx::Timeout(100ms);
 		}
@@ -47,7 +48,7 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 };
 
 void Client::Run(asio::ip::address const& addr, uint16_t const& port) {
-	co_spawn(ioc, [=]()->awaitable<void> {
+	co_spawn(ioc, [this, addr, port]()->awaitable<void> {
 
 		// 创建个 peer
 		auto p = std::make_shared<CPeer>(*this);
@@ -57,13 +58,13 @@ void Client::Run(asio::ip::address const& addr, uint16_t const& port) {
 		while (p->stoped) {
 			// 开始连接. 超时 5 秒
 			if (auto r = co_await p->Connect(addr, port, 5s)) {
-				om.CoutN("Connect r = ", r);
+				om.CoutN("Connect error. r = ", r, ". retry...");
 			}
 		}
 
 		// 连上之后，等 open 0 号服务 5 秒
 		if (auto r = co_await p->WaitOpen(0, 5s)) {
-			om.CoutN("WaitOpen r = ", r);
+			om.CoutN("WaitOpen error. r = ", r, ". reconnect...");
 			goto LabEnd;
 		}
 
@@ -85,12 +86,22 @@ void Client::Run(asio::ip::address const& addr, uint16_t const& port) {
 			}
 		}
 
-		// todo: other logic here
+		// 
+		while (p->Alive()) {
+			co_await xx::Timeout(1s);	// todo: other logic here
+			std::cout << ".";
+			std::cout.flush();
+		}
 
 	LabEnd:
-		// 掐线
+		// 掐线 / clean up
 		p->Stop();
-		goto LabBegin;	// todo: 退出逻辑
+
+		// 小睡一下，让别的协程处理下断线逻辑
+		co_await xx::Timeout(2s);
+
+		// 再来( 自动重连 )
+		goto LabBegin;
 
 	}, detached);
 	ioc.run();
@@ -99,6 +110,6 @@ void Client::Run(asio::ip::address const& addr, uint16_t const& port) {
 int main() {
 	Client c;
 	std::cout << "lobby + gateway + client -- client running..." << std::endl;
-	c.Run(asio::ip::address::from_string("47.108.64.104"), 20000);
+	c.Run(asio::ip::address::from_string("127.0.0.1"), 54322);
 	return 0;
 }

@@ -2,7 +2,7 @@
 #include "xx_asio_codes.h"
 #include <pkg.h>
 
-struct Server : xx::ServerCode<Server> {
+struct Server : xx::IOCCode<Server> {
 	xx::ObjManager om;
 };
 

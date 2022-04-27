@@ -26,12 +26,13 @@ namespace xx {
 	}
 
 	template<typename ServerDeriveType>
-	struct ServerCode : asio::noncopyable {
+	struct IOCCode : asio::noncopyable {
 		asio::io_context ioc;				// .run() execute
 		asio::signal_set signals;
-		ServerCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
+		IOCCode() : ioc(1), signals(ioc, SIGINT, SIGTERM) { }
 
 		// 需要目标 Peer 实现( Server&, &&socket ) 构造函数
+		// 如果需要灵活控制 socket 根据一些状态开关，可以复制小改这个函数, 自己实现
 		template<typename Peer>
 		void Listen(uint16_t const& port) {
 			co_spawn(ioc, [this, port]()->awaitable<void> {
@@ -455,7 +456,7 @@ namespace xx {
 
 					// 读出 target
 					if constexpr (containTarget) {
-						if (dr.ReadFixed(target)) return 0;
+						if (dr.ReadFixed(target)) return 0;	// Stop
 						if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
 							int r = PEERTHIS->HandleTargetMessage(target, dr);
 							if (r == 0) break;		// continue

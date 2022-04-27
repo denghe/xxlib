@@ -2,7 +2,7 @@
 #include "xx_asio_codes.h"
 #include <pkg.h>
 
-struct Client : xx::ServerCode<Client> {
+struct Client : xx::IOCCode<Client> {
 	xx::ObjManager om;
 	void Run(uint16_t const& port);
 };
