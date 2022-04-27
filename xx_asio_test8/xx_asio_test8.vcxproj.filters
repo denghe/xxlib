@@ -7,9 +7,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="xx_asio_codes.h" />
-  </ItemGroup>
-  <ItemGroup>
     <Filter Include="PKG">
       <UniqueIdentifier>{26b60ef5-e36f-4e1a-ae47-47ad8fc3eb11}</UniqueIdentifier>
     </Filter>

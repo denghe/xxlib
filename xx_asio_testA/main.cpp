@@ -1,5 +1,5 @@
 ﻿// lobby + gateway + client -- lobby
-#include "../xx_asio_test8/xx_asio_codes.h"
+#include "xx_asio_codes.h"
 #include "pkg.h"
 
 struct Server : xx::ServerCode<Server> {

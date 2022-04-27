@@ -15,6 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_codes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bits.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bufholder.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro.h" />

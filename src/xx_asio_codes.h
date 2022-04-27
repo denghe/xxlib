@@ -64,13 +64,14 @@ namespace xx {
 	template<typename T> concept Has_PeerTimeoutCode = requires(T t) { t.ResetTimeout(1s); };
 
 	// 用于检测是否继承了 PeerRequestCode 代码片段
-	template<typename T> concept Has_PeerRequestCode = requires(T t) { t.ReadFrom(Data_r()); };
+	template<typename T> concept Has_PeerRequestCode = requires(T t) { t.ReadFrom(std::declval<Data_r&>()); };
 
 	// PeerRequestCode 片段依赖的函数
 	template<typename T> concept Has_Peer_ReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveRequest = requires(T t) { t.ReceiveRequest(0, ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveTargetPush = requires(T t) { t.ReceiveTargetPush(0, ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveTargetRequest = requires(T t) { t.ReceiveTargetRequest(0, 0, ObjBase_s()); };
+	template<typename T> concept Has_Peer_HandleTargetMessage = requires(T t) { t.HandleTargetMessage(0, std::declval<Data_r&>()); };
 #else
 	template<class T, class = void>
 	struct _Has_Peer_HandleMessage : std::false_type {};
@@ -103,7 +104,7 @@ namespace xx {
 	template<class T, class = void>
 	struct _Has_Peer_ReadFrom : std::false_type {};
 	template<class T>
-	struct _Has_Peer_ReadFrom<T, std::void_t<decltype(std::declval<T&>().ReadFrom(Data_r()))>> : std::true_type {};
+	struct _Has_Peer_ReadFrom<T, std::void_t<decltype(std::declval<T&>().ReadFrom(std::declval<Data_r&>()))>> : std::true_type {};
 	template<class T>
 	constexpr bool Has_PeerRequestCode = _Has_Peer_ReadFrom<T>::value;
 
@@ -134,6 +135,13 @@ namespace xx {
 	struct _Has_Peer_ReceiveTargetRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetRequest(0, 0, ObjBase_s()))>> : std::true_type {};
 	template<class T>
 	constexpr bool Has_Peer_ReceiveTargetRequest = _Has_Peer_ReceiveTargetRequest<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_HandleTargetMessage : std::false_type {};
+	template<class T>
+	struct _Has_Peer_HandleTargetMessage<T, std::void_t<decltype(std::declval<T&>().HandleTargetMessage(0, std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_HandleTargetMessage = _Has_Peer_HandleTargetMessage<T>::value;
 #endif
 
 
@@ -299,21 +307,36 @@ namespace xx {
 	需要手工添加一些处理函数
 	如果 containTarget == true 那么
 
-	int ReceiveTargetRequest(uint32_t const& target, xx::ObjBase_s&& o) {
-	int ReceiveTargetPush(uint32_t const& target, xx::ObjBase_s&& o) {
-		// todo: handle o
-		// 非法 o 随手处理下 om.KillRecursive(o);
-		return 0;	// 要掐线就返回非 0
-	}
+		// 收到 目标的 请求( 返回非 0 表示失败，会 Stop )
+		int ReceiveTargetRequest(uint32_t target, xx::ObjBase_s&& o) {
+
+		// 收到 目标的 推送( 返回非 0 表示失败，会 Stop )
+		int ReceiveTargetPush(uint32_t target, xx::ObjBase_s&& o) {
+			// todo: handle o
+			// 非法 o 随手处理下 om.KillRecursive(o);
+			return 0;	// 要掐线就返回非 0
+		}
+
+		// 拦截处理特殊 target 路由需求( 返回 0 表示已成功处理，   返回 正数 表示不拦截,    返回负数表示 出错 )
+		int HandleTargetMessage(uint32_t target, xx::Data_r& dr) {
+			if (target == 0xFFFFFFFF) {
+				// ...
+				return 0;
+			}
+			return 1;	// passthrough
+		}
 
 	否则
 
-	int ReceiveRequest(xx::ObjBase_s&& o) {
-	int ReceivePush(xx::ObjBase_s&& o) {
-		// todo: handle o
-		// 非法 o 随手处理下 om.KillRecursive(o);
-		return 0;	// 要掐线就返回非 0
-	}
+		// 收到 请求( 返回非 0 表示失败，会 Stop )
+		int ReceiveRequest(xx::ObjBase_s&& o) {
+
+		// 收到 推送( 返回非 0 表示失败，会 Stop )
+		int ReceivePush(xx::ObjBase_s&& o) {
+			// todo: handle o
+			// 非法 o 随手处理下 om.KillRecursive(o);
+			return 0;	// 要掐线就返回非 0
+		}
 	*/
 	template<typename PeerDeriveType, bool containTarget = false>
 	struct PeerRequestCode {
@@ -424,12 +447,18 @@ namespace xx {
 				// 如果包不完整 就 跳出
 				if (buf + totalLen > end) break;
 
-				{
+				do {
 					auto dr = xx::Data_r(buf + sizeof(dataLen), dataLen);
 
 					// 读出 target
 					if constexpr (containTarget) {
 						if (dr.ReadFixed(target)) return 0;
+						if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
+							int r = PEERTHIS->HandleTargetMessage(target, dr);
+							if (r == 0) break;		// continue
+							if (r < 0) return 0;	// Stop
+							// passthrough
+						}
 					}
 
 					// 读出序号
@@ -440,7 +469,7 @@ namespace xx {
 					if (serial > 0) {
 						if (auto iter = reqs.find(serial); iter != reqs.end()) {
 							auto o = ReadFrom(dr);
-							if (!o) return 0;
+							if (!o) return 0;	// Stop
 							iter->second.second = std::move(o);
 							iter->second.first.cancel();
 						}
@@ -453,7 +482,7 @@ namespace xx {
 								if constexpr (Has_Peer_ReceiveTargetPush<PeerDeriveType>) {
 									auto o = ReadFrom(dr);
 									if (!o) return 0;
-									if (PEERTHIS->ReceiveTargetPush(target, std::move(o))) return 0;
+									if (PEERTHIS->ReceiveTargetPush(target, std::move(o))) return 0;	// Stop
 								}
 							}
 							else {
@@ -461,7 +490,7 @@ namespace xx {
 								if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
 									auto o = ReadFrom(dr);
 									if (!o) return 0;
-									if (PEERTHIS->ReceivePush(std::move(o))) return 0;
+									if (PEERTHIS->ReceivePush(std::move(o))) return 0;	// Stop
 								}
 							}
 						}
@@ -472,23 +501,23 @@ namespace xx {
 								if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
 									auto o = ReadFrom(dr);
 									if (!o) return 0;
-									if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return 0;
+									if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return 0;	// Stop
 								}
 							}
 							else {
 								static_assert(!Has_Peer_ReceiveTargetRequest<PeerDeriveType>);
 								if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
 									auto o = ReadFrom(dr);
-									if (!o) return 0;
-									if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;
+									if (!o) return 0;	// Stop
+									if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;	// Stop
 								}
 							}
 						}
 						if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
-							if (PEERTHIS->stoping || PEERTHIS->stoped) return 0;
+							if (PEERTHIS->stoping || PEERTHIS->stoped) return 0;	// Stop
 						}
 					}
-				}
+				} while (false);
 
 				// 跳到下一个包的开头
 				buf += totalLen;
