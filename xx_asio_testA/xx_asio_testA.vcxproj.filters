@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="pkg.cpp">
+      <Filter>PKG</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="PKG">
+      <UniqueIdentifier>{f441a710-731f-4c59-b409-87735a4d88b2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="pkg.cpp.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="pkg.cs">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="pkg.h.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="pkg.json">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="pkg_.h.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="pkg_gen.bat">
+      <Filter>PKG</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pkg.h">
+      <Filter>PKG</Filter>
+    </ClInclude>
+    <ClInclude Include="pkg_ajson.h">
+      <Filter>PKG</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
