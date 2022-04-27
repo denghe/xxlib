@@ -7,7 +7,7 @@ struct Client : xx::ServerCode<Client> {
 	void Run(uint16_t const& port);
 };
 
-struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestCode<CPeer>, std::enable_shared_from_this<CPeer> {
+struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestCode<CPeer, true>, std::enable_shared_from_this<CPeer> {
 	Client& client;
 	CPeer(Client& client_)
 		: PeerCode(client_.ioc, asio::ip::tcp::socket(client_.ioc))
@@ -29,19 +29,16 @@ void Client::Run(uint16_t const& port) {
 		}
 		om.CoutN("d->stoped = ", d->stoped);
 
-		// 连上了，发点啥
-		auto pkg = xx::Make<Ping>();
-		pkg->ticks = xx::NowSteadyEpoch10m();
-		om.CoutN("pkg = ", pkg);
+		// 连上之后，等 open
 
-		if (auto o = co_await d->SendRequest(pkg); !o) {
+		// 连上了，给 lobby 发 Ping
+		if (auto o = co_await d->SendRequest<Ping>(0, 15s, xx::NowSteadyEpoch10m()); !o) {
 			om.CoutN("SendRequest timeout!");
 		}
 		else {
 			om.CoutN("receive o = ", o);
 			om.KillRecursive(o);
 		}
-		om.KillRecursive(pkg);
 
 		om.CoutN("d->stoped = ", d->stoped);
 

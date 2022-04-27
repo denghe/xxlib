@@ -1,6 +1,6 @@
 ﻿// asio simple tcp client( xx::Data container )
 #include "../xx_asio_test8/xx_asio_codes.h"
-#include <pkg_generic.h>
+#include <pkg.h>
 
 struct Client : xx::ServerCode<Client> {
 	xx::ObjManager om;
@@ -29,20 +29,14 @@ void Client::Run(uint16_t const& port) {
 		}
 		om.CoutN("d->stoped = ", d->stoped);
 
-		// 连上了，发点啥
-		auto pkg = xx::Make<Generic::Error>();
-		pkg->errorCode = 1;
-		pkg->errorMessage = "asdf";
-		om.CoutN("pkg = ", pkg);
-
-		if (auto o = co_await d->SendRequest(pkg); !o) {
+		// 连上了，发 Ping
+		if (auto o = co_await d->SendRequest<Ping>(15s, xx::NowEpoch10m()); !o) {
 			om.CoutN("SendRequest timeout!");
 		}
 		else {
 			om.CoutN("receive o = ", o);
 			om.KillRecursive(o);
 		}
-		om.KillRecursive(pkg);
 
 		om.CoutN("d->stoped = ", d->stoped);
 

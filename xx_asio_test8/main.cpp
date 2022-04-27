@@ -1,6 +1,6 @@
 ﻿// asio simple tcp server( xx::Data container )
 #include "xx_asio_codes.h"
-#include <pkg_generic.h>
+#include <pkg.h>
 
 struct Server : xx::ServerCode<Server> {
 	xx::ObjManager om;
@@ -16,11 +16,9 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestC
 	{}
 	int ReceiveRequest(int32_t const& serial_, xx::ObjBase_s&& o_) {
 		switch (o_.typeId()) {
-		case xx::TypeId_v<Generic::Error>: {
-			auto&& o = o_.ReinterpretCast<Generic::Error>();
-			o->errorCode++;
-			o->errorMessage += "!!!";
-			SendResponse(serial_, o);
+		case xx::TypeId_v<Ping>: {
+			auto&& o = o_.ReinterpretCast<Ping>();
+			SendResponse<Pong>(serial_, o->ticks);
 			break;
 		}
 		default:

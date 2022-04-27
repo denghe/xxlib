@@ -7,20 +7,19 @@ struct Server : xx::ServerCode<Server> {
 	xx::Shared<Pong> pkg_pong = xx::Make<Pong>();
 };
 
-struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestCode<SPeer>, std::enable_shared_from_this<SPeer> {
+struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerRequestCode<GPeer, true>, std::enable_shared_from_this<GPeer> {
 	Server& server;
-	SPeer(Server& server_, asio::ip::tcp::socket&& socket_)
+	GPeer(Server& server_, asio::ip::tcp::socket&& socket_)
 		: PeerCode(server_.ioc, std::move(socket_))
 		, PeerTimeoutCode(server_.ioc)
 		, PeerRequestCode(server_.om)
 		, server(server_)
 	{}
-	int ReceiveRequest(int32_t const& serial_, xx::ObjBase_s&& o_) {
+	int ReceiveTargetRequest(uint32_t target, int32_t serial_, xx::ObjBase_s&& o_) {
 		switch (o_.typeId()) {
 		case xx::TypeId_v<Ping>: {
 			auto&& o = o_.ReinterpretCast<Ping>();
-			server.pkg_pong->ticks = o->ticks;
-			SendResponse(serial_, server.pkg_pong);
+			SendResponse<Pong>(0, serial_, o->ticks);
 			break;
 		}
 		default:
@@ -33,7 +32,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestC
 
 int main() {
 	Server server;
-	server.Listen<SPeer>(54321);
+	server.Listen<GPeer>(54321);
 	std::cout << "lobby + gateway + client -- lobby running... port = 54321" << std::endl;
 	server.ioc.run();
 	return 0;

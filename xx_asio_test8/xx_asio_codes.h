@@ -46,10 +46,8 @@ namespace xx {
 		}
 	};
 
-
 	// 代码片段 / 成员函数 探测器系列
 #ifndef __ANDROID__
-
 	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
 	template<typename T> concept PeerDeriveType = requires(T t) { t.shared_from_this(); };
 
@@ -63,15 +61,16 @@ namespace xx {
 	template<typename T> concept Has_Peer_Stop_ = requires(T t) { t.Stop_(); };
 
 	// 用于检测是否继承了 PeerTimeoutCode 代码片段
-	template<typename T> concept Has_Peer_ResetTimeout = requires(T t) { t.ResetTimeout(1s); };
+	template<typename T> concept Has_PeerTimeoutCode = requires(T t) { t.ResetTimeout(1s); };
 
 	// 用于检测是否继承了 PeerRequestCode 代码片段
-	template<typename T> concept Has_Peer_SendRequest = requires(T t) { t.SendRequest(ObjBase_s(), 1s); };
+	template<typename T> concept Has_PeerRequestCode = requires(T t) { t.ReadFrom(Data_r()); };
 
 	// PeerRequestCode 片段依赖的函数
 	template<typename T> concept Has_Peer_ReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveRequest = requires(T t) { t.ReceiveRequest(0, ObjBase_s()); };
-
+	template<typename T> concept Has_Peer_ReceiveTargetPush = requires(T t) { t.ReceiveTargetPush(0, ObjBase_s()); };
+	template<typename T> concept Has_Peer_ReceiveTargetRequest = requires(T t) { t.ReceiveTargetRequest(0, 0, ObjBase_s()); };
 #else
 	template<class T, class = void>
 	struct _Has_Peer_HandleMessage : std::false_type {};
@@ -99,14 +98,14 @@ namespace xx {
 	template<class T>
 	struct _Has_Peer_ResetTimeout<T, std::void_t<decltype(std::declval<T&>().ResetTimeout(1s))>> : std::true_type {};
 	template<class T>
-	constexpr bool Has_Peer_ResetTimeout = _Has_Peer_ResetTimeout<T>::value;
+	constexpr bool Has_PeerTimeoutCode = _Has_Peer_ResetTimeout<T>::value;
 
 	template<class T, class = void>
-	struct _Has_Peer_SendRequest : std::false_type {};
+	struct _Has_Peer_ReadFrom : std::false_type {};
 	template<class T>
-	struct _Has_Peer_SendRequest<T, std::void_t<decltype(std::declval<T&>().SendRequest(1s))>> : std::true_type {};
+	struct _Has_Peer_ReadFrom<T, std::void_t<decltype(std::declval<T&>().ReadFrom(Data_r()))>> : std::true_type {};
 	template<class T>
-	constexpr bool Has_Peer_SendRequest = _Has_Peer_SendRequest<T>::value;
+	constexpr bool Has_PeerRequestCode = _Has_Peer_ReadFrom<T>::value;
 
 	template<class T, class = void>
 	struct _Has_Peer_ReceivePush : std::false_type {};
@@ -121,6 +120,20 @@ namespace xx {
 	struct _Has_Peer_ReceiveRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveRequest(0, ObjBase_s()))>> : std::true_type {};
 	template<class T>
 	constexpr bool Has_Peer_ReceiveRequest = _Has_Peer_ReceiveRequest<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_ReceiveTargetPush : std::false_type {};
+	template<class T>
+	struct _Has_Peer_ReceiveTargetPush<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetPush(0, ObjBase_s()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_ReceiveTargetPush = _Has_Peer_ReceiveTargetPush<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_ReceiveTargetRequest : std::false_type {};
+	template<class T>
+	struct _Has_Peer_ReceiveTargetRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetRequest(0, 0, ObjBase_s()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_ReceiveTargetRequest = _Has_Peer_ReceiveTargetRequest<T>::value;
 #endif
 
 
@@ -148,7 +161,7 @@ namespace xx {
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
-			if constexpr (Has_Peer_SendRequest<PeerDeriveType>) {
+			if constexpr (Has_PeerRequestCode<PeerDeriveType>) {
 				PEERTHIS->reqAutoId = 0;
 			}
 			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, detached);
@@ -163,10 +176,10 @@ namespace xx {
 			stoped = true;
 			socket.close();
 			writeBlocker.cancel();
-			if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
+			if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
 				PEERTHIS->timeouter.cancel();
 			}
-			if constexpr (Has_Peer_SendRequest<PeerDeriveType>) {
+			if constexpr (Has_PeerRequestCode<PeerDeriveType>) {
 				for (auto& kv : PEERTHIS->reqs) {
 					kv.second.first.cancel();
 				}
@@ -193,7 +206,7 @@ namespace xx {
 		}
 
 		bool Alive() const {
-			if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
+			if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
 				return !stoped && !PEERTHIS->stoping;
 			}
 			else return !stoped;
@@ -208,7 +221,7 @@ namespace xx {
 				if (ec) break;
 				if (stoped) co_return;
 				if (!n) continue;
-				if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
+				if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
 					if (PEERTHIS->stoping) {
 						len = 0;
 						continue;
@@ -218,7 +231,7 @@ namespace xx {
 				if constexpr (Has_Peer_HandleMessage<PeerDeriveType>) {
 					n = PEERTHIS->HandleMessage(buf, len);
 					if (stoped) co_return;
-					if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
+					if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
 						if (PEERTHIS->stoping) co_return;
 					}
 					if (!n) break;
@@ -282,7 +295,19 @@ namespace xx {
 
 
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
-	/* 需要手工添加下列函数
+	/* 
+	需要手工添加一些处理函数
+	如果 containTarget == true 那么
+
+	int ReceiveTargetRequest(uint32_t const& target, xx::ObjBase_s&& o) {
+	int ReceiveTargetPush(uint32_t const& target, xx::ObjBase_s&& o) {
+		// todo: handle o
+		// 非法 o 随手处理下 om.KillRecursive(o);
+		return 0;	// 要掐线就返回非 0
+	}
+
+	否则
+
 	int ReceiveRequest(xx::ObjBase_s&& o) {
 	int ReceivePush(xx::ObjBase_s&& o) {
 		// todo: handle o
@@ -290,7 +315,7 @@ namespace xx {
 		return 0;	// 要掐线就返回非 0
 	}
 	*/
-	template<typename PeerDeriveType>
+	template<typename PeerDeriveType, bool containTarget = false>
 	struct PeerRequestCode {
 		int32_t reqAutoId = 0;
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
@@ -298,37 +323,71 @@ namespace xx {
 
 		PeerRequestCode(ObjManager& om_) : om(om_) {}
 
-		void FillTo(Data& d, int32_t const& serial, ObjBase_s const& o) {
-			auto bak = d.WriteJump(sizeof(uint32_t));	// package len
-			// todo: 网关包这里有个 投递地址 占用
-			d.WriteVarInteger(serial);
-			om.WriteTo(d, o);	// typeid + data
-			d.WriteFixedAt(bak, (uint32_t)(d.len - sizeof(uint32_t)));	// fill package len
+		template<typename PKG = ObjBase, typename ... Args>
+		void SendCore(uint32_t const& target, int32_t const& serial, Args const &... args) {
+			Data d;
+			d.Reserve(8192);
+			auto bak = d.WriteJump<false>(sizeof(uint32_t));
+			if constexpr(containTarget) {
+				d.WriteFixed<false>(target);
+			}
+			d.WriteVarInteger<false>(serial);
+			// 传统写包
+			if constexpr (std::is_same_v<xx::ObjBase, PKG>) {
+				om.WriteTo(d, args...);
+			}
+			// 直写 cache buf 包
+			else if constexpr (std::is_same_v<xx::Span, PKG>) {
+				d.WriteBufSpans(args...);
+			}
+			// 使用 目标类的静态函数 快速填充 buf
+			else {
+				PKG::WriteTo(d, args...);
+			}
+			d.WriteFixedAt(bak, (uint32_t)(d.len - 4));
+			PEERTHIS->Send(std::move(d));
 		}
 
-		awaitable<ObjBase_s> SendRequest(ObjBase_s const& o, std::chrono::steady_clock::duration timeoutSecs = 15s) {
-			// 创建请求
-			reqAutoId = (reqAutoId + 1) % 0x7fffffff;
+		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
+		void SendResponse(uint32_t const& target, int32_t const& serial, Args const& ... args) {
+			this->template SendCore<PKG>(target, serial, args...);
+		}
+
+		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
+		void SendPush(uint32_t const& target, Args const& ... args) {
+			this->template SendCore<PKG>(target, 0, args...);
+		}
+
+		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
+		awaitable<ObjBase_s> SendRequest(uint32_t const& target, std::chrono::steady_clock::duration timeoutSecs, Args const& ... args) {
+			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
-			Data d;
-			FillTo(d, -reqAutoId, o);
-			PEERTHIS->Send(std::move(d));
-			co_await iter->second.first.async_wait(use_nothrow_awaitable);	// 等回包 或 超时
-			auto r = std::move(iter->second.second);	// 拿出 网络回包
-			reqs.erase(iter);	// 移除请求
-			co_return r;	// 返回 网络回包( 超时 为 空 )
+			this->template SendCore<PKG>(target, -reqAutoId, args...);
+			co_await iter->second.first.async_wait(use_nothrow_awaitable);
+			auto r = std::move(iter->second.second);
+			reqs.erase(iter);
+			co_return r;
 		}
 
-		void SendPush(ObjBase_s const& o) {
-			Data d;
-			FillTo(d, 0, o);
-			PEERTHIS->Send(std::move(d));
+		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		void SendResponse(int32_t const& serial, Args const &... args) {
+			this->template SendCore<PKG>(0, serial, args...);
 		}
 
-		void SendResponse(int32_t serial, ObjBase_s const& o) {
-			Data d;
-			FillTo(d, serial, o);
-			PEERTHIS->Send(std::move(d));
+		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		void SendPush(Args const& ... args) {
+			this->template SendCore<PKG>(0, 0, args...);
+		}
+
+		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		awaitable<ObjBase_s> SendRequest(std::chrono::steady_clock::duration timeoutSecs, Args const& ... args) {
+			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
+			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
+			this->template SendCore<PKG>(0, -reqAutoId, args...);
+			co_await iter->second.first.async_wait(use_nothrow_awaitable);
+			auto r = std::move(iter->second.second);
+			reqs.erase(iter);
+			co_return r;
 		}
 
 		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
@@ -341,7 +400,7 @@ namespace xx {
 		}
 
 		size_t HandleMessage(uint8_t* inBuf, size_t len) {
-			if constexpr (Has_Peer_ResetTimeout<PeerDeriveType>) {
+			if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
 				// 正在停止，直接吞掉所有数据
 				if (PEERTHIS->stoping) return len;
 			}
@@ -352,7 +411,7 @@ namespace xx {
 
 			// 包头
 			uint32_t dataLen = 0;
-			//uint32_t addr = 0;	// todo
+			uint32_t target = 0;	// containTarget == true 才用得到
 
 			// 确保包头长度充足
 			while (buf + sizeof(dataLen) <= end) {
@@ -368,7 +427,10 @@ namespace xx {
 				{
 					auto dr = xx::Data_r(buf + sizeof(dataLen), dataLen);
 
-					// todo: 网关包这里有个 投递地址 占用
+					// 读出 target
+					if constexpr (containTarget) {
+						if (dr.ReadFixed(target)) return 0;
+					}
 
 					// 读出序号
 					int32_t serial;
@@ -386,18 +448,40 @@ namespace xx {
 					else {
 						// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
 						if (serial == 0) {
-							if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
-								auto o = ReadFrom(dr);
-								if (!o) return 0;
-								if (PEERTHIS->ReceivePush(std::move(o))) return 0;
+							if constexpr (containTarget) {
+								static_assert(!Has_Peer_ReceivePush<PeerDeriveType>);
+								if constexpr (Has_Peer_ReceiveTargetPush<PeerDeriveType>) {
+									auto o = ReadFrom(dr);
+									if (!o) return 0;
+									if (PEERTHIS->ReceiveTargetPush(target, std::move(o))) return 0;
+								}
+							}
+							else {
+								static_assert(!Has_Peer_ReceiveTargetPush<PeerDeriveType>);
+								if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
+									auto o = ReadFrom(dr);
+									if (!o) return 0;
+									if (PEERTHIS->ReceivePush(std::move(o))) return 0;
+								}
 							}
 						}
 						// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
 						else {
-							if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
-								auto o = ReadFrom(dr);
-								if (!o) return 0;
-								if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;
+							if constexpr (containTarget) {
+								static_assert(!Has_Peer_ReceiveRequest<PeerDeriveType>);
+								if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
+									auto o = ReadFrom(dr);
+									if (!o) return 0;
+									if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return 0;
+								}
+							}
+							else {
+								static_assert(!Has_Peer_ReceiveTargetRequest<PeerDeriveType>);
+								if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
+									auto o = ReadFrom(dr);
+									if (!o) return 0;
+									if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;
+								}
 							}
 						}
 						if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
