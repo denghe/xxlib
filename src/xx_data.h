@@ -311,6 +311,12 @@ namespace xx {
         }
 
         // 复制( offset = 0 )
+        [[maybe_unused]] Data_rw(Span const& s)
+            : cap(0) {
+            WriteBuf(s.buf, s.len);
+        }
+
+        // 复制( offset = 0 )
         [[maybe_unused]] Data_rw(void const *const &ptr, size_t const &siz)
             : cap(0) {
             WriteBuf(ptr, siz);

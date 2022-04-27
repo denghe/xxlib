@@ -47,6 +47,17 @@ namespace xx {
 		}
 	};
 
+	template<typename...Args>
+	xx::Data MakeCommandData(Args const &... cmdAndArgs) {
+		xx::Data d;
+		d.Reserve(512);
+		auto bak = d.WriteJump(sizeof(uint32_t));
+		d.WriteFixed(0xFFFFFFFFu);
+		d.Write(cmdAndArgs...);
+		d.WriteFixedAt(bak, (uint32_t)(d.len - sizeof(uint32_t)));
+		return d;
+	}
+
 	// 代码片段 / 成员函数 探测器系列
 #ifndef __ANDROID__
 	// struct PeerDeriveType : std::enable_shared_from_this< PeerDeriveType >
@@ -54,6 +65,7 @@ namespace xx {
 
 	// 用于提供消息处理功能. 如果有继承 PeerRequestCode 则无需提供。具体写法可参考之
 	template<typename T> concept Has_Peer_HandleMessage = requires(T t) { t.HandleMessage((uint8_t*)0, 0); };
+	template<typename T> concept Has_Peer_HandleData = requires(T t) { t.HandleData(Data_r()); };
 
 	// 用于补充 Start 函数功能
 	template<typename T> concept Has_Peer_Start_ = requires(T t) { t.Start_(); };
@@ -80,6 +92,13 @@ namespace xx {
 	struct _Has_Peer_HandleMessage<T, std::void_t<decltype(std::declval<T&>().HandleMessage((uint8_t*)0, 0))>> : std::true_type {};
 	template<class T>
 	constexpr bool Has_Peer_HandleMessage = _Has_Peer_HandleMessage<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_HandleData : std::false_type {};
+	template<class T>
+	struct _Has_Peer_HandleData<T, std::void_t<decltype(std::declval<T&>().HandleData(Data_r()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_HandleData = _Has_Peer_HandleData<T>::value;
 
 	template<class T, class = void>
 	struct _Has_Peer_Start_ : std::false_type {};
@@ -303,6 +322,52 @@ namespace xx {
 	};
 
 
+	// 为 peer 附加 HandleMessage 代码段落
+	template<typename PeerDeriveType, size_t maxDataLen = 524288>
+	struct PeerHandleMessageCode {
+		size_t HandleMessage(uint8_t* inBuf, size_t len) {
+			if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
+				// 正在停止，直接吞掉所有数据
+				if (PEERTHIS->stoping) return len;
+			}
+
+			// 取出指针备用
+			auto buf = (uint8_t*)inBuf;
+			auto end = (uint8_t*)inBuf + len;
+
+			// 包头
+			uint32_t dataLen = 0;
+
+			// 确保包头长度充足
+			while (buf + sizeof(dataLen) <= end) {
+				// 取长度
+				dataLen = *(uint32_t*)buf;
+
+				// 长度保护
+				if (dataLen > maxDataLen) return 0;	// Stop
+
+				// 计算包总长( 包头长 + 数据长 )
+				auto totalLen = sizeof(dataLen) + dataLen;
+
+				// 如果包不完整 就 跳出
+				if (buf + totalLen > end) break;	// continue
+
+				// 检测是否含有 HandleData 函数, 有就调用
+				if constexpr (Has_Peer_HandleData<PeerDeriveType>) {
+					// 调用派生类的 HandleData 函数。如果返回非 0 表示出错，需要 Stop. 返回 0 则继续
+					if (int r = PEERTHIS->HandleData(xx::Data_r(buf, dataLen, sizeof(dataLen)))) return 0;	// Stop
+				}
+
+				// 跳到下一个包的开头
+				buf += totalLen;
+			}
+
+			// 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
+			return buf - inBuf;
+		}
+	};
+
+
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
 	/* 
 	需要手工添加一些处理函数
@@ -340,7 +405,7 @@ namespace xx {
 		}
 	*/
 	template<typename PeerDeriveType, bool containTarget = false, size_t sendCap = 8192, size_t maxDataLen = 524288>
-	struct PeerRequestCode {
+	struct PeerRequestCode : PeerHandleMessageCode<PeerDeriveType, maxDataLen> {
 		int32_t reqAutoId = 0;
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
 		ObjManager& om;
@@ -423,112 +488,75 @@ namespace xx {
 			return o;
 		}
 
-		size_t HandleMessage(uint8_t* inBuf, size_t len) {
-			if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
-				// 正在停止，直接吞掉所有数据
-				if (PEERTHIS->stoping) return len;
+		int HandleData(xx::Data_r&& dr) {
+			// 读出 target
+			uint32_t target;
+			if constexpr (containTarget) {
+				if (dr.ReadFixed(target)) return __LINE__;
+				if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
+					int r = PEERTHIS->HandleTargetMessage(target, dr);
+					if (r == 0) return 0;		// continue
+					if (r < 0) return __LINE__;
+				}
 			}
 
-			// 取出指针备用
-			auto buf = (uint8_t*)inBuf;
-			auto end = (uint8_t*)inBuf + len;
+			// 读出序号
+			int32_t serial;
+			if (dr.Read(serial)) return __LINE__;
 
-			// 包头
-			uint32_t dataLen = 0;
-			uint32_t target = 0;	// containTarget == true 才用得到
-
-			// 确保包头长度充足
-			while (buf + sizeof(dataLen) <= end) {
-				// 取长度
-				dataLen = *(uint32_t*)buf;
-
-				// 长度保护
-				if (dataLen > maxDataLen) return 0;	// Stop
-
-				// 计算包总长( 包头长 + 数据长 )
-				auto totalLen = sizeof(dataLen) + dataLen;
-
-				// 如果包不完整 就 跳出
-				if (buf + totalLen > end) break;	// continue
-
-				do {
-					auto dr = xx::Data_r(buf + sizeof(dataLen), dataLen);
-
-					// 读出 target
+			// 如果是 Response 包，则在 req 字典查找。如果找到就 解包 + 传递 + 协程放行
+			if (serial > 0) {
+				if (auto iter = reqs.find(serial); iter != reqs.end()) {
+					auto o = ReadFrom(dr);
+					if (!o) return __LINE__;
+					iter->second.second = std::move(o);
+					iter->second.first.cancel();
+				}
+			}
+			else {
+				// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
+				if (serial == 0) {
 					if constexpr (containTarget) {
-						if (dr.ReadFixed(target)) return 0;	// Stop
-						if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
-							int r = PEERTHIS->HandleTargetMessage(target, dr);
-							if (r == 0) break;		// continue
-							if (r < 0) return 0;	// Stop
-							// passthrough
-						}
-					}
-
-					// 读出序号
-					int32_t serial;
-					if (dr.Read(serial)) return 0;	// Stop
-
-					// 如果是 Response 包，则在 req 字典查找。如果找到就 解包 + 传递 + 协程放行
-					if (serial > 0) {
-						if (auto iter = reqs.find(serial); iter != reqs.end()) {
+						static_assert(!Has_Peer_ReceivePush<PeerDeriveType>);
+						if constexpr (Has_Peer_ReceiveTargetPush<PeerDeriveType>) {
 							auto o = ReadFrom(dr);
-							if (!o) return 0;	// Stop
-							iter->second.second = std::move(o);
-							iter->second.first.cancel();
+							if (!o) return __LINE__;
+							if (PEERTHIS->ReceiveTargetPush(target, std::move(o))) return __LINE__;
 						}
 					}
 					else {
-						// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
-						if (serial == 0) {
-							if constexpr (containTarget) {
-								static_assert(!Has_Peer_ReceivePush<PeerDeriveType>);
-								if constexpr (Has_Peer_ReceiveTargetPush<PeerDeriveType>) {
-									auto o = ReadFrom(dr);
-									if (!o) return 0;
-									if (PEERTHIS->ReceiveTargetPush(target, std::move(o))) return 0;	// Stop
-								}
-							}
-							else {
-								static_assert(!Has_Peer_ReceiveTargetPush<PeerDeriveType>);
-								if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
-									auto o = ReadFrom(dr);
-									if (!o) return 0;		// Stop
-									if (PEERTHIS->ReceivePush(std::move(o))) return 0;	// Stop
-								}
-							}
-						}
-						// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
-						else {
-							if constexpr (containTarget) {
-								static_assert(!Has_Peer_ReceiveRequest<PeerDeriveType>);
-								if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
-									auto o = ReadFrom(dr);
-									if (!o) return 0;		// Stop
-									if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return 0;	// Stop
-								}
-							}
-							else {
-								static_assert(!Has_Peer_ReceiveTargetRequest<PeerDeriveType>);
-								if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
-									auto o = ReadFrom(dr);
-									if (!o) return 0;	// Stop
-									if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return 0;	// Stop
-								}
-							}
-						}
-						if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
-							if (PEERTHIS->stoping || PEERTHIS->stoped) return 0;	// Stop
+						static_assert(!Has_Peer_ReceiveTargetPush<PeerDeriveType>);
+						if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
+							auto o = ReadFrom(dr);
+							if (!o) return __LINE__;
+							if (PEERTHIS->ReceivePush(std::move(o))) return __LINE__;
 						}
 					}
-				} while (false);
-
-				// 跳到下一个包的开头
-				buf += totalLen;
+				}
+				// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
+				else {
+					if constexpr (containTarget) {
+						static_assert(!Has_Peer_ReceiveRequest<PeerDeriveType>);
+						if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
+							auto o = ReadFrom(dr);
+							if (!o) return __LINE__;
+							if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return __LINE__;
+						}
+					}
+					else {
+						static_assert(!Has_Peer_ReceiveTargetRequest<PeerDeriveType>);
+						if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
+							auto o = ReadFrom(dr);
+							if (!o) return __LINE__;
+							if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return __LINE__;
+						}
+					}
+				}
+				if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
+					if (PEERTHIS->stoping || PEERTHIS->stoped) return __LINE__;
+				}
 			}
-
-			// 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
-			return buf - inBuf;
+			return 0;
 		}
 	};
 
