@@ -534,6 +534,4 @@ namespace xx {
 
 	// todo: more xxxxCode here
 
-#undef PEERTHIS
-
 }
