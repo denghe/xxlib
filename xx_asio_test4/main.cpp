@@ -54,14 +54,19 @@ asio::awaitable<void> listener(uint16_t port, Worker* workers, int workers_count
 	}
 }
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        std::cout << "args   =   port" << std::endl;
+        return 0;
+    }
+
 	std::thread t{ [&] {
 		while (true) {
 			counter = 0;
 			std::this_thread::sleep_for(1s);
 			auto c = (int64_t)counter;
 			if (c < 0) break;
-			std::printf("qps = %lld\n", c);
+			std::cout << "qps = " << c << std::endl;
 		}
 	} };
 	t.detach();
@@ -74,7 +79,9 @@ int main() {
 		asio::signal_set signals(ioc, SIGINT, SIGTERM);
 		signals.async_wait([&](auto, auto) { ioc.stop(); });
 
-		asio::co_spawn(ioc, listener(55555, workers.get(), workers_count), asio::detached);
+        auto port = std::strtol(argv[1], nullptr, 10);
+
+		asio::co_spawn(ioc, listener(port, workers.get(), workers_count), asio::detached);
 
 		ioc.run();
 	}

@@ -20,10 +20,10 @@ add_executable(xx_asio_test2
 		ss_ex.cpp
 		)
 
-find_package(mimalloc 1.7 REQUIRED)
+#find_package(mimalloc 1.7 REQUIRED)
 
 target_link_libraries(xx_asio_test2
 		pthread
-		readline
-		mimalloc-static
+#		readline
+#		mimalloc-static
 		)

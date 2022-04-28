@@ -31,14 +31,16 @@ asio::awaitable<void> dialer(asio::io_context& ioc, std::string_view domain, std
 }
 
 struct Client {
-	void Run() {
+	void Run(int numCos, std::string_view ip, std::string_view port) {
 		std::thread t{ [&] {
 			try {
 				asio::io_context ioc(1);
 				asio::signal_set signals(ioc, SIGINT, SIGTERM);
 				signals.async_wait([&](auto, auto) { ioc.stop(); });
 
-				asio::co_spawn(ioc, dialer(ioc, "127.0.0.1", "55555"), asio::detached);
+                for (int i = 0; i < numCos; ++i) {
+                    asio::co_spawn(ioc, dialer(ioc, ip, port), asio::detached);
+                }
 
 				ioc.run();
 			}
@@ -53,19 +55,29 @@ struct Client {
 #include <array>
 #include <iostream>
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc != 5) {
+        std::cout << "args   =   numThreads   numCoroutines   ip   port" << std::endl;
+        return 0;
+    }
+
 	std::thread t{ [&] {
 		while (true) {
 			std::this_thread::sleep_for(1s);
 			auto c = (int64_t)counter;
 			counter = 0;
-			std::printf("qps = %lld\n", c);
+			std::cout << "qps = " << c << std::endl;
 		}
 	} };
 	t.detach();
 
-	std::array<Client, 1> clients;
-	for (auto& c : clients) c.Run();
+    int tn = std::strtol(argv[1], nullptr, 10);
+    int cn = std::strtol(argv[2], nullptr, 10);
+
+	auto clients = std::make_unique<Client[]>(tn);
+    for (int i = 0; i < tn; ++i) {
+        clients[i].Run(cn, argv[3], argv[4]);
+    }
 	std::cin.get();
 	return 0;
 }
