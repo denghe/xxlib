@@ -3,6 +3,11 @@
 // 使用方法：xcode 需要配置 c++ 为 20 版本 并且去 other c++ flags 看看 如果有 17 字样 删掉
 // android 某 gradle 某行加点料 cppFlags "-frtti -fexceptions -fsigned-char -std=c++20 -fcoroutines-ts"
 
+// 注意:
+// 1. co_spawn + labmda 捕获的东西，尽量不要传 引用。 move 或者 copy 都比较安全。体积比较大的参数，建议包裹成小对象再 move 
+// 2. co_spawn(ioc, [this, self = shared_from_this()] 这种写法是推荐的，让 this 被当前 协程 加持, 不要在析构函数中搞事情.
+
+
 #include <xx_obj.h>
 #include <iostream>
 #include <charconv>
@@ -19,10 +24,18 @@ using asio::detached;
 
 namespace xx {
 
-	awaitable<void> Timeout(std::chrono::steady_clock::duration const& d) {
+	inline awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
 		asio::steady_timer t(co_await asio::this_coro::executor);
 		t.expires_after(d);
 		co_await t.async_wait(use_nothrow_awaitable);
+	}
+
+	inline std::string EndPointToString(asio::ip::tcp::endpoint const& ep) {
+		return ep.address().to_string() + ":" + std::to_string(ep.port());
+	}
+
+	inline std::string RemoteEndPointToString(asio::ip::tcp::socket const& s) {
+		return EndPointToString(s.remote_endpoint());
 	}
 
 	template<typename ServerDeriveType>
@@ -47,15 +60,54 @@ namespace xx {
 		}
 	};
 
-	template<typename...Args>
-	xx::Data MakeCommandData(Args const &... cmdAndArgs) {
-		xx::Data d;
-		d.Reserve(512);
-		auto bak = d.WriteJump(sizeof(uint32_t));
-		d.WriteFixed(0xFFFFFFFFu);
-		d.Write(cmdAndArgs...);
-		d.WriteFixedAt(bak, (uint32_t)(d.len - sizeof(uint32_t)));
+	// 构造一个 uint32_le 数据长度( 不含自身 ) + uint32_le target + args 的 类 序列化包 并返回
+	template<bool containTarget, bool containSerial, size_t cap, typename PKG = ObjBase, typename ... Args>
+	xx::Data MakeData(ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
+		Data d;
+		d.Reserve(cap);
+		auto bak = d.WriteJump<false>(sizeof(uint32_t));
+		if constexpr (containTarget) {
+			d.WriteFixed<false>(target);
+		}
+		if constexpr (containSerial) {
+			d.WriteVarInteger<false>(serial);
+		}
+		// 传统写包
+		if constexpr (std::is_same_v<xx::ObjBase, PKG>) {
+			om.WriteTo(d, args...);
+		}
+		// 直写 cache buf 包
+		else if constexpr (std::is_same_v<xx::Span, PKG>) {
+			d.WriteBufSpans(args...);
+		}
+		// 简单构造命令行包
+		else if constexpr (std::is_same_v<std::string, PKG>) {
+			d.Write(args...);
+		}
+		// 使用 目标类的静态函数 快速填充 buf
+		else {
+			PKG::WriteTo(d, args...);
+		}
+		d.WriteFixedAt(bak, (uint32_t)(d.len - 4));
 		return d;
+	}
+
+	// 构造一个 uint32_le 数据长度( 不含自身 ) + uint32_le 命令标记 + args 的 简单数据 序列化包 并返回
+	template<uint32_t cmdFlag = 0xFFFFFFFFu, typename...Args>
+	xx::Data MakeCommandData(Args const &... cmdAndArgs) {
+		return MakeData<true, false, 512, std::string>(*(ObjManager*)0, cmdFlag, 0, cmdAndArgs...);
+	}
+
+	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
+	template<size_t cap = 8192, typename PKG = ObjBase, typename ... Args>
+	xx::Data MakePackageData(xx::ObjManager& om, int32_t const& serial, Args const&... args) {
+		return MakeData<false, true, cap>(om, 0, serial, args...);
+	}
+
+	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
+	template<size_t cap = 8192, typename PKG = ObjBase, typename ... Args>
+	xx::Data MakeTargetPackageData(xx::ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
+		return MakeData<true, true, cap>(om, target, serial, args...);
 	}
 
 	// 代码片段 / 成员函数 探测器系列
@@ -218,7 +270,7 @@ namespace xx {
 		}
 
 		// for client dial connect to server only
-		awaitable<int> Connect(asio::ip::address const& ip, uint16_t const& port, std::chrono::steady_clock::duration const& d = 5s) {
+		awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
 			if (!stoped) co_return 1;
 			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
 			if (r.index()) co_return 2;
@@ -370,8 +422,7 @@ namespace xx {
 
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
 	/* 
-	需要手工添加一些处理函数
-	如果 containTarget == true 那么
+	需要手工添加一些处理函数. 如果 包含 target 那么
 
 		// 收到 目标的 请求( 返回非 0 表示失败，会 Stop )
 		int ReceiveTargetRequest(uint32_t target, xx::ObjBase_s&& o) {
@@ -412,46 +463,31 @@ namespace xx {
 
 		PeerRequestCode(ObjManager& om_) : om(om_) {}
 
-		template<typename PKG = ObjBase, typename ... Args>
-		void SendCore(uint32_t const& target, int32_t const& serial, Args const &... args) {
-			Data d;
-			d.Reserve(sendCap);
-			auto bak = d.WriteJump<false>(sizeof(uint32_t));
-			if constexpr(containTarget) {
-				d.WriteFixed<false>(target);
-			}
-			d.WriteVarInteger<false>(serial);
-			// 传统写包
-			if constexpr (std::is_same_v<xx::ObjBase, PKG>) {
-				om.WriteTo(d, args...);
-			}
-			// 直写 cache buf 包
-			else if constexpr (std::is_same_v<xx::Span, PKG>) {
-				d.WriteBufSpans(args...);
-			}
-			// 使用 目标类的静态函数 快速填充 buf
-			else {
-				PKG::WriteTo(d, args...);
-			}
-			d.WriteFixedAt(bak, (uint32_t)(d.len - 4));
-			PEERTHIS->Send(std::move(d));
-		}
-
 		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
 		void SendResponse(uint32_t const& target, int32_t const& serial, Args const& ... args) {
-			this->template SendCore<PKG>(target, serial, args...);
+			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, serial, args...));
+		}
+
+		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		void SendResponse(int32_t const& serial, Args const &... args) {
+			PEERTHIS->Send(MakePackageData<sendCap, PKG>(om, serial, args...));
 		}
 
 		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
 		void SendPush(uint32_t const& target, Args const& ... args) {
-			this->template SendCore<PKG>(target, 0, args...);
+			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, 0, args...));
 		}
 
-		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
-		awaitable<ObjBase_s> SendRequest(uint32_t const& target, std::chrono::steady_clock::duration timeoutSecs, Args const& ... args) {
+		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		void SendPush(Args const& ... args) {
+			PEERTHIS->Send(MakePackageData<sendCap, PKG>(om, 0, args...));
+		}
+
+		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
+		awaitable<ObjBase_s> SendRequest(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
-			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
-			this->template SendCore<PKG>(target, -reqAutoId, args...);
+			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
+			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);
 			auto r = std::move(iter->second.second);
 			reqs.erase(iter);
@@ -459,20 +495,10 @@ namespace xx {
 		}
 
 		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
-		void SendResponse(int32_t const& serial, Args const &... args) {
-			this->template SendCore<PKG>(0, serial, args...);
-		}
-
-		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
-		void SendPush(Args const& ... args) {
-			this->template SendCore<PKG>(0, 0, args...);
-		}
-
-		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
-		awaitable<ObjBase_s> SendRequest(std::chrono::steady_clock::duration timeoutSecs, Args const& ... args) {
+		awaitable<ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
-			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + timeoutSecs), ObjBase_s())).first;
-			this->template SendCore<PKG>(0, -reqAutoId, args...);
+			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
+			PEERTHIS->Send(MakePackageData<sendCap, PKG>(om, -reqAutoId, args...));
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);
 			auto r = std::move(iter->second.second);
 			reqs.erase(iter);

@@ -68,7 +68,7 @@ namespace xx {
 		}
 
 		// for client dial connect to server only
-		asio::awaitable<int> Connect(asio::ip::address const& ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+		asio::awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
 			if (!stoped) co_return 1;
 			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
 			if (r.index()) co_return 2;

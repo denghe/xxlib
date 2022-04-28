@@ -4,7 +4,7 @@
 
 struct Client : xx::IOCCode<Client> {
 	xx::ObjManager om;
-	void Run(asio::ip::address const& addr, uint16_t const& port);
+	void Run(asio::ip::address addr, uint16_t port);
 };
 
 struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestCode<CPeer, true>, std::enable_shared_from_this<CPeer> {
@@ -37,7 +37,7 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 		return 1;	// passthrough
 	}
 
-	awaitable<int> WaitOpen(uint32_t serviceId, std::chrono::steady_clock::duration const& d) {
+	awaitable<int> WaitOpen(uint32_t serviceId, std::chrono::steady_clock::duration d) {
 		for (int i = 0; i < (d / 100ms); ++i) {
 			if (stoped) co_return __LINE__;
 			if (openServerIds.contains(serviceId)) co_return 0;
@@ -47,7 +47,7 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 	}
 };
 
-void Client::Run(asio::ip::address const& addr, uint16_t const& port) {
+void Client::Run(asio::ip::address addr, uint16_t port) {
 	co_spawn(ioc, [this, addr, port]()->awaitable<void> {
 
 		// 创建个 peer
