@@ -5,6 +5,7 @@
 struct GPeer;
 struct Server : xx::IOCCode<Server> {
 	xx::ObjManager om;
+    uint32_t serverId = 0;  // 当前服务编号( 填充自 config )
     std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;
 };
 
@@ -95,7 +96,9 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
                 if (int r = dr.Read(clientId)) return -__LINE__;
                 std::string_view ip;    // 试读出 ip。出错返回负数，掐线
                 if (int r = dr.Read(ip)) return -__LINE__;
-                CreateVPeer(clientId, ip);
+                CreateVPeer(clientId, ip);  // 创建相应的 VPeer
+                Send(xx::MakeCommandData("open"sv, clientId));   // 下发 open 指令
+                xx::CoutN("cmd = accept. clientId = ", clientId, " ip = ", ip);
             }
             else if (cmd == "close"sv) {
                 uint32_t clientId;
@@ -103,6 +106,7 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
                 if (auto iter = vpeers.find(clientId); iter != vpeers.end() && iter->second->Alive()) {
                     iter->second->Kick();
                 }
+                xx::CoutN("cmd = close, clientId = ", clientId);
             }
             else if (cmd == "ping"sv) {
                 Send(dr);   // echo back
@@ -111,6 +115,7 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
                 if (int r = dr.Read(gatewayId)) return -__LINE__;
                 if (auto iter = server.gpeers.find(gatewayId); iter != server.gpeers.end()) return -__LINE__;   // 相同id已存在：掐线
                 server.gpeers[gatewayId] = shared_from_this();  // 放入容器备用
+                xx::CoutN("cmd = gatewayId, gatewayId = ", gatewayId);
             }
             else {
                 std::cout << "unknown cmd = " << cmd << std::endl;
@@ -122,9 +127,10 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
 
     void Stop_() {
         for (auto& kv : vpeers) {
-            kv.second->Stop();
+            kv.second->Stop();  // 停止所有虚拟peer
         }
         vpeers.clear(); // 根据业务需求来。有可能 vpeer 在 stop 之后还会保持一段时间，甚至 重新激活
+        server.gpeers.erase(gatewayId); // 从容器移除
     }
 
     // 创建并插入 vpeers 一个 VPeer. 接着将执行其 Start_ 函数

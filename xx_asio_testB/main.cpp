@@ -34,7 +34,7 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerHandleMe
 };
 
 // 用于连接到 lobby 服务并与之通信
-struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMessageCode<CPeer>, std::enable_shared_from_this<SPeer> {
+struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMessageCode<SPeer>, std::enable_shared_from_this<SPeer> {
 	Server& server;
 	SPeer(Server& server_)
 		: PeerCode(server_.ioc, asio::ip::tcp::socket(server_.ioc))
@@ -51,6 +51,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 	void Start_() {
 		assert(serverId != 0xFFFFFFFFu);
 		Send(xx::MakeCommandData("gatewayId"sv, server.gatewayId));
+		xx::CoutN("send gatewayId = ", server.gatewayId);
 		co_spawn(ioc, [this, self = shared_from_this()]()->awaitable<void> {
 			while (Alive()) {
 				co_await xx::Timeout(1000ms);	// 避免无脑空转，省点 cpu
@@ -59,6 +60,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 					waitingPingBack = true;	// 记录状态
 					lastSendPingMS = now;	// 记录发ping时的时间点
 					Send(xx::MakeCommandData("ping"sv, now));
+					//xx::CoutN("send ping now = ", now);
 				}
 				else {	// 如果正在等 ping 回应
 					if (now - lastSendPingMS > 5000) Stop();	// 超时 5 秒 就掐线
@@ -100,7 +102,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 				if (int r = dr.Read(clientId, delayMS)) return __LINE__;
 				if (auto&& cp = server.TryGetCPeer(clientId)) {	// 如果没找到 或已断开 则返回，忽略错误
 					if (delayMS > 0) {	// 延迟踢下线
-						cp->Send(xx::MakeCommandData("close", (uint32_t)0));	// 下发一个 close 指令以便 client 收到后直接主动断开, 响应会比较快速
+						cp->Send(xx::MakeCommandData("close", serverId));	// 下发一个 close 指令以便 client 收到后直接主动断开, 响应会比较快速
 						cp->TryErase();	// 移除
 						cp->DelayStop(std::chrono::milliseconds(std::max((uint64_t)delayMS, 10000ull)));	// 延迟掐( 转无符号 限制最大值 防止调用者傻屄 )
 					}
@@ -112,6 +114,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 			else if (cmd == "ping"sv) {	// ping 的回包. 不关心内容
 				waitingPingBack = false;	// 清除 等回包 状态. 该状态在 pingtimer 中设置，并同时发送 ping 指令
 				pingMS = xx::NowSteadyEpochMilliseconds() - lastSendPingMS;	// 计算延迟, 便于统计
+				//xx::CoutN("pingMS = ", pingMS);
 			}
 			else {
 				return __LINE__;
@@ -119,7 +122,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 		}
 		return 0;
 	}
-	// 从所有 client peers 里的白名单中移除, 下发 close, 从 serverPeers 移除自生
+	// 从所有 client peers 里的白名单中移除, 下发 close
 	void Stop_() {
 		auto d = xx::MakeCommandData("close"sv, serverId);
 		for (auto&& kv : server.clientPeers) {
@@ -128,7 +131,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 				kv.second->Send(xx::Data(d));
 			}
 		}
-		server.serverPeers.erase(serverId);
+		xx::CoutN("SPeer stoped. serverId = ", serverId);
 	}
 };
 
@@ -164,10 +167,12 @@ void CPeer::Start_() {
 	if (auto sp = server.TryGetSPeer(0)) {	// 如果定位到 0 号服务器, 就发 accept 内部指令
 		auto ep = socket.remote_endpoint();
 		sp->Send(xx::MakeCommandData("accept"sv, clientId, xx::RemoteEndPointToString(socket)));
-		server.clientPeers.emplace(clientId, shared_from_this());
+		server.clientPeers[clientId] = shared_from_this();
+		xx::CoutN("send cmd accept. clientId = ", clientId, ", ip = ", xx::RemoteEndPointToString(socket));
 	}
 	else {
-		Stop();
+		xx::CoutN("can't connect to server 0. disconnect. clientId = ", clientId, ", ip = ", xx::RemoteEndPointToString(socket));
+		Stop();	// 连不上 0 号服务器？先掐线
 	}
 }
 

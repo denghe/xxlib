@@ -9,15 +9,14 @@ struct Client : xx::IOCCode<Client> {
 
 struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestCode<CPeer, true>, std::enable_shared_from_this<CPeer> {
 	Client& client;
+	std::unordered_set<uint32_t> openServerIds;	// 白名单
+
 	CPeer(Client& client_)
 		: PeerCode(client_.ioc, asio::ip::tcp::socket(client_.ioc))
 		, PeerTimeoutCode(client_.ioc)
 		, PeerRequestCode(client_.om)
 		, client(client_)
 	{}
-
-	std::unordered_set<uint32_t> openServerIds;
-
 	int HandleTargetMessage(uint32_t target, xx::Data_r& dr) {
 		if (target == 0xFFFFFFFF) {
 			std::string_view cmd;
@@ -69,29 +68,30 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 		}
 
 		// 等到了 open，给 0 号服务 发 Ping，超时 15 秒
-		if (auto o = co_await p->SendRequest<Ping>(0, 15s, xx::NowSteadyEpoch10m()); !o) {
-			om.CoutN("SendRequest Ping timeout!");
+		om.CoutN("SendRequest Ping");
+		if (auto o = co_await p->SendRequest<Ping>(0, 5s, xx::NowSteadyEpoch10m()); !o) {
+			om.CoutN("timeout!");
 			goto LabEnd;
 		}
 		else {
 			switch (o.typeId()) {
 			case xx::TypeId_v<Pong>: {
-				auto secs = (xx::NowSteadyEpoch10m() - o.ReinterpretCast<Pong>()->ticks) / 1000000.;
-				om.CoutN("SendRequest Ping receive Pong. delay = ", secs);
+				auto ms = (xx::NowSteadyEpoch10m() - o.ReinterpretCast<Pong>()->ticks) / 1000.;
+				om.CoutN("receive Pong. delay = ", ms);
 				break;
 			}
 			default:
-				om.CoutN("SendRequest Ping receive unhandled pkg = ", o);
+				om.CoutN("receive unhandled pkg = ", o);
 				om.KillRecursive(o);
 			}
 		}
 
-		// 
-		while (p->Alive()) {
+		// 等超时断开
+		//while (p->Alive()) {
 			co_await xx::Timeout(1s);	// todo: other logic here
 			std::cout << ".";
 			std::cout.flush();
-		}
+		//}
 
 	LabEnd:
 		// 掐线 / clean up

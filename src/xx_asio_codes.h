@@ -253,6 +253,7 @@ namespace xx {
 			writeQueue.clear();
 			if constexpr (Has_PeerRequestCode<PeerDeriveType>) {
 				PEERTHIS->reqAutoId = 0;
+				PEERTHIS->reqs.clear();
 			}
 			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, detached);
 			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, detached);
@@ -415,7 +416,7 @@ namespace xx {
 				// 检测是否含有 HandleData 函数, 有就调用
 				if constexpr (Has_Peer_HandleData<PeerDeriveType>) {
 					// 调用派生类的 HandleData 函数。如果返回非 0 表示出错，需要 Stop. 返回 0 则继续
-					if (int r = PEERTHIS->HandleData(xx::Data_r(buf, dataLen, sizeof(dataLen)))) return 0;	// Stop
+					if (int r = PEERTHIS->HandleData(xx::Data_r(buf, totalLen, sizeof(dataLen)))) return 0;	// Stop
 				}
 
 				// 跳到下一个包的开头
@@ -676,7 +677,6 @@ namespace xx {
 		}
 
 		bool Alive() const {
-			assert(!ownerPeer || ownerPeer->Alive());
 			return !!ownerPeer;
 		}
 
