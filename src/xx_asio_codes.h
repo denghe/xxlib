@@ -131,6 +131,9 @@ namespace xx {
 	// 用于检测是否继承了 PeerRequestCode 代码片段
 	template<typename T> concept Has_PeerRequestCode = requires(T t) { t.ReadFrom(std::declval<Data_r&>()); };
 
+	// 用于检测是否继承了 VPeerCode 代码片段
+	template<typename T> concept Has_VPeerCode = requires(T t) { t.VPeerCodeChecker(); };
+
 	// PeerRequestCode 片段依赖的函数
 	template<typename T> concept Has_Peer_ReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveRequest = requires(T t) { t.ReceiveRequest(0, ObjBase_s()); };
@@ -214,6 +217,13 @@ namespace xx {
 	struct _Has_Peer_HandleTargetMessage<T, std::void_t<decltype(std::declval<T&>().HandleTargetMessage(0, std::declval<Data_r&>()))>> : std::true_type {};
 	template<class T>
 	constexpr bool Has_Peer_HandleTargetMessage = _Has_Peer_HandleTargetMessage<T>::value;
+
+	template<class T, class = void>
+	struct _Has_VPeerCode : std::false_type {};
+	template<class T>
+	struct _Has_VPeerCode<T, std::void_t<decltype(std::declval<T&>().VPeerCodeChecker())>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_VPeerCode = _Has_VPeerCode<T>::value;
 #endif
 
 
@@ -455,6 +465,30 @@ namespace xx {
 
 		PeerRequestCode(ObjManager& om_) : om(om_) {}
 
+		// todo: 合并下面代码逻辑
+
+		//template<typename PKG = xx::ObjBase, typename ... Args>
+		//awaitable<xx::ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
+		//	if (!Alive()) return;
+		//	assert(ownerPeer && ownerPeer->Alive());
+		//	co_return this->PRC::template SendRequest<PKG>(clientId, d, args...);
+		//}
+
+		//template<typename PKG = xx::ObjBase, typename ... Args>
+		//void SendResponse(int32_t const& serial, Args const &... args) {
+		//	if (!Alive()) return;
+		//	assert(ownerPeer && ownerPeer->Alive());
+		//	this->PRC::template SendResponse<PKG>(clientId, serial, args...);
+		//}
+
+		//template<typename PKG = xx::ObjBase, typename ... Args>
+		//void SendPush(Args const& ... args) {
+		//	if (!Alive()) return;
+		//	assert(ownerPeer && ownerPeer->Alive());
+		//	this->PRC::template SendPush<PKG>(clientId, args...);
+		//}
+
+
 		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
 		void SendResponse(uint32_t const& target, int32_t const& serial, Args const& ... args) {
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, serial, args...));
@@ -603,6 +637,7 @@ namespace xx {
 		asio::steady_timer timeouter;
 		uint32_t clientId;
 
+		void VPeerCodeChecker() {}	// for check flag
 		VPeerCode(asio::io_context& ioc_, ObjManager& om_, OwnerPeer& ownerPeer_, uint32_t const& clientId_)
 			: PRC(om_)
 			, ioc(ioc_)
@@ -655,27 +690,6 @@ namespace xx {
 			if (!Alive()) return;
 			assert(ownerPeer && ownerPeer->Alive());
 			ownerPeer->Send(std::move(msg));
-		}
-
-		template<typename PKG = xx::ObjBase, typename ... Args>
-		awaitable<xx::ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
-			if (!Alive()) return;
-			assert(ownerPeer && ownerPeer->Alive());
-			co_return this->PRC::template SendRequest<PKG>(clientId, d, args...);
-		}
-
-		template<typename PKG = xx::ObjBase, typename ... Args>
-		void SendResponse(int32_t const& serial, Args const &... args) {
-			if (!Alive()) return;
-			assert(ownerPeer && ownerPeer->Alive());
-			this->PRC::template SendResponse<PKG>(clientId, serial, args...);
-		}
-
-		template<typename PKG = xx::ObjBase, typename ... Args>
-		void SendPush(Args const& ... args) {
-			if (!Alive()) return;
-			assert(ownerPeer && ownerPeer->Alive());
-			this->PRC::template SendPush<PKG>(clientId, args...);
 		}
 	};
 

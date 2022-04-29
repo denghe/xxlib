@@ -8,7 +8,7 @@ struct Server : xx::IOCCode<Server> {
     std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;
 };
 
-// 容器 创建，放入，移除 平时均由外部控制，避免造成 额外的引用 或者 不可控的生命周期
+// 网关连接上来的 client 形成的 虚拟 peer. 令逻辑层感觉上是直连
 struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
     using VPC = xx::VPeerCode<VPeer, GPeer>;
     Server& server; // 指向总的上下文
@@ -30,6 +30,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
         case xx::TypeId_v<Ping>: {
         	auto&& o = o_.ReinterpretCast<Ping>();
         	SendResponse<Pong>(serial, o->ticks);
+            ResetTimeout(15s);  // 续命
         	break;
         }
         default:
