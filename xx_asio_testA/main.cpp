@@ -53,7 +53,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
 
     // 通知网关延迟掐线( 自身立刻 Stop ). 调用前应先 Send 给客户端要收的东西。调用后将无法继续发包
     void Kick(int64_t const& delayMS = 3000) {
-        if (stoped) return;
+        if (!Alive()) return;
         Send(xx::MakeCommandData("kick"sv, clientId, delayMS));
         Stop();
     }
