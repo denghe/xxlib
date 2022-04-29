@@ -369,8 +369,6 @@ namespace xx {
 				PEERTHIS->Stop();
 			});
 		}
-
-		void foo() {}
 	};
 
 
@@ -574,13 +572,102 @@ namespace xx {
 					}
 				}
 				if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
-					if (PEERTHIS->stoping || PEERTHIS->stoped) return __LINE__;
+					if (PEERTHIS->stoped || PEERTHIS->stoping) return __LINE__;
 				}
 			}
 			return 0;
 		}
 	};
 
-	// todo: more xxxxCode here
+	
+	// 虚拟 peer 基础代码 ( 通常用于 服务 和 网关 对接 )
+	/*
+	须提供下列函数的实现
+	
+		// 收到 请求( 返回非 0 表示失败，会 Stop )
+		int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
+			// todo: handle o_
+			om.KillRecursive(o_);
+			return 0;
+		}
 
+		// 收到 推送( 返回非 0 表示失败，会 Stop )
+		int ReceivePush(xx::ObjBase_s&& o_) {
+
+	*/
+	template<typename PeerDeriveType, typename OwnerPeer>
+	struct VPeerCode : asio::noncopyable, PeerRequestCode<PeerDeriveType, true> {
+		using PRC = PeerRequestCode<PeerDeriveType, true>;
+		asio::io_context& ioc;
+		OwnerPeer& ownerPeer;
+		bool stoped = false, stoping = false;
+		asio::steady_timer timeouter;
+		uint32_t clientId;
+
+		VPeerCode(asio::io_context& ioc_, ObjManager& om_, OwnerPeer& ownerPeer_, uint32_t const& clientId_)
+			: PRC(om_)
+			, ioc(ioc_)
+			, ownerPeer(ownerPeer_)
+			, timeouter(ioc_)
+			, clientId(clientId_)
+		{}
+		void Start() {
+			if constexpr (Has_Peer_Start_<PeerDeriveType>) {
+				PEERTHIS->Start_();
+			}
+		}
+
+		void Stop() {
+			if (stoped) return;
+			stoped = true;
+			timeouter.cancel();
+			for (auto& kv : this->reqs) {
+				kv.second.first.cancel();
+			}
+			if constexpr (Has_Peer_Stop_<PeerDeriveType>) {
+				PEERTHIS->Stop_();
+			}
+		}
+
+		void ResetTimeout(std::chrono::steady_clock::duration const& d) {
+			timeouter.expires_after(d);
+			timeouter.async_wait([this](auto&& ec) {
+				if (ec) return;
+				Stop();
+			});
+		}
+
+		bool Alive() const {
+			return !stoped;
+		}
+
+		void Send(xx::Data&& msg) {
+			if (stoped) return;
+			assert(ownerPeer.Alive());
+			ownerPeer.Send(std::move(msg));
+		}
+
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		awaitable<xx::ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
+			if (stoped) return;
+			assert(ownerPeer.Alive());
+			co_return this->PRC::template SendRequest<PKG>(clientId, d, args...);
+		}
+
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		void SendResponse(int32_t const& serial, Args const &... args) {
+			if (stoped) return;
+			assert(ownerPeer.Alive());
+			this->PRC::template SendResponse<PKG>(clientId, serial, args...);
+		}
+
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		void SendPush(Args const& ... args) {
+			if (stoped) return;
+			assert(ownerPeer.Alive());
+			this->PRC::template SendPush<PKG>(clientId, args...);
+		}
+	};
+
+	// todo: more xxxxCode here
 }

@@ -8,23 +8,17 @@ struct Server : xx::IOCCode<Server> {
     std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;
 };
 
-struct VPeer : xx::PeerTimeoutCode<GPeer>, xx::PeerRequestCode<GPeer, true>, std::enable_shared_from_this<GPeer> {
+struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
     Server& server; // 指向总的上下文
-    std::weak_ptr<GPeer> gpeer; // 指向父容器
-    uint32_t clientId;  // 保存 gpeer 告知的 对端id，通信时作为 target 填充
     std::string clientIP; // 保存 gpeer 告知的 对端ip
-    bool stoped = false;
-    VPeer(Server& server_, std::shared_ptr<GPeer>& gpeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
-        : PeerTimeoutCode(server_.ioc)
-        , PeerRequestCode(server_.om)
+
+    VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+        : VPeerCode(server_.ioc, server_.om, ownerPeer_, clientId_)
         , server(server_)
-        , gpeer(gpeer_)
-        , clientId(clientId_)
         , clientIP(clientIP_)
-    {
+    {}
+    void Start_() {
         ResetTimeout(15s);  // 设置初始的超时时长
-    }
-    void Start() {
         // todo: after accept logic here. 
     }
 
@@ -50,37 +44,15 @@ struct VPeer : xx::PeerTimeoutCode<GPeer>, xx::PeerRequestCode<GPeer, true>, std
         return 0;
     }
 
-    void Stop() {
-        if (stoped) return;
-        stoped = true;
-        timeouter.cancel();
-        for (auto& kv : reqs) {
-            kv.second.first.cancel();
-        }
-    }
-
-    bool Alive() const {
-        return !stoped && !stoping;
-    }
-
-    // 通知 gateway 延迟掐线，顺便告知原因
+    // 通知网关延迟掐线( 自身立刻 Stop ). 调用前应先 Send 给客户端要收的东西。调用后将无法继续发包
     void Kick(int64_t const& delayMS = 3000) {
         if (stoped) return;
         Send(xx::MakeCommandData("kick"sv, clientId, delayMS));
         Stop();
     }
 
-    // 下列函数 包了一层，均通过 gpeer 路由发出数据
-    void Send(xx::Data&& msg);
-
-    template<typename PKG = xx::ObjBase, typename ... Args>
-    awaitable<xx::ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args);
-
-    template<typename PKG = xx::ObjBase, typename ... Args>
-    void SendResponse(int32_t const& serial, Args const &... args);
-
-    template<typename PKG = xx::ObjBase, typename ... Args>
-    void SendPush(Args const& ... args);
+    // 从 ownerPeer 移除自身
+    void Stop_();
 };
 
 // 来自网关的连接对端. 主要负责处理内部指令和 在 VPeer 之间 转发数据
@@ -155,39 +127,10 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
     }
 };
 
-void VPeer::Send(xx::Data&& msg) {
-    if (stoped) return;
-    auto g = gpeer.lock();
-    assert(g);
-    assert(g->Alive());
-    g->Send(std::move(msg));
-}
-
-template<typename PKG, typename ... Args>
-awaitable<xx::ObjBase_s> VPeer::SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
-    if (stoped) return;
-    auto g = gpeer.lock();
-    assert(g);
-    assert(g->Alive());
-    co_return this->PeerRequestCode::SendRequest<PKG>(clientId, d, args...);
-}
-
-template<typename PKG, typename ... Args>
-void VPeer::SendResponse(int32_t const& serial, Args const &... args) {
-    if (stoped) return;
-    auto g = gpeer.lock();
-    assert(g);
-    assert(g->Alive());
-    this->PeerRequestCode::SendResponse(clientId, serial, args...);
-}
-
-template<typename PKG, typename ... Args>
-void VPeer::SendPush(Args const& ... args) {
-    if (stoped) return;
-    auto g = gpeer.lock();
-    assert(g);
-    assert(g->Alive());
-    this->PeerRequestCode::SendPush(clientId, args...);
+void VPeer::Stop_() {
+    assert(ownerPeer.Alive());
+    ownerPeer.vpeers.erase(clientId);
+    // todo: more logic here?
 }
 
 int main() {
