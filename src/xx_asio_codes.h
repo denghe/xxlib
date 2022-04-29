@@ -599,15 +599,15 @@ namespace xx {
 	struct VPeerCode : asio::noncopyable, PeerRequestCode<PeerDeriveType, true> {
 		using PRC = PeerRequestCode<PeerDeriveType, true>;
 		asio::io_context& ioc;
-		OwnerPeer& ownerPeer;
-		bool stoped = false, stoping = false;
+		OwnerPeer* ownerPeer = nullptr;
+		bool stoped = false, stoping/* unused */ = false;
 		asio::steady_timer timeouter;
 		uint32_t clientId;
 
 		VPeerCode(asio::io_context& ioc_, ObjManager& om_, OwnerPeer& ownerPeer_, uint32_t const& clientId_)
 			: PRC(om_)
 			, ioc(ioc_)
-			, ownerPeer(ownerPeer_)
+			, ownerPeer(&ownerPeer_)
 			, timeouter(ioc_)
 			, clientId(clientId_)
 		{}
@@ -629,6 +629,17 @@ namespace xx {
 			}
 		}
 
+		void ResetOwner(OwnerPeer& ownerPeer_, uint32_t const& clientId_) {
+			if (!stoped) {
+				Stop();
+			}
+			stoped = false;
+			ownerPeer = &ownerPeer_;
+			clientId = clientId_;
+			this->PRC::reqAutoId = 0;
+			this->PRC::reqs.clear();
+		}
+
 		void ResetTimeout(std::chrono::steady_clock::duration const& d) {
 			timeouter.expires_after(d);
 			timeouter.async_wait([this](auto&& ec) {
@@ -638,33 +649,34 @@ namespace xx {
 		}
 
 		bool Alive() const {
+			assert(!stoped && ownerPeer && ownerPeer->Alive());
 			return !stoped;
 		}
 
 		void Send(xx::Data&& msg) {
 			if (stoped) return;
-			assert(ownerPeer.Alive());
-			ownerPeer.Send(std::move(msg));
+			assert(ownerPeer && ownerPeer->Alive());
+			ownerPeer->Send(std::move(msg));
 		}
 
 		template<typename PKG = xx::ObjBase, typename ... Args>
 		awaitable<xx::ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
 			if (stoped) return;
-			assert(ownerPeer.Alive());
+			assert(ownerPeer && ownerPeer->Alive());
 			co_return this->PRC::template SendRequest<PKG>(clientId, d, args...);
 		}
 
 		template<typename PKG = xx::ObjBase, typename ... Args>
 		void SendResponse(int32_t const& serial, Args const &... args) {
 			if (stoped) return;
-			assert(ownerPeer.Alive());
+			assert(ownerPeer && ownerPeer->Alive());
 			this->PRC::template SendResponse<PKG>(clientId, serial, args...);
 		}
 
 		template<typename PKG = xx::ObjBase, typename ... Args>
 		void SendPush(Args const& ... args) {
 			if (stoped) return;
-			assert(ownerPeer.Alive());
+			assert(ownerPeer && ownerPeer->Alive());
 			this->PRC::template SendPush<PKG>(clientId, args...);
 		}
 	};

@@ -9,17 +9,24 @@ struct Server : xx::IOCCode<Server> {
 };
 
 struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
+    using VPC = xx::VPeerCode<VPeer, GPeer>;
     Server& server; // 指向总的上下文
     std::string clientIP; // 保存 gpeer 告知的 对端ip
 
     VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
-        : VPeerCode(server_.ioc, server_.om, ownerPeer_, clientId_)
+        : VPC(server_.ioc, server_.om, ownerPeer_, clientId_)
         , server(server_)
         , clientIP(clientIP_)
     {}
     void Start_() {
         ResetTimeout(15s);  // 设置初始的超时时长
         // todo: after accept logic here. 
+    }
+
+    // 切线
+    void ResetOwner(GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_) {
+        this->VPC::ResetOwner(ownerPeer_, clientId_);
+        clientIP = clientIP_;
     }
 
     // 收到 请求( 返回非 0 表示失败，会 Stop )
@@ -101,7 +108,7 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
             else if (cmd == "gatewayId"sv) {    // gateway 连上之后的首包, 注册自己
                 if (int r = dr.Read(gatewayId)) return -__LINE__;
                 if (auto iter = server.gpeers.find(gatewayId); iter != server.gpeers.end()) return -__LINE__;   // 相同id已存在：掐线
-                server.gpeers[gatewayId] = shared_from_this();
+                server.gpeers[gatewayId] = shared_from_this();  // 放入容器备用
             }
             else {
                 std::cout << "unknown cmd = " << cmd << std::endl;
@@ -115,6 +122,7 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
         for (auto& kv : vpeers) {
             kv.second->Stop();
         }
+        vpeers.clear(); // 根据业务需求来。有可能 vpeer 在 stop 之后还会保持一段时间，甚至 重新激活
     }
 
     // 常用于服务之间 通知对方 通过 gatewayId + clientId 创建一个 vpeer 并继续后续流程. 比如 通知 游戏服务 某网关某玩家 要进入
@@ -128,8 +136,9 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
 };
 
 void VPeer::Stop_() {
-    assert(ownerPeer.Alive());
-    ownerPeer.vpeers.erase(clientId);
+    assert(ownerPeer && ownerPeer->Alive());
+    assert(ownerPeer->vpeers.contains(clientId));
+    ownerPeer->vpeers.erase(clientId);
     // todo: more logic here?
 }
 
