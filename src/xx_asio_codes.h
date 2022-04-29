@@ -101,13 +101,13 @@ namespace xx {
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
 	template<size_t cap = 8192, typename PKG = ObjBase, typename ... Args>
 	xx::Data MakePackageData(xx::ObjManager& om, int32_t const& serial, Args const&... args) {
-		return MakeData<false, true, cap>(om, 0, serial, args...);
+		return MakeData<false, true, cap, PKG>(om, 0, serial, args...);
 	}
 
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
 	template<size_t cap = 8192, typename PKG = ObjBase, typename ... Args>
 	xx::Data MakeTargetPackageData(xx::ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
-		return MakeData<true, true, cap>(om, target, serial, args...);
+		return MakeData<true, true, cap, PKG>(om, target, serial, args...);
 	}
 
 	// 代码片段 / 成员函数 探测器系列
@@ -393,7 +393,7 @@ namespace xx {
 			// 确保包头长度充足
 			while (buf + sizeof(dataLen) <= end) {
 				// 取长度
-				dataLen = *(uint32_t*)buf;
+				memcpy(&dataLen, buf, sizeof(dataLen));	// todo: 兼容小尾架构
 
 				// 长度保护
 				if (dataLen > maxDataLen) return 0;	// Stop
@@ -422,38 +422,32 @@ namespace xx {
 
 	// 为 peer 附加 Send( Obj )( SendPush, SendRequest, SendResponse ) 等 相关功能
 	/* 
-	需要手工添加一些处理函数. 如果 包含 target 那么
+	需要手工添加一些处理函数. 如果 包含 target, 并且 调用 HandleData< 这里传 false 或不写 > 那么
 
 		// 收到 目标的 请求( 返回非 0 表示失败，会 Stop )
-		int ReceiveTargetRequest(uint32_t target, xx::ObjBase_s&& o) {
+		int ReceiveTargetRequest(uint32_t target, int32_t serial, xx::ObjBase_s&& o_) {
 
 		// 收到 目标的 推送( 返回非 0 表示失败，会 Stop )
-		int ReceiveTargetPush(uint32_t target, xx::ObjBase_s&& o) {
-			// todo: handle o
-			// 非法 o 随手处理下 om.KillRecursive(o);
-			return 0;	// 要掐线就返回非 0
+		int ReceiveTargetPush(uint32_t target, xx::ObjBase_s&& o_) {
+			// todo: handle o_
+			om.KillRecursive(o_);
+			return 0;
 		}
 
 		// 拦截处理特殊 target 路由需求( 返回 0 表示已成功处理，   返回 正数 表示不拦截,    返回负数表示 出错 )
 		int HandleTargetMessage(uint32_t target, xx::Data_r& dr) {
-			if (target == 0xFFFFFFFF) {
-				// ...
-				return 0;
-			}
-			return 1;	// passthrough
+			if (target != 0xFFFFFFFF) return 1;	// passthrough
+			// ...
+			return 0;
 		}
 
 	否则
 
 		// 收到 请求( 返回非 0 表示失败，会 Stop )
-		int ReceiveRequest(xx::ObjBase_s&& o) {
+		int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
 
 		// 收到 推送( 返回非 0 表示失败，会 Stop )
-		int ReceivePush(xx::ObjBase_s&& o) {
-			// todo: handle o
-			// 非法 o 随手处理下 om.KillRecursive(o);
-			return 0;	// 要掐线就返回非 0
-		}
+		int ReceivePush(xx::ObjBase_s&& o_) {
 	*/
 	template<typename PeerDeriveType, bool containTarget = false, size_t sendCap = 8192, size_t maxDataLen = 524288>
 	struct PeerRequestCode : PeerHandleMessageCode<PeerDeriveType, maxDataLen> {
@@ -514,10 +508,11 @@ namespace xx {
 			return o;
 		}
 
+		template<bool skipTarget = false>
 		int HandleData(xx::Data_r&& dr) {
 			// 读出 target
 			uint32_t target;
-			if constexpr (containTarget) {
+			if constexpr (containTarget && !skipTarget) {
 				if (dr.ReadFixed(target)) return __LINE__;
 				if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
 					int r = PEERTHIS->HandleTargetMessage(target, dr);
@@ -542,7 +537,7 @@ namespace xx {
 			else {
 				// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
 				if (serial == 0) {
-					if constexpr (containTarget) {
+					if constexpr (containTarget && !skipTarget) {
 						static_assert(!Has_Peer_ReceivePush<PeerDeriveType>);
 						if constexpr (Has_Peer_ReceiveTargetPush<PeerDeriveType>) {
 							auto o = ReadFrom(dr);
@@ -561,7 +556,7 @@ namespace xx {
 				}
 				// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
 				else {
-					if constexpr (containTarget) {
+					if constexpr (containTarget && !skipTarget) {
 						static_assert(!Has_Peer_ReceiveRequest<PeerDeriveType>);
 						if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
 							auto o = ReadFrom(dr);

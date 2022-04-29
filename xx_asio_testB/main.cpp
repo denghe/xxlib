@@ -66,6 +66,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 			}
 		}, detached);
 	}
+	// PeerHandleMessageCode 会在包切片后调用
 	// 根据 target 找到 CPeer 转发 或执行 内部指令, 非 0xFFFFFFFFu 则为正常数据，走转发流，否则走内部指令
 	int HandleData(xx::Data_r&& dr) {
 		uint32_t target;
