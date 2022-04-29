@@ -8,6 +8,7 @@ struct Server : xx::IOCCode<Server> {
     std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;
 };
 
+// 容器 创建，放入，移除 平时均由外部控制，避免造成 额外的引用 或者 不可控的生命周期
 struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
     using VPC = xx::VPeerCode<VPeer, GPeer>;
     Server& server; // 指向总的上下文
@@ -21,12 +22,6 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
     void Start_() {
         ResetTimeout(15s);  // 设置初始的超时时长
         // todo: after accept logic here. 
-    }
-
-    // 切线
-    void ResetOwner(GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_) {
-        this->VPC::ResetOwner(ownerPeer_, clientId_);
-        clientIP = clientIP_;
     }
 
     // 收到 请求( 返回非 0 表示失败，会 Stop )
@@ -51,15 +46,21 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
         return 0;
     }
 
-    // 通知网关延迟掐线( 自身立刻 Stop ). 调用前应先 Send 给客户端要收的东西。调用后将无法继续发包
+    // 通知网关延迟掐线 并 Stop. 调用前应先 Send 给客户端要收的东西
     void Kick(int64_t const& delayMS = 3000) {
         if (!Alive()) return;
         Send(xx::MakeCommandData("kick"sv, clientId, delayMS));
         Stop();
     }
 
-    // 从 ownerPeer 移除自身
-    void Stop_();
+    // 从 owner 的 vpeers 中移除自己
+    void RemoveFromOwner();
+
+    // 切线
+    void ResetOwner(GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_) {
+        this->VPC::ResetOwner(ownerPeer_, clientId_);
+        clientIP = clientIP_;
+    }
 };
 
 // 来自网关的连接对端. 主要负责处理内部指令和 在 VPeer 之间 转发数据
@@ -125,21 +126,20 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
         vpeers.clear(); // 根据业务需求来。有可能 vpeer 在 stop 之后还会保持一段时间，甚至 重新激活
     }
 
+    // 创建并插入 vpeers 一个 VPeer. 接着将执行其 Start_ 函数
     // 常用于服务之间 通知对方 通过 gatewayId + clientId 创建一个 vpeer 并继续后续流程. 比如 通知 游戏服务 某网关某玩家 要进入
     std::shared_ptr<VPeer> CreateVPeer(uint32_t const& clientId, std::string_view const& ip) {
         if (vpeers.find(clientId) != vpeers.end()) return {};
         auto& p = vpeers[clientId];
-        //p = std::make_shared<VPeer>(server, shared_from_this(), clientId, ip);    // 放入容器备用
-        p->Start(); // 模拟 Accept 事件调用
+        p = std::make_shared<VPeer>(server, *this, clientId, ip);    // 放入容器备用
+        p->Start();
         return p;
     }
 };
 
-void VPeer::Stop_() {
-    assert(ownerPeer && ownerPeer->Alive());
-    assert(ownerPeer->vpeers.contains(clientId));
+void VPeer::RemoveFromOwner() {
+    assert(ownerPeer);
     ownerPeer->vpeers.erase(clientId);
-    // todo: more logic here?
 }
 
 int main() {
