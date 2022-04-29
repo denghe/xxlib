@@ -84,7 +84,7 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
         if (int r = dr.ReadFixed(target)) return __LINE__;		// 试读取 target. 失败直接断开
         if (target != 0xFFFFFFFFu) {
             if (auto iter = vpeers.find(target); iter != vpeers.end() && iter->second->Alive()) {	//  试找到有效 vpeer 并转交数据
-                iter->second->HandleData<true>(std::move(dr));  // 跳过 target 的处理
+                iter->second->HandleData(std::move(dr));  // 跳过 target 的处理
             }
         }
         else {	// 内部指令
