@@ -17,23 +17,31 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 		, PeerRequestCode(client_.om)
 		, client(client_)
 	{}
-	int HandleTargetMessage(uint32_t target, xx::Data_r& dr) {
-		if (target == 0xFFFFFFFF) {
-			std::string_view cmd;
-			if (dr.Read(cmd)) return -__LINE__;	// error
-			uint32_t serviceId;
-			if (cmd == "open"sv) {
-				if (dr.Read(serviceId)) return -__LINE__;	// read error
-				openServerIds.insert(serviceId);
-			}
-			else if (cmd == "close"sv) {
-				if (dr.Read(serviceId)) return __LINE__;	// read error
-				openServerIds.erase(serviceId);
-			}
-			else return -__LINE__;	// cmd error: unknown cmd received
-			return 0;	// handled: success
+
+	// 为复用，这里重置所有状态 & 变量 & 容器
+	void Start_() {
+		openServerIds.clear();
+	}
+
+	// 针对 target 部分为 0xFFFFFFFFu 的指令特殊处理。放行返回 1. 成功返回 0. 错误返回 负数
+	int HandleTargetMessage(uint32_t const& target, xx::Data_r& dr) {
+		if (target != 0xFFFFFFFFu) return 1;	// passthrough
+		std::string_view cmd;
+		if (dr.Read(cmd)) return -__LINE__;
+		uint32_t serviceId;
+		if (cmd == "open"sv) {
+			if (dr.Read(serviceId)) return -__LINE__;
+			openServerIds.insert(serviceId);
 		}
-		return 1;	// passthrough
+		else if (cmd == "close"sv) {
+			if (dr.Read(serviceId)) return -__LINE__;
+			openServerIds.erase(serviceId);
+		}
+		else {
+			xx::CoutTN("unknown cmd received: ", cmd);
+			return -__LINE__;
+		}
+		return 0;	// success
 	}
 
 	awaitable<int> WaitOpen(uint32_t serviceId, std::chrono::steady_clock::duration d) {
@@ -53,52 +61,55 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 		auto p = std::make_shared<CPeer>(*this);
 
 	LabBegin:
+		om.CoutTN("begin ...");
 		// 如果没连上，就反复的连
 		while (p->stoped) {
 			// 开始连接. 超时 5 秒
 			if (auto r = co_await p->Connect(addr, port, 5s)) {
-				om.CoutN("Connect error. r = ", r, ". retry...");
+				om.CoutTN("connect error. r = ", r, ". retry...");
+			}
+			else {
+				om.CoutTN("connected.");
 			}
 		}
 
 		// 连上之后，等 open 0 号服务 5 秒
 		if (auto r = co_await p->WaitOpen(0, 5s)) {
-			om.CoutN("WaitOpen error. r = ", r, ". reconnect...");
+			om.CoutTN("WaitOpen error. r = ", r, ". reconnect...");
 			goto LabEnd;
+		}
+		else {
+			om.CoutTN("WaitOpen success");
 		}
 
 		// 等到了 open，给 0 号服务 发 Ping，超时 15 秒
-		om.CoutN("SendRequest Ping");
-		if (auto o = co_await p->SendRequest<Ping>(0, 5s, xx::NowSteadyEpoch10m()); !o) {
-			om.CoutN("timeout!");
+		om.CoutTN("SendRequest Ping");
+		if (auto o = co_await p->SendRequest<Ping>(0, 500s, xx::NowSteadyEpoch10m()); !o) {
+			om.CoutTN(p->Alive() ? "timeout!" : "stoped!");
 			goto LabEnd;
 		}
 		else {
 			switch (o.typeId()) {
 			case xx::TypeId_v<Pong>: {
 				auto ms = (xx::NowSteadyEpoch10m() - o.ReinterpretCast<Pong>()->ticks) / 1000.;
-				om.CoutN("receive Pong. delay = ", ms);
+				om.CoutTN("receive Pong. delay = ", ms);
 				break;
 			}
 			default:
-				om.CoutN("receive unhandled pkg = ", o);
+				om.CoutTN("receive unhandled pkg = ", o);
 				om.KillRecursive(o);
 			}
 		}
 
-		// 等超时断开
-		//while (p->Alive()) {
-			co_await xx::Timeout(1s);	// todo: other logic here
-			std::cout << ".";
-			std::cout.flush();
-		//}
+		// ...
 
 	LabEnd:
 		// 掐线 / clean up
 		p->Stop();
+		xx::CoutTN("stoped...");
 
 		// 小睡一下，让别的协程处理下断线逻辑
-		co_await xx::Timeout(2s);
+		co_await xx::Timeout(1s);
 
 		// 再来( 自动重连 )
 		goto LabBegin;

@@ -715,6 +715,14 @@ namespace xx {
 					}, v);
 				s.push_back(']');
 			}
+			else if constexpr (std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>) {
+				s.push_back('"');
+				s.append(v);
+				s.push_back('"');
+			}
+			else if constexpr (IsLiteral_v<T> || std::is_same_v<std::decay_t<T>, char const*> || std::is_same_v<std::decay_t<T>, char*> ) {
+				s.append(v);
+			}
 			else {
 				ObjFuncs<T>::Append(*this, s, v);
 			}
@@ -1120,7 +1128,8 @@ namespace xx {
 		// 在 CoutN 基础上于头部添加了时间
 		template<typename...Args>
 		inline void CoutTN(Args const& ...args) {
-			CoutN("[", std::chrono::system_clock::now(), "] ", args...);
+			std::cout << "[" << xx::ToString(std::chrono::system_clock::now()) << "] ";
+			CoutN(args...);
 		}
 
 		// 立刻输出
