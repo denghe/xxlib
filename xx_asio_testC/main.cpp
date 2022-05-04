@@ -124,10 +124,14 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 	}, detached);
 
 	//ioc.run();
+
+	// 模拟游戏每帧来一发
 	while (true) {
-		std::this_thread::sleep_for(5ms);			// 模拟游戏每帧来一发
 		ioc.poll_one();
-		std::cout << ".";
+		std::cout << ".";	
+		std::this_thread::sleep_for(8ms);			// 模拟逻辑损耗
+		ioc.poll_one();
+		std::this_thread::sleep_for(8ms);			// 模拟渲染 + wait vsync
 	}
 }
 

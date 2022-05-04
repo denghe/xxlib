@@ -50,9 +50,11 @@ namespace xx {
 		void Listen(uint16_t const& port) {
 			co_spawn(ioc, [this, port]()->awaitable<void> {
 				asio::ip::tcp::acceptor acceptor(ioc, { asio::ip::tcp::v6(), port });	// require IP_V6ONLY == false
+				acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
 				for (;;) {
 					asio::ip::tcp::socket socket(ioc);
 					if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
+						socket.set_option(asio::ip::tcp::no_delay(true));
 						std::make_shared<Peer>(*(ServerDeriveType*)this, std::move(socket))->Start();
 					}
 				}
