@@ -35,7 +35,7 @@ struct Server : xx::IOCCode<Server> {
 	uint32_t workerCursor = 0;																// worker 游标
 	std::unique_ptr<Worker[]> orderedWorkers = std::make_unique<Worker[]>(numWorkers);		// 有序操作专用. 用相关 id % numWorkers 取模
 
-	asio::io_context& GetIOC() {
+	asio::io_context& GetWorkIOC() {
 		auto& ioc = workers[workerCursor++].ioc;
 		if (workerCursor == numWorkers) {
 			workerCursor = 0;
@@ -43,7 +43,7 @@ struct Server : xx::IOCCode<Server> {
 		return ioc;
 	}
 
-	asio::io_context& GetOrderedIOC(int64_t const& id) {
+	asio::io_context& GetOrderedWorkIOC(int64_t const& id) {
 		return orderedWorkers[id % numWorkers].ioc;
 	}
 
@@ -53,55 +53,57 @@ struct Server : xx::IOCCode<Server> {
 	// ...
 };
 
-struct PeerBase : xx::PeerCode<PeerBase>, xx::PeerRequestCode<PeerBase>, std::enable_shared_from_this<PeerBase> {
+template<typename PeerDeriveType>
+struct PeerBase : xx::PeerCode<PeerDeriveType>, xx::PeerRequestCode<PeerDeriveType>, std::enable_shared_from_this<PeerDeriveType> {
+	using PC = xx::PeerCode<PeerDeriveType>;
+	using PRC = xx::PeerRequestCode<PeerDeriveType>;
 	Server& server;
 	PeerBase(Server& server_, asio::ip::tcp::socket&& socket_)
-		: PeerCode(server_.ioc, std::move(socket_))
-		, PeerRequestCode(server_.om)
+		: PC(server_.ioc, std::move(socket_))
+		, PRC(server_.om)
 		, server(server_)
 	{}
 
-
+	// 等工作线程执行完毕后放行
 	// F: void(xx::ObjBase_s& r)
 	template<typename F>
+	awaitable<void> HandleCore(asio::io_context& wioc, int32_t serial, F& f) {
+		xx::ObjBase_s r;															// 结果容器
+		asio::steady_timer t(PEERTHIS->ioc, std::chrono::steady_clock::time_point::max());	// 结果等待器
+		wioc.post([&] {
+			f(r);																	// 用 worker thread 来执行 f
+			PEERTHIS->ioc.post([&] { t.cancel(); });								// main thread 结果等待器 放行
+		});
+		co_await t.async_wait(use_nothrow_awaitable);								// 等结果
+		if (!r) co_return;															// 如果没有值 那就属于 ioc 直接 cancel, 直接退出
+		if (!PEERTHIS->Alive()) co_return;											// 如果已断开，则无法发回( 逻辑有可能需要继续生效 )
+		PEERTHIS->SendResponse(serial, r);											// 回发处理结果
+	}
+
+	// 启动一个乱序工作协程处理请求。处理完毕后回发处理结果. 会加持 peer 智能指针, 复制序列号，移动 f 进协程。
+	template<typename F>
 	void HandleRequest(int32_t serial, F&& f) {
-		// 加持 peer 智能指针, 复制序列号，移动参数进协程
-		co_spawn(ioc, [this, self = shared_from_this(), serial, f = std::forward<F>(f)]()->awaitable<void> {
-			asio::steady_timer t(ioc, std::chrono::steady_clock::time_point::max());	// 结果等待器
-			xx::ObjBase_s r;															// 结果容器
-			server.GetIOC().post([&] {													// 分配一个 无序操作专用 worker ioc 来执行下列函数
-				f(r);																	// 调用传入的 lambda
-				ioc.post([&] { t.cancel(); });											// main thread 结果等待器 放行
-			});
-			co_await t.async_wait(use_nothrow_awaitable);								// 等结果
-			if (!r) co_return;															// 如果没有值 那就属于 ioc 直接 cancel, 直接退出
-			if (!Alive()) co_return;													// 如果已断开，则无法发回( 逻辑有可能需要继续生效 )
-			SendResponse(serial, r);													// 回发处理结果
+		co_spawn(PEERTHIS->ioc, [this, self = PEERTHIS->shared_from_this(), serial, f = std::forward<F>(f)]()->awaitable<void> {
+			co_await HandleCore(server.GetWorkIOC(), serial, f);
 		}, detached);
 	}
 
-	// F: void(xx::ObjBase_s& r)
-	// oid_ 参数故意放最后，便于优先从 要 move 到 F[] 的上下文获取变量值
+	// HandleRequest 的 顺序版。oid_ 为线程选择依据. 故意放最后以便优先从 要 move 到 f[] 的上下文获取值
 	template<typename F>
 	void HandleOrderedRequest(int32_t serial, F&& f, uint64_t oid_) {
-		// 加持 peer 智能指针, 复制序列号，移动参数进协程
-		co_spawn(ioc, [this, self = shared_from_this(), oid_, serial, f = std::forward<F>(f)]()->awaitable<void> {
-			asio::steady_timer t(ioc, std::chrono::steady_clock::time_point::max());	// 结果等待器
-			xx::ObjBase_s r;															// 结果容器
-			server.GetOrderedIOC(oid_).post([&] {										// 分配一个 有序操作专用 worker ioc 来执行下列函数
-				f(r);																	// 调用传入的 lambda
-				ioc.post([&] { t.cancel(); });											// main thread 结果等待器 放行
-			});
-			co_await t.async_wait(use_nothrow_awaitable);								// 等结果
-			if (!r) co_return;															// 如果没有值 那就属于 ioc 直接 cancel, 直接退出
-			if (!Alive()) co_return;													// 如果已断开，则无法发回( 逻辑有可能需要继续生效 )
-			SendResponse(serial, r);													// 回发处理结果
+		co_spawn(PEERTHIS->ioc, [this, self = PEERTHIS->shared_from_this(), oid_, serial, f = std::forward<F>(f)]()->awaitable<void> {
+			co_await HandleCore(server.GetOrderedWorkIOC(oid_), serial, f);
 		}, detached);
 	}
 };
 
-struct LobbyPeer : PeerBase {
-	using PeerBase::PeerBase;
+struct LobbyPeer : PeerBase<LobbyPeer> {
+	using PB = PeerBase<LobbyPeer>;
+	using PB::PB;
+
+	void Start_() {
+		server.lobbyPeer = shared_from_this();
+	}
 
 	// 收到 请求( 返回非 0 表示失败，会 Stop )
 	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
@@ -129,7 +131,11 @@ struct LobbyPeer : PeerBase {
 			HandleOrderedRequest(serial, [o = std::move(o)](xx::ObjBase_s& r) {
 				if (o->id == 1) {
 					auto v = xx::Make<Generic::PlayerInfo>();
-					// todo: fill
+					v->username = "a"sv;
+					v->password = "1"sv;
+					v->id = 1;
+					v->nickname = "asdf";
+					v->gold = 123;
 					r = std::move(v);
 				}
 				else {
@@ -142,21 +148,19 @@ struct LobbyPeer : PeerBase {
 			break;
 		}
 		default:
-			server.om.CoutN("LobbyPeer receive unhandled package: ", o_);
+			server.om.CoutN("receive unhandled package: ", o_);
 			om.KillRecursive(o_);
 		}
 		return 0;
 	}
 };
 
-struct Game1Peer : PeerBase {
-	using PeerBase::PeerBase;
+struct Game1Peer : PeerBase<Game1Peer> {
+	using PB = PeerBase<Game1Peer>;
+	using PB::PB;
 
-	// 收到 请求( 返回非 0 表示失败，会 Stop )
-	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
-		// todo: handle o_
-		om.KillRecursive(o_);
-		return 0;
+	void Start_() {
+		server.game1Peer = shared_from_this();
 	}
 };
 

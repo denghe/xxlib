@@ -1,14 +1,14 @@
 ﻿using TemplateLibrary;
 
-[TypeId(2062)]
+[TypeId(2062), Desc("return Pong{ value = Ping.ticks }")]
 class Ping {
     long ticks;
-};
+}
 
 [TypeId(1283)]
 class Pong {
     long ticks;
-};
+}
 
 namespace Generic
 {
@@ -44,13 +44,13 @@ namespace All_Db
     {
         string username;
         string password;
-    };
+    }
 
     [TypeId(202), Desc("return Generic.Error || Generic.PlayerInfo")]
     class GetPlayerInfo
     {
         long id;
-    };
+    }
 }
 
 namespace Lobby_Game1
@@ -61,7 +61,7 @@ namespace Lobby_Game1
         uint gatewayId;
         uint clientId;
         long playerId;
-    };
+    }
 }
 
 namespace Game1_Lobby
@@ -70,5 +70,58 @@ namespace Game1_Lobby
     class PlayerLeave
     {
         long playerId;
-    };
+    }
+}
+
+namespace Client_Lobby
+{
+    [TypeId(501), Desc("return Generic.Error || Generic.Success{ value = id } + Push Scene")]
+    class Login
+    {
+        string username;
+        string password;
+    }
+}
+
+namespace Game1
+{
+    struct PlayerInfo
+    {
+        long playerId;
+        string nickname;
+        long gold;
+    }
+}
+
+namespace Client_Game1
+{
+    [TypeId(601), Desc("push")]
+    class AddGold
+    {
+        long value;
+    }
+
+    [TypeId(602), Desc("return Generic.Error || Generic.Success{}")]
+    class PlayerLeave
+    {
+    }
+}
+
+namespace Game1_Client
+{
+    [TypeId(701), Desc("push")]
+    class Scene
+    {
+        Dict<int, Game1.PlayerInfo> players;
+    }
+}
+
+namespace Lobby_Client
+{
+    [TypeId(801), Desc("push")]
+    class Scene
+    {
+        Shared<Generic.PlayerInfo> playerInfo;
+        string gamesIntro;
+    }
 }

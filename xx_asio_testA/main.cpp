@@ -8,10 +8,13 @@
 #include "pkg.h"
 
 struct GPeer;
+struct DBPeer;
 struct Server : xx::IOCCode<Server> {
 	xx::ObjManager om;
     uint32_t serverId = 0;                                                  // 当前服务编号( 填充自 config )
-    std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;
+    std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;            // 网关 peer 集合. key 为配置的网关编号
+    std::shared_ptr<DBPeer> dbpeer;                                         // 主动连接到 db server 的 peer
+    void Run();
 };
 
 // 网关连接上来的 client 形成的 虚拟 peer. 令逻辑层感觉上是直连
@@ -41,6 +44,11 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
             ResetTimeout(15s);                                              // 收到有效指令: 续命
         	break;
         }
+        case xx::TypeId_v<Client_Lobby::Login>: {
+        	auto&& o = o_.ReinterpretCast<Client_Lobby::Login>();
+            //o->username
+        	break;
+        }
         default:
         	om.CoutTN("ReceiveRequest unhandled package: ", o_);
         }
@@ -48,13 +56,13 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
         return 0;
     }
 
-    // 收到 推送( 返回非 0 表示失败，会 Stop )
-    int ReceivePush(xx::ObjBase_s&& o_) {
-        //om.CoutTN("ReceivePush o_ = ", o_);
-        // todo: handle o
-        om.KillRecursive(o_);                                               // 如果 数据包存在 循环引用, 则阻断. 避免 内存泄露
-        return 0;
-    }
+    //// 收到 推送( 返回非 0 表示失败，会 Stop )
+    //int ReceivePush(xx::ObjBase_s&& o_) {
+    //    //om.CoutTN("ReceivePush o_ = ", o_);
+    //    // todo: handle o
+    //    om.KillRecursive(o_);                                               // 如果 数据包存在 循环引用, 则阻断. 避免 内存泄露
+    //    return 0;
+    //}
 
     // 通知网关延迟掐线 并 Stop. 调用前应先 Send 给客户端要收的东西
     void Kick(int64_t const& delayMS = 3000) {
@@ -160,10 +168,39 @@ void VPeer::RemoveFromOwner() {
     ownerPeer->vpeers.erase(clientId);
 }
 
+struct DBPeer : xx::PeerCode<DBPeer>, xx::PeerRequestCode<DBPeer>, std::enable_shared_from_this<DBPeer> {
+    Server& server;
+    DBPeer(Server& server_)
+        : PeerCode(server_.ioc, asio::ip::tcp::socket(server_.ioc))
+        , PeerRequestCode(server_.om)
+        , server(server_)
+    {}
+};
+
+void Server::Run() {
+    xx::CoutTN("lobby running..."sv);
+    co_spawn(ioc, [this]()->awaitable<void> {
+        while (!ioc.stopped()) {                                                // 自动连 db server
+            if (!dbpeer) {
+                dbpeer = std::make_shared<DBPeer>(*this);
+            }
+            if (dbpeer->stoped) {												// 如果没连上，就开始连. 
+                if (int r = co_await dbpeer->Connect(asio::ip::address::from_string("127.0.0.1"), 55100, 2s)) { // 开始连接. 超时 2 秒
+                    xx::CoutTN("dbpeer->Connect r = ", r);
+                }
+                else {
+                    xx::CoutTN("dbpeer connected.");
+                }
+            }
+            co_await xx::Timeout(1000ms);									    // 避免无脑空转，省点 cpu
+        }
+    }, detached);
+    ioc.run();
+}
+
 int main() {
 	Server server;
 	server.Listen<GPeer>(55000);
-	std::cout << "lobby running..."sv << std::endl;
-	server.ioc.run();
+	server.Run();
 	return 0;
 }
