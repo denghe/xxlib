@@ -1,4 +1,9 @@
-﻿// lobby + gateway + client -- lobby
+﻿// db       55001( for gateway )    55100( for lobby )      55101( for game1 )      ...
+// lobby    55002( for gateway )                            55201( for game1 )      ...
+// game1    55003( for gateway )
+// gateway  54001( for client )
+
+// lobby
 #include "xx_asio_codes.h"
 #include "pkg.h"
 
@@ -157,8 +162,8 @@ void VPeer::RemoveFromOwner() {
 
 int main() {
 	Server server;
-	server.Listen<GPeer>(54321);
-	std::cout << "lobby + gateway + client -- lobby running... port = 54321" << std::endl;
+	server.Listen<GPeer>(55002);
+	std::cout << "lobby    55002( for gateway )                            55201( for game1 )      ..."sv << std::endl;
 	server.ioc.run();
 	return 0;
 }

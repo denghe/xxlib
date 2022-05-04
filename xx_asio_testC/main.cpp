@@ -1,4 +1,9 @@
-﻿// lobby + gateway + client -- client
+﻿// db       55001( for gateway )    55100( for lobby )      55101( for game1 )      ...
+// lobby    55002( for gateway )                            55201( for game1 )      ...
+// game1    55003( for gateway )
+// gateway  54001( for client )
+
+// client
 #include "xx_asio_codes.h"
 #include "pkg.h"
 
@@ -146,7 +151,7 @@ int main() {
 #endif
 
 	Client c;
-	std::cout << "lobby + gateway + client -- client running..." << std::endl;
-	c.Run(asio::ip::address::from_string("127.0.0.1"), 54322);
+	std::cout << "client running..." << std::endl;
+	c.Run(asio::ip::address::from_string("127.0.0.1"), 54001);
 	return 0;
 }
