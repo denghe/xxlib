@@ -81,8 +81,9 @@ struct PeerBase : xx::PeerCode<PeerBase>, xx::PeerRequestCode<PeerBase>, std::en
 	}
 
 	// F: void(xx::ObjBase_s& r)
+	// oid_ 参数故意放最后，便于优先从 要 move 到 F[] 的上下文获取变量值
 	template<typename F>
-	void HandleRequest(uint64_t oid_, int32_t serial, F&& f) {
+	void HandleOrderedRequest(int32_t serial, F&& f, uint64_t oid_) {
 		// 加持 peer 智能指针, 复制序列号，移动参数进协程
 		co_spawn(ioc, [this, self = shared_from_this(), oid_, serial, f = std::forward<F>(f)]()->awaitable<void> {
 			asio::steady_timer t(ioc, std::chrono::steady_clock::time_point::max());	// 结果等待器
@@ -105,9 +106,9 @@ struct LobbyPeer : PeerBase {
 	// 收到 请求( 返回非 0 表示失败，会 Stop )
 	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
 		switch (o_.typeId()) {
-		case xx::TypeId_v<All_Db::GetPlayerId>:
-		{
-			HandleRequest(serial, [o = std::move(o_.ReinterpretCast<All_Db::GetPlayerId>())](xx::ObjBase_s& r) {
+		case xx::TypeId_v<All_Db::GetPlayerId>: {
+			auto&& o = o_.ReinterpretCast<All_Db::GetPlayerId>();
+			HandleRequest(serial, [o = std::move(o)](xx::ObjBase_s& r) {
 				std::this_thread::sleep_for(1s);										// 模拟 db 慢查询
 				if (o->username == "a"sv && o->password == "1"sv) {
 					auto v = xx::Make<Generic::Success>();
@@ -121,6 +122,23 @@ struct LobbyPeer : PeerBase {
 					r = std::move(v);
 				}
 			});
+			break;
+		}
+		case xx::TypeId_v<All_Db::GetPlayerInfo>: {
+			auto&& o = o_.ReinterpretCast<All_Db::GetPlayerInfo>();
+			HandleOrderedRequest(serial, [o = std::move(o)](xx::ObjBase_s& r) {
+				if (o->id == 1) {
+					auto v = xx::Make<Generic::PlayerInfo>();
+					// todo: fill
+					r = std::move(v);
+				}
+				else {
+					auto v = xx::Make<Generic::Error>();
+					v->number = 2;
+					xx::Append(v->message, "can't find player id : ", o->id);
+					r = std::move(v);
+				}
+			}, o->id);
 			break;
 		}
 		default:
