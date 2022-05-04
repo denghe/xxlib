@@ -83,21 +83,28 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 		}
 
 		// 等到了 open，给 0 号服务 发 Ping，超时 15 秒
-		om.CoutTN("SendRequest Ping");
-		if (auto o = co_await p->SendRequest<Ping>(0, 500s, xx::NowSteadyEpoch10m()); !o) {
-			om.CoutTN(p->Alive() ? "timeout!" : "stoped!");
-			goto LabEnd;
-		}
-		else {
-			switch (o.typeId()) {
-			case xx::TypeId_v<Pong>: {
-				auto ms = (xx::NowSteadyEpoch10m() - o.ReinterpretCast<Pong>()->ticks) / 1000.;
-				om.CoutTN("receive Pong. delay = ", ms);
-				break;
+		{
+			auto nowe10m = xx::NowSteadyEpoch10m();
+			om.CoutTN("SendRequest Ping.ticks = ", nowe10m);
+			if (auto o = co_await p->SendRequest<Ping>(0, 15s, nowe10m); !o) {
+				om.CoutTN(p->Alive() ? "timeout!" : "stoped!");
+				goto LabEnd;
 			}
-			default:
-				om.CoutTN("receive unhandled pkg = ", o);
-				om.KillRecursive(o);
+			else {
+				switch (o.typeId()) {
+				case xx::TypeId_v<Pong>: {
+					if (nowe10m != o.ReinterpretCast<Pong>()->ticks) {
+						om.CoutTN("receive bad Pong.ticks = ", o.ReinterpretCast<Pong>()->ticks);
+						break;
+					}
+					auto ms = double(xx::NowSteadyEpoch10m() - o.ReinterpretCast<Pong>()->ticks) / 10000.0;
+					om.CoutTN("delay ms = ", ms);
+					break;
+				}
+				default:
+					om.CoutTN("receive unhandled pkg = ", o);
+					om.KillRecursive(o);
+				}
 			}
 		}
 
@@ -115,10 +122,25 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 		goto LabBegin;
 
 	}, detached);
-	ioc.run();
+
+	//ioc.run();
+	while (true) {
+		std::this_thread::sleep_for(5ms);			// 模拟游戏每帧来一发
+		ioc.poll_one();
+		std::cout << ".";
+	}
 }
 
+#ifdef _WIN32
+#include <mmsystem.h>
+#pragma comment(lib,"winmm.lib") 
+#endif
+
 int main() {
+#ifdef _WIN32
+	timeBeginPeriod(1);
+#endif
+
 	Client c;
 	std::cout << "lobby + gateway + client -- client running..." << std::endl;
 	c.Run(asio::ip::address::from_string("127.0.0.1"), 54322);

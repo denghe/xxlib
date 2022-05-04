@@ -4,9 +4,7 @@
     <ClCompile Include="..\xx_asio_testA\pkg.cpp">
       <Filter>PKG</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>PKG</Filter>
-    </ClCompile>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="PKG">
