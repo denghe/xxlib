@@ -1,7 +1,7 @@
-﻿// db       55001( for gateway )    55100( for lobby )      55101( for game1 )      ...
-// lobby    55002( for gateway )                            55201( for game1 )      ...
-// game1    55003( for gateway )
-// gateway  54001( for client )
+﻿// db       55100( for lobby )      55101( for game1 )      ...
+// lobby    55000( for gateway )    55201( for game1 )      ...
+// game1    55001( for gateway )
+// gateway  54000( for client )
 
 // gateway
 #include "xx_asio_codes.h"
@@ -232,10 +232,10 @@ int Server::Run() {
 		}
 	};
 
-	co_spawn(ioc, guard(0, asio::ip::address::from_string("127.0.0.1"), 55002), detached);	// 自动连 0 号服务
-	Listen<CPeer>(54001);													// 开始监听
+	co_spawn(ioc, guard(0, asio::ip::address::from_string("127.0.0.1"), 55000), detached);	// 自动连 0 号服务
+	Listen<CPeer>(54000);													// 开始监听
 
-	std::cout << "gateway  54001( for client )"sv << std::endl;
+	std::cout << "gateway running..."sv << std::endl;
 
 	ioc.run();																// 开始内核循环
 	return 0;
