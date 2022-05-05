@@ -12,20 +12,26 @@ class Pong {
 
 namespace Generic
 {
-    [TypeId(10)]
+    [TypeId(11), Desc("push")]
+    class Register
+    {
+        uint id;
+    }
+
+    [TypeId(12)]
     class Success
     {
         long value;
     }
 
-    [TypeId(11)]
+    [TypeId(13)]
     class Error
     {
         long number;
         string message;
     }
 
-    [TypeId(12)]
+    [TypeId(14)]
     class PlayerInfo
     {
         long id;

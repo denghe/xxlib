@@ -250,7 +250,7 @@ struct MyPeer : xx::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 
 			// 如果数字，就走序列号流程
 			if (n == std::string_view::npos || n + 1 == msg.size()) {
-				Send(std::string("invalid message: only number? ") + std::string(msg) + "\r\n");
+				Send("invalid message: only number? "s + std::string(msg) + "\r\n");
 				return;
 			}
 
@@ -258,14 +258,14 @@ struct MyPeer : xx::PeerCode<MyPeer>, std::enable_shared_from_this<MyPeer> {
 			int serial;
 			auto r = std::from_chars(msg.data(), msg.data() + n, serial);
 			if (r.ec == std::errc::invalid_argument || r.ec == std::errc::result_out_of_range) {
-				Send(std::string("invalid message: serial( string to int ) failed. ") + std::string(msg) + "\r\n");
+				Send("invalid message: serial( string to int ) failed. "s + std::string(msg) + "\r\n");
 				return;
 			}
 
 			// 判断字典里是否能找到
 			auto iter = reqs.find(serial);
 			if (iter == reqs.end()) {
-				Send(std::string("invalid message: serial = ") + std::to_string(serial) + " can't find. " + std::string(msg) + "\r\n");
+				Send("invalid message: serial = "s + std::to_string(serial) + " can't find. " + std::string(msg) + "\r\n");
 				return;
 			}
 
@@ -365,7 +365,7 @@ MyServer::MyServer() {
 			p->ResetTimeout(20s);
 
 			// 打招呼
-			p->Send(std::string("hi ") + s + " !\r\n");
+			p->Send("hi "s + s + " !\r\n");
 
 			// 花几秒发送几个倒数
 			asio::steady_timer delay(ioc);

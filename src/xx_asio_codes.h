@@ -62,6 +62,22 @@ namespace xx {
 		}
 	};
 
+	template<typename WorkerDeriveType>
+	struct WorkerCode : asio::noncopyable {
+		asio::io_context ioc;
+		std::thread _thread;
+		WorkerCode()
+			: ioc(1)
+			, _thread(std::thread([this]() { auto g = asio::make_work_guard(ioc); ioc.run(); }))
+		{}
+		~WorkerCode() {
+			ioc.stop();
+			if (_thread.joinable()) {
+				_thread.join();
+			}
+		}
+	};
+
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + uint32_le target + args 的 类 序列化包 并返回
 	template<bool containTarget, bool containSerial, size_t cap, typename PKG = ObjBase, typename ... Args>
 	xx::Data MakeData(ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {

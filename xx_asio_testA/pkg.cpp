@@ -13,6 +13,7 @@ void CodeGen_pkg::Register() {
 	::xx::ObjManager::Register<::Lobby_Game1::PlayerEnter>();
 	::xx::ObjManager::Register<::All_Db::GetPlayerId>();
 	::xx::ObjManager::Register<::All_Db::GetPlayerInfo>();
+	::xx::ObjManager::Register<::Generic::Register>();
 	::xx::ObjManager::Register<::Generic::Success>();
 	::xx::ObjManager::Register<::Generic::Error>();
 }
@@ -95,7 +96,7 @@ namespace Generic{
     }
     void PlayerInfo::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":12");
+        ::xx::Append(s, "{\"__typeId__\":14");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif
@@ -592,6 +593,45 @@ namespace All_Db{
     }
 }
 namespace Generic{
+    void Register::WriteTo(xx::Data& d, uint32_t const& id) {
+        d.Write(xx::TypeId_v<Register>);
+        d.Write(id);
+    }
+    void Register::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+        d.Write(this->id);
+    }
+    int Register::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
+        if (int r = d.Read(this->id)) return r;
+        return 0;
+    }
+    void Register::Append(::xx::ObjManager& om, std::string& s) const {
+#ifndef XX_DISABLE_APPEND
+        ::xx::Append(s, "{\"__typeId__\":11");
+        this->AppendCore(om, s);
+        s.push_back('}');
+#endif
+    }
+    void Register::AppendCore(::xx::ObjManager& om, std::string& s) const {
+#ifndef XX_DISABLE_APPEND
+        om.Append(s, ",\"id\":", this->id);
+#endif
+    }
+    void Register::Clone(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::Generic::Register*)tar;
+        om.Clone_(this->id, out->id);
+    }
+    int Register::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        return 0;
+    }
+    void Register::RecursiveReset(::xx::ObjManager& om) {
+        om.RecursiveReset(this->id);
+    }
+    void Register::SetDefaultValue(::xx::ObjManager& om) {
+        this->id = 0;
+    }
+}
+namespace Generic{
     void Success::WriteTo(xx::Data& d, int64_t const& value) {
         d.Write(xx::TypeId_v<Success>);
         d.Write(value);
@@ -605,7 +645,7 @@ namespace Generic{
     }
     void Success::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":10");
+        ::xx::Append(s, "{\"__typeId__\":12");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif
@@ -647,7 +687,7 @@ namespace Generic{
     }
     void Error::Append(::xx::ObjManager& om, std::string& s) const {
 #ifndef XX_DISABLE_APPEND
-        ::xx::Append(s, "{\"__typeId__\":11");
+        ::xx::Append(s, "{\"__typeId__\":13");
         this->AppendCore(om, s);
         s.push_back('}');
 #endif

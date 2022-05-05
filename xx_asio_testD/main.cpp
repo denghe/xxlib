@@ -7,21 +7,8 @@
 #include "xx_asio_codes.h"
 #include "pkg.h"
 
-struct Worker : public asio::noncopyable {
-	asio::io_context ioc;
+struct Worker : xx::WorkerCode<Worker> {
 	xx::ObjManager om;
-	std::thread _thread;
-	// more db ctx here
-	Worker()
-		: ioc(1)
-		, _thread(std::thread([this]() { auto g = asio::make_work_guard(ioc); ioc.run(); }))
-	{}
-	~Worker() {
-		ioc.stop();
-		if (_thread.joinable()) {
-			_thread.join();
-		}
-	}
 };
 
 struct LobbyPeer;
@@ -112,7 +99,7 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 
 	// 收到 请求( 返回非 0 表示失败，会 Stop )
 	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
-		server.om.CoutTN("ReceiveRequest serial = ", serial, " o_ = ", o_);
+		server.om.CoutTN("LobbyPeer ReceiveRequest serial = ", serial, " o_ = ", o_);
 		switch (o_.typeId()) {
 		case xx::TypeId_v<All_Db::GetPlayerId>: {
 			HandleRequest(serial, std::move(o_.ReinterpretCast<All_Db::GetPlayerId>()));
@@ -123,7 +110,7 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 			break;
 		}
 		default:
-			server.om.CoutN("receive unhandled package: ", o_);
+			server.om.CoutN("LobbyPeer receive unhandled package: ", o_);
 			om.KillRecursive(o_);
 		}
 		return 0;
@@ -175,6 +162,42 @@ struct Game1Peer : PeerBase<Game1Peer> {
 
 	void Start_() {
 		server.game1Peer = shared_from_this();
+	}
+
+	// 收到 请求( 返回非 0 表示失败，会 Stop )
+	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
+		server.om.CoutTN("Game1Peer ReceiveRequest serial = ", serial, " o_ = ", o_);
+		switch (o_.typeId()) {
+		case xx::TypeId_v<All_Db::GetPlayerInfo>: {
+			HandleRequest(serial, std::move(o_.ReinterpretCast<All_Db::GetPlayerInfo>()));
+			break;
+		}
+		default:
+			server.om.CoutN("Game1Peer receive unhandled package: ", o_);
+			om.KillRecursive(o_);
+		}
+		return 0;
+	}
+
+	void HandleRequest(int32_t serial, xx::Shared<All_Db::GetPlayerInfo>&& o) {
+		HandleOrderedRequest(serial, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
+			std::this_thread::sleep_for(500ms);											// 模拟 db 慢查询
+			if (o->id == 1) {
+				auto v = xx::Make<Generic::PlayerInfo>();
+				v->username = "a"sv;
+				v->password = "1"sv;
+				v->id = 1;
+				v->nickname = "asdf";
+				v->gold = 123;
+				r = std::move(v);
+			}
+			else {
+				auto v = xx::Make<Generic::Error>();
+				v->number = 2;
+				xx::Append(v->message, "can't find player id : ", o->id);
+				r = std::move(v);
+			}
+		}, o->id);
 	}
 };
 
