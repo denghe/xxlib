@@ -113,7 +113,18 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 			}
 		}
 
-		// ...
+		// 尝试 Login 到 Lobby
+		{
+			om.CoutTN("SendRequest Login a 1");
+			if (auto o = co_await p->SendRequest<Client_Lobby::Login>(0, 15s, "a"sv, "1"sv); !o) {
+				om.CoutTN(p->Alive() ? "timeout!" : "stoped!");
+				goto LabEnd;
+			}
+			else {
+				om.CoutTN("o = "sv, o);
+			}
+		}
+
 
 	LabEnd:
 		// 掐线 / clean up
@@ -133,7 +144,7 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 	// 模拟游戏每帧来一发
 	while (true) {
 		ioc.poll_one();
-		std::cout << ".";	
+		//std::cout << ".";	
 		std::this_thread::sleep_for(8ms);			// 模拟逻辑损耗
 		ioc.poll_one();
 		std::this_thread::sleep_for(8ms);			// 模拟渲染 + wait vsync

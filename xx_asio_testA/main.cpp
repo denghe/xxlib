@@ -51,11 +51,11 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
     // 收到 请求( 返回非 0 表示失败，会 Stop )
     int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
         //om.CoutTN("ReceiveRequest serial = ", serial, " o_ = ", o_);
+        ResetTimeout(15s);                                                      // 无脑续命
         switch (o_.typeId()) {
         case xx::TypeId_v<Ping>: {
         	auto&& o = o_.ReinterpretCast<Ping>();                              // 转为具体类型
         	SendResponse<Pong>(serial, o->ticks);                               // 回应结果
-            ResetTimeout(15s);                                                  // 续命
         	break;
         }
         case xx::TypeId_v<Client_Lobby::Login>: {                               // 注意: vpper Alive 和 dbpeer Alive() 检查看情况，可以不做, 后果为 发不出去, SendRequest 立即返回空
@@ -68,6 +68,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
                 SendResponse<Generic::Error>(serial, __LINE__, "doingLogin == true"sv);
                 break;
             }
+            om.CoutTN("VPeer clientId = ", clientId, " ReceiveRequest o_ = ", o);
             doingLogin = true;                                                  // 启动协程之前先设置独占标记
             co_spawn(ioc, [this, self = shared_from_this(), serial, o = std::move(o)]()->awaitable<void> {
                 auto sg = xx::MakeSimpleScopeGuard([&] { doingLogin = false; });    // 确保退出协程时清除独占标记
