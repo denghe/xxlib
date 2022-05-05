@@ -129,6 +129,7 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 		case xx::TypeId_v<All_Db::GetPlayerInfo>: {
 			auto&& o = o_.ReinterpretCast<All_Db::GetPlayerInfo>();
 			HandleOrderedRequest(serial, [o = std::move(o)](xx::ObjBase_s& r) {
+				std::this_thread::sleep_for(1s);										// 模拟 db 慢查询
 				if (o->id == 1) {
 					auto v = xx::Make<Generic::PlayerInfo>();
 					v->username = "a"sv;

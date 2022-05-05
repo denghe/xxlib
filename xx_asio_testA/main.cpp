@@ -11,17 +11,31 @@ struct GPeer;
 struct DBPeer;
 struct Server : xx::IOCCode<Server> {
 	xx::ObjManager om;
-    uint32_t serverId = 0;                                                  // 当前服务编号( 填充自 config )
-    std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;            // 网关 peer 集合. key 为配置的网关编号
-    std::shared_ptr<DBPeer> dbpeer;                                         // 主动连接到 db server 的 peer
+    uint32_t serverId = 0;                                                      // 当前服务编号( 填充自 config )
+    std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;                // 网关 peer 集合. key 为配置的网关编号
+    std::shared_ptr<DBPeer> dbpeer = std::make_shared<DBPeer>(*this);           // 主动连接到 db server 的 peer
     void Run();
+};
+
+struct DBPeer : xx::PeerCode<DBPeer>, xx::PeerRequestCode<DBPeer>, std::enable_shared_from_this<DBPeer> {
+    Server& server;
+    DBPeer(Server& server_)
+        : PeerCode(server_.ioc, asio::ip::tcp::socket(server_.ioc))
+        , PeerRequestCode(server_.om)
+        , server(server_)
+    {}
 };
 
 // 网关连接上来的 client 形成的 虚拟 peer. 令逻辑层感觉上是直连
 struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
     using VPC = xx::VPeerCode<VPeer, GPeer>;
-    Server& server;                                                         // 指向总的上下文
-    std::string clientIP;                                                   // 保存 gpeer 告知的 对端ip
+    Server& server;                                                             // 指向总的上下文
+    std::string clientIP;                                                       // 保存 gpeer 告知的 对端ip
+
+    // 状态标记区. doing 表示正在做, 起到独占作用. done 表示已完成
+    bool doingLogin = false;
+    bool doneLogin = false;
+    xx::Shared<Lobby_Client::Scene> scene;
 
     VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
         : VPC(server_.ioc, server_.om, ownerPeer_, clientId_)
@@ -39,35 +53,81 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
         //om.CoutTN("ReceiveRequest serial = ", serial, " o_ = ", o_);
         switch (o_.typeId()) {
         case xx::TypeId_v<Ping>: {
-        	auto&& o = o_.ReinterpretCast<Ping>();
-        	SendResponse<Pong>(serial, o->ticks);
-            ResetTimeout(15s);                                              // 收到有效指令: 续命
+        	auto&& o = o_.ReinterpretCast<Ping>();                              // 转为具体类型
+        	SendResponse<Pong>(serial, o->ticks);                               // 回应结果
+            ResetTimeout(15s);                                                  // 续命
         	break;
         }
-        case xx::TypeId_v<Client_Lobby::Login>: {
-        	auto&& o = o_.ReinterpretCast<Client_Lobby::Login>();
-            //o->username
+        case xx::TypeId_v<Client_Lobby::Login>: {                               // 注意: vpper Alive 和 dbpeer Alive() 检查看情况，可以不做, 后果为 发不出去, SendRequest 立即返回空
+        	auto&& o = o_.ReinterpretCast<Client_Lobby::Login>();               // 下面开始合法性检测
+            if (doneLogin) {                                                    // 如果 Login 已完成，则本次指令认定为非法
+                SendResponse<Generic::Error>(serial, __LINE__, "doneLogin == true"sv);
+                break;
+            }                                                                   // 如果 Login 已经正在发生，则本次指令认定为非法, 忽略或掐线都行
+            if (doingLogin) {
+                SendResponse<Generic::Error>(serial, __LINE__, "doingLogin == true"sv);
+                break;
+            }
+            doingLogin = true;                                                  // 启动协程之前先设置独占标记
+            co_spawn(ioc, [this, self = shared_from_this(), serial, o = std::move(o)]()->awaitable<void> {
+                auto sg = xx::MakeSimpleScopeGuard([&] { doingLogin = false; });    // 确保退出协程时清除独占标记
+                if (auto r_ = co_await server.dbpeer->SendRequest<All_Db::GetPlayerId>(15s, o->username, o->password)) {
+                    switch (r_.typeId()) {
+                    case xx::TypeId_v<Generic::Error>: {                        // db 返回的错误信息 转发
+                        auto&& r = r_.ReinterpretCast<Generic::Error>();
+                        SendResponse<Generic::Error>(serial, __LINE__, std::string("dbpeer return error: number = ") + std::to_string(r->number) + ", message = " + r->message);
+                        break;
+                    }
+                    case xx::TypeId_v<Generic::Success>: {                      // 成功. value 里面有 id
+                        auto&& r = r_.ReinterpretCast<Generic::Success>();      // 下面继续获取玩家信息
+                        if (auto r2_ = co_await server.dbpeer->SendRequest<All_Db::GetPlayerInfo>(15s, r->value)) {
+                            switch (r2_.typeId()) {
+                            case xx::TypeId_v<Generic::Error>: {                // db 返回的错误信息 转发
+                                auto&& r2 = r2_.ReinterpretCast<Generic::Error>();
+                                SendResponse<Generic::Error>(serial, __LINE__, std::string("dbpeer return error: number = ") + std::to_string(r2->number) + ", message = " + r2->message);
+                                break;
+                            }
+                            case xx::TypeId_v<Generic::PlayerInfo>: {           // db 返回 玩家信息: 更新 flag, 创建场景啥的 并返回 成功 + Push
+                                auto&& r2 = r2_.ReinterpretCast<Generic::PlayerInfo>();
+                                scene.Emplace();
+                                scene->playerInfo = std::move(r2);
+                                scene->gamesIntro = "hi " + scene->playerInfo->nickname + "! welcome to lobby!";
+                                doneLogin = true;
+                                SendResponse<Generic::Success>(serial, scene->playerInfo->id);  // 返回 成功 + id
+                                SendPush(scene);                                // 推送场景
+                                break;
+                            }
+                            default:
+                                SendResponse<Generic::Error>(serial, __LINE__, om.ToString("dbpeer return unhandled package: ", r2_));
+                            }
+                        }
+                        else {
+                            SendResponse<Generic::Error>(serial, __LINE__, "dbpeer SendRequest All_Db::GetPlayerInfo timeout"sv);
+                        }
+                        break;
+                    }
+                    default:
+                        SendResponse<Generic::Error>(serial, __LINE__, om.ToString("dbpeer return unhandled package: ", r_));
+                    }
+                }
+                else {
+                    SendResponse<Generic::Error>(serial, __LINE__, "dbpeer SendRequest All_Db::GetPlayerId timeout"sv);
+                }
+                // -- co_spawn
+            }, detached);
         	break;
         }
         default:
         	om.CoutTN("ReceiveRequest unhandled package: ", o_);
         }
-        om.KillRecursive(o_);                                               // 如果 数据包存在 循环引用, 则阻断. 避免 内存泄露
+        om.KillRecursive(o_);                                                   // 如果 数据包存在 循环引用, 则阻断. 避免 内存泄露
         return 0;
     }
-
-    //// 收到 推送( 返回非 0 表示失败，会 Stop )
-    //int ReceivePush(xx::ObjBase_s&& o_) {
-    //    //om.CoutTN("ReceivePush o_ = ", o_);
-    //    // todo: handle o
-    //    om.KillRecursive(o_);                                               // 如果 数据包存在 循环引用, 则阻断. 避免 内存泄露
-    //    return 0;
-    //}
 
     // 通知网关延迟掐线 并 Stop. 调用前应先 Send 给客户端要收的东西
     void Kick(int64_t const& delayMS = 3000) {
         if (!Alive()) return;
-        Send(xx::MakeCommandData("kick"sv, clientId, delayMS));             // 给 gateway 发 延迟掐线指令
+        Send(xx::MakeCommandData("kick"sv, clientId, delayMS));                 // 给 gateway 发 延迟掐线指令
         Stop();
     }
 
@@ -98,26 +158,26 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
 	// 根据 target 找到 VPeer 转发 或执行 内部指令, 非 0xFFFFFFFFu 则为正常数据，走转发流，否则走内部指令
     int HandleData(xx::Data_r&& dr) {
         uint32_t target;
-        if (int r = dr.ReadFixed(target)) return __LINE__;		            // 试读取 target. 失败直接断开
+        if (int r = dr.ReadFixed(target)) return __LINE__;		                // 试读取 target. 失败直接断开
         if (target != 0xFFFFFFFFu) {
             //xx::CoutTN("HandleData target = ", target, " dr = ", dr);
             if (auto iter = vpeers.find(target); iter != vpeers.end() && iter->second->Alive()) {	//  试找到有效 vpeer 并转交数据
-                iter->second->HandleData(std::move(dr));                    // 跳过 target 的处理
+                iter->second->HandleData(std::move(dr));                        // 跳过 target 的处理
             }
         }
         else {	// 内部指令
             std::string_view cmd;
-            if (int r = dr.Read(cmd)) return -__LINE__;                     // 试读出 cmd。出错返回负数，掐线
-            if (cmd == "accept"sv) {                                        // gateway accept client socket
+            if (int r = dr.Read(cmd)) return -__LINE__;                         // 试读出 cmd。出错返回负数，掐线
+            if (cmd == "accept"sv) {                                            // gateway accept client socket
                 uint32_t clientId;
-                if (int r = dr.Read(clientId)) return -__LINE__;            // 试读出 clientId。出错返回负数，掐线
+                if (int r = dr.Read(clientId)) return -__LINE__;                // 试读出 clientId。出错返回负数，掐线
                 std::string_view ip;
-                if (int r = dr.Read(ip)) return -__LINE__;                  // 试读出 ip。出错返回负数，掐线
+                if (int r = dr.Read(ip)) return -__LINE__;                      // 试读出 ip。出错返回负数，掐线
                 xx::CoutTN("HandleData cmd = ", cmd,". clientId = ", clientId, " ip = ", ip);
-                CreateVPeer(clientId, ip);                                  // 创建相应的 VPeer
-                Send(xx::MakeCommandData("open"sv, clientId));              // 下发 open 指令
+                CreateVPeer(clientId, ip);                                      // 创建相应的 VPeer
+                Send(xx::MakeCommandData("open"sv, clientId));                  // 下发 open 指令
             }
-            else if (cmd == "close"sv) {                                    // gateway client socket 已断开
+            else if (cmd == "close"sv) {                                        // gateway client socket 已断开
                 uint32_t clientId;
                 if (int r = dr.Read(clientId)) return -__LINE__;
                 xx::CoutTN("HandleData cmd = ", cmd, ", clientId = ", clientId);
@@ -126,21 +186,21 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
                     vpeers.erase(iter);
                 }
             }
-            else if (cmd == "ping"sv) {                                     // 来自 网关 的 ping. 直接 echo 回去
+            else if (cmd == "ping"sv) {                                         // 来自 网关 的 ping. 直接 echo 回去
                 //xx::CoutTN("HandleData cmd = ", cmd);
                 Send(dr);
             }
-            else if (cmd == "gatewayId"sv) {                                // gateway 连上之后的首包, 注册自己
+            else if (cmd == "gatewayId"sv) {                                    // gateway 连上之后的首包, 注册自己
                 if (int r = dr.Read(gatewayId)) return -__LINE__;
                 xx::CoutTN("HandleData cmd = ", cmd, ", gatewayId = ", gatewayId);
                 if (auto iter = server.gpeers.find(gatewayId); iter != server.gpeers.end()) return -__LINE__;   // 相同id已存在：掐线
-                server.gpeers[gatewayId] = shared_from_this();              // 放入容器备用
+                server.gpeers[gatewayId] = shared_from_this();                  // 放入容器备用
             }
             else {
                 std::cout << "HandleData unknown cmd = " << cmd << std::endl;
             }
         }
-        ResetTimeout(15s);                                                  // 无脑续命
+        ResetTimeout(15s);                                                      // 无脑续命
         return 0;
     }
 
@@ -157,7 +217,7 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
     std::shared_ptr<VPeer> CreateVPeer(uint32_t const& clientId, std::string_view const& ip) {
         if (vpeers.find(clientId) != vpeers.end()) return {};
         auto& p = vpeers[clientId];
-        p = std::make_shared<VPeer>(server, *this, clientId, ip);           // 放入容器备用
+        p = std::make_shared<VPeer>(server, *this, clientId, ip);               // 放入容器备用
         p->Start();
         return p;
     }
@@ -168,22 +228,10 @@ void VPeer::RemoveFromOwner() {
     ownerPeer->vpeers.erase(clientId);
 }
 
-struct DBPeer : xx::PeerCode<DBPeer>, xx::PeerRequestCode<DBPeer>, std::enable_shared_from_this<DBPeer> {
-    Server& server;
-    DBPeer(Server& server_)
-        : PeerCode(server_.ioc, asio::ip::tcp::socket(server_.ioc))
-        , PeerRequestCode(server_.om)
-        , server(server_)
-    {}
-};
-
 void Server::Run() {
     xx::CoutTN("lobby running..."sv);
     co_spawn(ioc, [this]()->awaitable<void> {
         while (!ioc.stopped()) {                                                // 自动连 db server
-            if (!dbpeer) {
-                dbpeer = std::make_shared<DBPeer>(*this);
-            }
             if (dbpeer->stoped) {												// 如果没连上，就开始连. 
                 if (int r = co_await dbpeer->Connect(asio::ip::address::from_string("127.0.0.1"), 55100, 2s)) { // 开始连接. 超时 2 秒
                     xx::CoutTN("dbpeer->Connect r = ", r);
