@@ -49,22 +49,20 @@ struct LPeer : xx::PeerCode<LPeer>, xx::PeerRequestCode<LPeer>, std::enable_shar
 struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
     using VPC = xx::VPeerCode<VPeer, GPeer>;
     Server& server;                                                                 // 指向总的上下文
-    std::string clientIP;                                                           // 保存 gpeer 告知的 对端ip
 
     // 状态标记区. doing 表示正在做, 起到独占作用. done 表示已完成
     bool doingLogin = false;
     bool doneLogin = false;
-    xx::Shared<Lobby_Client::Scene> scene;
+    xx::Shared<Game1_Client::Scene> scene;
 
-    VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+    VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_)
         : VPC(server_.ioc, server_.om, ownerPeer_, clientId_)
         , server(server_)
-        , clientIP(clientIP_)
     {}
     void Start_() {
         ResetTimeout(15s);  // 设置初始的超时时长
         // todo: after accept logic here. 
-        om.CoutTN("vpeer started... clientId = ", clientId, ", clientIP = ", clientIP);
+        om.CoutTN("vpeer started... clientId = ", clientId);
     }
 
     // 收到 请求( 返回非 0 表示失败，会 Stop )
@@ -77,7 +75,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
             SendResponse<Pong>(serial, o->ticks);                                   // 回应结果
             break;
         }
-        // enter ? leave? game cmd ?
+                               // enter ? leave? game cmd ?
         default:
             om.CoutTN("VPeer ReceiveRequest unhandled package: ", o_);
         }
@@ -94,12 +92,6 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
 
     // 从 owner 的 vpeers 中移除自己
     void RemoveFromOwner();
-
-    // 切线: 重新设置 ownerPeer, clientId, clientIP 啥的, 复用 VPeer 上下文, 应对 顶下线 等需求
-    void ResetOwner(GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_) {
-        this->VPC::ResetOwner(ownerPeer_, clientId_);
-        clientIP = clientIP_;
-    }
 };
 
 // 来自网关的连接对端. 主要负责处理内部指令和 在 VPeer 之间 转发数据
@@ -171,10 +163,10 @@ struct GPeer : xx::PeerCode<GPeer>, xx::PeerTimeoutCode<GPeer>, xx::PeerHandleMe
 
     // 创建并插入 vpeers 一个 VPeer. 接着将执行其 Start_ 函数
     // 常用于服务之间 通知对方 通过 gatewayId + clientId 创建一个 vpeer 并继续后续流程. 比如 通知 游戏服务 某网关某玩家 要进入
-    std::shared_ptr<VPeer> CreateVPeer(uint32_t const& clientId, std::string_view const& ip) {
+    std::shared_ptr<VPeer> CreateVPeer(uint32_t const& clientId) {
         if (vpeers.find(clientId) != vpeers.end()) return {};
         auto& p = vpeers[clientId];
-        p = std::make_shared<VPeer>(server, *this, clientId, ip);                   // 放入容器备用
+        p = std::make_shared<VPeer>(server, *this, clientId);                   // 放入容器备用
         p->Start();
         return p;
     }
@@ -186,6 +178,28 @@ void VPeer::RemoveFromOwner() {
 }
 
 int LPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
+    switch (o_.typeId()) {
+    case xx::TypeId_v<Lobby_Game1::PlayerEnter>: {
+        auto&& o = o_.ReinterpretCast<Lobby_Game1::PlayerEnter>();
+        auto giter = server.gpeers.find(o->gatewayId);
+        if (giter == server.gpeers.end() || !giter->second->Alive()) {
+            SendResponse<Generic::Error>(serial, __LINE__, "can't find gatewayId: "s + std::to_string(o->gatewayId));
+            return 0;
+        }
+
+        //giter->second->CreateVPeer(o->clientId);
+        // 
+        //auto viter = giter->second->vpeers.find(o->clientId);
+        //if (viter == giter->second->vpeers.end() || !viter->second->Alive()) {
+        //    SendResponse<Generic::Error>(serial, __LINE__, "can't find gatewayId: "s + std::to_string(o->gatewayId) + " clientId: " + std::to_string(o->clientId));
+        //    return 0;
+        //}
+        //o->gatewayId
+        //o->clientId
+        //o->playerId
+        break;
+    }
+    }
     // todo: handle o_
     om.KillRecursive(o_);
     return 0;

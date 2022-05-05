@@ -53,7 +53,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
     // 状态标记区. doing 表示正在做, 起到独占作用. done 表示已完成
     bool doingLogin = false;
     bool doneLogin = false;
-    xx::Shared<Lobby_Client::Scene> scene;
+    xx::Shared<Game1_Client::Scene> scene;
 
     VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_)
         : VPC(server_.ioc, server_.om, ownerPeer_, clientId_)
