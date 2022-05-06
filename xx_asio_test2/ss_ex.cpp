@@ -11,7 +11,7 @@ int SS::Scene::Update() {
         }
     }
 
-    return shooters.empty() ? 1 : 0;
+    return 0; //return shooters.empty() ? 1 : 0;
 }
 
 int SS::Shooter::Update() {

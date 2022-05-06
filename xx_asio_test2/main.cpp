@@ -35,9 +35,6 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 		, server(server_)
         , clientId(++server_.pid)
 	{}
-    void Start_() {
-        //server.ps.insert({ clientId, shared_from_this() });
-    }
 
     uint32_t clientId;                                                                          // key
     std::queue<xx::ObjBase_s> recvs;                                                            // 收到的所有包
@@ -45,15 +42,16 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
     int ReceivePush(xx::ObjBase_s&& o_) {                                                       // 收包处理
         switch (o_.typeId()) {
         case xx::TypeId_v<SS_C2S::Enter>: {                                                     // 响应 进入游戏 请求
-            //om.CoutTN("clientId = ", clientId, " recv package: ", o_);
+            om.CoutTN("clientId = ", clientId, " recv package: ", o_);
             if (server.ps.contains(clientId)) return __LINE__;                                  // 重复发起 Enter ? 掐线
+            server.ps.insert({ clientId, shared_from_this() });                                 // 将 peer 插入 server.ps
             server.newEnters.insert(clientId);                                                  // 放入 newEnters 以便在 FrameUpdate 中创建逻辑对象
             SendPush<SS_S2C::EnterResult>(clientId);                                            // 回发处理结果
             ResetTimeout(15s);                                                                  // 重置超时时长
             break;
         }
         case xx::TypeId_v<SS_C2S::Cmd>: {                                                       // 响应 操作指令
-            //om.CoutTN("clientId = ", clientId, " recv package: ", o_);
+            om.CoutTN("clientId = ", clientId, " recv package: ", o_);
             recvs.push(std::move(o_));                                                          // 压入队列
             if (recvs.size() > 30) return __LINE__;                                             // 如果短时间内收到很多，导致累积到一定量，掐线
             ResetTimeout(15s);                                                                  // 续命
@@ -87,7 +85,7 @@ Server::Server() {                                                              
 int Server::Run() {
 	Listen<CPeer>(12345);                                                                       // 开始监听 tcp socket 连入
 	co_spawn(ioc, [this]()->awaitable<void> {                                                   // 启动一个游戏循环协程
-		while (true) {                                                                          // todo: 退出条件
+		while (!ioc.stopped()) {                                                                // todo: 退出条件
             if (int r = FrameUpdate(xx::NowSteadyEpochMilliseconds())) co_return;               // 调用帧逻辑
 			co_await xx::Timeout(10ms);                                                         // 协程短暂休眠
 		}
@@ -143,6 +141,7 @@ int Server::FrameUpdate(int64_t nowMS) {
     }
     if (nowMS > keepAliveMS && !ps.empty()) {                                                   // 如果 keep alive 超时，不管有没有 event 都下发
         SendEvent();
+        keepAliveMS = nowMS + 1000;                                                             // 重置 keep alive 超时 ms
     }
     return 0;
 }

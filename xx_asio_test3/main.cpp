@@ -73,7 +73,7 @@ inline void Client::Reset() {
 	if (peer) {
 		peer->Stop();
 	}
-	peer = std::make_shared<CPeer>(*this);													// 每次新建 容易控制 协程生命周期, 不容易出问题
+	peer = std::make_shared<CPeer>(*this);														// 每次新建 容易控制 协程生命周期, 不容易出问题
 }
 
 inline awaitable<int> Client::Dial() {
@@ -82,18 +82,18 @@ inline awaitable<int> Client::Dial() {
 	Reset();
 	asio::ip::address addr;
 	do {
-		asio::ip::tcp::resolver resolver(ioc);												// 创建一个域名解析器
+		asio::ip::tcp::resolver resolver(ioc);													// 创建一个域名解析器
 		auto rr = co_await(resolver.async_resolve(domain, ""sv, use_nothrow_awaitable) || xx::Timeout(5s));	// 开始解析, 得到一个 variant 包含两个协程返回值
-		if (rr.index() == 1) co_return __LINE__;											// 如果 variant 存放的是第 2 个结果, 那就是 超时
-		auto& [e, rs] = std::get<0>(rr);													// 展开第一个结果为 err + results
-		if (e) co_return __LINE__;															// 出错: 解析失败
-		auto iter = rs.cbegin();															// 拿到迭代器，指向首个地址
-		if (auto idx = (int)((size_t)xx::NowEpochMilliseconds() % rs.size())) {				// 根据当前 ms 时间点 随机选一个下标
-			std::advance(iter, idx);														// 快进迭代器
+		if (rr.index() == 1) co_return __LINE__;												// 如果 variant 存放的是第 2 个结果, 那就是 超时
+		auto& [e, rs] = std::get<0>(rr);														// 展开第一个结果为 err + results
+		if (e) co_return __LINE__;																// 出错: 解析失败
+		auto iter = rs.cbegin();																// 拿到迭代器，指向首个地址
+		if (auto idx = (int)((size_t)xx::NowEpochMilliseconds() % rs.size())) {					// 根据当前 ms 时间点 随机选一个下标
+			std::advance(iter, idx);															// 快进迭代器
 		}
-		addr = iter->endpoint().address();													// 从迭代器获取地址
+		addr = iter->endpoint().address();														// 从迭代器获取地址
 	} while (false);
-	if (auto r = co_await peer->Connect(addr, port, 5s)) co_return __LINE__;				// 开始连接. 超时 5 秒
+	if (auto r = co_await peer->Connect(addr, port, 5s)) co_return __LINE__;					// 开始连接. 超时 5 秒
 	co_return 0;
 }
 
@@ -101,39 +101,35 @@ struct Logic {
     Client c;
 	Logic() {
 		co_spawn(c.ioc, [this]()->awaitable<void> {
-			// 填充域名和端口
-			c.SetDomainPort("127.0.0.1", 12345);
-
+			c.SetDomainPort("127.0.0.1", 12345);												// 填充域名和端口
 		LabBegin:
-			// 开始前先 reset + sleep 一把，避免各种协程未结束的问题
-			c.Reset();
+			c.Reset();																			// 开始前先 reset + sleep 一把，避免各种协程未结束的问题
 			co_await xx::Timeout(1s);
-
-			// 域名解析并拨号. 失败就重来
-			if (auto r = co_await c.Dial()) {
+			if (auto r = co_await c.Dial()) {													// 域名解析并拨号. 失败就重来
 				xx::CoutTN("Dial r = ", r);
 				goto LabBegin;
 			}
-
-			// 发 enter 并等待 enter result 15 秒
-			c.Send<SS_C2S::Enter>();
+			c.Send<SS_C2S::Enter>();															// 发 enter 并等待收到 enter result 15 秒
 			xx::Shared<SS_S2C::EnterResult> er;
 			for (int i = 0; i < 150; ++i) {
-				if (auto o = c.TryPopPackage<SS_S2C::EnterResult>()) {
-					er = std::move(o);
+				if (auto o = c.TryPopPackage<SS_S2C::EnterResult>()) {							// 强逻辑, 收到的包必须是指定类型，否则取出来是 empty
+					er = std::move(o);															// 成功取出, 挪到 er 并退出等待
 					break;
 				}
-				co_await xx::Timeout(100ms);
+				co_await xx::Timeout(100ms);													// 150 * 100ms = 15s
+				if (!c) break;																	// 断线检测
 			}
+			if (!er) goto LabBegin;																// 超时: 重来
 
-			// 等到了 enter result. 打印
-			c.om.CoutTN(er);
-
-			// keep alive
-			//while(c) {
-			//	co_await xx::Timeout(1s);
-			//};
-			goto LabBegin;
+			c.om.CoutTN(er);																	// 等到了 enter result. 打印
+			
+			while(c) {																			// 等待 断开 并打印收到的东西
+				if (auto o = c.TryPopPackage()) {
+					c.om.CoutTN(o);
+				}
+				co_await xx::Timeout(100ms);
+			};
+			goto LabBegin;																		// 重来
 		}, detached);
 	}
 };
