@@ -14,7 +14,7 @@ struct Server : xx::IOCCode<Server> {
 	xx::Shared<SS::Scene> scene;                                                                // 游戏场景上下文
 	xx::Shared<SS_S2C::Sync> sync;                                                              // 用于下发完整场景
 	xx::Shared<SS_S2C::Event> event;                                                            // 用于下发事件
-	std::unordered_map<uint32_t, xx::Shared<SS_C2S::Enter>> newEnters;                          // 缓存请求进入游戏的通知
+	std::unordered_set<uint32_t> newEnters;                                                     // 记录本帧即将需要处理的新进入玩家的 peer id
 
 	int64_t nowMS = xx::NowSteadyEpochMilliseconds();                                           // 当前毫秒
 	int64_t lastMS = 0;                                                                         // 上次执行 FrameUpdate 的毫秒
@@ -35,6 +35,9 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 		, server(server_)
         , clientId(++server_.pid)
 	{}
+    void Start_() {
+        //server.ps.insert({ clientId, shared_from_this() });
+    }
 
     uint32_t clientId;                                                                          // key
     std::queue<xx::ObjBase_s> recvs;                                                            // 收到的所有包
@@ -43,11 +46,8 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
         switch (o_.typeId()) {
         case xx::TypeId_v<SS_C2S::Enter>: {                                                     // 响应 进入游戏 请求
             //om.CoutTN("clientId = ", clientId, " recv package: ", o_);
-            assert(server.ps.contains(clientId));
-            assert(server.scene->shooters.contains(clientId));
-            auto&& o = o_.ReinterpretCast<SS_C2S::Enter>();
-            auto&& r = server.newEnters.try_emplace(clientId, std::move(o));                    // 放入 newEnters
-            assert(r.second);
+            if (server.ps.contains(clientId)) return __LINE__;                                  // 重复发起 Enter ? 掐线
+            server.newEnters.insert(clientId);                                                  // 放入 newEnters 以便在 FrameUpdate 中创建逻辑对象
             SendPush<SS_S2C::EnterResult>(clientId);                                            // 回发处理结果
             ResetTimeout(15s);                                                                  // 重置超时时长
             break;
@@ -103,15 +103,16 @@ int Server::FrameUpdate(int64_t nowMS) {
     if (totalDelta > (1.f / 60.f)) {                                                            // 如果满足一帧的运行条件( 已经历的时长 >= 1 帧间隔 )
         if (!newEnters.empty()) {                                                               // 如果本次有刚进入的玩家
             auto d = xx::MakePackageData(om, 0, sync);                                          // 提前准备 完整同步 的下发数据
-            for (auto& kv : newEnters) {
-                assert(ps.contains(kv.first));
-                auto& p = ps[kv.first];                                                         // 定位到 peer
-                assert(p->Alive());
-                p->Send(xx::Data(d));                                                           // 下发 完整同步
-                auto&& shooter = scene->shooters[kv.first].Emplace();                           // 创建逻辑对象并进一步初始化
-                shooter->clientId = kv.first;                                                   // todo: 进一步初始化 random pos & angle
-                event->enters.push_back(om.Clone(shooter));                                     // 将数据 clone 到事件( 这步属于偷懒, 正常情况应该是下发初始化参数 )
-                shooter->scene = scene;                                                         // 最后引用 scene. 避免 clone 的时候牵连到 scene
+            for (auto& cid : newEnters) {
+                if (auto iter = ps.find(cid); iter != ps.end()) {                               // 定位到 peer
+                    if (auto& p = iter->second; p->Alive()) {                                   // 判断是否已断开( 理论上讲 一旦断开就不应该在 ps 里了 )
+                        p->Send(xx::Data(d));                                                   // 下发 完整同步
+                        auto&& shooter = scene->shooters[cid].Emplace();                        // 创建逻辑对象并进一步初始化
+                        shooter->clientId = cid;                                                // todo: 进一步初始化 random pos & angle
+                        event->enters.push_back(om.Clone(shooter));                             // 将数据 clone 到事件( 这步属于偷懒, 正常情况应该是下发初始化参数 )
+                        shooter->scene = scene;                                                 // 最后引用 scene. 避免 clone 的时候牵连到 scene
+                    }
+                }
             }
             newEnters.clear();
         }
