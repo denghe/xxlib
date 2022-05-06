@@ -1,5 +1,5 @@
 #include "AppDelegate.h"
-#include "MainScene.h"
+#include "HelloWorldScene.h"
 #include <iostream>
 #include <xx_math.h>
 
@@ -75,6 +75,11 @@ bool MainScene::init() {
 	// store singleton
 	instance = this;
 
+	// begin coroutine for logic
+	co_spawn(c.ioc, [this]()->awaitable<void> {
+		co_await Logic();
+	}, detached);
+
 	// success
 	return true;
 }
@@ -83,53 +88,53 @@ void MainScene::update(float delta) {
 	// 网络收发
 	c.Update();
 
-	// frame limit
-	totalDelta += delta;
-	while (totalDelta > (1.f / 60.f)) {
-		totalDelta -= (1.f / 60.f);
+	//// frame limit
+	//totalDelta += delta;
+	//while (totalDelta > (1.f / 60.f)) {
+	//	totalDelta -= (1.f / 60.f);
 
-		// 先执行主线协程
-		lineNumber = Update();
-		assert(lineNumber);
+	//	// 先执行主线协程
+	//	lineNumber = Update();
+	//	assert(lineNumber);d
 
-		// 如果没有进入到 玩 状态 就直接短路退出
-		if (!playing) return;
+	//	// 如果没有进入到 玩 状态 就直接短路退出
+	//	if (!playing) return;
 
-		// 缩放处理( 本地行为 )
-		if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_Z] && zoom > 0.05f) {
-			zoom -= 0.005f;
-		}
-		if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_X] && zoom < 1.f) {
-			zoom += 0.005f;
-		}
-		container->setScale(zoom);
+	//	// 缩放处理( 本地行为 )
+	//	if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_Z] && zoom > 0.05f) {
+	//		zoom -= 0.005f;
+	//	}
+	//	if (keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_X] && zoom < 1.f) {
+	//		zoom += 0.005f;
+	//	}
+	//	container->setScale(zoom);
 
-		// todo: 自动 zoom ? 默认以当前 shooter 为中心点显示，当鼠标靠近屏幕边缘时，自动缩小显示并令 shooter 往相反方向偏移？( 本地行为 )
+	//	// todo: 自动 zoom ? 默认以当前 shooter 为中心点显示，当鼠标靠近屏幕边缘时，自动缩小显示并令 shooter 往相反方向偏移？( 本地行为 )
 
-		// 生成当前控制状态
-		SS::ControlState newCS;
-		newCS.aimPos = { (int)mousePos.x, (int)mousePos.y };
-		newCS.moveLeft = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
-		newCS.moveRight = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
-		newCS.moveUp = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
-		newCS.moveDown = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
-		newCS.button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
-		newCS.button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
+	//	// 生成当前控制状态
+	//	SS::ControlState newCS;
+	//	newCS.aimPos = { (int)mousePos.x, (int)mousePos.y };
+	//	newCS.moveLeft = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_LEFT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_A];
+	//	newCS.moveRight = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_RIGHT_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_D];
+	//	newCS.moveUp = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_UP_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_W];
+	//	newCS.moveDown = keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_DOWN_ARROW] || keyboards[(int)cocos2d::EventKeyboard::KeyCode::KEY_S];
+	//	newCS.button1 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_LEFT + 1];
+	//	newCS.button2 = mouseKeys[(int)cocos2d::EventMouse::MouseButton::BUTTON_RIGHT + 1];
 
-		// 如果和备份不一致，就发包到 server
-		if (cmd->cs != newCS) {
-			cmd->cs = newCS;
-			// todo: 控制发包频率. 否则每秒发 60 个包，对于非局域网来说，很不科学
-			// 如果限定到 1/10 秒一个控制指令，则需要想办法合并, 时间按本次操作开始时间点对齐
-			// 将按键状态分为 点击 和 翻转 两种状态，对于 1/10 内按下又放开的操作，翻译为 点击。
-			// 跨频率未放开，则视为 翻转（也就是和当前策略一样）
-			// 鼠标位置跳跃问题，大概只能结合策划案来处理，约定 shooter 转身速度不能超过每秒多少角度
-			// 这样就可以让 shooter 多用几帧来转身，最终面向鼠标，达到平滑插值的效果
-			c.Send(cmd);
-		}
-	}
+	//	// 如果和备份不一致，就发包到 server
+	//	if (cmd->cs != newCS) {
+	//		cmd->cs = newCS;
+	//		// todo: 控制发包频率. 否则每秒发 60 个包，对于非局域网来说，很不科学
+	//		// 如果限定到 1/10 秒一个控制指令，则需要想办法合并, 时间按本次操作开始时间点对齐
+	//		// 将按键状态分为 点击 和 翻转 两种状态，对于 1/10 内按下又放开的操作，翻译为 点击。
+	//		// 跨频率未放开，则视为 翻转（也就是和当前策略一样）
+	//		// 鼠标位置跳跃问题，大概只能结合策划案来处理，约定 shooter 转身速度不能超过每秒多少角度
+	//		// 这样就可以让 shooter 多用几帧来转身，最终面向鼠标，达到平滑插值的效果
+	//		c.Send(cmd);
+	//	}
+	//}
 
-	// todo: 超时发送个防掉线包，避免 server kick
+	//// todo: 超时发送个防掉线包，避免 server kick
 
 	// 网络收发( 再来一次. 否则可能收不完 )
 	c.Update();
@@ -149,188 +154,105 @@ void MainScene::Reset() {
 	frameBackupsFirstFrameNumber = 0;
 }
 
-int MainScene::Update() {
-	COR_BEGIN;
-
-	// 初始化拨号地址
-	c.SetDomainPort("192.168.1.95", 12345);
-
+awaitable<void> MainScene::Logic() {
+	c.SetDomainPort("127.0.0.1", 12345);												// 初始化拨号地址
 LabBegin:
-
-	DrawInit();
-	// 无脑重置一发
+	DrawInit();																			// 无脑重置一发
 	Reset();
-
-	// 睡 0.2 秒
-	secs = xx::NowEpochSeconds() + 0.2;
-	do {
-		COR_YIELD;
-	} while (secs > xx::NowEpochSeconds());
-
-
-	DrawResolve();
-	// 开始域名解析
-	c.Resolve();
-
-	// 等 3 秒, 如果解析完成就停止等待
-	secs = xx::NowEpochSeconds() + 3;
-	do {
-		COR_YIELD;
-		if (!c.Busy()) break;
-	} while (secs > xx::NowEpochSeconds());
-
-	// 解析失败: 重来
-	if (!c.IsResolved()) goto LabBegin;
-
-	//// 打印下 ip 列表
-	//for (auto& ip : c.GetIPList()) {
-	//	xx::CoutTN(ip);
-	//}
-
-	DrawDial();
-	// 开始拨号
-	if (int r = c.Dial()) {
-		xx::CoutTN("c.Dial() = ", r);
+	co_await xx::Timeout(200ms);														// 睡 0.2 秒
+	DrawDial();																			// 开始拨号
+	if (auto r = co_await c.Dial()) {													// 域名解析并拨号. 失败就重来
+		xx::CoutTN("Dial r = ", r);
 		goto LabBegin;
 	}
 
-	// 等 10 秒, 如果拨号完成就停止等待
-	secs = xx::NowEpochSeconds() + 10;
-	do {
-		COR_YIELD;
-		if (!c.Busy()) break;
-	} while (secs > xx::NowEpochSeconds());
+	c.Send<SS_C2S::Enter>();															// 发 enter
+	if (auto o = co_await c.WaitPopPackage<SS_S2C::EnterResult>(5s)) {					// 等 enter result 包 ? 秒
+		selfId = o->clientId;															// 等到: 存储自己的 id
+	}
+	else goto LabBegin;																	// 如果超时，重连
 
-	// 没连上: 重来
-	if (!c.Alive()) goto LabBegin;
-
-
-	// 发 进入 请求。服务器 返回 EnterResult + Sync( 如果成功的化 )。
-	c.Send(xx::Make<SS_C2S::Enter>());
-
-	// 等 5 秒, 如果没有收到 EnterResult 就掐线重连
-	secs = xx::NowEpochSeconds() + 5;
-	ok = false;
-	do {
-		COR_YIELD;
-
-		// 尝试从收包队列获取包
-		xx::ObjBase_s o;
-		if (c.TryGetPackage(o)) {
-			// 如果为 空 或 不是 sync 包 就掐线重连
-			if (!o || o.typeId() != xx::TypeId_v<SS_S2C::EnterResult>) goto LabBegin;
-			auto&& m = o.ReinterpretCast<SS_S2C::EnterResult>();
-			selfId = m->clientId;
-			assert(selfId);
-			ok = true;
-			break;
-		}
-
-	} while (secs > xx::NowEpochSeconds());
-	if (!ok) goto LabBegin;
-
-	// 等 5 秒, 如果没有收到 sync 就掐线重连
-	secs = xx::NowEpochSeconds() + 5;
-	ok = false;
-	do {
-		COR_YIELD;
-
-		// 尝试从收包队列获取包
-		xx::ObjBase_s o;
-		if (c.TryGetPackage(o)) {
-			// 如果为 空 或 不是 sync 包 就掐线重连
-			if (!o || o.typeId() != xx::TypeId_v<SS_S2C::Sync>) goto LabBegin;
-			auto&& sync = o.ReinterpretCast<SS_S2C::Sync>();
-			scene = std::move(sync->scene);
-			ok = true;
-			break;
-		}
-
-	} while (secs > xx::NowEpochSeconds());
-	if (!ok) goto LabBegin;
+	if (auto o = co_await c.WaitPopPackage<SS_S2C::Sync>(5s)) {							// 等 sync 包 ? 秒
+		scene = std::move(o->scene);													// 等到: 存储 scene
+	}
+	else goto LabBegin;																	// 如果超时，重连
 
 	DrawPlay();
 	// 开始游戏。如果断线( xx秒内没收到数据就认为断线 )就重连
 	playing = true;
-	secs = xx::NowEpochSeconds() + 15;
 	do {
-		COR_YIELD;
 
-		if (!c.receivedPackages.empty()) {
+	//	if (!c.receivedPackages.empty()) {
 
-			// 继续处理 events 直到没有
-			xx::ObjBase_s o;
+	//		// 继续处理 events 直到没有
+	//		// 尝试从收包队列获取包
+	//		while (auto o = c.TryPopPackage()) {
+	//			auto tid = o.typeId();
 
-			// 尝试从收包队列获取包
-			while (c.TryGetPackage(o)) {
-				auto tid = o.typeId();
+	//			// 类型应该是 Event 基类
+	//			assert(o && c.om.IsBaseOf<SS_S2C::Event>(tid));
+	//			auto&& e = o.ReinterpretCast<SS_S2C::Event>();
 
-				// 类型应该是 Event 基类
-				assert(o && c.om.IsBaseOf<SS_S2C::Event>(tid));
-				auto&& e = o.ReinterpretCast<SS_S2C::Event>();
+	//			// 看看要不要追帧
+	//			if (e->frameNumber > scene->frameNumber) {
+	//				xx::CoutTN("fast forward from ", scene->frameNumber, " to ", e->frameNumber);
+	//				do {
+	//					// 追帧并备份
+	//					scene->Update();
+	//					Backup();
+	//				} while (e->frameNumber == scene->frameNumber);
 
-				// 看看要不要追帧
-				if (e->frameNumber > scene->frameNumber) {
-					xx::CoutTN("fast forward from ", scene->frameNumber, " to ", e->frameNumber);
-					do {
-						// 追帧并备份
-						scene->Update();
-						Backup();
-					} while (e->frameNumber == scene->frameNumber);
+	//				// 看看要不要回滚
+	//			} else if (e->frameNumber < scene->frameNumber) {
+	//				// 回滚。不需要拨号。失败（网络太卡？已定位不到历史数据）则重新拨号
+	//				if (int r = Rollback(e->frameNumber)) goto LabBegin;
+	//			}
 
-					// 看看要不要回滚
-				} else if (e->frameNumber < scene->frameNumber) {
-					// 回滚。不需要拨号。失败（网络太卡？已定位不到历史数据）则重新拨号
-					if (int r = Rollback(e->frameNumber)) goto LabBegin;
-				}
+	//			// 处理玩家退出
+	//			for (auto& cid : e->quits) {
+	//				scene->shooters.erase(cid);
+	//			}
 
-				// 处理玩家退出
-				for (auto& cid : e->quits) {
-					scene->shooters.erase(cid);
-				}
+	//			// 处理玩家进入
+	//			for (auto& s : e->enters) {
+	//				// 将 shooters 添加到场景
+	//				auto cid = s->clientId;
+	//				auto r = scene->shooters.try_emplace(cid, s);
+	//				assert(r.second);
+	//				s->scene = scene;
 
-				// 处理玩家进入
-				for (auto& s : e->enters) {
-					// 将 shooters 添加到场景
-					auto cid = s->clientId;
-					auto r = scene->shooters.try_emplace(cid, s);
-					assert(r.second);
-					s->scene = scene;
+	//				// 找 self
+	//				if (selfId == cid) {
+	//					self = s;
+	//				}
+	//			}
 
-					// 找 self
-					if (selfId == cid) {
-						self = s;
-					}
-				}
+	//			// 查找 shooters 并应用 cs
+	//			for (auto& c : e->css) {
+	//				auto iter = scene->shooters.find(std::get<0>(c));
+	//				assert(iter != scene->shooters.end());
+	//				iter->second->cs = std::get<1>(c);
+	//			}
 
-				// 查找 shooters 并应用 cs
-				for (auto& c : e->css) {
-					auto iter = scene->shooters.find(std::get<0>(c));
-					assert(iter != scene->shooters.end());
-					iter->second->cs = std::get<1>(c);
-				}
+	//			// 更新场景并备份
+	//			scene->Update();
+	//			Backup();
+	//		}
 
-				// 更新场景并备份
-				scene->Update();
-				Backup();
-			}
+	//		// 有收到包就 重置超时时长
+	//		secs = xx::NowEpochSeconds() + 15;
+	//	} else {
+	//		// 超时：认为断线了
+	//		if (secs < xx::NowEpochSeconds()) goto LabBegin;
 
-			// 有收到包就 重置超时时长
-			secs = xx::NowEpochSeconds() + 15;
-		} else {
-			// 超时：认为断线了
-			if (secs < xx::NowEpochSeconds()) goto LabBegin;
-
-			// 更新场景并备份
-			scene->Update();
-			Backup();
-		}
+	//		// 更新场景并备份
+	//		scene->Update();
+	//		Backup();
+	//	}
 		scene->Draw();
 
-	} while (c.Alive());
+	} while (c);
 	goto LabBegin;
-
-	COR_END;
 }
 
 void MainScene::Backup() {
@@ -408,9 +330,7 @@ void SS::Scene::Draw() {
 	for (auto& kv : shooters) {
 		kv.second->Draw();
 	}
-
 	// todo: 调整 container 的 pos, 令 self 居中?
-
 }
 
 

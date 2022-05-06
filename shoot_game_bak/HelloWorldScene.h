@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 #include <memory>
+#include <xx_asio_tcp_client_cpp.h>
 #include <ss.h>
-#include <xx_asiokcpclient.h>
 #include <xx_queue.h>
 
 class MainScene : public cocos2d::Scene {
@@ -39,8 +39,8 @@ public:
 	// 临时 timer 计数器
 	double secs = 0;
 
-	// kcp 拨号客户端, 通信层
-	xx::AsioKcpClient c;
+	// 拨号客户端, 通信层
+	xx::Asio::Tcp::Cpp::Client c;
 
 	// 状态标识
 	bool ok = false;
@@ -51,9 +51,8 @@ public:
 	// 指向玩家自己的 shooter( 收到 Sync 时定位填充 )
 	SS::Shooter* self = nullptr;
 
-	// 协程行号
-	int lineNumber = 0;
-	int Update();
+	// 协程
+	awaitable<void> Logic();
 
 	// 协程配套 GUI 交互
 	void DrawInit();

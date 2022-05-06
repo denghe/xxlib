@@ -1,7 +1,7 @@
 #include "AppDelegate.h"
-#include "MainScene.h"
+#include "HelloWorldScene.h"
 
-#include "audio/include/AudioEngine.h"
+#include "audio/AudioEngine.h"
 
 AppDelegate::AppDelegate()
 {
