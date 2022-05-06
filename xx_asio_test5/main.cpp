@@ -1,4 +1,6 @@
-﻿#include <asio.hpp>
+﻿// simple echo client
+
+#include <asio.hpp>
 
 using namespace std::chrono_literals;
 std::chrono::system_clock::time_point defaultBeginTime;

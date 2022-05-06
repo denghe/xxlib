@@ -2,8 +2,16 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="..\3rd\ikcp.c" />
-    <ClCompile Include="..\codegen_test3\cpp\ss.cpp" />
-    <ClCompile Include="..\xx_asio_test2\ss_ex.cpp" />
+    <ClCompile Include="..\xx_asio_test2\ss_ex.cpp">
+      <Filter>PKG</Filter>
+    </ClCompile>
+    <ClCompile Include="..\xx_asio_test2\ss.cpp">
+      <Filter>PKG</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="PKG">
+      <UniqueIdentifier>{5f79eb9c-932d-4a73-88a9-3d8469f51bfd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

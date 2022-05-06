@@ -13,8 +13,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{0653fbcf-82a5-41f7-0201-f0d6719f57e2}</ProjectGuid>
-    <RootNamespace>vsxxasiotest3</RootNamespace>
+    <ProjectGuid>{0653FBCF-82A5-41F7-0201-987619F57E00}</ProjectGuid>
+    <RootNamespace>vsxxasiotest2</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -58,7 +58,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_test2;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
@@ -76,7 +76,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_test2;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -91,9 +91,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\xx_asio_test2\ss.cpp" />
-    <ClCompile Include="..\xx_asio_test2\ss_ex.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="ss.cpp" />
+    <ClCompile Include="ss_ex.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ss.cpp.inc" />
+    <None Include="ss.cs" />
+    <None Include="ss.h.inc" />
+    <None Include="ss.json" />
+    <None Include="ss_.h.inc" />
+    <None Include="ss_gen.bat" />
+    <None Include="ss_SSBullet.inc" />
+    <None Include="ss_SSBullet_Straight.inc" />
+    <None Include="ss_SSBullet_Track.inc" />
+    <None Include="ss_SSScene.inc" />
+    <None Include="ss_SSShooter.inc" />
+    <None Include="ss_SSXY.inc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ss.h" />
+    <ClInclude Include="ss_ajson.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

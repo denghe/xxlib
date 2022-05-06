@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<e48eef38c0a68a5a5a354a79c62f2d97>*#";
+	inline static const ::std::string md5 = "#*MD5<4dfeba995b8f0fc0490f5e2f4e96932c>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };

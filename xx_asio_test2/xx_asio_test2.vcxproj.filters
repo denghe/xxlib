@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="ss_ex.cpp">
+      <Filter>PKG</Filter>
+    </ClCompile>
+    <ClCompile Include="ss.cpp">
+      <Filter>PKG</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="PKG">
+      <UniqueIdentifier>{c94fed3e-3e0c-4ef1-a19b-8660e70c7152}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ss.cpp.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss.cs">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss.h.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss.json">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_.h.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_gen.bat">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_SSBullet.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_SSBullet_Straight.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_SSBullet_Track.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_SSScene.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_SSShooter.inc">
+      <Filter>PKG</Filter>
+    </None>
+    <None Include="ss_SSXY.inc">
+      <Filter>PKG</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ss.h">
+      <Filter>PKG</Filter>
+    </ClInclude>
+    <ClInclude Include="ss_ajson.h">
+      <Filter>PKG</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
