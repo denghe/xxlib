@@ -17,7 +17,8 @@ struct Client : xx::IOCCode<Client> {
 	void Update();																				// 每帧开始和逻辑结束时 call 一次
 	awaitable<int> Dial();																		// 拨号. 成功连上返回 0
 	void Reset();																				// 老 peer Stop + 新建 peer
-	xx::ObjBase_s TryGetPackage();																// 尝试 move 出一条最前面的消息
+	template<typename T = xx::ObjBase>
+	xx::Shared<T> TryPopPackage();																// 尝试 move 出一条最前面的消息
 	template<typename PKG = xx::ObjBase, typename ... Args>
 	void Send(Args const& ... args);															// 试着用 peer 来 SendPush
 };
@@ -38,11 +39,13 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
 	}
 };
 
-inline xx::ObjBase_s Client::TryGetPackage() {
+template<typename T>
+inline xx::Shared<T> Client::TryPopPackage() {
 	if (*this && !peer->recvs.empty()) {
 		auto r = std::move(peer->recvs.front());
 		peer->recvs.pop_front();
-		return r;
+		if constexpr (std::is_same_v<T, xx::ObjBase>) return r;
+		else if (r.typeId() == xx::TypeId_v<T>) return r.ReinterpretCast<T>();
 	}
 	return {};
 }
@@ -98,31 +101,38 @@ struct Logic {
     Client c;
 	Logic() {
 		co_spawn(c.ioc, [this]()->awaitable<void> {
+			// 填充域名和端口
 			c.SetDomainPort("127.0.0.1", 12345);
 
 		LabBegin:
-			xx::CoutTN("LabBegin");
+			// 开始前先 reset + sleep 一把，避免各种协程未结束的问题
 			c.Reset();
-
 			co_await xx::Timeout(1s);
 
-			xx::CoutTN("Dial");
+			// 域名解析并拨号. 失败就重来
 			if (auto r = co_await c.Dial()) {
 				xx::CoutTN("Dial r = ", r);
 				goto LabBegin;
 			}
 
-			xx::CoutTN("Send Enter");
+			// 发 enter 并等待 enter result 15 秒
 			c.Send<SS_C2S::Enter>();
-
-			xx::CoutTN("keep alive");
-			do {
-				co_await xx::Timeout(1s);
-
-				if (auto o = c.TryGetPackage()) {
-					c.om.CoutN(o);
+			xx::Shared<SS_S2C::EnterResult> er;
+			for (int i = 0; i < 150; ++i) {
+				if (auto o = c.TryPopPackage<SS_S2C::EnterResult>()) {
+					er = std::move(o);
+					break;
 				}
-			} while (c);
+				co_await xx::Timeout(100ms);
+			}
+
+			// 等到了 enter result. 打印
+			c.om.CoutTN(er);
+
+			// keep alive
+			//while(c) {
+			//	co_await xx::Timeout(1s);
+			//};
 			goto LabBegin;
 		}, detached);
 	}
