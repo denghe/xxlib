@@ -15,10 +15,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asiokcpclient.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_codes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_client_cpp.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_gateway_client_cpp.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bits.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bufholder.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_combopool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_funcs.h" />
@@ -28,8 +31,10 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_file.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_grid2d.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_helpers.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_linkpool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_logger.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_adxe_binds.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_bind.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_bind_samples.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_data.h" />
@@ -41,6 +46,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_mysql.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_nodepool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_obj.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_podpool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_queue.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_randoms.h" />

@@ -3,7 +3,7 @@
 
 namespace xx::Asio::Tcp::Cpp {
 
-	// 适合以 Push 为主的，游戏客户端 按 帧 的方式访问. 收到的数据都会堆积在 peer 的 recvs
+	// 适合以 Push 为主的 Tcp 直连 server，游戏客户端 按 帧 的方式访问. 收到的数据都会堆积在 peer 的 recvs
 	struct CPeer;
 	struct Client : xx::IOCCode<Client> {
 		xx::ObjManager om;
