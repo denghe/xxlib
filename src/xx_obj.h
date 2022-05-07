@@ -406,12 +406,8 @@ namespace xx {
 			if constexpr (!IsSimpleType_v<T>) {
 				ptrs.clear();
 				for (auto& p : ptrs2) {
-				    auto& uc = ((PtrHeader*)p - 1)->useCount;
-					if (uc) {
-						if (--uc == 0) {
-						    ((ObjBase*)p)->~ObjBase();
-						}
-					}
+					ObjBase_s o;
+					o.pointer = (ObjBase*)p;
 				}
 				ptrs2.clear();
 			}
@@ -487,12 +483,15 @@ namespace xx {
 			}
 			else if constexpr (IsWeak_v<T>) {
 				Shared<typename T::ElementType> o;
-				if (int r = Read_(d, o)) return r;
-				if (o.pointer) {
-					ptrs2.emplace_back(o.pointer);
-					++o.header()->useCount;
+				if (int r = Read_(d, o)) {
+					KillRecursive(o);
+					return r;
 				}
 				v = o;
+				if (o) {
+					ptrs2.emplace_back(o.pointer);
+					o.pointer = nullptr;
+				}
 				return 0;
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {

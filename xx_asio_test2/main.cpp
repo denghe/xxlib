@@ -86,8 +86,14 @@ int Server::Run() {
 	Listen<CPeer>(12345);                                                                       // 开始监听 tcp socket 连入
 	co_spawn(ioc, [this]()->awaitable<void> {                                                   // 启动一个游戏循环协程
 		while (!ioc.stopped()) {                                                                // todo: 退出条件
-            if (int r = FrameUpdate(xx::NowSteadyEpochMilliseconds())) co_return;               // 调用帧逻辑
-			co_await xx::Timeout(10ms);                                                         // 协程短暂休眠
+            auto nowMS = xx::NowSteadyEpochMilliseconds();
+            auto d = (double)(nowMS - lastMS) / 1000.;                                          // 计算出时间差( 秒 )
+            totalDelta += d;                                                                    // 累积时间池
+            if (int r = FrameUpdate(nowMS)) co_return;                                          // 调用帧逻辑
+            if (d < (1. / 60.)) {                                                               // 如果执行时间很短，就安排休眠
+                co_await xx::Timeout(1ms);                                                      // 协程短暂休眠 省点 cpu
+            }
+            lastMS = nowMS;                                                                     // 更新时间上下文
 		}
 	}, detached);
     ioc.run();
@@ -95,9 +101,6 @@ int Server::Run() {
 }
 
 int Server::FrameUpdate(int64_t nowMS) {
-    totalDelta += (double)(nowMS - lastMS) / 1000.;                                             // 累积时间池
-    lastMS = nowMS;                                                                             // 更新时间上下文
-
     if (totalDelta > (1.f / 60.f)) {                                                            // 如果满足一帧的运行条件( 已经历的时长 >= 1 帧间隔 )
         if (!newEnters.empty()) {                                                               // 如果本次有刚进入的玩家
             auto d = xx::MakePackageData(om, 0, sync);                                          // 提前准备 完整同步 的下发数据

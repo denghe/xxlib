@@ -21,6 +21,8 @@ namespace xx::Asio::Tcp::Cpp {
 
 		void Reset();																				// 老 peer Stop + 新建 peer
 
+		bool HasPackage() const;																	// !c.peer->recvs.empty()
+
 		template<typename T = xx::ObjBase, bool check = true>
 		xx::Shared<T> TryPopPackage();																// 尝试 move 出一条最前面的消息
 
@@ -66,6 +68,10 @@ namespace xx::Asio::Tcp::Cpp {
 			return 0;
 		}
 	};
+
+	inline bool Client::HasPackage() const {
+		return *this && !peer->recvs.empty();
+	}
 
 	template<typename T, bool check>
 	inline xx::Shared<T> Client::TryPopPackage() {

@@ -1,5 +1,5 @@
 ﻿int Update();
 
-#ifdef _WIN32
+#ifdef CC_STATIC
 void Draw();
 #endif

@@ -42,10 +42,6 @@ public:
 	// 拨号客户端, 通信层
 	xx::Asio::Tcp::Cpp::Client c;
 
-	// 状态标识
-	bool ok = false;
-	bool playing = false;
-
 	// 指向玩家自己的 clientId ( 收到 EnterResult 时填充 )
 	uint32_t selfId = 0;
 	// 指向玩家自己的 shooter( 收到 Sync 时定位填充 )
