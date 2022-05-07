@@ -75,7 +75,7 @@ namespace xx::Asio::Tcp::Cpp {
 
 	template<typename T, bool check>
 	inline xx::Shared<T> Client::TryPopPackage() {
-		if (!check || *this && !peer->recvs.empty()) {
+		if (!check || (*this && !peer->recvs.empty())) {
 			auto r = std::move(peer->recvs.front());
 			peer->recvs.pop_front();
 			if constexpr (std::is_same_v<T, xx::ObjBase>) return r;

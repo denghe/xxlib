@@ -518,7 +518,7 @@ namespace xx {
 
 	template<typename T, typename U>
 	std::weak_ptr<T> AsWeak(std::shared_ptr<U> const& v) noexcept {
-		return std::weak_ptr<T>(As<T>(v));
+		return std::weak_ptr<T>(std::shared_ptr<T>(v));
 	}
 
 	template<typename T>

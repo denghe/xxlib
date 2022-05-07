@@ -12,14 +12,14 @@ struct Client : xx::IOCCode<Client> {
 	void Run(asio::ip::address addr, uint16_t port);
 };
 
-struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestCode<CPeer, true>, std::enable_shared_from_this<CPeer> {
+struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestTargetCode<CPeer>, std::enable_shared_from_this<CPeer> {
 	Client& client;
 	std::unordered_set<uint32_t> openServerIds;	// 白名单
 
 	CPeer(Client& client_)
 		: PeerCode(client_.ioc, asio::ip::tcp::socket(client_.ioc))
 		, PeerTimeoutCode(client_.ioc)
-		, PeerRequestCode(client_.om)
+		, PeerRequestTargetCode(client_.om)
 		, client(client_)
 	{}
 

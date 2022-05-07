@@ -476,19 +476,14 @@ namespace xx {
 		// 收到 推送( 返回非 0 表示失败，会 Stop )
 		int ReceivePush(xx::ObjBase_s&& o_) {
 	*/
-	template<typename PeerDeriveType, bool containTarget = false, size_t sendCap = 8192, size_t maxDataLen = 524288>
+	template<typename PeerDeriveType, size_t sendCap = 8192, size_t maxDataLen = 524288>
 	struct PeerRequestCode : PeerHandleMessageCode<PeerDeriveType, maxDataLen> {
 		int32_t reqAutoId = 0;
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
 		ObjManager& om;
 		PeerRequestCode(ObjManager& om_) : om(om_) {}
 
-		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
-		void SendResponse(uint32_t const& target, int32_t const& serial, Args const& ... args) {
-			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, serial, args...));
-		}
-
-		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponse(int32_t const& serial, Args const &... args) {
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
 				if (!PEERTHIS->Alive()) return;
@@ -499,12 +494,7 @@ namespace xx {
 			}
 		}
 
-		template<typename PKG = xx::ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
-		void SendPush(uint32_t const& target, Args const& ... args) {
-			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, 0, args...));
-		}
-
-		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		template<typename PKG = ObjBase, typename ... Args>
 		void SendPush(Args const& ... args) {
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
 				if (!PEERTHIS->Alive()) return;
@@ -515,18 +505,7 @@ namespace xx {
 			}
 		}
 
-		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<containTarget>>
-		awaitable<ObjBase_s> SendRequest(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
-			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
-			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
-			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));
-			co_await iter->second.first.async_wait(use_nothrow_awaitable);
-			auto r = std::move(iter->second.second);
-			reqs.erase(iter);
-			co_return r;
-		}
-
-		template<typename PKG = ObjBase, typename ... Args, class = std::enable_if_t<!containTarget>>
+		template<typename PKG = ObjBase, typename ... Args>
 		awaitable<ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
 				if (!PEERTHIS->Alive()) co_return nullptr;
@@ -555,15 +534,91 @@ namespace xx {
 		}
 
 		int HandleData(xx::Data_r&& dr) {
+			// 读出序号
+			int32_t serial;
+			if (dr.Read(serial)) return __LINE__;
+
+			// 如果是 Response 包，则在 req 字典查找。如果找到就 解包 + 传递 + 协程放行
+			if (serial > 0) {
+				if (auto iter = reqs.find(serial); iter != reqs.end()) {
+					auto o = ReadFrom(dr);
+					if (!o) return __LINE__;
+					iter->second.second = std::move(o);
+					iter->second.first.cancel();
+				}
+			}
+			else {
+				// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
+				if (serial == 0) {
+					static_assert(!Has_Peer_ReceiveTargetPush<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
+						auto o = ReadFrom(dr);
+						if (!o) return __LINE__;
+						if (PEERTHIS->ReceivePush(std::move(o))) return __LINE__;
+					}
+				}
+				// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
+				else {
+					static_assert(!Has_Peer_ReceiveTargetRequest<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
+						auto o = ReadFrom(dr);
+						if (!o) return __LINE__;
+						if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return __LINE__;
+					}
+				}
+				if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
+					if (!PEERTHIS->Alive()) return __LINE__;
+				}
+			}
+			return 0;
+		}
+	};
+
+	template<typename PeerDeriveType, size_t sendCap = 8192, size_t maxDataLen = 524288>
+	struct PeerRequestTargetCode : PeerHandleMessageCode<PeerDeriveType, maxDataLen> {
+		int32_t reqAutoId = 0;
+		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
+		ObjManager& om;
+		PeerRequestTargetCode(ObjManager& om_) : om(om_) {}
+
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		void SendResponse(uint32_t const& target, int32_t const& serial, Args const& ... args) {
+			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, serial, args...));
+		}
+
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		void SendPush(uint32_t const& target, Args const& ... args) {
+			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, 0, args...));
+		}
+
+		template<typename PKG = ObjBase, typename ... Args>
+		awaitable<ObjBase_s> SendRequest(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
+			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
+			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
+			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));
+			co_await iter->second.first.async_wait(use_nothrow_awaitable);
+			auto r = std::move(iter->second.second);
+			reqs.erase(iter);
+			co_return r;
+		}
+
+		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
+			xx::ObjBase_s o;
+			if (om.ReadFrom(dr, o) || (o && o.typeId() == 0)) {
+				om.KillRecursive(o);
+				return {};
+			}
+			return o;
+		}
+
+		int HandleData(xx::Data_r&& dr) {
 			// 读出 target
 			uint32_t target;
-			if constexpr (containTarget) {
-				if (dr.ReadFixed(target)) return __LINE__;
-				if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
-					int r = PEERTHIS->HandleTargetMessage(target, dr);
-					if (r == 0) return 0;		// continue
-					if (r < 0) return __LINE__;
-				}
+			if (dr.ReadFixed(target)) return __LINE__;
+			if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
+				int r = PEERTHIS->HandleTargetMessage(target, dr);
+				if (r == 0) return 0;		// continue
+				if (r < 0) return __LINE__;
 			}
 
 			// 读出序号
@@ -582,40 +637,20 @@ namespace xx {
 			else {
 				// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
 				if (serial == 0) {
-					if constexpr (containTarget) {
-						static_assert(!Has_Peer_ReceivePush<PeerDeriveType>);
-						if constexpr (Has_Peer_ReceiveTargetPush<PeerDeriveType>) {
-							auto o = ReadFrom(dr);
-							if (!o) return __LINE__;
-							if (PEERTHIS->ReceiveTargetPush(target, std::move(o))) return __LINE__;
-						}
-					}
-					else {
-						static_assert(!Has_Peer_ReceiveTargetPush<PeerDeriveType>);
-						if constexpr (Has_Peer_ReceivePush<PeerDeriveType>) {
-							auto o = ReadFrom(dr);
-							if (!o) return __LINE__;
-							if (PEERTHIS->ReceivePush(std::move(o))) return __LINE__;
-						}
+					static_assert(!Has_Peer_ReceivePush<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveTargetPush<PeerDeriveType>) {
+						auto o = ReadFrom(dr);
+						if (!o) return __LINE__;
+						if (PEERTHIS->ReceiveTargetPush(target, std::move(o))) return __LINE__;
 					}
 				}
 				// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
 				else {
-					if constexpr (containTarget) {
-						static_assert(!Has_Peer_ReceiveRequest<PeerDeriveType>);
-						if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
-							auto o = ReadFrom(dr);
-							if (!o) return __LINE__;
-							if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return __LINE__;
-						}
-					}
-					else {
-						static_assert(!Has_Peer_ReceiveTargetRequest<PeerDeriveType>);
-						if constexpr (Has_Peer_ReceiveRequest<PeerDeriveType>) {
-							auto o = ReadFrom(dr);
-							if (!o) return __LINE__;
-							if (PEERTHIS->ReceiveRequest(-serial, std::move(o))) return __LINE__;
-						}
+					static_assert(!Has_Peer_ReceiveRequest<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveTargetRequest<PeerDeriveType>) {
+						auto o = ReadFrom(dr);
+						if (!o) return __LINE__;
+						if (PEERTHIS->ReceiveTargetRequest(target, -serial, std::move(o))) return __LINE__;
 					}
 				}
 				if constexpr (Has_Peer_ReceivePush<PeerDeriveType> || Has_Peer_ReceiveRequest<PeerDeriveType>) {
@@ -643,8 +678,8 @@ namespace xx {
 
 	*/
 	template<typename PeerDeriveType, typename OwnerPeer>
-	struct VPeerCode : asio::noncopyable, PeerRequestCode<PeerDeriveType, false> {
-		using PRC = PeerRequestCode<PeerDeriveType, false>;
+	struct VPeerCode : asio::noncopyable, PeerRequestCode<PeerDeriveType> {
+		using PRC = PeerRequestCode<PeerDeriveType>;
 		asio::io_context& ioc;
 		OwnerPeer* ownerPeer = nullptr;
 		asio::steady_timer timeouter;
