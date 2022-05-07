@@ -29,18 +29,28 @@ struct Logic {
 				if (auto o = c.TryPopPackage()) {
 					c.om.CoutTN(o);
 				}
-				co_await xx::Timeout(100ms);
+				// todo: 机器人逻辑. 模拟操作
+
+				co_await xx::Timeout(1ms);														// 省点 cpu
 			};
 			goto LabBegin;																		// 重来
 		}, detached);
 	}
 };
 
+#ifdef _WIN32
+#include <mmsystem.h>
+#pragma comment(lib,"winmm.lib") 
+#endif
+
 int main() {
+#ifdef _WIN32
+	timeBeginPeriod(1);
+#endif
 	Logic logic;
 	do {
 		logic.c.Update();																		// 每帧来一发
-	    std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));						// 模拟游戏循环延迟
+	    std::this_thread::sleep_for(1ms);														// 模拟游戏循环延迟
 	} while(true);
 	xx::CoutN("end.");
 	return 0;
