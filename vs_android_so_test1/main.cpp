@@ -35,12 +35,12 @@ struct Logic {
 		for (size_t i = 0; i < 100; i++) {
 			auto&& s = sprites.emplace_back().Emplace();
 			s->Init();
-			s->Pos(r3.Next(1, 1000), r3.Next(1, 1000));
+			s->Pos(r3.Next(1, 1920), r3.Next(1, 1080));
 		}
 	}
 	void Update(float delta) {
 		for (auto& s : sprites) {
-			s->Pos(r3.Next(1, 1000), r3.Next(1, 1000));
+			s->Pos(r3.Next(1, 1920), r3.Next(1, 1080));
 		}
 	}
 };
