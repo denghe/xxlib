@@ -17,22 +17,6 @@
       <Configuration>Release</Configuration>
       <Platform>ARM64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x64">
-      <Configuration>Release</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|x86">
-      <Configuration>Debug</Configuration>
-      <Platform>x86</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x86">
-      <Configuration>Release</Configuration>
-      <Platform>x86</Platform>
-    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5cb896d0-ed86-4d5f-a31d-325247b2a80d}</ProjectGuid>
@@ -67,119 +51,31 @@
     <PlatformToolset>Clang_5_0</PlatformToolset>
     <UseOfStl>c++_shared</UseOfStl>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>Clang_5_0</PlatformToolset>
-    <UseOfStl>c++_shared</UseOfStl>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>Clang_5_0</PlatformToolset>
-    <UseOfStl>c++_shared</UseOfStl>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>Clang_5_0</PlatformToolset>
-    <UseOfStl>c++_shared</UseOfStl>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>Clang_5_0</PlatformToolset>
-    <UseOfStl>c++_shared</UseOfStl>
-  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Label="Shared" />
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
-    <UseMultiToolTask>true</UseMultiToolTask>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
-    <UseMultiToolTask>true</UseMultiToolTask>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
-    <UseMultiToolTask>true</UseMultiToolTask>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
-    <UseMultiToolTask>true</UseMultiToolTask>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)../src;$(SolutionDir)../asio_include;$(IncludePath)</IncludePath>
     <UseMultiToolTask>true</UseMultiToolTask>
+    <OutDir>$(SolutionDir)$(Configuration)\Plugins\Android\libs\arm64-v8a</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)../src;$(SolutionDir)../asio_include;$(IncludePath)</IncludePath>
     <UseMultiToolTask>true</UseMultiToolTask>
+    <OutDir>$(SolutionDir)$(Configuration)\Plugins\Android\libs\arm64-v8a</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <UseMultiToolTask>true</UseMultiToolTask>
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)../src;$(SolutionDir)../asio_include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)$(Configuration)\Plugins\Android\libs\armeabi-v7a</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">
     <UseMultiToolTask>true</UseMultiToolTask>
-    <IncludePath>$(SolutionDir)../xxlib/src;$(SolutionDir)../xxlib/asio_include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)../src;$(SolutionDir)../asio_include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)$(Configuration)\Plugins\Android\libs\armeabi-v7a</OutDir>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalOptions>-fcoroutines-ts</AdditionalOptions>
-      <CLanguageStandard>c11</CLanguageStandard>
-      <CppLanguageStandard>gnu++1z</CppLanguageStandard>
-      <ExceptionHandling>Enabled</ExceptionHandling>
-      <EnableNeonCodegen>
-      </EnableNeonCodegen>
-      <RuntimeTypeInfo>true</RuntimeTypeInfo>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalOptions>-fcoroutines-ts</AdditionalOptions>
-      <CLanguageStandard>c11</CLanguageStandard>
-      <CppLanguageStandard>gnu++1z</CppLanguageStandard>
-      <ExceptionHandling>Enabled</ExceptionHandling>
-      <EnableNeonCodegen>
-      </EnableNeonCodegen>
-      <RuntimeTypeInfo>true</RuntimeTypeInfo>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalOptions>-fcoroutines-ts</AdditionalOptions>
-      <CLanguageStandard>c11</CLanguageStandard>
-      <CppLanguageStandard>gnu++1z</CppLanguageStandard>
-      <ExceptionHandling>Enabled</ExceptionHandling>
-      <EnableNeonCodegen>
-      </EnableNeonCodegen>
-      <RuntimeTypeInfo>true</RuntimeTypeInfo>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalOptions>-fcoroutines-ts</AdditionalOptions>
-      <CLanguageStandard>c11</CLanguageStandard>
-      <CppLanguageStandard>gnu++1z</CppLanguageStandard>
-      <ExceptionHandling>Enabled</ExceptionHandling>
-      <EnableNeonCodegen>
-      </EnableNeonCodegen>
-      <RuntimeTypeInfo>true</RuntimeTypeInfo>
-    </ClCompile>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
