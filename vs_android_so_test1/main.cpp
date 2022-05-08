@@ -27,39 +27,92 @@ struct Random3 {
 	}
 };
 
+struct Monster {
+	STRUCT_BASE_CODE_CORE(Monster);
+	Sprite body;
+	float x, y;
+	Monster(float x = 0, float y = 0) : x(x), y(y) {
+		body.Init();
+		body.Pos(x, y);
+	}
+	bool Update() {
+		++y;
+		body.Pos(x, y);
+		return y < 1200;
+	}
+};
+
 struct Logic {
-	std::vector<xx::Shared<Sprite>> sprites;
+	std::vector<xx::Shared<Monster>> monsters;
 	Random3 r3;
 	Logic() {
 		r3.Init();
-		for (size_t i = 0; i < 100; i++) {
-			auto&& s = sprites.emplace_back().Emplace();
-			s->Init();
-			s->Pos(r3.Next(1, 1920), r3.Next(1, 1080));
-		}
 	}
+	void TouchDown(int idx, float x, float y) {
+		monsters.emplace_back().Emplace(x, y);
+	}
+	void TouchUp(int idx, float x, float y) {
+	}
+	void TouchCancel(int idx, float x, float y) {
+	}
+	void TouchMove(int idx, float x, float y) {
+		monsters.emplace_back().Emplace(x, y);
+	}
+
 	void Update(float delta) {
-		for (auto& s : sprites) {
-			s->Pos(r3.Next(1, 1920), r3.Next(1, 1080));
+		monsters.emplace_back().Emplace(r3.Next(0, 1920), r3.Next(0, 1080));
+		for (int i = (int)monsters.size() - 1; i >= 0; --i) {
+			if (!monsters[i]->Update()) {
+				std::swap(*(void**)&monsters[i], *(void**)&monsters.back());
+				monsters.pop_back();
+			}
 		}
 	}
 };
 
 extern "C" {
-	inline Logic* LogicNew() {
+	DLLEXPORT void SetFunc_SpriteNew(FI f) {
+		Externs::SpriteNew = f;
+	}
+	DLLEXPORT void SetFunc_SpriteDelete(FVI f) {
+		Externs::SpriteDelete = f;
+	}
+	DLLEXPORT void SetFunc_SpritePos(FVIFF f) {
+		Externs::SpritePos = f;
+	}
+	// ...
+
+	DLLEXPORT Logic* LogicNew() {
 		return Externs::AllAssigned() ? new Logic() : nullptr;
 	}
-	inline void LogicUpdate(Logic* self, float delta) {
+	DLLEXPORT void LogicUpdate(Logic* self, float delta) {
 		if (!self) return;
 		self->Update(delta);
 	}
-	inline void LogicDelete(Logic* self) {
+	DLLEXPORT void LogicDelete(Logic* self) {
 		if (self) {
 			delete self;
 		}
 	}
-}
 
+	DLLEXPORT void LogicTouchDown(Logic* self, int idx, float x, float y) {
+		if (!self) return;
+		self->TouchDown(idx, x, y);
+	}
+	DLLEXPORT void LogicTouchUp(Logic* self, int idx, float x, float y) {
+		if (!self) return;
+		self->TouchUp(idx, x, y);
+	}
+	DLLEXPORT void LogicTouchCancel(Logic* self, int idx, float x, float y) {
+		if (!self) return;
+		self->TouchCancel(idx, x, y);
+	}
+	DLLEXPORT void LogicTouchMove(Logic* self, int idx, float x, float y) {
+		if (!self) return;
+		self->TouchMove(idx, x, y);
+	}
+	// ...
+}
 
 
 

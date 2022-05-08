@@ -16,7 +16,7 @@
 #ifdef WIN32DLL_EXPORTS
 #  define DLLEXPORT __declspec(dllexport)
 #else
-#  define DLLEXPORT
+#  define DLLEXPORT __attribute__((visibility("default")))
 #endif
 
 #include <xx_asio_tcp_client_cpp.h>
@@ -50,14 +50,20 @@ struct Externs {
 struct Logic;
 
 extern "C" {
-	DLLEXPORT inline void SetFunc_SpriteNew(FI f) { Externs::SpriteNew = f; }
-	DLLEXPORT inline void SetFunc_DeleteSprite(FVI f) { Externs::SpriteDelete = f; }
-	DLLEXPORT inline void SetFunc_SpritePos(FVIFF f) { Externs::SpritePos = f; }
+	DLLEXPORT extern void SetFunc_SpriteNew(FI f);
+	DLLEXPORT extern void SetFunc_SpriteDelete(FVI f);
+	DLLEXPORT extern void SetFunc_SpritePos(FVIFF f);
 	// ...
 
-	DLLEXPORT Logic* LogicNew();
-	DLLEXPORT void LogicUpdate(Logic * self, float delta);
-	DLLEXPORT void LogicDelete(Logic * self);
+	DLLEXPORT extern Logic* LogicNew();
+	DLLEXPORT extern void LogicUpdate(Logic * self, float delta);
+	DLLEXPORT extern void LogicDelete(Logic * self);
+
+	DLLEXPORT extern void LogicTouchDown(Logic* self, int idx, float x, float y);
+	DLLEXPORT extern void LogicTouchUp(Logic* self, int idx, float x, float y);
+	DLLEXPORT extern void LogicTouchCancel(Logic* self, int idx, float x, float y);
+	DLLEXPORT extern void LogicTouchMove(Logic* self, int idx, float x, float y);
+	// ...
 }
 
 #define STRUCT_BASE_CODE_CORE(T) T()=default;T(T const&)=delete;T& operator=(T const&)=delete;
