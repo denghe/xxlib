@@ -112,11 +112,26 @@ public static class DllFuncs
     [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)] public static extern int SetFunc_SpriteDelete(FVI f);
     [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)] public static extern int SetFunc_SpritePos(FVIFF f);
 
+    [AOT.MonoPInvokeCallback(typeof(FI))]
+    public static int Func_SpriteNew()
+    {
+        return MainScript.instance.SpriteNew();
+    }
+    [AOT.MonoPInvokeCallback(typeof(FVI))]
+    public static void Func_SpriteDelete(int selfIndex)
+    {
+        MainScript.instance.DeleteSprite(selfIndex);
+    }
+    [AOT.MonoPInvokeCallback(typeof(FVIFF))]
+    public static void Func_SpritePos(int selfIndex, float x, float y)
+    {
+        MainScript.instance.SpritePos(selfIndex, x, y);
+    }
     public static void SetFuncs()
     {
-        DllFuncs.SetFunc_SpriteNew(() => MainScript.instance.SpriteNew());
-        DllFuncs.SetFunc_SpriteDelete((int selfIndex) => MainScript.instance.DeleteSprite(selfIndex));
-        DllFuncs.SetFunc_SpritePos((int selfIndex, float x, float y) => MainScript.instance.SpritePos(selfIndex, x, y));
+        SetFunc_SpriteNew(Func_SpriteNew);
+        SetFunc_SpriteDelete(Func_SpriteDelete);
+        SetFunc_SpritePos(Func_SpritePos);
     }
 
 
