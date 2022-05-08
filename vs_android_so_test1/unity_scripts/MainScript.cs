@@ -42,6 +42,7 @@ public class MainScript : MonoBehaviour
 
     void Start()
     {
+        Application.targetFrameRate = 60;
         DllFuncs.SetFuncs();
         logic = DllFuncs.LogicNew();
     }
