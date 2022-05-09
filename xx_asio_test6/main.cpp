@@ -15,6 +15,8 @@ struct Logic {
 				goto LabBegin;
 			}
 
+			// co_await c.WaitServerIds(0);
+
 			//c.Send<SS_C2S::Enter>();															// 发 enter 并等待收到 enter result 15 秒
 			//auto er = co_await c.WaitPopPackage<SS_S2C::EnterResult>(15s);
 			//if (!er) goto LabBegin;																// 超时: 重来
