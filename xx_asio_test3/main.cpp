@@ -15,25 +15,25 @@ struct Logic {
 				xx::CoutTN("Dial r = ", r);
 				goto LabBegin;
 			}
+			c.SendPush<SS_C2S::Enter>();														// 发 Enter 
 
-			c.Send<SS_C2S::Enter>();															// 发 enter 并等待收到 enter result 15 秒
-			auto er = co_await c.WaitPopPackage<SS_S2C::EnterResult>(15s);
-			if (!er) goto LabBegin;																// 超时: 重来
-			c.om.CoutTN(er);																	// 等到了 enter result. 打印
+			if (auto er = co_await c.PopPush<SS_S2C::EnterResult>(15s)) {						// 等 EnterResult 包 15 秒
+				c.om.CoutTN(er);																// 打印
+			} else goto LabBegin;
 
-			auto sync = co_await c.WaitPopPackage<SS_S2C::Sync>(15s);							// 等 sync 15 秒
-			if (!sync) goto LabBegin;															// 超时: 重来
-			c.om.CoutTN(sync);																	// 等到了 sync. 打印
-			
+			if (auto sync = co_await c.PopPush<SS_S2C::Sync>(15s)) {							// 继续等 sync 包 15 秒
+				c.om.CoutTN(sync);																// 打印
+			} else goto LabBegin;
+
 			while(c) {																			// 等待 断开 并打印收到的东西
-				if (auto o = c.TryPopPackage()) {
+				if (auto o = c.TryPopPush()) {
 					c.om.CoutTN(o);
-				}
-				// todo: 机器人逻辑. 模拟操作
+				}																				// todo: 机器人逻辑. 模拟操作
 
 				co_await xx::Timeout(1ms);														// 省点 cpu
 			};
-			goto LabBegin;																		// 重来
+
+			goto LabBegin;																		// 断开了: 重来
 		}, detached);
 	}
 };

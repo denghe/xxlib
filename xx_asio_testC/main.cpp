@@ -40,11 +40,11 @@ int main() {
 		}
 		c.om.CoutTN(__LINE__, " c = ", !!c);
 
-		if (auto o = co_await c.SendRequestTo<Ping>(0, 15s, xx::NowSteadyEpoch10m()); o.typeId() == xx::TypeId_v<Pong>) { // 给 0 号服务 发 Ping，等 回包, 超时 15 秒
+		if (auto o = co_await c.SendRequestTo<Ping>(0, 5s, xx::NowSteadyEpoch10m()); o.typeId() == xx::TypeId_v<Pong>) { // 给 0 号服务 发 Ping，等 回包, 超时 ? 秒
 			c.om.CoutTN("delay ms = ", double(xx::NowSteadyEpoch10m() - o.ReinterpretCast<Pong>()->ticks) / 10000.0);
 		} else goto LabBegin;
 
-		if (auto o = co_await c.SendRequestTo<Client_Lobby::Login>(0, 15s, "a"sv, "1"sv)) {	// 继续发个包等回应
+		if (auto o = co_await c.SendRequestTo<Client_Lobby::Login>(0, 5s, "a"sv, "1"sv)) {	// 继续发个包等回应
 			c.om.CoutTN("SendRequest Login a 1, o = "sv, o);								// 输出返回值
 		} else goto LabBegin;
 

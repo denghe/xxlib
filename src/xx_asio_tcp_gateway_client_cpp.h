@@ -5,8 +5,8 @@
 
 namespace xx::Asio::Tcp::Gateway::Cpp {
 	
-	using ReceivedData = std::tuple<uint32_t, int32_t, Data>;										// 收到的数据容器( 含 lua 所有 data )
-	using ReceivedObject = std::tuple<uint32_t, int32_t, ObjBase_s>;								// 收到的数据容器( 含 cpp push + request obj )
+	using ReceivedData = std::tuple<uint32_t, int32_t, Data>;										// 收到的数据容器 serverId + serial + data ( for script )
+	using ReceivedObject = std::tuple<uint32_t, int32_t, ObjBase_s>;								// 收到的数据容器 serverId +serial + obj ( for cpp )
 
 	struct CPeer;
 	struct Client : IOCCode<Client> {

@@ -1,106 +1,102 @@
 ﻿#pragma once
 #include <xx_asio_codes.h>
 
+// 为 cpp 实现一个带 拨号 与 通信 的 tcp 协程 client, 基于帧逻辑, 无需继承, 开箱即用( 从 网关版 删改而来 )
+
 namespace xx::Asio::Tcp::Cpp {
 
-	// 适合以 Push 为主的 Tcp 直连 server，游戏客户端 按 帧 的方式访问. 收到的数据都会堆积在 peer 的 recvs
+	using ReceivedData = std::tuple<int32_t, Data>;													// 收到的数据容器 serial + data ( for script )
+
+	template<typename T = ObjBase>
+	using ReceivedObject = std::tuple<int32_t, Shared<T>>;											// 收到的数据容器 serial + obj ( for cpp )
+
 	struct CPeer;
-	struct Client : xx::IOCCode<Client> {
-		xx::ObjManager om;
+	struct Client : IOCCode<Client> {
+		ObjManager om;
 		std::shared_ptr<CPeer> peer;																// 当前 peer
-		operator bool() const;																		// peer && peer->Alive()
+		std::unordered_set<uint32_t> cppServerIds;													// 属于 cpp 处理的 serverId 存放于此
 
 		std::string domain;																			// 域名/ip. 需要在 拨号 前填充
 		uint16_t port = 0;																			// 端口. 需要在 拨号 前填充
 
 		void SetDomainPort(std::string_view domain_, uint16_t port_);								// 填充 域名/ip, 端口
 
-		void Update();																				// 每帧开始和逻辑结束时 call 一次
+		template<typename...Args>
+		void AddCppServerIds(Args...ids) {															// 添加一到多个 cpp 服务 id
+			(cppServerIds.insert(ids), ...);
+		}
 
-		awaitable<int> Dial();																		// 拨号. 成功连上返回 0
+		void Update();																				// 每帧开始和逻辑结束时 call 一次
 
 		void Reset();																				// 老 peer Stop + 新建 peer
 
-		bool HasPackage() const;																	// !c.peer->recvs.empty()
+		operator bool() const;																		// 检测连接有效性. peer && peer->Alive()
 
-		template<typename T = xx::ObjBase, bool check = true>
-		xx::Shared<T> TryPopPackage();																// 尝试 move 出一条最前面的消息
+		awaitable<int> Dial();																		// 拨号. 成功连上返回 0
 
-		template<typename T = xx::ObjBase>
-		awaitable<xx::Shared<T>> WaitPopPackage(std::chrono::steady_clock::duration d);				// 阻塞等待一条消息并返回。超时时长 d. 超时时返回 {}
+		template<typename T = ObjBase>
+		bool TryPop(ReceivedObject<T>& ro);															// 试获取一条消息内容. 没有则返回 false. 类型不符 填 null
 
-		template<typename PKG = xx::ObjBase, typename ... Args>
-		void Send(Args const& ... args);															// 试着用 peer 来 SendPush
+		bool TryPop(ReceivedData& rd);																// 试获取一条消息数据. 没有则返回 false
+
+		template<typename T = ObjBase>
+		awaitable<bool> Pop(std::chrono::steady_clock::duration d, ReceivedObject<T>& ro);			// 带超时 等待 接收一条消息. 超时返回 false. 类型不符也返回 false
+
+		template<typename PKG = ObjBase, typename ... Args>
+		void SendResponse(int32_t const& serial, Args const& ... args);								// 转发到 peer-> 同名函数
+
+		template<typename PKG = ObjBase, typename ... Args>
+		void SendPush(Args const& ... args);														// 转发到 peer-> 同名函数
+
+		template<typename PKG = ObjBase, typename ... Args>
+		awaitable<ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args);	// 转发到 peer-> 同名函数
+
+		void Send(Data&& d);																		// 转发到 peer-> 同名函数 ( for lua )
+
+		template<typename WaitType = ObjBase>
+		awaitable<Shared<WaitType>> PopPush(std::chrono::steady_clock::duration d);					// Pop 的 直接返回 Push 值版本. 如果 serial != 0 也返回 null
+
+		template<typename T = ObjBase>
+		Shared<T> TryPopPush();																		// 试获取一条 Push. 没有则返回 null. 类型不符 返回 null
 	};
 
-	struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestCode<CPeer>, std::enable_shared_from_this<CPeer> {
+	struct CPeer : PeerCode<CPeer>, PeerTimeoutCode<CPeer>, PeerRequestCode<CPeer>, std::enable_shared_from_this<CPeer> {
 		Client& client;
 		CPeer(Client& client_)
 			: PeerCode(client_.ioc, asio::ip::tcp::socket(client_.ioc))
 			, PeerTimeoutCode(client_.ioc)
 			, PeerRequestCode(client_.om)
 			, client(client_)
-			, waitBlocker(client_.ioc)
+			, objectWaiter(client_.ioc)
 		{
 			ResetTimeout(15s);
 		}
-		std::deque<xx::ObjBase_s> recvs;															// 已收到的 push 数据包
-		asio::steady_timer waitBlocker;
-		int waitTypeId = -1;																		// 0: xx::ObjBase   N: xx::TypeId_v<T>
 
-		void Stop_() {
-			waitBlocker.cancel();
+		std::deque<ReceivedData> recvDatas;															// 已收到的 lua( all ) 数据包集合
+		std::deque<ReceivedObject<>> recvObjs;														// 已收到的 cpp(request, push) 数据包集合
+
+		asio::steady_timer objectWaiter;															// 数据包等待器
+		bool waitingObject = false;																	// 数据包等待状态
+
+		void Stop_() {																				// 所有环境变量恢复初始状态, 取消所有等待
+			recvDatas.clear();
+			recvObjs.clear();
+			waitingObject = false;
+			objectWaiter.cancel();																	// 取消某些等待器
 		}
 
-		int ReceivePush(xx::ObjBase_s&& o_) {
-			ResetTimeout(15s);
-			recvs.push_back(std::move(o_));															// 数据无脑往 recvs 放
-			if (waitTypeId == -1) return 0;
-			else if (waitTypeId == 0) {																// WaitPopPackage<xx::ObjBase>
-				waitBlocker.cancel();
+		int ReceiveRequest(int32_t serial, ObjBase_s&& o_) {
+			recvObjs.emplace_back(serial, std::move(o_));											// 放入 recvObjs
+			if (waitingObject) {																	// 如果发现正在等包
+				waitingObject = false;																// 清理标志位
+				objectWaiter.cancel();																// 放行
 			}
-			else {																					// WaitPopPackage<T>
-				if (recvs.front().typeId() == waitTypeId) {
-					waitBlocker.cancel();
-				}
-			}
-			waitTypeId = -1;																		// cleanup
 			return 0;
 		}
+		int ReceivePush(ObjBase_s&& o_) {
+			return ReceiveRequest(0, std::move(o_));
+		}
 	};
-
-	inline bool Client::HasPackage() const {
-		return *this && !peer->recvs.empty();
-	}
-
-	template<typename T, bool check>
-	inline xx::Shared<T> Client::TryPopPackage() {
-		if (!check || (*this && !peer->recvs.empty())) {
-			auto r = std::move(peer->recvs.front());
-			peer->recvs.pop_front();
-			if constexpr (std::is_same_v<T, xx::ObjBase>) return r;
-			else if (r.typeId() == xx::TypeId_v<T>) return r.ReinterpretCast<T>();
-		}
-		return {};
-	}
-
-	template<typename T>
-	awaitable<xx::Shared<T>> Client::WaitPopPackage(std::chrono::steady_clock::duration d) {
-		if (*this && !peer->recvs.empty()) {
-			co_return TryPopPackage<T, false>();
-		}
-		else {
-			peer->waitBlocker.expires_after(d);
-			if constexpr (std::is_same_v<T, xx::ObjBase>) {
-				peer->waitTypeId = 0;
-			}
-			else {
-				peer->waitTypeId = xx::TypeId_v<T>;
-			}
-			co_await peer->waitBlocker.async_wait(use_nothrow_awaitable);
-			co_return TryPopPackage<T, false>();
-		}
-	}
 
 	inline void Client::SetDomainPort(std::string_view domain_, uint16_t port_) {
 		domain = domain_;
@@ -109,12 +105,6 @@ namespace xx::Asio::Tcp::Cpp {
 
 	inline void Client::Update() {
 		ioc.poll_one();
-	}
-
-	template<typename PKG, typename ... Args>
-	inline void Client::Send(Args const& ... args) {
-		if (!peer || !peer->Alive()) return;
-		peer->SendPush<PKG>(args...);																// 转发到 peer 的 SendPush 函数
 	}
 
 	inline Client::operator bool() const {
@@ -135,12 +125,12 @@ namespace xx::Asio::Tcp::Cpp {
 		asio::ip::address addr;
 		do {
 			asio::ip::tcp::resolver resolver(ioc);													// 创建一个域名解析器
-			auto rr = co_await(resolver.async_resolve(domain, ""sv, use_nothrow_awaitable) || xx::Timeout(5s));	// 开始解析, 得到一个 variant 包含两个协程返回值
+			auto rr = co_await(resolver.async_resolve(domain, ""sv, use_nothrow_awaitable) || Timeout(5s));	// 开始解析, 得到一个 variant 包含两个协程返回值
 			if (rr.index() == 1) co_return __LINE__;												// 如果 variant 存放的是第 2 个结果, 那就是 超时
 			auto& [e, rs] = std::get<0>(rr);														// 展开第一个结果为 err + results
 			if (e) co_return __LINE__;																// 出错: 解析失败
 			auto iter = rs.cbegin();																// 拿到迭代器，指向首个地址
-			if (auto idx = (int)((size_t)xx::NowEpochMilliseconds() % rs.size())) {					// 根据当前 ms 时间点 随机选一个下标
+			if (auto idx = (int)((size_t)NowEpochMilliseconds() % rs.size())) {						// 根据当前 ms 时间点 随机选一个下标
 				std::advance(iter, idx);															// 快进迭代器
 			}
 			addr = iter->endpoint().address();														// 从迭代器获取地址
@@ -149,4 +139,84 @@ namespace xx::Asio::Tcp::Cpp {
 		co_return 0;
 	}
 
+	template<typename T>
+	inline bool Client::TryPop(ReceivedObject<T>& ro) {
+		if (!*this || peer->recvObjs.empty()) return false;
+		auto& o = peer->recvObjs.front();
+		if constexpr (std::is_same_v<T, ObjBase>) {
+			ro = std::move(o);
+		}
+		else {
+			if (std::get<1>(o).typeId() == xx::TypeId_v<T>) {
+				ro = std::move(reinterpret_cast<decltype(ro)>(o));
+			}
+			else {
+				std::get<0>(ro) = 0;
+				std::get<1>(ro).Reset();
+			}
+		}
+		peer->recvObjs.pop_front();
+		return true;
+	}
+
+	inline bool Client::TryPop(ReceivedData& rd) {
+		if (!*this || peer->recvDatas.empty()) return false;
+		rd = std::move(peer->recvDatas.front());
+		peer->recvDatas.pop_front();
+		return true;
+	}
+
+	template<typename T>
+	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, ReceivedObject<T>& ro) {
+		if (!*this) co_return false;																// 异常：已断开
+		if (peer->waitingObject) co_return false;													// 异常：正在等??
+		if (TryPop(ro)) co_return true;																// 如果已经有数据了，立刻填充 & 返回 true
+		peer->waitingObject = true;																	// 标记状态为 正在等
+		peer->objectWaiter.expires_after(d);														// 初始化 timer 超时时长
+		co_await peer->objectWaiter.async_wait(use_nothrow_awaitable);								// 开始等待
+		if (!*this) co_return false;																// 异常：已断开
+		co_return TryPop<T>(ro);																	// 立刻填充 & 返回
+	}
+
+	template<typename PKG, typename ... Args>
+	void Client::SendResponse(int32_t const& serial, Args const& ... args) {
+		if (!*this) return;
+		peer->SendResponse<PKG>(serial, args...);
+	}
+
+	template<typename PKG, typename ... Args>
+	void Client::SendPush(Args const& ... args) {
+		if (!*this) return;
+		peer->SendPush<PKG>(args...);
+	}
+
+	template<typename PKG, typename ... Args>
+	awaitable<ObjBase_s> Client::SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
+		if (!*this) co_return nullptr;
+		co_return co_await peer->SendRequest<PKG>(d, args...);
+	}
+
+	void Client::Send(Data&& d) {
+		if (!*this) return;
+		peer->Send(std::move(d));
+	}
+
+	template<typename WaitType>
+	awaitable<Shared<WaitType>> Client::PopPush(std::chrono::steady_clock::duration d) {
+		if (!*this) co_return nullptr;
+		ReceivedObject<WaitType> ro;
+		co_await Pop(d, ro);
+		if (std::get<0>(ro) == 0) co_return std::move(std::get<1>(ro));
+		om.KillRecursive(std::get<1>(ro));
+		co_return nullptr;
+	}
+
+	template<typename T>
+	Shared<T> Client::TryPopPush() {
+		ReceivedObject<T> ro;
+		if (!TryPop(ro)) return nullptr;
+		if (std::get<0>(ro) == 0) return std::move(std::get<1>(ro));
+		om.KillRecursive(std::get<1>(ro));
+		return nullptr;
+	}
 }
