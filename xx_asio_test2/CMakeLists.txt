@@ -2,28 +2,44 @@ cmake_minimum_required(VERSION 3.10)
 project(xx_asio_test2)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 
-include_directories(
-	../src
-	../3rd
-	../codegen_test3/cpp
-)
+set(srcs)
+set(dirs)
+set(libdirs)
+set(libs)
 
-add_executable(xx_asio_test2
+# global
+if (UNIX)
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
+	list(APPEND libs
+			pthread
+			)
+else()
+	add_definitions("-D_WIN32_WINNT=0x0601")	# for asio
+endif ()
+
+list(APPEND dirs
+		../src
+		../3rd
+		../asio_include
+		../xx_asio_test2
+		)
+list(APPEND srcs
 		main.cpp
-		server.cpp
-		listener.cpp
-		peer.cpp
-		../3rd/ikcp.c
-		../codegen_test3/cpp/ss.cpp
-		ss_ex.cpp
+		../xx_asio_test2/ss.cpp
+		../xx_asio_test2/ss_ex.cpp
 		)
 
-#find_package(mimalloc 1.7 REQUIRED)
 
+link_directories(
+		${libdirs}
+)
+include_directories(
+		${dirs}
+)
+add_executable(xx_asio_test2
+		${srcs}
+		)
 target_link_libraries(xx_asio_test2
-		pthread
-#		readline
-#		mimalloc-static
+		${libs}
 		)

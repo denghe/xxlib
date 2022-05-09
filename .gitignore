@@ -13,3 +13,4 @@ zig-out
 /zig_tests/*.exe
 /zig_tests/*.pdb
 /tool_win32_loader/loader/files_idx.json
+.DS_Store
