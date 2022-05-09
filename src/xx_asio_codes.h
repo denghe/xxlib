@@ -113,7 +113,7 @@ namespace xx {
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + uint32_le 命令标记 + args 的 简单数据 序列化包 并返回
 	template<uint32_t cmdFlag = 0xFFFFFFFFu, typename...Args>
 	xx::Data MakeCommandData(Args const &... cmdAndArgs) {
-		return MakeData<true, false, 512, std::string>(*(ObjManager*)0, cmdFlag, 0, cmdAndArgs...);
+		return MakeData<true, false, 512, std::string>(*(ObjManager*)1, cmdFlag, 0, cmdAndArgs...);
 	}
 
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
@@ -301,6 +301,7 @@ namespace xx {
 		// for client dial connect to server only
 		awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
 			if (!stoped) co_return 1;
+            socket = asio::ip::tcp::socket(ioc);    // for macos
 			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
 			if (r.index()) co_return 2;
 			if (auto& [e] = std::get<0>(r); e) co_return 3;

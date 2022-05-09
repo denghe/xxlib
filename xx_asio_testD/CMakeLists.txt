@@ -10,7 +10,7 @@ set(libs)
 
 # global
 if (UNIX)
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -static")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 	list(APPEND libs
 			pthread
 			)
