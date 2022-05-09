@@ -4,14 +4,13 @@
 // 为 cpp 实现一个带 拨号 与 通信 的 tcp 网关 协程 client, 基于帧逻辑, 无需继承, 开箱即用
 
 namespace xx::Asio::Tcp::Gateway::Cpp {
-
 	
-	using ReceivedData = std::tuple<uint32_t, int32_t, xx::Data>;									// 收到的数据容器( 含 lua 所有 data )
-	using ReceivedObject = std::tuple<uint32_t, int32_t, xx::ObjBase_s>;							// 收到的数据容器( 含 cpp push + request obj )
+	using ReceivedData = std::tuple<uint32_t, int32_t, Data>;										// 收到的数据容器( 含 lua 所有 data )
+	using ReceivedObject = std::tuple<uint32_t, int32_t, ObjBase_s>;								// 收到的数据容器( 含 cpp push + request obj )
 
 	struct CPeer;
-	struct Client : xx::IOCCode<Client> {
-		xx::ObjManager om;
+	struct Client : IOCCode<Client> {
+		ObjManager om;
 		std::shared_ptr<CPeer> peer;																// 当前 peer
 		std::unordered_set<uint32_t> cppServerIds;													// 属于 cpp 处理的 serverId 存放于此
 
@@ -41,19 +40,19 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 
 		awaitable<bool> Pop(std::chrono::steady_clock::duration d, ReceivedObject& ro);				// 带超时 等待 接收一条消息. 超时返回 false
 
-		template<typename PKG = xx::ObjBase, typename ... Args>
+		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args);	// 转发到 peer-> 同名函数
 
-		template<typename PKG = xx::ObjBase, typename ... Args>
+		template<typename PKG = ObjBase, typename ... Args>
 		void SendPushTo(uint32_t const& target, Args const& ... args);								// 转发到 peer-> 同名函数
 
-		template<typename PKG = xx::ObjBase, typename ... Args>
-		awaitable<xx::ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args);	// 转发到 peer-> 同名函数
+		template<typename PKG = ObjBase, typename ... Args>
+		awaitable<ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args);	// 转发到 peer-> 同名函数
 
-		// todo: Send Data for lua
+		void Send(Data&& d);																		// 转发到 peer-> 同名函数 ( for lua )
 	};
 
-	struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestTargetCode<CPeer>, std::enable_shared_from_this<CPeer> {
+	struct CPeer : PeerCode<CPeer>, PeerTimeoutCode<CPeer>, PeerRequestTargetCode<CPeer>, std::enable_shared_from_this<CPeer> {
 		Client& client;
 		CPeer(Client& client_)
 			: PeerCode(client_.ioc, asio::ip::tcp::socket(client_.ioc))
@@ -88,16 +87,16 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 		}
 
 		// 拦截处理特殊 target 路由需求( 返回 0 表示已成功处理，   返回 正数 表示不拦截,    返回负数表示 出错 )
-		int HandleTargetMessage(uint32_t target, xx::Data_r& dr) {
+		int HandleTargetMessage(uint32_t target, Data_r& dr) {
 			ResetTimeout(15s);
 			if (target == 0xFFFFFFFF) return ReceveCommand(dr);										// 收到 command. 转过去处理
+			if (client.cppServerIds.contains(target)) return 1; 									// 属于 cpp 的: passthrough
 			int32_t serial;																			// 读出序号. 出错 返回负数行号( 掐线 )
 			if (dr.Read(serial)) return -__LINE__;
-			if (client.cppServerIds.contains(target)) return 1; 									// 属于 cpp 的: passthrough
-			recvDatas.emplace_back(target, serial, xx::Data(dr.buf + dr.offset, dr.len - dr.offset));	// 属于 lua: 放入 data 容器
+			recvDatas.emplace_back(target, serial, Data(dr.buf + dr.offset, dr.len - dr.offset));	// 属于 lua: 放入 data 容器
 			return 0;																				// 返回 已处理
 		}
-		int ReceveCommand(xx::Data_r& dr) {
+		int ReceveCommand(Data_r& dr) {
 			std::string_view cmd;
 			if (dr.Read(cmd)) return -__LINE__;
 			if (cmd == "open"sv) {																	// 收到 打开服务 指令
@@ -117,10 +116,10 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 				openServerIds.erase(serviceId);														// 从 open列表 移除
 				if (openServerIds.empty()) return -__LINE__;										// 所有服务都关闭了：返回负数( 掐线 )
 			}
-			else return 0;																			// 网关 echo 回来的东西 todo：计算到网关的 ping 值?
-			return 1;																				// 返回 已处理
+			//else																					// 网关 echo 回来的东西 todo：计算到网关的 ping 值?
+			return 0;																				// 返回 已处理
 		}
-		int ReceiveTargetRequest(uint32_t target, int32_t serial, xx::ObjBase_s&& o_) {
+		int ReceiveTargetRequest(uint32_t target, int32_t serial, ObjBase_s&& o_) {
 			recvObjs.emplace_back(target, serial, std::move(o_));									// 放入 recvObjs
 			if (waitingObject) {																	// 如果发现正在等包
 				waitingObject = false;																// 清理标志位
@@ -128,7 +127,7 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 			}
 			return 0;
 		}
-		int ReceiveTargetPush(uint32_t target, xx::ObjBase_s && o_) {
+		int ReceiveTargetPush(uint32_t target, ObjBase_s && o_) {
 			return ReceiveTargetRequest(target, 0, std::move(o_));
 		}
 
@@ -168,12 +167,12 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 		asio::ip::address addr;
 		do {
 			asio::ip::tcp::resolver resolver(ioc);													// 创建一个域名解析器
-			auto rr = co_await(resolver.async_resolve(domain, ""sv, use_nothrow_awaitable) || xx::Timeout(5s));	// 开始解析, 得到一个 variant 包含两个协程返回值
+			auto rr = co_await(resolver.async_resolve(domain, ""sv, use_nothrow_awaitable) || Timeout(5s));	// 开始解析, 得到一个 variant 包含两个协程返回值
 			if (rr.index() == 1) co_return __LINE__;												// 如果 variant 存放的是第 2 个结果, 那就是 超时
 			auto& [e, rs] = std::get<0>(rr);														// 展开第一个结果为 err + results
 			if (e) co_return __LINE__;																// 出错: 解析失败
 			auto iter = rs.cbegin();																// 拿到迭代器，指向首个地址
-			if (auto idx = (int)((size_t)xx::NowEpochMilliseconds() % rs.size())) {					// 根据当前 ms 时间点 随机选一个下标
+			if (auto idx = (int)((size_t)NowEpochMilliseconds() % rs.size())) {						// 根据当前 ms 时间点 随机选一个下标
 				std::advance(iter, idx);															// 快进迭代器
 			}
 			addr = iter->endpoint().address();														// 从迭代器获取地址
@@ -206,7 +205,7 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 		if (!*this) co_return false;																// 异常：已断开
 		if (peer->openWaitServerIds.empty()) co_return true;										// 如果 cmd open 那边 CheckOpens true 会清空参数, 返回 true
 		peer->openWaitServerIds.clear();															// 超时, 清空参数, 不再等待. 返回 false
-		return false;
+		co_return false;
 	}
 
 	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, ReceivedObject& ro) {
@@ -233,8 +232,13 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 	}
 
 	template<typename PKG, typename ... Args>
-	awaitable<xx::ObjBase_s> Client::SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
-		if (!*this) co_return{};
-		co_return peer->SendRequestTo<PKG>(target, d, args...);
+	awaitable<ObjBase_s> Client::SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
+		if (!*this) co_return nullptr;
+		co_return co_await peer->SendRequestTo<PKG>(target, d, args...);
+	}
+
+	void Client::Send(Data&& d) {
+		if (!*this) return;
+		peer->Send(std::move(d));
 	}
 }

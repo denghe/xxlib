@@ -434,7 +434,8 @@ namespace xx {
 				// 检测是否含有 HandleData 函数, 有就调用
 				if constexpr (Has_Peer_HandleData<PeerDeriveType>) {
 					// 调用派生类的 HandleData 函数。如果返回非 0 表示出错，需要 Stop. 返回 0 则继续
-					if (int r = PEERTHIS->HandleData(xx::Data_r(buf, totalLen, sizeof(dataLen)))) return 0;	// Stop
+					if (int r = PEERTHIS->HandleData(xx::Data_r(buf, totalLen, sizeof(dataLen)))) 
+						return 0;	// Stop
 				}
 
 				// 跳到下一个包的开头
@@ -519,6 +520,7 @@ namespace xx {
 				PEERTHIS->Send(MakePackageData<sendCap, PKG>(om, -reqAutoId, args...));
 			}
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped) co_return nullptr;
 			auto r = std::move(iter->second.second);
 			reqs.erase(iter);
 			co_return r;
@@ -597,6 +599,7 @@ namespace xx {
 			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));
 			co_await iter->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped) co_return nullptr;
 			auto r = std::move(iter->second.second);
 			reqs.erase(iter);
 			co_return r;
@@ -604,9 +607,10 @@ namespace xx {
 
 		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
 			xx::ObjBase_s o;
-			if (om.ReadFrom(dr, o) || (o && o.typeId() == 0)) {
+			int r = om.ReadFrom(dr, o);
+			if (r || (o && o.typeId() == 0)) {
 				om.KillRecursive(o);
-				return {};
+				return nullptr;
 			}
 			return o;
 		}
