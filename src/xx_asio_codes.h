@@ -582,17 +582,17 @@ namespace xx {
 		PeerRequestTargetCode(ObjManager& om_) : om(om_) {}
 
 		template<typename PKG = xx::ObjBase, typename ... Args>
-		void SendResponse(uint32_t const& target, int32_t const& serial, Args const& ... args) {
+		void SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args) {
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, serial, args...));
 		}
 
 		template<typename PKG = xx::ObjBase, typename ... Args>
-		void SendPush(uint32_t const& target, Args const& ... args) {
+		void SendPushTo(uint32_t const& target, Args const& ... args) {
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, 0, args...));
 		}
 
 		template<typename PKG = ObjBase, typename ... Args>
-		awaitable<ObjBase_s> SendRequest(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
+		awaitable<ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));

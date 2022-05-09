@@ -91,7 +91,7 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 		{
 			auto nowe10m = xx::NowSteadyEpoch10m();
 			om.CoutTN("SendRequest Ping.ticks = ", nowe10m);
-			if (auto o = co_await p->SendRequest<Ping>(0, 15s, nowe10m); !o) {
+			if (auto o = co_await p->SendRequestTo<Ping>(0, 15s, nowe10m); !o) {
 				om.CoutTN(p->Alive() ? "timeout!" : "stoped!");
 				goto LabEnd;
 			}
@@ -116,7 +116,7 @@ void Client::Run(asio::ip::address addr, uint16_t port) {
 		// 尝试 Login 到 Lobby
 		{
 			om.CoutTN("SendRequest Login a 1");
-			if (auto o = co_await p->SendRequest<Client_Lobby::Login>(0, 15s, "a"sv, "1"sv); !o) {
+			if (auto o = co_await p->SendRequestTo<Client_Lobby::Login>(0, 15s, "a"sv, "1"sv); !o) {
 				om.CoutTN(p->Alive() ? "timeout!" : "stoped!");
 				goto LabEnd;
 			}

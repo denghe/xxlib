@@ -5,9 +5,9 @@
 
 namespace xx::Asio::Tcp::Gateway::Cpp {
 
-	// 收到的数据容器( 含 lua 所有, cpp push + request 类 )
-	using ReceivedData = std::tuple<uint32_t, int32_t, xx::Data>;
-	using ReceivedObject = std::tuple<uint32_t, int32_t, xx::ObjBase_s>;
+	
+	using ReceivedData = std::tuple<uint32_t, int32_t, xx::Data>;									// 收到的数据容器( 含 lua 所有 data )
+	using ReceivedObject = std::tuple<uint32_t, int32_t, xx::ObjBase_s>;							// 收到的数据容器( 含 cpp push + request obj )
 
 	struct CPeer;
 	struct Client : xx::IOCCode<Client> {
@@ -33,23 +33,24 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 
 		awaitable<int> Dial();																		// 拨号. 成功连上返回 0
 
-
 		template<typename...Args>
 		awaitable<bool> WaitOpens(std::chrono::steady_clock::duration d, Args...ids);				// 带超时同时等一批 server id open. 超时返回 false
 
-		bool TryPop(ReceivedObject& ro);
-		bool TryPop(ReceivedData& rd);
+		bool TryPop(ReceivedObject& ro);															// 试获取一条消息内容. 没有则返回 false
+		bool TryPop(ReceivedData& rd);																// 试获取一条消息数据. 没有则返回 false
 
-		//awaitable<bool> Pop( handler )
-		// 
-		//template<typename PKG = xx::ObjBase, typename ... Args>
-		//void SendResponse(Args const& ... args);													//
+		awaitable<bool> Pop(std::chrono::steady_clock::duration d, ReceivedObject& ro);				// 带超时 等待 接收一条消息. 超时返回 false
 
-		//template<typename PKG = xx::ObjBase, typename ... Args>
-		//void SendPush(Args const& ... args);														//
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		void SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args);	// 转发到 peer-> 同名函数
 
-		//template<typename PKG = xx::ObjBase, typename ... Args>
-		//void SendRequest(Args const& ... args);													//
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		void SendPushTo(uint32_t const& target, Args const& ... args);								// 转发到 peer-> 同名函数
+
+		template<typename PKG = xx::ObjBase, typename ... Args>
+		awaitable<xx::ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args);	// 转发到 peer-> 同名函数
+
+		// todo: Send Data for lua
 	};
 
 	struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestTargetCode<CPeer>, std::enable_shared_from_this<CPeer> {
@@ -60,6 +61,7 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 			, PeerRequestTargetCode(client_.om)
 			, client(client_)
 			, openWaiter(client_.ioc)
+			, objectWaiter(client_.ioc)
 		{
 			ResetTimeout(15s);
 		}
@@ -72,10 +74,17 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 		asio::steady_timer openWaiter;																// open 等待器
 		std::vector<uint32_t> openWaitServerIds;													// 参与等待的 id 列表
 
-		void Stop_() {
+		asio::steady_timer objectWaiter;															// 数据包等待器
+		bool waitingObject = false;																	// 数据包等待状态
+
+		void Stop_() {																				// 所有环境变量恢复初始状态, 取消所有等待
 			recvDatas.clear();
 			recvObjs.clear();
+			openServerIds.clear();
+			openWaitServerIds.clear();
+			waitingObject = false;
 			openWaiter.cancel();																	// 取消某些等待器
+			objectWaiter.cancel();																	// 取消某些等待器
 		}
 
 		// 拦截处理特殊 target 路由需求( 返回 0 表示已成功处理，   返回 正数 表示不拦截,    返回负数表示 出错 )
@@ -113,11 +122,14 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 		}
 		int ReceiveTargetRequest(uint32_t target, int32_t serial, xx::ObjBase_s&& o_) {
 			recvObjs.emplace_back(target, serial, std::move(o_));									// 放入 recvObjs
+			if (waitingObject) {																	// 如果发现正在等包
+				waitingObject = false;																// 清理标志位
+				objectWaiter.cancel();																// 放行
+			}
 			return 0;
 		}
 		int ReceiveTargetPush(uint32_t target, xx::ObjBase_s && o_) {
-			recvObjs.emplace_back(target, 0, std::move(o_));										// 放入 recvObjs
-			return 0;
+			return ReceiveTargetRequest(target, 0, std::move(o_));
 		}
 
 		bool CheckOpens() {																			// openWaitServerIds 所有 id 都 open 则返回 true
@@ -185,30 +197,44 @@ namespace xx::Asio::Tcp::Gateway::Cpp {
 
 	template<typename...Args>
 	awaitable<bool> Client::WaitOpens(std::chrono::steady_clock::duration d, Args...ids) {
-		if (!*this) co_return false;															// 异常：已断开
-		if (!peer->openWaitServerIds.empty()) co_return false;									// 异常：正在等??
-		(peer->openWaitServerIds.push_back(ids), ...);											// 存储参数
-		if (peer->CheckOpens()) co_return true;													// 已 open: 返回 true
-		peer->openWaiter.expires_after(d);														// 初始化 timer 超时时长
-		co_await peer->openWaiter.async_wait(use_nothrow_awaitable);							// 开始等待
-		if (!*this) co_return false;															// 异常：已断开
-		if (peer->openWaitServerIds.empty()) co_return true;									// 如果 cmd open 那边 CheckOpens true 会清空参数, 返回 true
-		peer->openWaitServerIds.clear();														// 超时, 清空参数, 不再等待. 返回 false
+		if (!*this) co_return false;																// 异常：已断开
+		if (!peer->openWaitServerIds.empty()) co_return false;										// 异常：正在等??
+		(peer->openWaitServerIds.push_back(ids), ...);												// 存储参数
+		if (peer->CheckOpens()) co_return true;														// 已 open: 返回 true
+		peer->openWaiter.expires_after(d);															// 初始化 timer 超时时长
+		co_await peer->openWaiter.async_wait(use_nothrow_awaitable);								// 开始等待
+		if (!*this) co_return false;																// 异常：已断开
+		if (peer->openWaitServerIds.empty()) co_return true;										// 如果 cmd open 那边 CheckOpens true 会清空参数, 返回 true
+		peer->openWaitServerIds.clear();															// 超时, 清空参数, 不再等待. 返回 false
 		return false;
 	}
 
+	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, ReceivedObject& ro) {
+		if (!*this) co_return false;																// 异常：已断开
+		if (peer->waitingObject) co_return false;													// 异常：正在等??
+		if (TryPop(ro)) co_return true;																// 如果已经有数据了，立刻填充 & 返回 true
+		peer->waitingObject = true;																	// 标记状态为 正在等
+		peer->objectWaiter.expires_after(d);														// 初始化 timer 超时时长
+		co_await peer->objectWaiter.async_wait(use_nothrow_awaitable);								// 开始等待
+		if (!*this) co_return false;																// 异常：已断开
+		co_return TryPop(ro);																		// 立刻填充 & 返回
+	}
 
-	//template<typename PKG, typename ... Args>
-	//inline void Client::Send(Args const& ... args) {
-	//	if (!peer || !peer->Alive()) return;
-	//	peer->SendPush<PKG>(args...);																// 转发到 peer 的 SendPush 函数
-	//}
+	template<typename PKG, typename ... Args>
+	void Client::SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args) {
+		if (!*this) return;
+		peer->SendResponseTo<PKG>(target, serial, args...);
+	}
 
+	template<typename PKG, typename ... Args>
+	void Client::SendPushTo(uint32_t const& target, Args const& ... args) {
+		if (!*this) return;
+		peer->SendPushTo<PKG>(target, args...);
+	}
+
+	template<typename PKG, typename ... Args>
+	awaitable<xx::ObjBase_s> Client::SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
+		if (!*this) co_return{};
+		co_return peer->SendRequestTo<PKG>(target, d, args...);
+	}
 }
-
-
-// for lua
-
-// AddCppServiceId
-// int SendEcho(xx::Data data);
-// int SendTo(int serviceId, int serial, xx::Data data) 
