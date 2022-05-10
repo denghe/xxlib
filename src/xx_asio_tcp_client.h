@@ -3,12 +3,16 @@
 
 // 为 cpp 实现一个带 拨号 与 通信 的 tcp 协程 client, 基于帧逻辑, 无需继承, 开箱即用( 从 网关版 删改而来 )
 
-namespace xx::Asio::Tcp::Cpp {
+namespace xx::Asio::Tcp {
 
-	using ReceivedData = std::tuple<int32_t, Data>;													// 收到的数据容器 serial + data ( for script )
-
-	template<typename T = ObjBase>
-	using ReceivedObject = std::tuple<int32_t, Shared<T>>;											// 收到的数据容器 serial + obj ( for cpp )
+	// 收到的数据容器 T == Data: for script     T == xx::ObjBase_s for c++
+	template<typename T>
+	struct Package {
+		XX_OBJ_STRUCT_H(Package);
+		int32_t serial = 0;
+		T data;
+		Package(int32_t const& serial, T&& data) : serial(serial), data(std::move(data)) {}
+	};
 
 	struct CPeer;
 	struct Client : IOCCode<Client> {
@@ -35,12 +39,18 @@ namespace xx::Asio::Tcp::Cpp {
 		awaitable<int> Dial();																		// 拨号. 成功连上返回 0
 
 		template<typename T = ObjBase>
-		bool TryPop(ReceivedObject<T>& ro);															// 试获取一条消息内容. 没有则返回 false. 类型不符 填 null
+		bool TryPop(Package<Shared<T>>& ro);														// 试获取一条消息内容. 没有则返回 false. 类型不符 填 null
 
-		bool TryPop(ReceivedData& rd);																// 试获取一条消息数据. 没有则返回 false
+		bool TryPop(Package<Data>& rd);																// 试获取一条消息数据. 没有则返回 false
 
 		template<typename T = ObjBase>
-		awaitable<bool> Pop(std::chrono::steady_clock::duration d, ReceivedObject<T>& ro);			// 带超时 等待 接收一条消息. 超时返回 false. 类型不符也返回 false
+		awaitable<bool> Pop(std::chrono::steady_clock::duration d, Package<Shared<T>>& ro);			// 带超时 等待 接收一条消息. 超时返回 false. 类型不符也返回 false
+
+		template<typename T = ObjBase>
+		awaitable<Shared<T>> PopPush(std::chrono::steady_clock::duration d);						// Pop 的 直接返回 Push 值版本. 如果 serial != 0 也返回 null
+
+		template<typename T = ObjBase>
+		Shared<T> TryPopPush();																		// 试获取一条 Push. 没有则返回 null. 类型不符 返回 null
 
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponse(int32_t const& serial, Args const& ... args);								// 转发到 peer-> 同名函数
@@ -52,12 +62,6 @@ namespace xx::Asio::Tcp::Cpp {
 		awaitable<ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args);	// 转发到 peer-> 同名函数
 
 		void Send(Data&& d);																		// 转发到 peer-> 同名函数 ( for lua )
-
-		template<typename WaitType = ObjBase>
-		awaitable<Shared<WaitType>> PopPush(std::chrono::steady_clock::duration d);					// Pop 的 直接返回 Push 值版本. 如果 serial != 0 也返回 null
-
-		template<typename T = ObjBase>
-		Shared<T> TryPopPush();																		// 试获取一条 Push. 没有则返回 null. 类型不符 返回 null
 	};
 
 	struct CPeer : PeerCode<CPeer>, PeerTimeoutCode<CPeer>, PeerRequestCode<CPeer>, std::enable_shared_from_this<CPeer> {
@@ -72,8 +76,8 @@ namespace xx::Asio::Tcp::Cpp {
 			ResetTimeout(15s);
 		}
 
-		std::deque<ReceivedData> recvDatas;															// 已收到的 lua( all ) 数据包集合
-		std::deque<ReceivedObject<>> recvObjs;														// 已收到的 cpp(request, push) 数据包集合
+		std::deque<Package<Data>> recvDatas;														// 已收到的 lua( all ) 数据包集合
+		std::deque<Package<ObjBase_s>> recvObjs;													// 已收到的 cpp(request, push) 数据包集合
 
 		asio::steady_timer objectWaiter;															// 数据包等待器
 		bool waitingObject = false;																	// 数据包等待状态
@@ -140,26 +144,27 @@ namespace xx::Asio::Tcp::Cpp {
 	}
 
 	template<typename T>
-	inline bool Client::TryPop(ReceivedObject<T>& ro) {
+	inline bool Client::TryPop(Package<Shared<T>>& ro) {
 		if (!*this || peer->recvObjs.empty()) return false;
 		auto& o = peer->recvObjs.front();
 		if constexpr (std::is_same_v<T, ObjBase>) {
 			ro = std::move(o);
 		}
 		else {
-			if (std::get<1>(o).typeId() == xx::TypeId_v<T>) {
-				ro = std::move(reinterpret_cast<decltype(ro)>(o));
+			static_assert(std::is_base_of_v<ObjBase, T>);
+			if (o.data.typeId() == xx::TypeId_v<T>) {
+				ro = std::move(reinterpret_cast<Package<Shared<T>>&>(o));
 			}
 			else {
-				std::get<0>(ro) = 0;
-				std::get<1>(ro).Reset();
+				ro.serial = 0;
+				ro.data.Reset();
 			}
 		}
 		peer->recvObjs.pop_front();
 		return true;
 	}
 
-	inline bool Client::TryPop(ReceivedData& rd) {
+	inline bool Client::TryPop(Package<Data>& rd) {
 		if (!*this || peer->recvDatas.empty()) return false;
 		rd = std::move(peer->recvDatas.front());
 		peer->recvDatas.pop_front();
@@ -167,7 +172,7 @@ namespace xx::Asio::Tcp::Cpp {
 	}
 
 	template<typename T>
-	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, ReceivedObject<T>& ro) {
+	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, Package<Shared<T>>& ro) {
 		if (!*this) co_return false;																// 异常：已断开
 		if (peer->waitingObject) co_return false;													// 异常：正在等??
 		if (TryPop(ro)) co_return true;																// 如果已经有数据了，立刻填充 & 返回 true
@@ -176,6 +181,25 @@ namespace xx::Asio::Tcp::Cpp {
 		co_await peer->objectWaiter.async_wait(use_nothrow_awaitable);								// 开始等待
 		if (!*this) co_return false;																// 异常：已断开
 		co_return TryPop<T>(ro);																	// 立刻填充 & 返回
+	}
+
+	template<typename T>
+	awaitable<Shared<T>> Client::PopPush(std::chrono::steady_clock::duration d) {
+		if (!*this) co_return nullptr;
+		Package<Shared<T>> ro;
+		co_await Pop(d, ro);
+		if (ro.serial == 0) co_return std::move(ro.data);
+		om.KillRecursive(ro.data);
+		co_return nullptr;
+	}
+
+	template<typename T>
+	Shared<T> Client::TryPopPush() {
+		Package<Shared<T>> ro;
+		if (!TryPop(ro)) return nullptr;
+		if (ro.serial == 0) return std::move(ro.data);
+		om.KillRecursive(ro.data);
+		return nullptr;
 	}
 
 	template<typename PKG, typename ... Args>
@@ -196,27 +220,8 @@ namespace xx::Asio::Tcp::Cpp {
 		co_return co_await peer->SendRequest<PKG>(d, args...);
 	}
 
-	void Client::Send(Data&& d) {
+	inline void Client::Send(Data&& d) {
 		if (!*this) return;
 		peer->Send(std::move(d));
-	}
-
-	template<typename WaitType>
-	awaitable<Shared<WaitType>> Client::PopPush(std::chrono::steady_clock::duration d) {
-		if (!*this) co_return nullptr;
-		ReceivedObject<WaitType> ro;
-		co_await Pop(d, ro);
-		if (std::get<0>(ro) == 0) co_return std::move(std::get<1>(ro));
-		om.KillRecursive(std::get<1>(ro));
-		co_return nullptr;
-	}
-
-	template<typename T>
-	Shared<T> Client::TryPopPush() {
-		ReceivedObject<T> ro;
-		if (!TryPop(ro)) return nullptr;
-		if (std::get<0>(ro) == 0) return std::move(std::get<1>(ro));
-		om.KillRecursive(std::get<1>(ro));
-		return nullptr;
 	}
 }

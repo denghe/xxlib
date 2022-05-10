@@ -17,8 +17,9 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asiokcpclient.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_codes.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_client_cpp.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_gateway_client_cpp.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_client.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_gateway_client.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_asio_tcp_gateway_client.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bits.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bufholder.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_combopool.h" />

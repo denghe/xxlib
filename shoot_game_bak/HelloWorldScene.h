@@ -4,7 +4,7 @@
 #include <optional>
 #include <vector>
 #include <memory>
-#include <xx_asio_tcp_client_cpp.h>
+#include <xx_asio_tcp_client.h>
 #include <ss.h>
 #include <xx_queue.h>
 
@@ -40,7 +40,7 @@ public:
 	double secs = 0;
 
 	// 拨号客户端, 通信层
-	xx::Asio::Tcp::Cpp::Client c;
+	xx::Asio::Tcp::Client c;
 
 	// 指向玩家自己的 clientId ( 收到 EnterResult 时填充 )
 	uint32_t selfId = 0;

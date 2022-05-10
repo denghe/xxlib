@@ -4,7 +4,7 @@
 // gateway  54000( for client )
 
 // client
-#include "xx_asio_tcp_gateway_client_cpp.h"
+#include "xx_asio_tcp_gateway_client.h"
 #include "pkg.h"
 
 #ifdef _WIN32
@@ -17,7 +17,7 @@ int main() {
 	timeBeginPeriod(1);
 #endif
 
-	xx::Asio::Tcp::Gateway::Cpp::Client c;
+	xx::Asio::Tcp::Gateway::Client c;
 	co_spawn(c.ioc, [&]()->awaitable<void> {
 		c.SetDomainPort("127.0.0.1", 54000);												// 初始化连接参数
 		c.AddCppServerIds(0);																// 设置当前 0 号 server 的处理代码为 cpp 端

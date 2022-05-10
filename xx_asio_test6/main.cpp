@@ -1,9 +1,9 @@
 ﻿// test xx_asio_tcp_gateway_client_cpp.h 
 
-#include <xx_asio_tcp_gateway_client_cpp.h>
+#include <xx_asio_tcp_gateway_client.h>
 
 struct Logic {
-	xx::Asio::Tcp::Gateway::Cpp::Client c;
+	xx::Asio::Tcp::Gateway::Client c;
 	Logic() {
 		co_spawn(c.ioc, [this]()->awaitable<void> {
 			c.SetDomainPort("127.0.0.1", 12345);												// 填充域名和端口

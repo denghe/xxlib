@@ -115,63 +115,61 @@ LabBegin:
 		goto LabBegin;
 	}
 
-	c.Send<SS_C2S::Enter>();																	// 发 enter
-	if (auto o = co_await c.WaitPopPackage<SS_S2C::EnterResult>(5s)) {							// 等 enter result 包 ? 秒
-		selfId = o->clientId;																	// 等到: 存储自己的 id
+	c.SendPush<SS_C2S::Enter>();															// 发 enter
+	if (auto o = co_await c.PopPush<SS_S2C::EnterResult>(5s)) {								// 等 enter result 包 ? 秒
+		selfId = o->clientId;																// 等到: 存储自己的 id
 	}
-	else goto LabBegin;																			// 如果超时，重连
+	else goto LabBegin;																		// 如果超时，重连
 
-	if (auto o = co_await c.WaitPopPackage<SS_S2C::Sync>(5s)) {									// 等 sync 包 ? 秒
-		scene = std::move(o->scene);															// 等到: 存储 scene
+	if (auto o = co_await c.PopPush<SS_S2C::Sync>(5s)) {									// 等 sync 包 ? 秒
+		scene = std::move(o->scene);														// 等到: 存储 scene
 	}
-	else goto LabBegin;																			// 如果超时，重连
+	else goto LabBegin;																		// 如果超时，重连
 
-	DrawPlay();																					// 开始游戏
+	DrawPlay();																				// 开始游戏
 	do {
 		bool updated = false;
-		if (c.HasPackage()) {																	// 如果有包就处理。没有也要空转一次
-			while (auto o = c.TryPopPackage()) {												// 继续处理 events 直到没有。尝试拿出一个收到的包
-				if (!c.om.IsBaseOf<SS_S2C::Event>(o.typeId())) {								// 确保拿到的是 Event 基类
-					c.om.CoutTN("receive a unhandled base type message: ", o);
-					c.Reset();
-					break;
-				}
-				auto&& e = o.ReinterpretCast<SS_S2C::Event>();									// 类型还原备用
-
-				if (e->frameNumber > scene->frameNumber) {										// 看看要不要追帧
-					xx::CoutTN("fast forward from ", scene->frameNumber, " to ", e->frameNumber);
-					do {
-						scene->Update();														// 追帧并备份
-						Backup();
-					} while (e->frameNumber == scene->frameNumber);								// 判断追帧次数
-				} else if (e->frameNumber < scene->frameNumber) {								// 看看要不要回滚
-					if (int r = Rollback(e->frameNumber)) goto LabBegin;						// 回滚。失败（网络太卡？已定位不到历史数据）则重新拨号
-				}
-				
-				for (auto& cid : e->quits) {													// 处理玩家退出( 优先于 进入 )
-					scene->shooters.erase(cid);													// 移除相关玩家对象
-				}
-				
-				for (auto& s : e->enters) {														// 处理玩家进入
-					auto r = scene->shooters.try_emplace(s->clientId, s);						// 将 shooters 添加到场景
-					assert(r.second);	// 不应该失败
-					s->scene = scene;															// 恢复引用关系啥的
-					if (selfId == s->clientId) {												// 如果是自己，就存储其 ptr
-						self = s;
-					}
-				}
-
-				
-				for (auto& c : e->css) {														// 处理玩家输入状态
-					auto iter = scene->shooters.find(std::get<0>(c));							// 查找 shooter
-					assert(iter != scene->shooters.end());	// 不应该找不到
-					iter->second->cs = std::get<1>(c);											// 应用 control state
-				}
-				
-				scene->Update();																// 更新场景( 追帧 )
-				Backup();																		// 备份
-				updated = true;
+		while (auto o = c.TryPopPush()) {													// 继续处理 events 直到没有。尝试拿出一个收到的包
+			if (!c.om.IsBaseOf<SS_S2C::Event>(o.typeId())) {								// 确保拿到的是 Event 基类
+				c.om.CoutTN("receive a unhandled base type message: ", o);
+				c.Reset();
+				break;
 			}
+			auto&& e = o.ReinterpretCast<SS_S2C::Event>();									// 类型还原备用
+
+			if (e->frameNumber > scene->frameNumber) {										// 看看要不要追帧
+				xx::CoutTN("fast forward from ", scene->frameNumber, " to ", e->frameNumber);
+				do {
+					scene->Update();														// 追帧并备份
+					Backup();
+				} while (e->frameNumber == scene->frameNumber);								// 判断追帧次数
+			} else if (e->frameNumber < scene->frameNumber) {								// 看看要不要回滚
+				if (int r = Rollback(e->frameNumber)) goto LabBegin;						// 回滚。失败（网络太卡？已定位不到历史数据）则重新拨号
+			}
+				
+			for (auto& cid : e->quits) {													// 处理玩家退出( 优先于 进入 )
+				scene->shooters.erase(cid);													// 移除相关玩家对象
+			}
+				
+			for (auto& s : e->enters) {														// 处理玩家进入
+				auto r = scene->shooters.try_emplace(s->clientId, s);						// 将 shooters 添加到场景
+				assert(r.second);	// 不应该失败
+				s->scene = scene;															// 恢复引用关系啥的
+				if (selfId == s->clientId) {												// 如果是自己，就存储其 ptr
+					self = s;
+				}
+			}
+
+				
+			for (auto& c : e->css) {														// 处理玩家输入状态
+				auto iter = scene->shooters.find(std::get<0>(c));							// 查找 shooter
+				assert(iter != scene->shooters.end());	// 不应该找不到
+				iter->second->cs = std::get<1>(c);											// 应用 control state
+			}
+				
+			scene->Update();																// 更新场景( 追帧 )
+			Backup();																		// 备份
+			updated = true;
 		}
 
 		while (totalDelta > (1.f / 60.f)) {														// 开始消耗时间池的时间( 处理本地输入，转为网络包发出 )
@@ -211,7 +209,7 @@ LabBegin:
 				// 跨频率未放开，则视为 翻转（也就是和当前策略一样）
 				// 鼠标位置跳跃问题，大概只能结合策划案来处理，约定 shooter 转身速度不能超过每秒多少角度
 				// 这样就可以让 shooter 多用几帧来转身，最终面向鼠标，达到平滑插值的效果
-				c.Send(cmd);
+				c.SendPush(cmd);
 			}
 		}
 		// todo: 超时发送个防掉线包，避免 server kick
