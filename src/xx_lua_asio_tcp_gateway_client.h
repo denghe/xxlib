@@ -76,11 +76,11 @@ namespace xx::Lua {
 				return 0;
 			});
 			SetFieldCClosure(L, "Send", [](auto L)->int {
-				To<U*>(L)->Send(std::move(*To<Data*>(L, 2)));
+				To<U*>(L)->Send(std::move(*To<xx::Data*>(L, 2)));
 				return 0;
 			});
 			SetFieldCClosure(L, "TryPop", [](auto L)->int {
-				xx::Asio::Tcp::Gateway::Package<Data> pkg;
+				xx::Asio::Tcp::Gateway::Package<xx::Data> pkg;
 				return To<U*>(L)->TryPop(pkg) ? Push(L, pkg.serverId, pkg.serial, std::move(pkg.data)) : 0;
 			});
 		}

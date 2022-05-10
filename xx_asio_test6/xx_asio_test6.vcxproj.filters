@@ -4,4 +4,8 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="..\lua-5.4.x\src\onelua.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="lib.lua" />
+    <None Include="main.lua" />
+  </ItemGroup>
 </Project>

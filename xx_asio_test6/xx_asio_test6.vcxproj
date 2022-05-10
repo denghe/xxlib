@@ -96,6 +96,10 @@
     <ClCompile Include="..\lua-5.4.x\src\onelua.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="lib.lua" />
+    <None Include="main.lua" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

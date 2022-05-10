@@ -513,18 +513,22 @@ namespace xx {
 				if (!PEERTHIS->Alive()) co_return nullptr;
 			}
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
-			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
+			auto key = reqAutoId;
+			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
 				PEERTHIS->ownerPeer->Send(MakeTargetPackageData<sendCap, PKG>(om, PEERTHIS->clientId, -reqAutoId, args...));
 			}
 			else {
 				PEERTHIS->Send(MakePackageData<sendCap, PKG>(om, -reqAutoId, args...));
 			}
-			co_await iter->second.first.async_wait(use_nothrow_awaitable);
+			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
 			if (PEERTHIS->stoped) co_return nullptr;
-			auto r = std::move(iter->second.second);
-			reqs.erase(iter);
-			co_return r;
+			if (auto iter = reqs.find(key); iter == reqs.end()) co_return nullptr;
+			else {
+				auto r = std::move(iter->second.second);
+				reqs.erase(iter);
+				co_return r;
+			}
 		}
 
 		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
@@ -597,13 +601,17 @@ namespace xx {
 		template<typename PKG = ObjBase, typename ... Args>
 		awaitable<ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
-			auto iter = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s())).first;
+			auto key = reqAutoId;
+			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));
-			co_await iter->second.first.async_wait(use_nothrow_awaitable);
+			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
 			if (PEERTHIS->stoped) co_return nullptr;
-			auto r = std::move(iter->second.second);
-			reqs.erase(iter);
-			co_return r;
+			if (auto iter = reqs.find(key); iter == reqs.end()) co_return nullptr;
+			else {
+				auto r = std::move(iter->second.second);
+				reqs.erase(iter);
+				co_return r;
+			}
 		}
 
 		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
