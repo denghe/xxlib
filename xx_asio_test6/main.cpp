@@ -1,6 +1,6 @@
-﻿// test xx_asio_tcp_gateway_client_cpp.h 
+﻿// test xx_lua_asio_tcp_gateway_client.h 
 
-#include <xx_asio_tcp_gateway_client.h>
+#include <xx_lua_asio_tcp_gateway_client.h>
 
 struct Logic {
 	xx::Asio::Tcp::Gateway::Client c;

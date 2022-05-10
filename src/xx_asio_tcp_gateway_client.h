@@ -23,6 +23,7 @@ namespace xx::Asio::Tcp::Gateway {
 
 		std::string domain;																			// 域名/ip. 需要在 拨号 前填充
 		uint16_t port = 0;																			// 端口. 需要在 拨号 前填充
+		bool busy = false;																			// 繁忙标志 for lua ( lua bind 函数在 co_spawn 之前 check & set, 之后 clear )
 
 		void SetDomainPort(std::string_view domain_, uint16_t port_);								// 填充 域名/ip, 端口
 
@@ -41,6 +42,8 @@ namespace xx::Asio::Tcp::Gateway {
 
 		template<typename...Args>
 		awaitable<bool> WaitOpens(std::chrono::steady_clock::duration d, Args...ids);				// 带超时同时等一批 server id open. 超时返回 false
+
+		bool IsOpened(uint32_t serverId);															// 检查当前某 serverId 是否已 open
 
 		template<typename T = ObjBase>
 		bool TryPop(Package<Shared<T>>& ro);														// 试获取一条消息内容. 没有则返回 false. 类型不符 填 null
@@ -65,7 +68,8 @@ namespace xx::Asio::Tcp::Gateway {
 		template<typename PKG = ObjBase, typename ... Args>
 		awaitable<ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args);	// 转发到 peer-> 同名函数
 
-		void Send(Data&& d);																		// 转发到 peer-> 同名函数 ( for lua )
+		void SendTo(uint32_t const& target, int32_t const& serial, Span const& d);					// 转发到 peer-> Send( MakeData ... ) ( for lua )
+		void Send(Data && d);																		// 转发到 peer-> 同名函数 ( for lua )
 	};
 
 	struct CPeer : PeerCode<CPeer>, PeerTimeoutCode<CPeer>, PeerRequestTargetCode<CPeer>, std::enable_shared_from_this<CPeer> {
@@ -197,6 +201,11 @@ namespace xx::Asio::Tcp::Gateway {
 		co_return 0;
 	}
 
+	inline bool Client::IsOpened(uint32_t serverId) {
+		if (!*this || peer->openServerIds.empty()) return false;
+		return peer->openServerIds.contains(serverId);
+	}
+
 	template<typename T>
 	inline bool Client::TryPop(Package<Shared<T>>& ro) {
 		if (!*this || peer->recvObjs.empty()) return false;
@@ -287,7 +296,11 @@ namespace xx::Asio::Tcp::Gateway {
 		co_return co_await peer->SendRequestTo<PKG>(target, d, args...);
 	}
 
-	void Client::Send(Data&& d) {
+	void Client::SendTo(uint32_t const& target, int32_t const& serial, Span const& d) {
+		if (!*this) return;
+		peer->Send(MakeData<true, true, 8192, Span>(*(ObjManager*)1, target, serial, d));
+	}
+	void Client::Send(Data && d) {
 		if (!*this) return;
 		peer->Send(std::move(d));
 	}
