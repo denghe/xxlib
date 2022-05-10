@@ -1,12 +1,12 @@
 ﻿#pragma once
 #include <xx_asio_tcp_gateway_client.h>
-#include "xx_lua_bind.h"
+#include "xx_lua_data.h"
 
 /*
 xx::Asio::Tcp::Gateway::Client 映射到 lua
 
 C++ 注册:
-	xx::Lua::Asio::Tcp::Gateway::Client::Register( L )
+	xx::Lua::Asio::Tcp::Gateway::Client::Register( L );
 
 LUA 中的 全局 创建 函数:
 	NewAsioTcpGatewayClient()
