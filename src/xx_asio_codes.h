@@ -24,18 +24,26 @@ using asio::detached;
 
 namespace xx {
 
+	// 适配 asio::ip::address
+	template<typename T>
+	struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<asio::ip::address, T>>> {
+		static inline void Append(std::string& s, T const& in) {
+			::xx::Append(s, in.to_string().c_str());
+		}
+	};
+
+	// 适配 asio::ip::tcp::endpoint
+	template<typename T>
+	struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<asio::ip::tcp::endpoint, T>>> {
+		static inline void Append(std::string& s, T const& in) {
+			::xx::Append(s, in.address(), ":", in.port());
+		}
+	};
+
 	inline awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
 		asio::steady_timer t(co_await asio::this_coro::executor);
 		t.expires_after(d);
 		co_await t.async_wait(use_nothrow_awaitable);
-	}
-
-	inline std::string EndPointToString(asio::ip::tcp::endpoint const& ep) {
-		return ep.address().to_string() + ":" + std::to_string(ep.port());
-	}
-
-	inline std::string RemoteEndPointToString(asio::ip::tcp::socket const& s) {
-		return EndPointToString(s.remote_endpoint());
 	}
 
 	template<typename ServerDeriveType>
@@ -487,8 +495,8 @@ namespace xx {
 
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponse(int32_t const& serial, Args const &... args) {
+			if (!PEERTHIS->Alive()) return;
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
-				if (!PEERTHIS->Alive()) return;
 				PEERTHIS->ownerPeer->Send(MakeTargetPackageData<sendCap, PKG>(om, PEERTHIS->clientId, serial, args...));
 			}
 			else {
@@ -498,8 +506,8 @@ namespace xx {
 
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendPush(Args const& ... args) {
+			if (!PEERTHIS->Alive()) return;
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
-				if (!PEERTHIS->Alive()) return;
 				PEERTHIS->ownerPeer->Send(MakeTargetPackageData<sendCap, PKG>(om, PEERTHIS->clientId, 0, args...));
 			}
 			else {
@@ -509,12 +517,11 @@ namespace xx {
 
 		template<typename PKG = ObjBase, typename ... Args>
 		awaitable<ObjBase_s> SendRequest(std::chrono::steady_clock::duration d, Args const& ... args) {
-			if constexpr (Has_VPeerCode<PeerDeriveType>) {
-				if (!PEERTHIS->Alive()) co_return nullptr;
-			}
+			if (!PEERTHIS->Alive()) co_return nullptr;
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto key = reqAutoId;
 			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
+			assert(result.second);
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
 				PEERTHIS->ownerPeer->Send(MakeTargetPackageData<sendCap, PKG>(om, PEERTHIS->clientId, -reqAutoId, args...));
 			}
@@ -523,12 +530,9 @@ namespace xx {
 			}
 			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
 			if (PEERTHIS->stoped) co_return nullptr;
-			if (auto iter = reqs.find(key); iter == reqs.end()) co_return nullptr;
-			else {
-				auto r = std::move(iter->second.second);
-				reqs.erase(iter);
-				co_return r;
-			}
+			auto r = std::move(result.first->second.second);
+			reqs.erase(result.first);
+			co_return r;
 		}
 
 		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
@@ -603,15 +607,13 @@ namespace xx {
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto key = reqAutoId;
 			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
+			assert(result.second);
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));
 			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
 			if (PEERTHIS->stoped) co_return nullptr;
-			if (auto iter = reqs.find(key); iter == reqs.end()) co_return nullptr;
-			else {
-				auto r = std::move(iter->second.second);
-				reqs.erase(iter);
-				co_return r;
-			}
+			auto r = std::move(result.first->second.second);
+			reqs.erase(result.first);
+			co_return r;
 		}
 
 		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {

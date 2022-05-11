@@ -505,5 +505,63 @@ namespace xx::Lua {
         }
     }
 
+    // 注册一些常用的全局函数，变量
+    inline void RegisterGlobalUtils(lua_State* const& L) {
 
+        SetGlobal(L, "null", (void*)0);
+
+        SetGlobalCClosure(L, "NowEpochMS", [](auto L)->int {
+            return Push(L, (double)NowSteadyEpochMilliseconds());
+        });
+
+        SetGlobalCClosure(L, "NowEpoch10m", [](auto L)->int { 
+            return Push(L,
+#if LUA_VERSION_NUM == 501
+            (void*)
+#else
+            (int64_t)
+#endif
+            NowSteadyEpoch10m());
+        });
+
+        SetGlobalCClosure(L, "Int64ToNumber", [](auto L)->int { 
+#if LUA_VERSION_NUM == 501
+            return Push(L, (double)(int64_t)(size_t)To<void*>(L, 1));
+#else
+            return Push(L, (double)To<int64_t>(L, 1));
+#endif
+        });
+
+        SetGlobalCClosure(L, "NumberToInt64", [](auto L)->int { 
+            return Push(L, 
+#if LUA_VERSION_NUM == 501
+                (void*)(size_t)
+#else
+                (int64_t)
+#endif
+                To<double>(L, 1));
+        });
+
+        SetGlobalCClosure(L, "Int64ToString", [](auto L)->int {
+            return Push(L, std::to_string(
+#if LUA_VERSION_NUM == 501
+                (int64_t)(size_t)To<(void*)>(L, 1)
+#else
+                To<int64_t>(L, 1)
+#endif
+            ));
+        });
+
+        SetGlobalCClosure(L, "StringToInt64", [](auto L)->int {
+            return Push(L, 
+#if LUA_VERSION_NUM == 501
+                (void*)
+#else
+                (int64_t)
+#endif
+                atoll(To<char*>(L, 1)));
+        });
+
+        // todo: more
+    }
 }

@@ -5,7 +5,8 @@
     <ClCompile Include="..\lua-5.4.x\src\onelua.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="lib.lua" />
     <None Include="main.lua" />
+    <None Include="g_net.lua" />
+    <None Include="pkg.lua" />
   </ItemGroup>
 </Project>

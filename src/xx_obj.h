@@ -37,10 +37,11 @@ namespace xx {
 			return 0;
 		}
 		static inline void Append(ObjManager& om, std::string& s, T const& in) {
-			std::string ss(TypeName_v<T>);
-			assert(false);
+			return xx::Append(s, in);
 		}
 		static inline void AppendCore(ObjManager& om, std::string& s, T const& in) {
+			std::string ss(TypeName_v<T>);
+			assert(false);
 		}
 		static inline void Clone(ObjManager& om, T const& in, T& out) {
 			out = in;
@@ -713,14 +714,6 @@ namespace xx {
 					}
 					}, v);
 				s.push_back(']');
-			}
-			else if constexpr (std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>) {
-				s.push_back('"');
-				s.append(v);
-				s.push_back('"');
-			}
-			else if constexpr (IsLiteral_v<T> || std::is_same_v<std::decay_t<T>, char const*> || std::is_same_v<std::decay_t<T>, char*> ) {
-				s.append(v);
 			}
 			else {
 				ObjFuncs<T>::Append(*this, s, v);

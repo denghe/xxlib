@@ -19,8 +19,8 @@ LUA 中的 全局 创建 函数:
 
 namespace xx::Lua::Asio::Tcp::Gateway::Client {
 	// 在 lua 中注册 全局 创建 函数
-	inline void Register(lua_State* const& L) {
-		SetGlobalCClosure(L, "NewAsioTcpGatewayClient", [](auto L)->int {
+	inline void Register(lua_State* const& L, char const* keyName = "NewAsioTcpGatewayClient") {
+		SetGlobalCClosure(L, keyName, [](auto L)->int {
 			return PushUserdata<xx::Asio::Tcp::Gateway::Client>(L);
 		});
 	}

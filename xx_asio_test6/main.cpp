@@ -6,15 +6,21 @@
 struct Logic : asio::noncopyable {
 	xx::Lua::State L;
 	Logic() {
+		xx::Lua::RegisterGlobalUtils(L);	// null  NowEpochMS()  NowEpoch10m()  Int64ToNumber   NumberToInt64  Int64ToString  StringToInt64
 		xx::Lua::Data::Register(L);
 		xx::Lua::Asio::Tcp::Gateway::Client::Register(L);
-		xx::Lua::SetGlobalCClosure(L, "NowSteadyEpochMS", [](auto L)->int { return xx::Lua::Push(L, (double)xx::NowSteadyEpochMilliseconds()); });
-		xx::Lua::SetGlobal(L, "null", (void*)0);
-		xx::Lua::DoFile(L, "lib.lua");
-		xx::Lua::DoFile(L, "main.lua");
+		if (auto r = xx::Lua::Try(L, [&] {
+			xx::Lua::DoFile(L, "main.lua");
+		})) {
+			xx::CoutN("Logic() DoFile 'main.lua' catch error n = ", r.n, " m = ", r.m);
+		}
 	}
 	void Update() {
-		xx::Lua::CallGlobalFunc(L, "GlobalUpdate");
+		if (auto r = xx::Lua::Try(L, [&] {
+			xx::Lua::CallGlobalFunc(L, "GlobalUpdate");
+		})) {
+			xx::CoutN("Update() CallGlobalFunc 'GlobalUpdate' catch error n = ", r.n, " m = ", r.m);
+		}
 	}
 };
 

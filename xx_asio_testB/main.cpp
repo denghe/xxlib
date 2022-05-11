@@ -185,12 +185,12 @@ int CPeer::HandleData(xx::Data_r&& dr) {
 void CPeer::Start_() {
 	if (auto sp = server.TryGetSPeer(0)) {									// 如果定位到 0 号服务器, 就发 accept 内部指令
 		auto ep = socket.remote_endpoint();
-		xx::CoutTN("CPeer Start_. send cmd accept. clientId = ", clientId, ", ip = ", xx::RemoteEndPointToString(socket));
-		sp->Send(xx::MakeCommandData("accept"sv, clientId, xx::RemoteEndPointToString(socket)));	// 转发 accept 事件到 0 服务器
+		xx::CoutTN("CPeer Start_. send cmd accept. clientId = ", clientId, ", ip = ", socket.remote_endpoint());
+		sp->Send(xx::MakeCommandData("accept"sv, clientId, xx::ToString(socket.remote_endpoint())));	// 转发 accept 事件到 0 服务器
 		server.clientPeers[clientId] = shared_from_this();					// 把自己放入容器
 	}
 	else {
-		xx::CoutTN("can't connect to server 0. disconnect. clientId = ", clientId, ", ip = ", xx::RemoteEndPointToString(socket));
+		xx::CoutTN("can't connect to server 0. disconnect. clientId = ", clientId, ", ip = ", socket.remote_endpoint());
 		Stop();																// 连不上 0 号服务器？先掐线
 	}
 }
@@ -225,7 +225,7 @@ int Server::Run() {
 			}
 			if (p->stoped) {												// 如果没连上，就开始连. 
 				if (int r = co_await p->Connect(ip, port, 2s)) {			// 开始连接. 超时 2 秒
-					xx::CoutN("serverId = ", id, " ip = ", ip, ":", port);
+					xx::CoutN("Connect failed. r = ",r ,", serverId = ", id, " ip = ", ip, ":", port);
 				}
 			}																// 连上后将自动执行 SPeer 的 Start, 启动协程, 发出 gatewayId, 并不断的 ping
 			co_await xx::Timeout(1000ms);									// 避免无脑空转，省点 cpu
