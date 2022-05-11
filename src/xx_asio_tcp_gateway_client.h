@@ -28,9 +28,7 @@ namespace xx::Asio::Tcp::Gateway {
 		void SetDomainPort(std::string_view domain_, uint16_t port_);								// 填充 域名/ip, 端口
 
 		template<typename...Args>
-		void AddCppServerIds(Args...ids) {															// 添加一到多个 cpp 服务 id
-			(cppServerIds.insert(ids), ...);
-		}
+		void AddCppServerIds(Args...ids);															// 添加一到多个 cpp 服务 id
 
 		void Update();																				// 每帧开始和逻辑结束时 call 一次
 
@@ -153,6 +151,11 @@ namespace xx::Asio::Tcp::Gateway {
 			return true;
 		}
 	};
+
+	template<typename...Args>
+	void Client::AddCppServerIds(Args...ids) {
+		(cppServerIds.insert(ids), ...);
+	}
 
 	inline void Client::SetDomainPort(std::string_view domain_, uint16_t port_) {
 		domain = domain_;
