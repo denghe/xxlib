@@ -14,13 +14,13 @@ go(function()
 	if not gNet_Dial() then goto LabBegin end											-- 域名解析并拨号. 失败就重来
 	print("gNet_Dial() == true")
 
-	if not gNet_WaitOpen(gServerId_Lobby) then goto LabBegin end						-- 等 open lobby server. 断线或超时: 重连
+	if not gNet_WaitOpens(gServerId_Lobby) then goto LabBegin end						-- 等 open lobby server. 断线或超时: 重连
 	print("gNet_WaitOpen(gServerId_Lobby) == true")
 
 ::LabProcess::
 	local serial, pkg = gNet_TryPop(gServerId_Lobby)									-- 试 pop 一条 属于 lobby server 的 push / request 消息
 	if pkg == nil then																	-- 没有
-		yield()																			-- 退让一帧( 这是整个 Process 唯一的 sleep 点 )
+		yield()																			-- sleep 一次
 		if not gNet:Alive() then goto LabBegin end										-- 已断开：重连
 		goto LabProcess																	-- 继续等
 	end
@@ -41,7 +41,7 @@ go(function()
 
 ::LabBegin::
 	yield()
-	if not gNet_WaitOpen(gServerId_Lobby) then goto LabBegin end
+	if not gNet_WaitOpens(gServerId_Lobby) then goto LabBegin end
 
 	local ms = NowEpochMS()
 	local r = SendRequest(ping)															-- 发送到 lobby 并等待结果

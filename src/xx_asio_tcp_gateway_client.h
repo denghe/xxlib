@@ -46,18 +46,12 @@ namespace xx::Asio::Tcp::Gateway {
 		bool IsOpened(uint32_t serverId);															// 检查当前某 serverId 是否已 open
 
 		template<typename T = ObjBase>
-		bool TryPop(Package<Shared<T>>& ro);														// 试获取一条消息内容. 没有则返回 false. 类型不符 填 null
+		bool TryPop(Package<Shared<T>>& ro, std::optional<uint32_t> serverId = std::nullopt);		// 试获取一条消息内容. 没有则返回 false. 类型不符 填 null. ObjBase 适配所有类型. 如果有传 serverId 就限定获取
 
 		bool TryPop(Package<Data>& rd);																// 试获取一条消息数据. 没有则返回 false
 
 		template<typename T = ObjBase>
-		awaitable<bool> Pop(std::chrono::steady_clock::duration d, Package<Shared<T>>& ro);			// 带超时 等待 接收一条消息. 超时返回 false. 类型不符也返回 false
-
-		template<typename T = ObjBase>
-		awaitable<std::pair<Shared<T>, uint32_t>> PopPush(std::chrono::steady_clock::duration d);	// Pop 的 直接返回 Push 值版本. 如果 serial != 0 也返回 null( first ). second == serverId
-
-		template<typename T = ObjBase>
-		std::pair<Shared<T>, uint32_t> TryPopPush();												// 试获取一条 Push. 没有则返回 null( first ). 类型不符 返回 null( first ). second == serverId
+		awaitable<bool> Pop(std::chrono::steady_clock::duration d, Package<Shared<T>>& ro, std::optional<uint32_t> serverId = std::nullopt);	// 带超时 等待 接收一条消息. 超时返回 false. 类型不符也返回 false. 如果有传 serverId 就限定获取
 
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args);	// 转发到 peer-> 同名函数
@@ -86,7 +80,7 @@ namespace xx::Asio::Tcp::Gateway {
 		}
 
 		std::deque<Package<Data>> recvDatas;														// 已收到的 lua( all ) 数据包集合
-		std::deque<Package<ObjBase_s>> recvObjs;													// 已收到的 cpp(request, push) 数据包集合
+		std::unordered_map<uint32_t, std::deque<Package<ObjBase_s>>> recvObjs;						// 已收到的 cpp(request, push) 数据包集合. 按照 serverId 分组存储
 
 		std::unordered_set<uint32_t> openServerIds;													// 已 open 的 serverId 存放于此
 
@@ -140,7 +134,7 @@ namespace xx::Asio::Tcp::Gateway {
 			return 0;																				// 返回 已处理
 		}
 		int ReceiveTargetRequest(uint32_t target, int32_t serial, ObjBase_s&& o_) {
-			recvObjs.emplace_back(target, serial, std::move(o_));									// 放入 recvObjs
+			recvObjs[target].emplace_back(target, serial, std::move(o_));							// 放入 recvObjs
 			if (waitingObject) {																	// 如果发现正在等包
 				waitingObject = false;																// 清理标志位
 				objectWaiter.cancel();																// 放行
@@ -206,10 +200,31 @@ namespace xx::Asio::Tcp::Gateway {
 		return peer->openServerIds.contains(serverId);
 	}
 
+	inline bool Client::TryPop(Package<Data>& rd) {
+		if (!*this || peer->recvDatas.empty()) return false;
+		rd = std::move(peer->recvDatas.front());
+		peer->recvDatas.pop_front();
+		return true;
+	}
+
 	template<typename T>
-	inline bool Client::TryPop(Package<Shared<T>>& ro) {
-		if (!*this || peer->recvObjs.empty()) return false;
-		auto& o = peer->recvObjs.front();
+	inline bool Client::TryPop(Package<Shared<T>>& ro, std::optional<uint32_t> serverId) {
+		if (!*this) return false;																	 // 异常：已断开
+		std::deque<Package<ObjBase_s>>* os = nullptr;
+		if (serverId.has_value()) {																	 // 如果有指定 serverId
+			os = &peer->recvObjs[serverId.value()];													 // 定位到队列
+			if (os->empty()) return false;															 // 空: 短路出去
+		}
+		else {
+			for (auto& kv : peer->recvObjs) {														// 随便找出一个有数据的队列
+				if (!kv.second.empty()) {
+					os = &kv.second;
+					break;
+				}
+			}
+			if (!os) return false;																	// 都没有数据
+		}
+		auto& o = os->front();
 		if constexpr (std::is_same_v<T, ObjBase>) {
 			ro = std::move(o);
 		} else {
@@ -222,46 +237,20 @@ namespace xx::Asio::Tcp::Gateway {
 				ro.data.Reset();
 			}
 		}
-		peer->recvObjs.pop_front();
-		return true;
-	}
-
-	inline bool Client::TryPop(Package<Data>& rd) {
-		if (!*this || peer->recvDatas.empty()) return false;
-		rd = std::move(peer->recvDatas.front());
-		peer->recvDatas.pop_front();
+		os->pop_front();
 		return true;
 	}
 
 	template<typename T>
-	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, Package<Shared<T>>& ro) {
+	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, Package<Shared<T>>& ro, std::optional<uint32_t> serverId) {
 		if (!*this) co_return false;																// 异常：已断开
 		if (peer->waitingObject) co_return false;													// 异常：正在等??
-		if (TryPop(ro)) co_return true;																// 如果已经有数据了，立刻填充 & 返回 true
+		if (TryPop(ro), serverId) co_return true;													// 如果已经有数据了，立刻填充 & 返回 true
 		peer->waitingObject = true;																	// 标记状态为 正在等
 		peer->objectWaiter.expires_after(d);														// 初始化 timer 超时时长
 		co_await peer->objectWaiter.async_wait(use_nothrow_awaitable);								// 开始等待
 		if (!*this) co_return false;																// 异常：已断开
-		co_return TryPop<T>(ro);																	// 立刻填充 & 返回
-	}
-
-	template<typename T>
-	awaitable<std::pair<Shared<T>, uint32_t>> Client::PopPush(std::chrono::steady_clock::duration d) {
-		if (!*this) co_return nullptr;
-		Package<Shared<T>> ro;
-		co_await Pop(d, ro);
-		if (ro.serial == 0) co_return { std::move(ro.data), ro.serverId };
-		om.KillRecursive(ro.data);
-		co_return { nullptr, 0 };
-	}
-
-	template<typename T>
-	std::pair<Shared<T>, uint32_t> Client::TryPopPush() {
-		Package<Shared<T>> ro;
-		if (!TryPop(ro)) return nullptr;
-		if (ro.serial == 0) return { std::move(ro.data), ro.serverId };
-		om.KillRecursive(ro.data);
-		return { nullptr, 0 };
+		co_return TryPop<T>(ro, serverId);															// 立刻填充 & 返回
 	}
 
 	template<typename...Args>

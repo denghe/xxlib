@@ -174,23 +174,44 @@ gNet = NewAsioTcpGatewayClient()
 -- 已收到的 Push & Request 类型的包. 按 serverId 分组存放
 local gNetRecvs = {}
 
--- 从按照 serverId 分组的接收队列中 试弹出一条消息 serial, pkg。没有就返回 nil
-gNet_TryPop = function(serverId)
-	local msgs = gNetRecvs[serverId]
+-- 内部函数。从 msgs pop 一条数据返回
+local TryPopFrom = function(msgs)
 	if msgs == nil then return end;
 	if #msgs == 0 then return end;
 	local r = msgs[1]
 	table.remove(msgs, 1)
-	return r[2], r[3]																			-- serial, pkg
+	return r[1], r[2]																			-- serial, pkg
 end
 
--- 等待指定端口 open。等到 open 返回 true ( coro )
-gNet_WaitOpen = function(serverId)
-	local timeout = NowEpochMS() + 15000														-- 等 open(0) 15秒. 
+-- 从按照 serverId 分组的接收队列中 试弹出一条消息. 格式为 [serverId, ] serial, pkg 。没有就返回 nil
+gNet_TryPop = function(serverId)
+	if serverId == nil then
+		for sid, msgs in pairs(gNetRecvs) do
+			local serial, pkg = TryPopFrom(msgs)
+			if serial ~= nil then
+				return sid, serial, pkg
+			end
+		end
+	else
+		local msgs = gNetRecvs[serverId]
+		return TryPopFrom(msgs)
+	end
+end
+
+-- 等待指定 serverId open。都等到 则 返回 true ( coro )
+gNet_WaitOpens = function(...)
+	local timeout = NowEpochMS() + 15000														-- 15 秒
 	repeat
 		yield()
-		if not gNet:Alive() then return end														-- 断线
-		if gNet:IsOpened(serverId) then return true end											-- 等到: return true
+		if not gNet:Alive() then return end
+		local allOpen = true
+		for _, id in ipairs({...}) do
+			if not gNet:IsOpened(id) then
+				allOpen = false
+				break
+			end
+		end
+		if allOpen then return true end
 	until ( NowEpochMS() > timeout )
 end
 
@@ -284,7 +305,7 @@ local gNetCoro = coroutine.create(function() xpcall( function()
 			msgs = {}
 			gNetRecvs[serverId] = msgs
 		end
-		table.insert(msgs, { [1] = serverId, [2] = -serial, [3] = pkg })
+		table.insert(msgs, { [1] = -serial, [2] = pkg })
 	else
 		if gNetReqs[serial] == null then
 			gNetReqs[serial] = pkg
