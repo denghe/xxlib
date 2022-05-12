@@ -1,41 +1,41 @@
-require('pkg')
-gServerId_Lobby = 0																		-- ¶¨Òå´óÌü·şÎñ id
+ï»¿require('pkg')
+gServerId_Lobby = 0																		-- å®šä¹‰å¤§å…æœåŠ¡ id
 -- ... more server id here?
-gNet:SetDomainPort("127.0.0.1", 54000)													-- ÉèÖÃ gateway domain & port
+gNet:SetDomainPort("127.0.0.1", 54000)													-- è®¾ç½® gateway domain & port
 
--- Ö÷ÏßÂß¼­: Á¬½Ó gateway ²¢ ´¦ÀíËùÓĞ lobby ÏûÏ¢
+-- ä¸»çº¿é€»è¾‘: è¿æ¥ gateway å¹¶ å¤„ç†æ‰€æœ‰ lobby æ¶ˆæ¯
 go(function()
 ::LabBegin::
-	gNet_Reset()																		-- ÎŞÄÔÖØÖÃÒ»°Ñ
-	SleepSecs(0.5)																		-- ¸ø ¸÷ÖÖ Ğ­³Ì ´´ÔìÒ»¸ö·´Ó¦Ê±¼ä
+	gNet_Reset()																		-- æ— è„‘é‡ç½®ä¸€æŠŠ
+	SleepSecs(0.5)																		-- ç»™ å„ç§ åç¨‹ åˆ›é€ ä¸€ä¸ªååº”æ—¶é—´
 	print("gNet_Reset()")
 
-	if not gNet_Dial() then goto LabBegin end											-- ÓòÃû½âÎö²¢²¦ºÅ. Ê§°Ü¾ÍÖØÀ´
+	if not gNet_Dial() then goto LabBegin end											-- åŸŸåè§£æå¹¶æ‹¨å·. å¤±è´¥å°±é‡æ¥
 	print("gNet_Dial() == true")
 
-	if not gNet_WaitOpens(gServerId_Lobby) then goto LabBegin end						-- µÈ open lobby server. ¶ÏÏß»ò³¬Ê±: ÖØÁ¬
+	if not gNet_WaitOpens(gServerId_Lobby) then goto LabBegin end						-- ç­‰ open lobby server. æ–­çº¿æˆ–è¶…æ—¶: é‡è¿
 	print("gNet_WaitOpen(gServerId_Lobby) == true")
 
 ::LabProcess::
-	local serial, pkg = gNet_TryPop(gServerId_Lobby)									-- ÊÔ pop Ò»Ìõ ÊôÓÚ lobby server µÄ push / request ÏûÏ¢
-	if pkg == nil then																	-- Ã»ÓĞ
-		yield()																			-- sleep Ò»´Î
-		if not gNet:Alive() then goto LabBegin end										-- ÒÑ¶Ï¿ª£ºÖØÁ¬
-		goto LabProcess																	-- ¼ÌĞøµÈ
+	local serial, pkg = gNet_TryPop(gServerId_Lobby)									-- è¯• pop ä¸€æ¡ å±äº lobby server çš„ push / request æ¶ˆæ¯
+	if pkg == nil then																	-- æ²¡æœ‰
+		yield()																			-- sleep ä¸€æ¬¡
+		if not gNet:Alive() then goto LabBegin end										-- å·²æ–­å¼€ï¼šé‡è¿
+		goto LabProcess																	-- ç»§ç»­ç­‰
 	end
 
 	print("serial = ", serial, " pkg = ")
 	DumpPackage(pkg)
 	
-	goto LabProcess																		-- ¼ÌĞø´¦Àí ÏÂÒ»ÌõÏûÏ¢
+	goto LabProcess																		-- ç»§ç»­å¤„ç† ä¸‹ä¸€æ¡æ¶ˆæ¯
 end)
 
--- ²¢ĞĞÂß¼­: µÈ lobby open ºó²»¶Ï·¢ ping
+-- å¹¶è¡Œé€»è¾‘: ç­‰ lobby open åä¸æ–­å‘ ping
 go(function()
-	-- °ü¹üÒ»ÏÂ³£ÓÃº¯Êı
-	local SendRequest = function(pkg) return gNet_SendRequest(gServerId_Lobby, pkg) end	-- ¶¨µã·¢ËÍµ½ lobby
+	-- åŒ…è£¹ä¸€ä¸‹å¸¸ç”¨å‡½æ•°
+	local SendRequest = function(pkg) return gNet_SendRequest(gServerId_Lobby, pkg) end	-- å®šç‚¹å‘é€åˆ° lobby
 
-	-- Ô¤´´½¨Ò»Ğ©³£ÓÃ°ü½á¹¹
+	-- é¢„åˆ›å»ºä¸€äº›å¸¸ç”¨åŒ…ç»“æ„
 	local ping = Ping.Create()
 
 ::LabBegin::
@@ -43,10 +43,10 @@ go(function()
 	if not gNet_WaitOpens(gServerId_Lobby) then goto LabBegin end
 
 	local ms = NowEpochMS()
-	local r = SendRequest(ping)															-- ·¢ËÍµ½ lobby ²¢µÈ´ı½á¹û
-	if r == nil then goto LabBegin end													-- ³¬Ê±? ¶Ï¿ª? ÖØÀ´
+	local r = SendRequest(ping)															-- å‘é€åˆ° lobby å¹¶ç­‰å¾…ç»“æœ
+	if r == nil then goto LabBegin end													-- è¶…æ—¶? æ–­å¼€? é‡æ¥
 	print( "ping = ", NowEpochMS() - ms )
 
-	SleepSecs( 3 )																		-- ¼ä¸ô ? Ãë
-	goto LabBegin																		-- ÖØÀ´
+	SleepSecs( 3 )																		-- é—´éš” ? ç§’
+	goto LabBegin																		-- é‡æ¥
 end)

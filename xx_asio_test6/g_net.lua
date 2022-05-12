@@ -1,16 +1,16 @@
--- °ü¹ÜÀíÆ÷( ¶ÔÉú³ÉÎïÌá¹©ĞòÁĞ»¯Ö§³Å )( ÄÚ²¿¶ÔÏó£¬ÓÃ»§²ãÒ»°ãÓÃ²»µ½ )
+ï»¿-- åŒ…ç®¡ç†å™¨( å¯¹ç”Ÿæˆç‰©æä¾›åºåˆ—åŒ–æ”¯æ’‘ )( å†…éƒ¨å¯¹è±¡ï¼Œç”¨æˆ·å±‚ä¸€èˆ¬ç”¨ä¸åˆ° )
 ObjMgr = {
-    -- ´´½¨ ObjMgr ÊµÀı( ¾²Ì¬º¯Êı )
+    -- åˆ›å»º ObjMgr å®ä¾‹( é™æ€å‡½æ•° )
     Create = function()
         local om = {}
         setmetatable(om, ObjMgr)
         return om
     end
-    -- ¼ÇÂ¼ typeId µ½ Ôª±í µÄÓ³Éä( ¾²Ì¬º¯Êı )
+    -- è®°å½• typeId åˆ° å…ƒè¡¨ çš„æ˜ å°„( é™æ€å‡½æ•° )
 , Register = function(o)
         ObjMgr[o.typeId] = o
     end
-    -- Èë¿Úº¯Êı: Ê¼Ïò d Ğ´ÈëÒ»¸ö "Àà"
+    -- å…¥å£å‡½æ•°: å§‹å‘ d å†™å…¥ä¸€ä¸ª "ç±»"
 , WriteTo = function(self, d, o)
         assert(o)
         self.d = d
@@ -18,13 +18,13 @@ ObjMgr = {
         d:Wvu16(getmetatable(o).typeId)
         o:Write(self)
     end
-    -- Èë¿Úº¯Êı: ¿ªÊ¼´Ó d ¶Á³öÒ»¸ö "Àà" ²¢·µ»Ø r, o    ( r == 0 ±íÊ¾³É¹¦ )
+    -- å…¥å£å‡½æ•°: å¼€å§‹ä» d è¯»å‡ºä¸€ä¸ª "ç±»" å¹¶è¿”å› r, o    ( r == 0 è¡¨ç¤ºæˆåŠŸ )
 , ReadFrom = function(self, d)
         self.d = d
         self.m = {}
         return self:ReadFirst()
     end
-    -- ÄÚ²¿º¯Êı: Ïò d Ğ´ÈëÒ»¸ö "Àà". ¸ñÊ½: idx + typeId + content
+    -- å†…éƒ¨å‡½æ•°: å‘ d å†™å…¥ä¸€ä¸ª "ç±»". æ ¼å¼: idx + typeId + content
 , Write = function(self, o)
         local d = self.d
         if o == null or o == nil then
@@ -44,7 +44,7 @@ ObjMgr = {
             end
         end
     end
-    -- ÄÚ²¿º¯Êı: ´Ó d ¶Á³öÒ»¸ö "Àà" ²¢·µ»Ø r, o    ( r == 0 ±íÊ¾³É¹¦ )
+    -- å†…éƒ¨å‡½æ•°: ä» d è¯»å‡ºä¸€ä¸ª "ç±»" å¹¶è¿”å› r, o    ( r == 0 è¡¨ç¤ºæˆåŠŸ )
 , ReadFirst = function(self)
         local d = self.d
         local m = self.m
@@ -108,7 +108,7 @@ ObjMgr = {
 }
 ObjMgr.__index = ObjMgr
 
--- ´òÓ¡°üÄÚÈİ
+-- æ‰“å°åŒ…å†…å®¹
 DumpPackage = function(t)
 	print("===============================================")
 	print("|||||||||||||||||||||||||||||||||||||||||||||||")
@@ -123,12 +123,12 @@ DumpPackage = function(t)
 	print("===============================================")
 end
 
-local gCoros = {}																				-- È«¾ÖĞ­³Ì³Ø( ÂÒĞò )
-yield = coroutine.yield																			-- ÎªÁË±ãÓÚÊ¹ÓÃ
+local gCoros = {}																				-- å…¨å±€åç¨‹æ± ( ä¹±åº )
+yield = coroutine.yield																			-- ä¸ºäº†ä¾¿äºä½¿ç”¨
 
-gInt64IsUserdata = type (jit) == 'table'														-- ´æ´¢Ò»¸öÅĞ¶ÏÒÀ¾İ
+gInt64IsUserdata = type (jit) == 'table'														-- å­˜å‚¨ä¸€ä¸ªåˆ¤æ–­ä¾æ®
 
--- Ñ¹ÈëÒ»¸öĞ­³Ìº¯Êı. ÓĞ²ÎÊı¾Í¸úÔÚºóÃæ. ÓĞÑÓ³ÙÖ´ĞĞµÄĞ§¹û. ±¨´íÊ±´ø name ÏÔÊ¾
+-- å‹å…¥ä¸€ä¸ªåç¨‹å‡½æ•°. æœ‰å‚æ•°å°±è·Ÿåœ¨åé¢. æœ‰å»¶è¿Ÿæ‰§è¡Œçš„æ•ˆæœ. æŠ¥é”™æ—¶å¸¦ name æ˜¾ç¤º
 local go_ = function(name, func, ...)
 	local f = function(msg) print("coro ".. name .." error: " .. tostring(msg) .. "\n")  end
 	local args = {...}
@@ -143,12 +143,12 @@ local go_ = function(name, func, ...)
 	return co
 end
 
--- Ñ¹ÈëÒ»¸öĞ­³Ìº¯Êı. ÓĞ²ÎÊı¾Í¸úÔÚºóÃæ. ÓĞÑÓ³ÙÖ´ĞĞµÄĞ§¹û
+-- å‹å…¥ä¸€ä¸ªåç¨‹å‡½æ•°. æœ‰å‚æ•°å°±è·Ÿåœ¨åé¢. æœ‰å»¶è¿Ÿæ‰§è¡Œçš„æ•ˆæœ
 go = function(func, ...)
 	return go_("", func, ...)
 end
 
--- Ë¯Ö¸¶¨Ãë( ±£µ×Ë¯3Ö¡ )( coro )
+-- ç¡æŒ‡å®šç§’( ä¿åº•ç¡3å¸§ )( coro )
 SleepSecs = function(secs)
 	local timeout = NowEpochMS() + secs * 1000
 	yield()
@@ -159,18 +159,18 @@ SleepSecs = function(secs)
 	end
 end
 
--- Õâ¼¸¸öÊÇÄÚ²¿±äÁ¿, Ò»°ãÓÃ²»µ½
-local gBB = NewXxData()																			-- ¹«ÓÃĞòÁĞ»¯ÈİÆ÷
-local gOM = ObjMgr.Create()																		-- ¹«ÓÃĞòÁĞ»¯¹ÜÀíÆ÷
-local gSerial = 0																				-- È«¾Ö×ÔÔöĞòºÅ·¢Éú±äÁ¿
-local gNetReqs = {}																				-- SendRequest Ê±×¢²áÔÚ´Ë serial : null/pkg
-local gNetRecvs = {}																			-- ÒÑÊÕµ½µÄ Push & Request ÀàĞÍµÄ°ü. °´ serverId ·Ö×é´æ·Å
+-- è¿™å‡ ä¸ªæ˜¯å†…éƒ¨å˜é‡, ä¸€èˆ¬ç”¨ä¸åˆ°
+local gBB = NewXxData()																			-- å…¬ç”¨åºåˆ—åŒ–å®¹å™¨
+local gOM = ObjMgr.Create()																		-- å…¬ç”¨åºåˆ—åŒ–ç®¡ç†å™¨
+local gSerial = 0																				-- å…¨å±€è‡ªå¢åºå·å‘ç”Ÿå˜é‡
+local gNetReqs = {}																				-- SendRequest æ—¶æ³¨å†Œåœ¨æ­¤ serial : null/pkg
+local gNetRecvs = {}																			-- å·²æ”¶åˆ°çš„ Push & Request ç±»å‹çš„åŒ…. æŒ‰ serverId åˆ†ç»„å­˜æ”¾
 
--- gNet È«¾ÖÍøÂç¿Í»§¶Ë. È«¾ÖÎ¨Ò». ÓÃ»§¿ÉÓÃº¯Êı:
+-- gNet å…¨å±€ç½‘ç»œå®¢æˆ·ç«¯. å…¨å±€å”¯ä¸€. ç”¨æˆ·å¯ç”¨å‡½æ•°:
 -- SetDomainPort("xxx.xxx", 123)    SetSecretKey( ??? )    AddCppServerIds( ? ... )    Dial()     Busy()      Alive()      IsOpened( ? ) 
 gNet = NewAsioTcpGatewayClient()
 
--- ÄÚ²¿º¯Êı¡£´Ó msgs pop Ò»ÌõÊı¾İ·µ»Ø
+-- å†…éƒ¨å‡½æ•°ã€‚ä» msgs pop ä¸€æ¡æ•°æ®è¿”å›
 local TryPopFrom = function(msgs)
 	if msgs == nil then return end;
 	if #msgs == 0 then return end;
@@ -179,7 +179,7 @@ local TryPopFrom = function(msgs)
 	return r[1], r[2]																			-- serial, pkg
 end
 
--- ÖØÖÃ¸÷ÖÖÉÏÏÂÎÄ
+-- é‡ç½®å„ç§ä¸Šä¸‹æ–‡
 gNet_Reset = function()
 	gNet:Reset()
 	gNetRecvs = {}
@@ -187,7 +187,7 @@ gNet_Reset = function()
 	gSerial = 0
 end
 
--- ´Ó°´ÕÕ serverId ·Ö×éµÄ½ÓÊÕ¶ÓÁĞÖĞ ÊÔµ¯³öÒ»ÌõÏûÏ¢. ¸ñÊ½Îª [serverId, ] serial, pkg ¡£Ã»ÓĞ¾Í·µ»Ø nil
+-- ä»æŒ‰ç…§ serverId åˆ†ç»„çš„æ¥æ”¶é˜Ÿåˆ—ä¸­ è¯•å¼¹å‡ºä¸€æ¡æ¶ˆæ¯. æ ¼å¼ä¸º [serverId, ] serial, pkg ã€‚æ²¡æœ‰å°±è¿”å› nil
 gNet_TryPop = function(serverId)
 	if serverId == nil then
 		for sid, msgs in pairs(gNetRecvs) do
@@ -202,9 +202,9 @@ gNet_TryPop = function(serverId)
 	end
 end
 
--- µÈ´ıÖ¸¶¨ serverId open¡£¶¼µÈµ½ Ôò ·µ»Ø true ( coro )
+-- ç­‰å¾…æŒ‡å®š serverId openã€‚éƒ½ç­‰åˆ° åˆ™ è¿”å› true ( coro )
 gNet_WaitOpens = function(...)
-	local timeout = NowEpochMS() + 15000														-- 15 Ãë
+	local timeout = NowEpochMS() + 15000														-- 15 ç§’
 	repeat
 		yield()
 		if not gNet:Alive() then return end
@@ -219,32 +219,32 @@ gNet_WaitOpens = function(...)
 	until ( NowEpochMS() > timeout )
 end
 
--- ²¦ºÅ( º¬ÓòÃû½âÎö ²¢Ëæ»úÑ¡Ôñ ip ). ³É¹¦Á¬ÉÏ·µ»Ø true. ĞèÒªÏÈ SetDomainPort ( coro )
+-- æ‹¨å·( å«åŸŸåè§£æ å¹¶éšæœºé€‰æ‹© ip ). æˆåŠŸè¿ä¸Šè¿”å› true. éœ€è¦å…ˆ SetDomainPort ( coro )
 gNet_Dial = function()
-	if gNet:Busy() then																			-- ³öÏÖ²»¸Ã·¢ÉúµÄÇé¿ö
+	if gNet:Busy() then																			-- å‡ºç°ä¸è¯¥å‘ç”Ÿçš„æƒ…å†µ
 		print("gNet:Busy() == true when gNet_Dial()")
 		return
 	end
-	gNet:Dial()																					-- ¿ªÊ¼²¦ºÅ
-	repeat yield() until (not gNet:Busy())														-- µÈµ½²» busy
-	return gNet:Alive()																			-- ·µ»ØÊÇ·ñÒÑÁ¬ÉÏ
+	gNet:Dial()																					-- å¼€å§‹æ‹¨å·
+	repeat yield() until (not gNet:Busy())														-- ç­‰åˆ°ä¸ busy
+	return gNet:Alive()																			-- è¿”å›æ˜¯å¦å·²è¿ä¸Š
 end
 
--- ·¢ËÍÇ°ÖÃ¼ì²é, Èç¹ûÒÑ¶ÏÏß¾Í Êä³ö ²¢ ·µ»Ø nil
+-- å‘é€å‰ç½®æ£€æŸ¥, å¦‚æœå·²æ–­çº¿å°± è¾“å‡º å¹¶ è¿”å› nil
 gNet_SendCheck = function(fn, serverId, pkg)
-	if not gNet:Alive() then																	-- Èç¹ûÍøÂçÒÑ¶Ï¿ª
+	if not gNet:Alive() then																	-- å¦‚æœç½‘ç»œå·²æ–­å¼€
 		print("gNet:Alive() == false when ", fn, " to ", serverId)
 		DumpPackage(pkg)
 		return false
 	end
-	if not gNet:IsOpened(serverId) then															-- Èç¹û serverId Î´ open
+	if not gNet:IsOpened(serverId) then															-- å¦‚æœ serverId æœª open
 		print("gNet:IsOpened(",serverId,") == false when ", fn)
 		DumpPackage(pkg)
 	end
 	return true;
 end
 
--- ·¢Ó¦´ğ. ³É¹¦·µ»Ø true
+-- å‘åº”ç­”. æˆåŠŸè¿”å› true
 gNet_SendResponse = function(serverId, serial, pkg)
 	if not gNet_SendCheck("gNet_SendResponse", serverId, pkg) then return end
 	gBB:Clear()
@@ -253,7 +253,7 @@ gNet_SendResponse = function(serverId, serial, pkg)
 	return true
 end
 
--- ·¢ËÍÍÆËÍ. ³É¹¦·µ»Ø true
+-- å‘é€æ¨é€. æˆåŠŸè¿”å› true
 gNet_SendPush = function(serverId, pkg)
 	if not gNet_SendCheck("gNet_SendPush", serverId, pkg) then return end
 	gBB:Clear()
@@ -262,44 +262,44 @@ gNet_SendPush = function(serverId, pkg)
 	return true
 end
 
--- ·¢ÇëÇó. ·µ»ØÊÕµ½µÄ response Êı¾İ. Èç¹û·µ»Ø nil ËµÃ÷³¬Ê± ( coro )
+-- å‘è¯·æ±‚. è¿”å›æ”¶åˆ°çš„ response æ•°æ®. å¦‚æœè¿”å› nil è¯´æ˜è¶…æ—¶ ( coro )
 gNet_SendRequest = function(serverId, pkg)
 	if not gNet_SendCheck("gNet_SendRequest", serverId, pkg) then return end
-	gSerial = gSerial + 1																		-- Éú³É serial
+	gSerial = gSerial + 1																		-- ç”Ÿæˆ serial
 	local serial = gSerial
 	gBB:Clear()
 	gOM:WriteTo(gBB, pkg)
 	gNet:SendTo(serverId, 0 - serial, gBB);														-- serial < 0
-	gNetReqs[serial] = null																		-- ×¢²áÏàÓ¦ serial µÄ·´×ª±äÁ¿
-	local timeout = NowEpochMS() + 15000														-- µÃµ½³¬Ê±Ê±¼äµã
+	gNetReqs[serial] = null																		-- æ³¨å†Œç›¸åº” serial çš„åè½¬å˜é‡
+	local timeout = NowEpochMS() + 15000														-- å¾—åˆ°è¶…æ—¶æ—¶é—´ç‚¹
 	repeat
 		yield()
-		if NowEpochMS() > timeout then															-- ³¬Ê±:
-			gNetReqs[serial] = nil																-- ·´×¢²á
+		if NowEpochMS() > timeout then															-- è¶…æ—¶:
+			gNetReqs[serial] = nil																-- åæ³¨å†Œ
 			print("SendRequest timeout")
 			DumpPackage(pkg)
 			return nil
 		end
-	until (gNetReqs[serial] ~= null)															-- µÈ´ı±äÁ¿±»Ìî³ä
-	local r = gNetReqs[serial]																	-- È¡³öÀ´
-	gNetReqs[serial] = nil																		-- ·´×¢²á
+	until (gNetReqs[serial] ~= null)															-- ç­‰å¾…å˜é‡è¢«å¡«å……
+	local r = gNetReqs[serial]																	-- å–å‡ºæ¥
+	gNetReqs[serial] = nil																		-- åæ³¨å†Œ
 	return r
 end
 
--- Æğ¸ö¶ÀÁ¢Ğ­³Ì×ö°ü·Ö·¢. Óöµ½ Push & Request °ü¾ÍÈû gNetRecvs. Óöµ½ Response ¾ÍÈ¥ gNetReqs ÉèÖÃ pkg ( ÄÚ²¿¶ÔÏó£¬ÓÃ»§²ãÒ»°ãÓÃ²»µ½ )
+-- èµ·ä¸ªç‹¬ç«‹åç¨‹åšåŒ…åˆ†å‘. é‡åˆ° Push & Request åŒ…å°±å¡ gNetRecvs. é‡åˆ° Response å°±å» gNetReqs è®¾ç½® pkg ( å†…éƒ¨å¯¹è±¡ï¼Œç”¨æˆ·å±‚ä¸€èˆ¬ç”¨ä¸åˆ° )
 local gNetCoro = coroutine.create(function() xpcall( function()
 ::LabBegin::
-	local serverId, serial, data = gNet:TryPop()												-- ÊÔ×Å pop ³öÒ»ÌõÏûÏ¢
-	if serverId == nil then																		-- Ã»ÓĞÈ¡µ½
+	local serverId, serial, data = gNet:TryPop()												-- è¯•ç€ pop å‡ºä¸€æ¡æ¶ˆæ¯
+	if serverId == nil then																		-- æ²¡æœ‰å–åˆ°
 		yield()
 		goto LabBegin
 	end
-	local r, pkg = gOM:ReadFrom(data)															-- ½â°ü
-	if 0 ~= r  then																				-- ½â°üÊ§°Ü( Í¨³£Îª´úÂë bug )
+	local r, pkg = gOM:ReadFrom(data)															-- è§£åŒ…
+	if 0 ~= r  then																				-- è§£åŒ…å¤±è´¥( é€šå¸¸ä¸ºä»£ç  bug )
 		print("ReadFrom data failed. r = ", r)
 		goto LabBegin
 	end
-	if serial <= 0 then																			-- ÊÕµ½ÍÆËÍ»òÇëÇó: ·Ö×éÈû gNetRecvs
+	if serial <= 0 then																			-- æ”¶åˆ°æ¨é€æˆ–è¯·æ±‚: åˆ†ç»„å¡ gNetRecvs
 		local msgs = gNetRecvs[serverId]
 		if msgs == nil then
 			msgs = {}
@@ -315,17 +315,17 @@ local gNetCoro = coroutine.create(function() xpcall( function()
 end,
 function(msg) print("coro gNetCoro error: " .. tostring(msg) .. "\n")  end ) end )
 
--- Ã¿Ö¡±» host µ÷ÓÃÒ»´Î, Ö´ĞĞËùÓĞ coros
+-- æ¯å¸§è¢« host è°ƒç”¨ä¸€æ¬¡, æ‰§è¡Œæ‰€æœ‰ coros
 GlobalUpdate = function()
 	gNet:Update()
 	local cs = coroutine.status
 	local cr = coroutine.resume
-	cr(gNetCoro)																				-- ÏÈĞĞÖ´ĞĞ °ü·Ö·¢
+	cr(gNetCoro)																				-- å…ˆè¡Œæ‰§è¡Œ åŒ…åˆ†å‘
 	local t = gCoros
 	if #t == 0 then return end
-	for i = #t, 1, -1 do																		-- ±éÀú²¢Ö´ĞĞĞ­³Ì
+	for i = #t, 1, -1 do																		-- éå†å¹¶æ‰§è¡Œåç¨‹
 		local co = t[i]
-		if cs(co) == "dead" then																-- ½»»»É¾³ı( »áµ¼ÖÂÂÒĞò )
+		if cs(co) == "dead" then																-- äº¤æ¢åˆ é™¤( ä¼šå¯¼è‡´ä¹±åº )
 			t[i] = t[#t]
 			t[#t] = nil
 		else
