@@ -18,17 +18,11 @@ namespace xx::Asio::Tcp {
 	struct Client : IOCCode<Client> {
 		ObjManager om;
 		std::shared_ptr<CPeer> peer;																// 当前 peer
-		std::unordered_set<uint32_t> cppServerIds;													// 属于 cpp 处理的 serverId 存放于此
 
 		std::string domain;																			// 域名/ip. 需要在 拨号 前填充
 		uint16_t port = 0;																			// 端口. 需要在 拨号 前填充
 
 		void SetDomainPort(std::string_view domain_, uint16_t port_);								// 填充 域名/ip, 端口
-
-		template<typename...Args>
-		void AddCppServerIds(Args...ids) {															// 添加一到多个 cpp 服务 id
-			(cppServerIds.insert(ids), ...);
-		}
 
 		void Update();																				// 每帧开始和逻辑结束时 call 一次
 
@@ -88,8 +82,12 @@ namespace xx::Asio::Tcp {
 			waitingObject = false;
 			objectWaiter.cancel();																	// 取消某些等待器
 		}
-
+		int ReceiveResponse(int32_t, ObjBase_s&) {													// 续命
+			ResetTimeout(15s);
+			return 0;
+		}
 		int ReceiveRequest(int32_t serial, ObjBase_s&& o_) {
+			ResetTimeout(15s);																		// 续命
 			recvObjs.emplace_back(serial, std::move(o_));											// 放入 recvObjs
 			if (waitingObject) {																	// 如果发现正在等包
 				waitingObject = false;																// 清理标志位

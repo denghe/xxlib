@@ -163,8 +163,10 @@ namespace xx {
 	// PeerRequestCode 片段依赖的函数
 	template<typename T> concept Has_Peer_ReceivePush = requires(T t) { t.ReceivePush(ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveRequest = requires(T t) { t.ReceiveRequest(0, ObjBase_s()); };
+	template<typename T> concept Has_Peer_ReceiveResponse = requires(T t) { t.ReceiveResponse(0, std::declval<ObjBase_s&>()); };
 	template<typename T> concept Has_Peer_ReceiveTargetPush = requires(T t) { t.ReceiveTargetPush(0, ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveTargetRequest = requires(T t) { t.ReceiveTargetRequest(0, 0, ObjBase_s()); };
+	template<typename T> concept Has_Peer_ReceiveTargetResponse = requires(T t) { t.ReceiveTargetResponse(0, 0, std::declval<ObjBase_s&>()); };
 	template<typename T> concept Has_Peer_HandleTargetMessage = requires(T t) { t.HandleTargetMessage(0, std::declval<Data_r&>()); };
 #else
 	template<class T, class = void>
@@ -224,6 +226,13 @@ namespace xx {
 	constexpr bool Has_Peer_ReceiveRequest = _Has_Peer_ReceiveRequest<T>::value;
 
 	template<class T, class = void>
+	struct _Has_Peer_ReceiveResponse : std::false_type {};
+	template<class T>
+	struct _Has_Peer_ReceiveResponse<T, std::void_t<decltype(std::declval<T&>().ReceiveResponse(0, std::declval<ObjBase_s&>()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_ReceiveResponse = _Has_Peer_ReceiveResponse<T>::value;
+
+	template<class T, class = void>
 	struct _Has_Peer_ReceiveTargetPush : std::false_type {};
 	template<class T>
 	struct _Has_Peer_ReceiveTargetPush<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetPush(0, ObjBase_s()))>> : std::true_type {};
@@ -236,6 +245,13 @@ namespace xx {
 	struct _Has_Peer_ReceiveTargetRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetRequest(0, 0, ObjBase_s()))>> : std::true_type {};
 	template<class T>
 	constexpr bool Has_Peer_ReceiveTargetRequest = _Has_Peer_ReceiveTargetRequest<T>::value;
+
+	template<class T, class = void>
+	struct _Has_Peer_ReceiveTargetResponse : std::false_type {};
+	template<class T>
+	struct _Has_Peer_ReceiveTargetResponse<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetResponse(0, 0, std::declval<ObjBase_s&>()))>> : std::true_type {};
+	template<class T>
+	constexpr bool Has_Peer_ReceiveTargetResponse = _Has_Peer_ReceiveTargetResponse<T>::value;
 
 	template<class T, class = void>
 	struct _Has_Peer_HandleTargetMessage : std::false_type {};
@@ -554,6 +570,10 @@ namespace xx {
 				if (auto iter = reqs.find(serial); iter != reqs.end()) {
 					auto o = ReadFrom(dr);
 					if (!o) return __LINE__;
+					static_assert(!Has_Peer_ReceiveTargetResponse<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveResponse<PeerDeriveType>) {
+						if (PEERTHIS->ReceiveResponse(serial, o)) return __LINE__;
+					}
 					iter->second.second = std::move(o);
 					iter->second.first.cancel();
 				}
@@ -645,6 +665,10 @@ namespace xx {
 				if (auto iter = reqs.find(serial); iter != reqs.end()) {
 					auto o = ReadFrom(dr);
 					if (!o) return __LINE__;
+					static_assert(!Has_Peer_ReceiveResponse<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveTargetResponse<PeerDeriveType>) {
+						if (PEERTHIS->ReceiveTargetResponse(target, serial, o)) return __LINE__;
+					}
 					iter->second.second = std::move(o);
 					iter->second.first.cancel();
 				}
