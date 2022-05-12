@@ -4,7 +4,7 @@ gServerId_Lobby = 0																		-- 定义大厅服务 id
 gNet:SetDomainPort("127.0.0.1", 54000)													-- 设置 gateway domain & port
 
 -- 主线逻辑: 连接 gateway 并 处理所有 lobby 消息
-go(function()
+go("main", function()
 ::LabBegin::
 	gNet_Reset()																		-- 无脑重置一把
 	SleepSecs(0.5)																		-- 给 各种 协程 创造一个反应时间
@@ -31,7 +31,7 @@ go(function()
 end)
 
 -- 并行逻辑: 等 lobby open 后不断发 ping
-go(function()
+go("ping", function()
 	-- 包裹一下常用函数
 	local SendRequest = function(pkg) return gNet_SendRequest(gServerId_Lobby, pkg) end	-- 定点发送到 lobby
 
