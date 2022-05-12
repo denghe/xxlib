@@ -164,15 +164,11 @@ local gBB = NewXxData()																			-- 公用序列化容器
 local gOM = ObjMgr.Create()																		-- 公用序列化管理器
 local gSerial = 0																				-- 全局自增序号发生变量
 local gNetReqs = {}																				-- SendRequest 时注册在此 serial : null/pkg
+local gNetRecvs = {}																			-- 已收到的 Push & Request 类型的包. 按 serverId 分组存放
 
-
--- gNet 全局网络客户端 可用函数:
--- Update()   Reset()     SetDomainPort("xxx.xxx", 123)      SetSecretKey( ??? )    AddCppServerIds( ? ... )
--- Dial()     Busy()      Alive()      IsOpened( ? )     SendTo( serverId, serial, data )     TryPop() -> serverId, serial, data
+-- gNet 全局网络客户端. 全局唯一. 用户可用函数:
+-- SetDomainPort("xxx.xxx", 123)    SetSecretKey( ??? )    AddCppServerIds( ? ... )    Dial()     Busy()      Alive()      IsOpened( ? ) 
 gNet = NewAsioTcpGatewayClient()
-
--- 已收到的 Push & Request 类型的包. 按 serverId 分组存放
-local gNetRecvs = {}
 
 -- 内部函数。从 msgs pop 一条数据返回
 local TryPopFrom = function(msgs)
@@ -181,6 +177,14 @@ local TryPopFrom = function(msgs)
 	local r = msgs[1]
 	table.remove(msgs, 1)
 	return r[1], r[2]																			-- serial, pkg
+end
+
+-- 重置各种上下文
+gNet_Reset = function()
+	gNet:Reset()
+	gNetRecvs = {}
+	gNetReqs = {}
+	gSerial = 0
 end
 
 -- 从按照 serverId 分组的接收队列中 试弹出一条消息. 格式为 [serverId, ] serial, pkg 。没有就返回 nil
@@ -285,13 +289,9 @@ end
 -- 起个独立协程做包分发. 遇到 Push & Request 包就塞 gNetRecvs. 遇到 Response 就去 gNetReqs 设置 pkg ( 内部对象，用户层一般用不到 )
 local gNetCoro = coroutine.create(function() xpcall( function()
 ::LabBegin::
-	yield()
-	if not gNet:Alive() then																	-- 如果 gNet 未就绪
-		gNetReqs = {}																			-- 清空
-		goto LabBegin
-	end
 	local serverId, serial, data = gNet:TryPop()												-- 试着 pop 出一条消息
 	if serverId == nil then																		-- 没有取到
+		yield()
 		goto LabBegin
 	end
 	local r, pkg = gOM:ReadFrom(data)															-- 解包

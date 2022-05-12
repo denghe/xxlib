@@ -37,7 +37,7 @@ struct Server : xx::IOCCode<Server> {
 
 	// server peers
 	std::shared_ptr<LobbyPeer> lobbyPeer;
-	std::shared_ptr<Game1Peer> game1Peer;
+	std::unordered_set<std::shared_ptr<Game1Peer>> game1Peers;
 	// ...
 };
 
@@ -95,6 +95,10 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 
 	void Start_() {
 		server.lobbyPeer = shared_from_this();
+	}
+
+	void Stop_() {
+		server.lobbyPeer.reset();
 	}
 
 	// 收到 请求( 返回非 0 表示失败，会 Stop )
@@ -161,7 +165,11 @@ struct Game1Peer : PeerBase<Game1Peer> {
 	using PB::PB;
 
 	void Start_() {
-		server.game1Peer = shared_from_this();
+		server.game1Peers.insert(shared_from_this());
+	}
+
+	void Stop_() {
+		server.game1Peers.erase(shared_from_this());
 	}
 
 	// 收到 请求( 返回非 0 表示失败，会 Stop )

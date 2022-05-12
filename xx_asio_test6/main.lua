@@ -1,15 +1,14 @@
 require('pkg')
 gServerId_Lobby = 0																		-- 定义大厅服务 id
 -- ... more server id here?
+gNet:SetDomainPort("127.0.0.1", 54000)													-- 设置 gateway domain & port
 
 -- 主线逻辑: 连接 gateway 并 处理所有 lobby 消息
 go(function()
-	gNet:SetDomainPort("127.0.0.1", 54000)												-- 设置 gateway domain & port
-
 ::LabBegin::
-	gNet:Reset()																		-- 无脑重置一把
+	gNet_Reset()																		-- 无脑重置一把
 	SleepSecs(0.5)																		-- 给 各种 协程 创造一个反应时间
-	print("gNet:Reset()")
+	print("gNet_Reset()")
 
 	if not gNet_Dial() then goto LabBegin end											-- 域名解析并拨号. 失败就重来
 	print("gNet_Dial() == true")
