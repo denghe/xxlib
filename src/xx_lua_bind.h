@@ -509,6 +509,8 @@ namespace xx::Lua {
     inline void RegisterGlobalUtils(lua_State* const& L) {
 
         SetGlobal(L, "null", (void*)0);
+        SetGlobal(L, "NULL", (void*)0);
+        SetGlobal(L, "nullptr", (void*)0);
 
         SetGlobalCClosure(L, "NowEpochMS", [](auto L)->int {
             return Push(L, (double)NowSteadyEpochMilliseconds());

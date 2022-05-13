@@ -661,7 +661,7 @@ auto __cdecl xx::Detail::NameOf<
                 i += tn[at = tn.find_last_of("()", at)] == '(' ? -1 : 1;
             }
             return at >= 6 && tn.substr(at - 6, 7) == "<lambda";
-#elif defined(_MSC_VER) && _MSC_VER >= 1920 && _MSC_VER <= 1931  // vs2019 16 ~ vs2022 17.1
+#elif defined(_MSC_VER) && _MSC_VER >= 1920
             // lambda 输出长相: class ????::<lambda_????>
             return tn.rfind("class ", 0) == 0 && tn.find("::<lambda_", 0) != tn.npos && *tn.rbegin() == '>';
 #else

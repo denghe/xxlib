@@ -412,6 +412,28 @@ namespace xx {
         h2 = (uint8_t)(b + ((b <= 9) ? '0' : ('a' - 10)));
     }
 
+    void ToHex(std::string& s) {
+        auto len = s.size();
+        auto b = (uint8_t*)s.data();
+        s.resize(len * 2);
+        for (auto i = (ptrdiff_t)len - 1; i >= 0; --i) {
+            xx::ToHex(b[i], b[i * 2], b[i * 2 + 1]);
+        }
+    }
+
+    int RemovePath(std::string& s) {
+        auto b = s.data();
+        auto e = (int)s.size() - 1;
+        for (int i = e; i >= 0; --i) {
+            if (b[i] == '/' || b[i] == '\\') {
+                memmove(b, b + i + 1, e - i);
+                s.resize(e - i);
+                return i + 1;
+            }
+        }
+        return 0;
+    }
+
     inline void UrlEncode(std::string const& src, std::string& dst) {
         auto&& str = src.c_str();
         auto&& siz = src.size();
