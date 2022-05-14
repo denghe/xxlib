@@ -53,11 +53,13 @@ GlobalUpdate = function()
 	local cr = coroutine.resume
 	cr(gCoro)
 	local t = gCoros
-	if #t == 0 then return end
-	for i = #t, 1, -1 do																		-- 遍历并执行协程
+	local n = #t
+	if n == 0 then return end
+	for i = n, 1, -1 do																		-- 遍历并执行协程
 		if not cr(t[i]) then
-			t[i] = t[#t]																		-- 交换删除( 会导致乱序 )
-			t[#t] = nil
+			t[i] = t[n]																		-- 交换删除( 会导致乱序 )
+			t[n] = nil
+			n = n - 1
 		end
 	end
 	gUpdate2()
