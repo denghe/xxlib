@@ -1,4 +1,5 @@
-﻿-- 包管理器( 对生成物提供序列化支撑 )( 内部对象，用户层一般用不到 )( 下列成员函数 不直接写在 {} 里是为了 便于 lua 编辑器插件 跳转 定位 )
+﻿require('g_coro')
+-- 包管理器( 对生成物提供序列化支撑 )( 内部对象，用户层一般用不到 )( 下列成员函数 不直接写在 {} 里是为了 便于 lua 编辑器插件 跳转 定位 )
 ObjMgr = {}
 -- 记录 typeId 到 元表 的映射
 ObjMgr.Register = function(o)
@@ -44,20 +45,20 @@ function ObjMgr:ReadFirst()
 	local m = self.m
 	local r, typeId = d:Rvu16()
 	if r ~= 0 then
-		return 53
+		return 48
 	end
 	if typeId == 0 then
-		return 56
+		return 51
 	end
 	local mt = ObjMgr[typeId]
 	if mt == nil then
-		return 60
+		return 55
 	end
 	local v = mt.Create()
 	m[1] = v
 	r = v:Read(self)
 	if r ~= 0 then
-		return 66
+		return 61
 	end
 	return 0, v
 end
@@ -65,7 +66,7 @@ function ObjMgr:Read()
 	local d = self.d
 	local r, n = d:Rvu32()
 	if r ~= 0 then
-		return r
+		return 69
 	end
 	if n == 0 then
 		return 0, null
@@ -76,25 +77,25 @@ function ObjMgr:Read()
 	if n == len + 1 then
 		r, typeId = d:Rvu16()
 		if r ~= 0 then
-			return r
+			return 80
 		end
 		if typeId == 0 then
-			return 88
+			return 83
 		end
 		local mt = ObjMgr[typeId]
 		if mt == nil then
-			return 92
+			return 87
 		end
 		local v = mt.Create()
 		m[n] = v
 		r = v:Read(self)
 		if r ~= 0 then
-			return r
+			return 93
 		end
 		return 0, v
 	else
 		if n > len then
-			return 103
+			return 98
 		end
 		return 0, m[n]
 	end
@@ -115,50 +116,6 @@ DumpPackage = function(t)
 	print("===============================================")
 end
 
-yield = coroutine.yield																			-- 为了便于使用
-
-local gCoros = {}																				-- 全局协程池( 乱序 )
-
--- 压入一个协程函数. 有参数就跟在后面. 有延迟执行的效果. 报错时带 name 显示
--- 参数传入  func + args...  或  name + func + args...
-go = function(...)
-	local args = {...}
-	local t1 = type(args[1])
-	local t2 = type(args[2])
-	assert( #args > 0 and ( t1 == 'function' or t2 == 'function') )
-	local name
-	local func
-	if t1 ~= 'function' then
-		name = args[1]
-		func = args[2]
-		table.remove(args, 1)
-	else
-		func = args[1]
-	end
-	table.remove(args, 1)
-	local ef = function(msg) print("coro ".. name .." error: " .. tostring(msg) .. "\n")  end
-	local p
-	if #args == 0 then
-		p = function() xpcall(func, ef) end
-	else
-		p = function() xpcall(func, ef, table.unpack(args)) end
-	end
-	local co = coroutine.create(p)
-	table.insert(gCoros, co)
-	return co
-end
-
--- 睡指定秒( 保底睡3帧 )( coro )
-SleepSecs = function(secs)
-	local timeout = NowEpochMS() + secs * 1000
-	yield()
-	yield()
-	yield()
-	while timeout > NowEpochMS() do 
-		yield()
-	end
-end
-
 -- 这几个是内部变量, 一般用不到
 local gBB = NewXxData()																			-- 公用序列化容器
 local gSerial = 0																				-- 全局自增序号发生变量
@@ -168,6 +125,7 @@ local gNetRecvs = {}																			-- 已收到的 Push & Request 类型的�
 -- gNet 全局网络客户端. 全局唯一. 用户可用函数:
 -- SetDomainPort("xxx.xxx", 123)    SetSecretKey( ??? )    AddCppServerIds( ? ... )    Dial()     Busy()      Alive()      IsOpened( ? ) 
 gNet = NewAsioTcpGatewayClient()
+gUpdate = function() gNet:Update() end
 
 -- 内部函数。从 msgs pop 一条数据返回
 local TryPopFrom = function(msgs)
@@ -286,7 +244,7 @@ gNet_SendRequest = function(serverId, pkg)
 end
 
 -- 起个独立协程做包分发. 遇到 Push & Request 包就塞 gNetRecvs. 遇到 Response 就去 gNetReqs 设置 pkg ( 内部对象，用户层一般用不到 )
-local gNetCoro = coroutine.create(function() xpcall( function()
+gCoro = coroutine.create(function() xpcall( function()
 ::LabBegin::
 	local serverId, serial, data = gNet:TryPop()												-- 试着 pop 出一条消息
 	if serverId == nil then																		-- 没有取到
@@ -313,26 +271,3 @@ local gNetCoro = coroutine.create(function() xpcall( function()
 	goto LabBegin
 end,
 function(msg) print("coro gNetCoro error: " .. tostring(msg) .. "\n")  end ) end )
-
--- 每帧被 host 调用一次, 执行所有 coros
-GlobalUpdate = function()
-	gNet:Update()
-	local cs = coroutine.status
-	local cr = coroutine.resume
-	cr(gNetCoro)																				-- 先行执行 包分发
-	local t = gCoros
-	if #t == 0 then return end
-	for i = #t, 1, -1 do																		-- 遍历并执行协程
-		local co = t[i]
-		if cs(co) == "dead" then																-- 交换删除( 会导致乱序 )
-			t[i] = t[#t]
-			t[#t] = nil
-		else
-			local ok, msg = cr(co)
-			if not ok then
-				print("coroutine.resume error:", msg)
-			end
-		end
-	end
-	gNet:Update()
-end
