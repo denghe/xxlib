@@ -125,7 +125,8 @@ local gNetRecvs = {}																			-- 已收到的 Push & Request 类型的�
 -- gNet 全局网络客户端. 全局唯一. 用户可用函数:
 -- SetDomainPort("xxx.xxx", 123)    SetSecretKey( ??? )    AddCppServerIds( ? ... )    Dial()     Busy()      Alive()      IsOpened( ? ) 
 gNet = NewAsioTcpGatewayClient()
-gUpdate = function() gNet:Update() end
+gUpdate1 = function() gNet:Update() end
+gUpdate2 = gUpdate1
 
 -- 内部函数。从 msgs pop 一条数据返回
 local TryPopFrom = function(msgs)

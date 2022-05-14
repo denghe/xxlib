@@ -44,27 +44,21 @@ end
 
 -- 留个口子
 gCoro = coroutine.create(function() while true do yield() end end)
-gUpdate = function() end
+gUpdate1 = function() end
+gUpdate2 = function() end
 
 -- 每帧被 host 调用一次, 执行所有 coros
 GlobalUpdate = function()
-	gUpdate()
-	local cs = coroutine.status
+	gUpdate1()
 	local cr = coroutine.resume
 	cr(gCoro)
 	local t = gCoros
 	if #t == 0 then return end
 	for i = #t, 1, -1 do																		-- 遍历并执行协程
-		local co = t[i]
-		if cs(co) == "dead" then																-- 交换删除( 会导致乱序 )
-			t[i] = t[#t]
+		if not cr(t[i]) then
+			t[i] = t[#t]																		-- 交换删除( 会导致乱序 )
 			t[#t] = nil
-		else
-			local ok, msg = cr(co)
-			if not ok then
-				print("coroutine.resume error:", msg)
-			end
 		end
 	end
-	gUpdate()
+	gUpdate2()
 end

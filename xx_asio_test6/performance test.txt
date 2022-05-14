@@ -1,0 +1,41 @@
+cpu				fps
+骁龙410		1000	j / 2	6
+骁龙820		1000		25
+骁龙768g	1000		40
+骁龙835		1000		55
+骁龙875		2000	j / 2	38
+骁龙875		5000	j / 5	15
+骁龙8Gen1	5000	 	52
+骁龙8Gen1	10000	j / 10 	26
+
+
+cc.FileUtils:getInstance():setPopupNotify(false)
+cc.Director:getInstance():setDisplayStats(true)
+
+require "config"
+require "cocos.init"
+
+local scene = display.newScene()
+display.runScene(scene)
+
+
+require "g_coro"
+for j = 1, 1000 do
+    go(function()
+        local s = display.newSprite("HelloWorld.png"):addTo(scene)
+        local w = display.width
+        local j = j / 2
+        local f = s.setPosition
+        while true do
+            for i = 1, w do
+                f( s, i, j )
+                yield()
+            end
+            for i = w, 1, -1 do
+                f( s, i, j )
+                yield()
+            end
+        end
+    end)
+end
+
