@@ -23,6 +23,7 @@ namespace xx {
     using namespace std;
 #else
     using namespace std::experimental;
+    using namespace cxx14;
 #endif
 
     // todo
