@@ -288,11 +288,11 @@ namespace xx::Asio::Tcp::Gateway {
 		co_return co_await peer->SendRequestTo<PKG>(target, d, args...);
 	}
 
-	void Client::SendTo(uint32_t const& target, int32_t const& serial, Span const& d) {
+	inline void Client::SendTo(uint32_t const& target, int32_t const& serial, Span const& d) {
 		if (!*this) return;
 		peer->Send(MakeData<true, true, 8192, Span>(*(ObjManager*)1, target, serial, d));
 	}
-	void Client::Send(Data && d) {
+	inline void Client::Send(Data && d) {
 		if (!*this) return;
 		peer->Send(std::move(d));
 	}

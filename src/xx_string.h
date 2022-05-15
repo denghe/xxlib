@@ -412,7 +412,7 @@ namespace xx {
         h2 = (uint8_t)(b + ((b <= 9) ? '0' : ('a' - 10)));
     }
 
-    void ToHex(std::string& s) {
+    inline void ToHex(std::string& s) {
         auto len = s.size();
         auto b = (uint8_t*)s.data();
         s.resize(len * 2);
@@ -421,7 +421,7 @@ namespace xx {
         }
     }
 
-    int RemovePath(std::string& s) {
+    inline int RemovePath(std::string& s) {
         auto b = s.data();
         auto e = (int)s.size() - 1;
         for (int i = e; i >= 0; --i) {
