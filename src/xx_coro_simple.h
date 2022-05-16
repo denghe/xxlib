@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-// 协程的精简实现. 用法：co_yield 0. 达到暂停执行的目的. 协程函数返回值为 xx::Coro. 嵌套调用使用 CoAwait 宏
+// 协程的精简实现. 用法 见最下方 宏 和示例
 
 // 已知问题: 如果用 lambda 带捕获列表 返回 Generator<> 就会出问题。捕获列表中的数据似乎被破坏了
 // 所以确保 [] 为空, 直接通过传参来替代捕获
@@ -100,10 +100,10 @@ namespace xx {
 
 }
 
+#define CoType xx::Coro
 #define CoYield co_yield 0
-#define CoAwait(g_) { auto&& g = std::move(g); while(!g.Done()) { CoYield; g.Resume(); } }
-#define CoSleep(d) { auto tp = std::chrono::steady_clock::now() + d; do { CoYield; } while (std::chrono::steady_clock::now() < tp); }
-
+#define CoAwait( coType ) { auto&& c = coType; while(!c) { CoYield; c(); } }
+#define CoSleep( duration ) { auto tp = std::chrono::steady_clock::now() + duration; do { CoYield; } while (std::chrono::steady_clock::now() < tp); }
 
 /*
 
@@ -113,10 +113,20 @@ example:
 #include <thread>
 #include <iostream>
 
+CoType func1() {
+    CoSleep(1s);
+}
+CoType func2() {
+    CoAwait( func1() );
+    std::cout << "func 1 out" << std::endl;
+    CoAwait( func1() );
+    std::cout << "func 1 out" << std::endl;
+}
+
 int main() {
     xx::Coros cs;
 
-    auto func = [](int b, int e)->xx::Coro {
+    auto func = [](int b, int e)->CoType {
         CoYield;
         for (size_t i = b; i <= e; i++) {
             std::cout << i << std::endl;
@@ -128,10 +138,11 @@ int main() {
     cs.Add(func(1, 5));
     cs.Add(func(6, 10));
     cs.Add(func(11, 15));
-    cs.Add([]()->xx::Coro {
-        CoSleep(3s);
-        std::cout << "CoSleep 3s" << std::endl;
+    cs.Add([]()->CoType {
+        CoSleep(1s);
+        std::cout << "CoSleep 1s" << std::endl;
     }());
+    cs.Add(func2());
 
 LabLoop:
     cs();
@@ -142,6 +153,5 @@ LabLoop:
 
     return 0;
 }
-
 
 */
