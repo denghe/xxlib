@@ -506,62 +506,40 @@ namespace xx::Lua {
     }
 
     // 注册一些常用的全局函数，变量
-    inline void RegisterGlobalUtils(lua_State* const& L) {
+    inline void RegisterBaseEnv(lua_State* const& L) {
 
         SetGlobal(L, "null", (void*)0);
         SetGlobal(L, "NULL", (void*)0);
         SetGlobal(L, "nullptr", (void*)0);
 
         SetGlobalCClosure(L, "NowEpochMS", [](auto L)->int {
-            return Push(L, (double)NowSteadyEpochMilliseconds());
+            return Push(L, NowSteadyEpochMilliseconds());
         });
 
         SetGlobalCClosure(L, "NowEpoch10m", [](auto L)->int { 
-            return Push(L,
-#if LUA_VERSION_NUM == 501
-            (void*)
-#else
-            (int64_t)
-#endif
-            NowSteadyEpoch10m());
+            return Push(L, NowSteadyEpoch10m());
         });
 
-        SetGlobalCClosure(L, "Int64ToNumber", [](auto L)->int { 
-#if LUA_VERSION_NUM == 501
-            return Push(L, (double)(int64_t)(size_t)To<void*>(L, 1));
-#else
-            return Push(L, (double)To<int64_t>(L, 1));
-#endif
-        });
 
-        SetGlobalCClosure(L, "NumberToInt64", [](auto L)->int { 
-            return Push(L, 
-#if LUA_VERSION_NUM == 501
-                (void*)(size_t)
+        xx::Lua::SetGlobalCClosure(L, "Epoch10mToDateTime", [](auto L)->int {
+            auto e10m = xx::Lua::To<int64_t>(L, 1);
+            auto tp = xx::Epoch10mToTimePoint(e10m);
+            auto t = std::chrono::system_clock::to_time_t(tp);
+            std::tm tm{};
+#ifdef _WIN32
+            localtime_s(&tm, &t);
 #else
-                (int64_t)
+            localtime_r(&t, &tm);
 #endif
-                To<double>(L, 1));
-        });
-
-        SetGlobalCClosure(L, "Int64ToString", [](auto L)->int {
-            return Push(L, std::to_string(
-#if LUA_VERSION_NUM == 501
-                (int64_t)(size_t)To<(void*)>(L, 1)
-#else
-                To<int64_t>(L, 1)
-#endif
-            ));
-        });
-
-        SetGlobalCClosure(L, "StringToInt64", [](auto L)->int {
-            return Push(L, 
-#if LUA_VERSION_NUM == 501
-                (void*)
-#else
-                (int64_t)
-#endif
-                atoll(To<char*>(L, 1)));
+            return xx::Lua::Push(L
+                , tm.tm_year + 1900
+                , tm.tm_mon + 1
+                , tm.tm_mday
+                , tm.tm_hour
+                , tm.tm_min
+                , tm.tm_sec
+                , tm.tm_wday
+                , tm.tm_yday);
         });
 
         // todo: more
