@@ -48,8 +48,8 @@ namespace xx {
         Coro(Coro&& o) noexcept : h(o.h) { o.h = nullptr; };
         Coro& operator=(Coro&&) = delete;
 
-        void Resume() { h.resume(); }
-        bool Done() { return h.done(); }
+        void operator()() { h.resume(); }
+        operator bool() { return h.done(); }
 
     private:
         handle_type h;
@@ -71,7 +71,7 @@ namespace xx {
         }
 
         void Add(Coro&& g) {
-            if (g.Done()) return;
+            if (g) return;
             new (&coros.emplace_back()) Coro(std::move(g));
         }
 
@@ -89,8 +89,7 @@ namespace xx {
         void operator()() {
             for (int i = (int)coros.size() - 1; i >= 0; --i) {
                 auto& c = reinterpret_cast<Coro&>(coros[i]);
-                c.Resume();
-                if (c.Done()) {
+                if (c(); c) {
                     c.~Coro();
                     coros[i] = coros[coros.size() - 1];
                     coros.pop_back();
@@ -102,8 +101,8 @@ namespace xx {
 }
 
 #define CoYield co_yield 0
-#define CoAwait(g_) { auto&& g = std::move(g); while(!g.Done()) { co_yield 0; g.Resume(); } }
-#define CoSleep(d) { auto tp = std::chrono::steady_clock::now() + d; do { co_yield 0; } while (std::chrono::steady_clock::now() < tp); }
+#define CoAwait(g_) { auto&& g = std::move(g); while(!g.Done()) { CoYield; g.Resume(); } }
+#define CoSleep(d) { auto tp = std::chrono::steady_clock::now() + d; do { CoYield; } while (std::chrono::steady_clock::now() < tp); }
 
 
 /*
