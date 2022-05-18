@@ -414,10 +414,23 @@ namespace xx {
 
     inline void ToHex(std::string& s) {
         auto len = s.size();
-        auto b = (uint8_t*)s.data();
         s.resize(len * 2);
+        auto b = (uint8_t*)s.data();
         for (auto i = (ptrdiff_t)len - 1; i >= 0; --i) {
             xx::ToHex(b[i], b[i * 2], b[i * 2 + 1]);
+        }
+    }
+
+    // 用 s 滚动异或 buf 内容. 注意传入 buf 需要字节对齐, 小尾适用
+    inline void XorContent(uint64_t s, char* buf, size_t len) {
+        auto p = (char*)&s;
+        auto left = len % sizeof(s);                                                                        // 余数 ( 这里假定 buf 一定会按 4/8 字节对齐, 小尾 )
+        size_t i = 0;
+        for (; i < len - left; i += sizeof(s)) {                                                            // 把字节对齐的部分肏了
+            *(uint64_t*)&buf[i] ^= s;
+        }
+        for (auto j = i; i < len; ++i) {                                                                    // 余下部分单字节肏
+            buf[i] ^= p[i - j];
         }
     }
 
