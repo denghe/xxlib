@@ -1,6 +1,8 @@
 ﻿#pragma once
 
-// 使用方法：xcode 需要配置 c++ 为 20 版本 并且去 other c++ flags 看看 如果有 17 字样 删掉
+// 注意：
+// vs2022 需要配置 c++ 为 20 版本
+// xcode 需要配置 c++ 为 20 版本 并且编译选项看看 如果有 std=c++17 字样 删掉( 主要针对 cmake 自动生成的项目 )
 // android 某 gradle 某行加点料 cppFlags "-frtti -fexceptions -fsigned-char -std=c++20 -fcoroutines-ts"
 
 // 注意:
@@ -145,11 +147,17 @@ namespace xx {
 	template<typename T> concept Has_Peer_HandleMessage = requires(T t) { t.HandleMessage((uint8_t*)0, 0); };
 	template<typename T> concept Has_Peer_HandleData = requires(T t) { t.HandleData(Data_r()); };
 
-	// 用于补充 Start 函数功能
+	// 位于 Start 尾部
 	template<typename T> concept Has_Peer_Start_ = requires(T t) { t.Start_(); };
 
-	// 用于补充 Stop 函数功能
+	// 位于 Start 尾部
 	template<typename T> concept Has_Peer_Stop_ = requires(T t) { t.Stop_(); };
+
+	// 位于 Send 开头 提供预处理机会
+	template<typename T> concept Has_Peer_Presend = requires(T t) { t.Presend(std::declval<Data&>()); };
+
+	// 位于 HandleData 调用之前 提供预处理机会
+	template<typename T> concept Has_Peer_PrehandleData = requires(T t) { t.PrehandleData((uint8_t*)0, 0); };
 
 	// 用于检测是否继承了 PeerTimeoutCode 代码片段
 	template<typename T> concept Has_PeerTimeoutCode = requires(T t) { t.ResetTimeout(1s); };
@@ -169,103 +177,69 @@ namespace xx {
 	template<typename T> concept Has_Peer_ReceiveTargetResponse = requires(T t) { t.ReceiveTargetResponse(0, 0, std::declval<ObjBase_s&>()); };
 	template<typename T> concept Has_Peer_HandleTargetMessage = requires(T t) { t.HandleTargetMessage(0, std::declval<Data_r&>()); };
 #else
-	template<class T, class = void>
-	struct _Has_Peer_HandleMessage : std::false_type {};
-	template<class T>
-	struct _Has_Peer_HandleMessage<T, std::void_t<decltype(std::declval<T&>().HandleMessage((uint8_t*)0, 0))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_HandleMessage = _Has_Peer_HandleMessage<T>::value;
+	template<class T, class = void> struct _Has_Peer_HandleMessage : std::false_type {};
+	template<class T> struct _Has_Peer_HandleMessage<T, std::void_t<decltype(std::declval<T&>().HandleMessage((uint8_t*)0, 0))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_HandleMessage = _Has_Peer_HandleMessage<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_HandleData : std::false_type {};
-	template<class T>
-	struct _Has_Peer_HandleData<T, std::void_t<decltype(std::declval<T&>().HandleData(Data_r()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_HandleData = _Has_Peer_HandleData<T>::value;
+	template<class T, class = void> struct _Has_Peer_HandleData : std::false_type {};
+	template<class T> struct _Has_Peer_HandleData<T, std::void_t<decltype(std::declval<T&>().HandleData(Data_r()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_HandleData = _Has_Peer_HandleData<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_Start_ : std::false_type {};
-	template<class T>
-	struct _Has_Peer_Start_<T, std::void_t<decltype(std::declval<T&>().Start_())>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_Start_ = _Has_Peer_Start_<T>::value;
+	template<class T, class = void> struct _Has_Peer_Start_ : std::false_type {};
+	template<class T> struct _Has_Peer_Start_<T, std::void_t<decltype(std::declval<T&>().Start_())>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_Start_ = _Has_Peer_Start_<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_Stop_ : std::false_type {};
-	template<class T>
-	struct _Has_Peer_Stop_<T, std::void_t<decltype(std::declval<T&>().Stop_())>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_Stop_ = _Has_Peer_Stop_<T>::value;
+	template<class T, class = void> struct _Has_Peer_Stop_ : std::false_type {};
+	template<class T> struct _Has_Peer_Stop_<T, std::void_t<decltype(std::declval<T&>().Stop_())>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_Stop_ = _Has_Peer_Stop_<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ResetTimeout : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ResetTimeout<T, std::void_t<decltype(std::declval<T&>().ResetTimeout(1s))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_PeerTimeoutCode = _Has_Peer_ResetTimeout<T>::value;
+	template<class T, class = void> struct _Has_Peer_Presend : std::false_type {};
+	template<class T> struct _Has_Peer_Presend<T, std::void_t<decltype(std::declval<T&>().Presend(std::declval<Data&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_Presend = _Has_Peer_Presend<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ReadFrom : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ReadFrom<T, std::void_t<decltype(std::declval<T&>().ReadFrom(std::declval<Data_r&>()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_PeerRequestCode = _Has_Peer_ReadFrom<T>::value;
+	template<class T, class = void> struct _Has_Peer_PrehandleData : std::false_type {};
+	template<class T> struct _Has_Peer_PrehandleData<T, std::void_t<decltype(std::declval<T&>().PrehandleData((uint8_t*)0, 0))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_PrehandleData = _Has_Peer_Presend<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ReceivePush : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ReceivePush<T, std::void_t<decltype(std::declval<T&>().ReceivePush(ObjBase_s()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_ReceivePush = _Has_Peer_ReceivePush<T>::value;
+	template<class T, class = void> struct _Has_Peer_ResetTimeout : std::false_type {};
+	template<class T> struct _Has_Peer_ResetTimeout<T, std::void_t<decltype(std::declval<T&>().ResetTimeout(1s))>> : std::true_type {};
+	template<class T> constexpr bool Has_PeerTimeoutCode = _Has_Peer_ResetTimeout<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ReceiveRequest : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ReceiveRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveRequest(0, ObjBase_s()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_ReceiveRequest = _Has_Peer_ReceiveRequest<T>::value;
+	template<class T, class = void> struct _Has_Peer_ReadFrom : std::false_type {};
+	template<class T> struct _Has_Peer_ReadFrom<T, std::void_t<decltype(std::declval<T&>().ReadFrom(std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_PeerRequestCode = _Has_Peer_ReadFrom<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ReceiveResponse : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ReceiveResponse<T, std::void_t<decltype(std::declval<T&>().ReceiveResponse(0, std::declval<ObjBase_s&>()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_ReceiveResponse = _Has_Peer_ReceiveResponse<T>::value;
+	template<class T, class = void> struct _Has_Peer_ReceivePush : std::false_type {};
+	template<class T> struct _Has_Peer_ReceivePush<T, std::void_t<decltype(std::declval<T&>().ReceivePush(ObjBase_s()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceivePush = _Has_Peer_ReceivePush<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ReceiveTargetPush : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ReceiveTargetPush<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetPush(0, ObjBase_s()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_ReceiveTargetPush = _Has_Peer_ReceiveTargetPush<T>::value;
+	template<class T, class = void> struct _Has_Peer_ReceiveRequest : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveRequest(0, ObjBase_s()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveRequest = _Has_Peer_ReceiveRequest<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ReceiveTargetRequest : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ReceiveTargetRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetRequest(0, 0, ObjBase_s()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_ReceiveTargetRequest = _Has_Peer_ReceiveTargetRequest<T>::value;
+	template<class T, class = void> struct _Has_Peer_ReceiveResponse : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveResponse<T, std::void_t<decltype(std::declval<T&>().ReceiveResponse(0, std::declval<ObjBase_s&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveResponse = _Has_Peer_ReceiveResponse<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_ReceiveTargetResponse : std::false_type {};
-	template<class T>
-	struct _Has_Peer_ReceiveTargetResponse<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetResponse(0, 0, std::declval<ObjBase_s&>()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_ReceiveTargetResponse = _Has_Peer_ReceiveTargetResponse<T>::value;
+	template<class T, class = void> struct _Has_Peer_ReceiveTargetPush : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveTargetPush<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetPush(0, ObjBase_s()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveTargetPush = _Has_Peer_ReceiveTargetPush<T>::value;
 
-	template<class T, class = void>
-	struct _Has_Peer_HandleTargetMessage : std::false_type {};
-	template<class T>
-	struct _Has_Peer_HandleTargetMessage<T, std::void_t<decltype(std::declval<T&>().HandleTargetMessage(0, std::declval<Data_r&>()))>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_Peer_HandleTargetMessage = _Has_Peer_HandleTargetMessage<T>::value;
+	template<class T, class = void> struct _Has_Peer_ReceiveTargetRequest : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveTargetRequest<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetRequest(0, 0, ObjBase_s()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveTargetRequest = _Has_Peer_ReceiveTargetRequest<T>::value;
 
-	template<class T, class = void>
-	struct _Has_VPeerCode : std::false_type {};
-	template<class T>
-	struct _Has_VPeerCode<T, std::void_t<decltype(std::declval<T&>().Tag_VPeerCode())>> : std::true_type {};
-	template<class T>
-	constexpr bool Has_VPeerCode = _Has_VPeerCode<T>::value;
+	template<class T, class = void> struct _Has_Peer_ReceiveTargetResponse : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveTargetResponse<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetResponse(0, 0, std::declval<ObjBase_s&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveTargetResponse = _Has_Peer_ReceiveTargetResponse<T>::value;
+
+	template<class T, class = void> struct _Has_Peer_HandleTargetMessage : std::false_type {};
+	template<class T> struct _Has_Peer_HandleTargetMessage<T, std::void_t<decltype(std::declval<T&>().HandleTargetMessage(0, std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_HandleTargetMessage = _Has_Peer_HandleTargetMessage<T>::value;
+
+	template<class T, class = void> struct _Has_VPeerCode : std::false_type {};
+	template<class T> struct _Has_VPeerCode<T, std::void_t<decltype(std::declval<T&>().Tag_VPeerCode())>> : std::true_type {};
+	template<class T> constexpr bool Has_VPeerCode = _Has_VPeerCode<T>::value;
 #endif
 
 
@@ -335,6 +309,9 @@ namespace xx {
 
 		void Send(Data&& msg) {
 			if (stoped) return;
+			if constexpr (Has_Peer_Presend<PeerDeriveType>) {
+				PEERTHIS->Presend(msg);
+			}
 			writeQueue.emplace_back(std::move(msg));
 			writeBlocker.cancel_one();
 		}
@@ -455,6 +432,12 @@ namespace xx {
 
 				// 如果包不完整 就 跳出
 				if (buf + totalLen > end) break;	// continue
+
+				// 检测是否含有 PrehandleData 函数, 有就调用
+				if constexpr (Has_Peer_PrehandleData<PeerDeriveType>) {
+					// 可在这个函数里预处理. 注意数据包含 4 字节长度头
+					PEERTHIS->PrehandleData(buf, totalLen);
+				}
 
 				// 检测是否含有 HandleData 函数, 有就调用
 				if constexpr (Has_Peer_HandleData<PeerDeriveType>) {

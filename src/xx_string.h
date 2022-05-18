@@ -434,6 +434,15 @@ namespace xx {
         }
     }
 
+    // 用 s 滚动异或 b 内容
+    inline void XorContent(char const* s, size_t slen, char* b, size_t blen) {
+        auto e = b + blen;
+        for (size_t i = 0; b < e; *b++ ^= s[i++]) {
+            if (i == slen) i = 0;
+        }
+    }
+
+
     inline int RemovePath(std::string& s) {
         auto b = s.data();
         auto e = (int)s.size() - 1;

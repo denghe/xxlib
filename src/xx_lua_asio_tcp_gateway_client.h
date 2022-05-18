@@ -8,10 +8,10 @@ xx::Asio::Tcp::Gateway::Client 映射到 lua
 C++ 注册:
 	xx::Lua::Asio::Tcp::Gateway::Client::Register( L );
 
-LUA 中的 全局 创建 函数:
+LUA 中的 全局 创建 函数: ( 默认 )
 	NewAsioTcpGatewayClient()
 
-成员函数见 funcs 数组
+成员函数见 下方 SetFieldCClosure 代码段
 
 注意事项：
 	Dial() 是协程函数。调用后需要不断的用 Busy() 来探测状态，如果没脱离 busy 则不可以 call 别的函数
@@ -42,8 +42,12 @@ namespace xx::Lua {
 				To<U*>(L)->Reset();
 				return 0; 
 			});
+			SetFieldCClosure(L, "SetSecret", [](auto L)->int {
+				To<U*>(L)->SetSecret(To<std::string_view>(L, 2));
+				return 0;
+			});
 			SetFieldCClosure(L, "SetDomainPort", [](auto L)->int {
-				To<U*>(L)->SetDomainPort(To<char*>(L, 2), To<int>(L, 3));
+				To<U*>(L)->SetDomainPort(To<std::string_view>(L, 2), To<int>(L, 3));
 				return 0;
 			});
 			SetFieldCClosure(L, "AddCppServerIds", [](auto L)->int {

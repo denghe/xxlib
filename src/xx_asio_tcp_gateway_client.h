@@ -21,9 +21,12 @@ namespace xx::Asio::Tcp::Gateway {
 		std::shared_ptr<CPeer> peer;																// 当前 peer
 		std::unordered_set<uint32_t> cppServerIds;													// 属于 cpp 处理的 serverId 存放于此
 
+		std::string secret;																			// 用于数据滚动异或
 		std::string domain;																			// 域名/ip. 需要在 拨号 前填充
 		uint16_t port = 0;																			// 端口. 需要在 拨号 前填充
 		bool busy = false;																			// 繁忙标志 for lua ( lua bind 函数在 co_spawn 之前 check & set, 之后 clear )
+
+		void SetSecret(std::string_view secret);													// 设置数据滚动异或串
 
 		void SetDomainPort(std::string_view domain_, uint16_t port_);								// 填充 域名/ip, 端口
 
@@ -94,8 +97,19 @@ namespace xx::Asio::Tcp::Gateway {
 			openServerIds.clear();
 			openWaitServerIds.clear();
 			waitingObject = false;
-			openWaiter.cancel();																	// 取消某些等待器
-			objectWaiter.cancel();																	// 取消某些等待器
+			openWaiter.cancel();
+			objectWaiter.cancel();
+		}
+
+		// 消息滚动异或解密
+		void PrehandleData(uint8_t* b, size_t len) {
+			if (auto& s = client.secret; s.size()) {
+				xx::XorContent(s.data(), s.size(), (char*)b + 4, len - 4);
+			}
+		}
+		// 消息滚动异或加密
+		void Presend(xx::Data& d) {
+			PrehandleData(d.buf, d.len);															// 因为是异或逻辑，加密直接 call 上面的函数即可
 		}
 
 		// 拦截处理特殊 target 路由需求( 返回 0 表示已成功处理，   返回 正数 表示不拦截,    返回负数表示 出错 )
@@ -155,6 +169,9 @@ namespace xx::Asio::Tcp::Gateway {
 	template<typename...Args>
 	void Client::AddCppServerIds(Args...ids) {
 		(cppServerIds.insert(ids), ...);
+	}
+	inline void Client::SetSecret(std::string_view secret_) {
+		secret = secret_;
 	}
 
 	inline void Client::SetDomainPort(std::string_view domain_, uint16_t port_) {
