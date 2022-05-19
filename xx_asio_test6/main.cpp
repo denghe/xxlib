@@ -6,7 +6,7 @@
 struct Logic : asio::noncopyable {
 	xx::Lua::State L;
 	Logic() {
-		xx::Lua::RegisterGlobalUtils(L);	// null  NowEpochMS()  NowEpoch10m()  Int64ToNumber   NumberToInt64  Int64ToString  StringToInt64
+		xx::Lua::RegisterBaseEnv(L);	// null  NowEpochMS()  NowEpoch10m()  Epoch10mToDateTime()
 		xx::Lua::Data::Register(L);
 		xx::Lua::Asio::Tcp::Gateway::Client::Register(L);
 		if (auto r = xx::Lua::Try(L, [&] {
