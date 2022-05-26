@@ -1,5 +1,41 @@
 ﻿#pragma once
 
+// SQLITE helpers. 第一时间需要调用 Init
+// 下面是一些常用编译参数. 第一个看情况吧。全部配置上据说有 5% 提升( 第一个 2% )
+/*
+SQLITE_THREADSAFE=0
+SQLITE_OMIT_PROGRESS_CALLBACK
+SQLITE_DEFAULT_MEMSTATUS=0
+SQLITE_USE_ALLOCA
+SQLITE_LIKE_DOESNT_MATCH_BLOBS
+SQLITE_OMIT_DEPRECATED
+SQLITE_OMIT_AUTOINIT
+SQLITE_OMIT_LOAD_EXTENSION
+SQLITE_OMIT_SHARED_CACHE
+SQLITE_DQS=0
+SQLITE_MAX_EXPR_DEPTH=0
+
+调用示例:
+int main() {
+    xx::SQLite::Init();
+    xx::SQLite::Connection conn;
+    conn.Open("test1.db3");
+    if (!conn) {
+        xx::CoutN("xx::SQLite::Connection.Open( test1.db3 ) failed. error code = ", conn.lastErrorCode);
+        return __LINE__;
+    }
+    // Off: 完全不等磁盘 IO, 不是很安全, 掉电丢数据, 相比 Full 随机 insert 百倍提升. Normal 是折中方案, 比 Off 慢 2-3 倍
+    conn.SetPragmaSynchronousType(xx::SQLite::SynchronousTypes::Off);
+    conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);           // 独立事务文件( 随机 insert 性能大幅提升 )，感觉可以无脑设置
+    conn.SetPragmaLockingMode(xx::SQLite::LockingModes::Exclusive);     // 文件独占模式( 随机 insert 有一定提升 ), 视需求而定
+    try {
+        ....
+    }
+    catch (std::exception const& ex) {
+        xx::CoutN("throw exception after conn.Open. ex = ", ex.what());
+    }
+*/
+
 #include "xx_helpers.h"
 #include "xx_ptr.h"
 #include "sqlite3.h"
@@ -27,7 +63,7 @@ namespace xx::SQLite {
         Off,             // 完全不等
     };
     static const char *const strSynchronousTypes[] = {
-            "FULL", "NORMAL", "OFF"
+        "FULL", "NORMAL", "OFF"
     };
 
     // 事务数据记录模式
@@ -37,10 +73,10 @@ namespace xx::SQLite {
         Persist,         // 在文件头打标记( 可能比字节清 0 快 )
         Memory,          // 内存模式( 可能丢数据 )
         WAL,             // write-ahead 模式( 似乎比上面都快, 不会丢数据 )
-        Off,             // 无事务支持( 最快 )
+        Off,             // 无事务支持( 和 WAL 互有胜负 )
     };
     static const char *const strJournalModes[] = {
-            "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"
+        "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"
     };
 
     // 临时表处理模式
@@ -50,7 +86,7 @@ namespace xx::SQLite {
         Memory,          // 在内存中建临时表
     };
     static const char *const strTempStoreTypes[] = {
-            "DEFAULT", "FILE", "MEMORY"
+        "DEFAULT", "FILE", "MEMORY"
     };
 
     // 排它锁持有方式，仅当关闭数据库连接，或者将锁模式改回为NORMAL时，再次访问数据库文件（读或写）才会放掉
@@ -59,7 +95,7 @@ namespace xx::SQLite {
         Exclusive,       // 连接永远不会释放文件锁. 第一次执行读操作时，会获取并持有共享锁，第一次写，会获取并持有排它锁
     };
     static const char *const strLockingModes[] = {
-            "NORMAL", "EXCLUSIVE"
+        "NORMAL", "EXCLUSIVE"
     };
 
     // 查询主体
@@ -150,11 +186,19 @@ namespace xx::SQLite {
         // 执行查询并可选择使用 Reader 在传入回调中读出每一行数据
         void Execute(ReadFunc &&rf = nullptr);
 
+        // 执行查询. 如果 T 不为 void, 将返回第一行第一列的值.
+        template<typename T = void>
+        T Execute();
+
         // 执行查询 将返回结果集的第一行的值 以指定数据类型 填充到 args. if not result, return false
         template<typename ...Args>
         bool ExecuteTo(Args &...args);
     };
 
+    // 这句需要第一时间执行到, 比如放在 main 函数? ( 如果配置了 SQLITE_OMIT_AUTOINIT 编译参数 )
+    inline static void Init() {
+        sqlite3_initialize();
+    }
 
     // 数据库主体
     struct Connection {
@@ -188,12 +232,16 @@ namespace xx::SQLite {
         void ThrowError(int const &errCode, char const *const &errMsg = nullptr);
 
     public:
+        // 默认构造需要接下来用 Open 来初始化
+        Connection() noexcept;
+
         // fn 可以是 :memory: 以创建内存数据库
-        Connection(char const *const &fn, bool const &readOnly = false) noexcept;
+        explicit Connection(char const *const &fn, bool const &readOnly = false) noexcept;
+
+        // 同 上面这个构造函数. 是否成功需要用 operator bool() 来判断
+        void Open(char const* const& fn, bool const& readOnly = false) noexcept;
 
         ~Connection();
-
-        Connection() = delete;
 
         Connection(Connection const &) = delete;
 
@@ -215,6 +263,12 @@ namespace xx::SQLite {
         // 启用外键约束( 默认为未启用 )
         void SetPragmaForeignKeys(bool enable);
 
+        // auto_vacuum: 0 | NONE | 1 | FULL | 2 | INCREMENTAL;
+        void SetPragmaSchemaAutoVacuum(int v);
+
+        // 忽略检查约束( 默认为关闭 )
+        void SetPragmaIgnoreCheckConstraints(bool enable);
+
         // 数据写盘模式( Off 最快 )
         void SetPragmaSynchronousType(SynchronousTypes st);
 
@@ -224,39 +278,49 @@ namespace xx::SQLite {
         // 排它锁持有方式( 文件被 单个应用独占情况下 EXCLUSIVE 最快 )
         void SetPragmaLockingMode(LockingModes lm);
 
-        // 内存数据库页数( 4096 似乎最快 )
-        void SetPragmaCacheSize(int cacheSize);
+        // 内存数据库页数( 默认值 2000? 4096 似乎最快 )
+        void SetPragmaCacheSize(size_t siz);
 
+        // 内存映射文件 size( 有优化指南用到这个数值: 30000000000 )
+        void SetPragmaMMapSize(size_t siz);
+
+        // 内存页数( 有优化指南用到这个数值: 32768 )
+        void SetPragmaPageSize(size_t siz);
+
+        // 重组数据库
+        void PragmaVacuum();
+
+        // 再分析数据库
+        void PragmaOptimize();
 
         // 附加另外一个库
-        void Attach(char const *const &alias, char const *const &fn);    // ATTACH DATABASE 'fn' AS 'alias'
+        void Attach(char const *const &alias, char const *const &fn);       // ATTACH DATABASE 'fn' AS 'alias'
 
         // 反附加另外一个库
-        void Detach(char const *const &alias);                            // DETACH DATABASE 'alias'
+        void Detach(char const *const &alias);                              // DETACH DATABASE 'alias'
 
         // 启动事务
-        void BeginTransaction();                                        // BEGIN TRANSACTION
+        void BeginTransaction();                                            // BEGIN TRANSACTION
 
         // 提交事务
-        void Commit();                                                    // COMMIT TRANSACTION
+        void Commit();                                                      // COMMIT TRANSACTION
 
         // 回滚
-        void Rollback();                                                // ROLLBACK TRANSACTION
+        void Rollback();                                                    // ROLLBACK TRANSACTION
 
         // 结束事务( 同 Commit )
-        void EndTransaction();                                            // END TRANSACTION
+        void EndTransaction();                                              // END TRANSACTION
 
         // 返回 1 表示只包含 'sqlite_sequence' 这样一个预创建表.
         // android 下也有可能返回 2, 有张 android 字样的预创建表存在
-        int GetTableCount();                                            // SELECT count(*) FROM sqlite_master
+        int GetTableCount();                                                // SELECT count(*) FROM sqlite_master
 
         // 判断表是否存在
-        bool TableExists(
-                char const *const &tn);                        // SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?
+        bool TableExists(char const *const &tn);                            // SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?
 
-        // 会清空表数据, 并且重置自增计数. 如果存在约束, 或 sqlite_sequence 不存在, 有可能清空失败.
-        void TruncateTable(
-                char const *const &tn);                        // DELETE FROM ?; DELETE FROM sqlite_sequence WHERE name = ?;
+        // 会清空表数据, 并且重置自增计数. 如果存在约束, 有可能清空失败. 如果所有表里面都没有自增字段，则表 sqlite_sequence 不存在，注意传参
+        void TruncateTable(char const *const &tn
+            , bool has_sqlite_sequence = true);                             // DELETE FROM ?; DELETE FROM sqlite_sequence WHERE name = ?;
 
         // 直接执行一个 SQL 语句
         void Call(char const *const &sql,
@@ -346,17 +410,13 @@ namespace xx::SQLite {
     /***************************************************************/
     // Connection
 
-    inline Connection::Connection(char const *const &fn, bool const &readOnly) noexcept
-            : qBeginTransaction(*this), qCommit(*this), qRollback(*this), qEndTransaction(*this), qTableExists(*this),
-              qGetTableCount(*this), qAttach(*this), qDetach(*this) {
-        int r = sqlite3_open_v2(fn, &ctx,
-                                readOnly ? SQLITE_OPEN_READONLY : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE),
-                                nullptr);
-        if (r != SQLITE_OK) {
-            ctx = nullptr;
+    inline void Connection::Open(char const* const& fn, bool const& readOnly) noexcept {
+        assert(ctx == nullptr);
+        lastErrorCode = sqlite3_open_v2(fn, &ctx, readOnly ? SQLITE_OPEN_READONLY : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE), nullptr);
+        if (lastErrorCode != SQLITE_OK) {
+            assert(ctx == nullptr);
             return;
         }
-
         qAttach.SetQuery("ATTACH DATABASE ? AS ?");
         qDetach.SetQuery("DETACH DATABASE ?");
         qBeginTransaction.SetQuery("BEGIN TRANSACTION");
@@ -365,6 +425,14 @@ namespace xx::SQLite {
         qEndTransaction.SetQuery("END TRANSACTION");
         qTableExists.SetQuery("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?");
         qGetTableCount.SetQuery("SELECT count(*) FROM sqlite_master WHERE type = 'table'");
+    }
+
+    inline Connection::Connection() noexcept : qBeginTransaction(*this), qCommit(*this), qRollback(*this), qEndTransaction(*this), qTableExists(*this),
+        qGetTableCount(*this), qAttach(*this), qDetach(*this) {
+    }
+
+    inline Connection::Connection(char const *const &fn, bool const &readOnly) noexcept : Connection() {
+        Open(fn, readOnly);
     }
 
     inline Connection::~Connection() {
@@ -421,11 +489,24 @@ namespace xx::SQLite {
         Call(sqlBuilder.c_str());
     }
 
-    inline void Connection::SetPragmaCacheSize(int cacheSize) {
-        if (cacheSize < 1) ThrowError(-1, "bad cacheSize( default is 2000 )");
+    inline void Connection::SetPragmaCacheSize(size_t siz) {
         sqlBuilder.clear();
         sqlBuilder.append("PRAGMA cache_size = ");
-        sqlBuilder.append(std::to_string(cacheSize));
+        sqlBuilder.append(std::to_string(siz));
+        Call(sqlBuilder.c_str());
+    }
+
+    inline void Connection::SetPragmaMMapSize(size_t siz) {
+        sqlBuilder.clear();
+        sqlBuilder.append("PRAGMA mmap_size = ");
+        sqlBuilder.append(std::to_string(siz));
+        Call(sqlBuilder.c_str());
+    }
+
+    inline void Connection::SetPragmaPageSize(size_t siz) {
+        sqlBuilder.clear();
+        sqlBuilder.append("pragma page_size = ");
+        sqlBuilder.append(std::to_string(siz));
         Call(sqlBuilder.c_str());
     }
 
@@ -434,6 +515,28 @@ namespace xx::SQLite {
         sqlBuilder.append("PRAGMA foreign_keys = ");
         sqlBuilder.append(enable ? "true" : "false");
         Call(sqlBuilder.c_str());
+    }
+
+    inline void Connection::SetPragmaSchemaAutoVacuum(int v) {
+        sqlBuilder.clear();
+        sqlBuilder.append("PRAGMA auto_vacuum = ");
+        sqlBuilder.append(std::to_string(v));
+        Call(sqlBuilder.c_str());
+    }
+
+    inline void Connection::SetPragmaIgnoreCheckConstraints(bool enable) {
+        sqlBuilder.clear();
+        sqlBuilder.append("PRAGMA ignore_check_constraints = ");
+        sqlBuilder.append(enable ? "true" : "false");
+        Call(sqlBuilder.c_str());
+    }
+
+    inline void Connection::PragmaVacuum() {
+        Call("pragma vacuum");
+    }
+
+    inline void Connection::PragmaOptimize() {
+        Call("pragma optimize");
     }
 
     inline void Connection::Call(char const *const &sql,
@@ -452,9 +555,7 @@ namespace xx::SQLite {
         if constexpr(std::is_void_v<T>) {
             q.Execute();
         } else {
-            T rtv{};
-            q.ExecuteTo(rtv);
-            return rtv;
+            return q.Execute<T>();
         }
     }
 
@@ -501,12 +602,18 @@ namespace xx::SQLite {
         return count;
     }
 
-    inline void Connection::TruncateTable(char const *const &tn) {
-        // todo: 对 tn 转义
+    inline void Connection::TruncateTable(char const *const &tn, bool has_sqlite_sequence) {
+        // todo: 对 tn 转义?
         sqlBuilder.clear();
-        sqlBuilder +=
-                std::string("BEGIN; DELETE FROM `") + tn + "`; DELETE FROM `sqlite_sequence` WHERE `name` = '" + tn +
-                "'; COMMIT;";
+        sqlBuilder.append("BEGIN; DELETE FROM `");
+        sqlBuilder.append(tn);
+        sqlBuilder.push_back('`');
+        if (has_sqlite_sequence) {
+            sqlBuilder.append("; DELETE FROM `sqlite_sequence` WHERE `name` = '");
+            sqlBuilder.append(tn);
+            sqlBuilder.push_back('`');
+        }
+        sqlBuilder.append("; COMMIT;");
         Call(sqlBuilder.c_str());
     }
 
@@ -695,6 +802,18 @@ namespace xx::SQLite {
         auto em = sqlite3_errmsg(owner.ctx);
         sqlite3_reset(stmt);
         owner.ThrowError(ec, em);
+    }
+
+    template<typename T>
+    inline T Query::Execute() {
+        if constexpr (std::is_void_v<T>) {
+            Execute();
+        }
+        else {
+            T rtv{};
+            ExecuteTo(rtv);
+            return rtv;
+        }
     }
 
     template<typename ...Args>

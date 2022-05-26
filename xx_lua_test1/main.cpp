@@ -3,13 +3,13 @@
 #include "xx_lua_data.h"
 #include "xx_string.h"
 
-#ifdef _WIN32
-#pragma comment(lib, "libuv.lib")
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "iphlpapi.lib")
-#pragma comment(lib, "Psapi.lib")
-#pragma comment(lib, "userenv.lib")
-#endif
+//#ifdef _WIN32
+//#pragma comment(lib, "libuv.lib")
+//#pragma comment(lib, "ws2_32.lib")
+//#pragma comment(lib, "iphlpapi.lib")
+//#pragma comment(lib, "Psapi.lib")
+//#pragma comment(lib, "userenv.lib")
+//#endif
 
 void Test1() {
     auto L = luaL_newstate();
@@ -178,44 +178,44 @@ void Test2() {
 }
 
 
-#include "xx_lua_uv_client.h"
+//#include "xx_lua_uv_client.h"
 
 #include "xx_lua_bind_samples.h"
 
 //#include "luasocket.h"
 //#include "mime.h"
 
-void TestUv() {
-    xx::Lua::State L;
-
-//    lua_getglobal(L, "package");                    // ..., t
-//    lua_pushstring(L, "preload");                   // ..., t, ""
-//    lua_rawget(L, -2);                              // ..., t, t
-//    lua_pushstring(L, "socket.core");               // ..., t, t, ""
-//    lua_pushcclosure(L, luaopen_socket_core, 0);    // ..., t, t, "", f
-//    lua_rawset(L, -3);                              // ..., t, t
-//    lua_pushstring(L, "mime.core");                 // ..., t, t, ""
-//    lua_pushcclosure(L, luaopen_mime_core, 0);      // ..., t, t, "", f
-//    lua_rawset(L, -3);                              // ..., t, t
-//    lua_pop(L, 2);                                  // ...,
-
-    SetGlobalCClosure(L, "Nows", [](auto L) -> int { return xx::Lua::Push(L, xx::NowEpochSeconds()); });
-    SetGlobalCClosure(L, "NowSteadyEpochMS", [](auto L) -> int { return xx::Lua::Push(L, xx::NowSteadyEpochMilliseconds()); });
-    xx::Lua::UvClient::Register(L);
-    xx::Lua::Data::Register(L);
-
-    auto r = xx::Lua::Try(L, [&] {
-        xx::Lua::DoFile(L, "test_uv.lua");
-        auto cb = xx::Lua::GetGlobalFunc(L, "gUpdate");
-        while (true) {
-            cb.Call();
-            Sleep(16);
-        }
-    });
-    if (r) {
-        xx::CoutN(r.m);
-    }
-}
+//void TestUv() {
+//    xx::Lua::State L;
+//
+////    lua_getglobal(L, "package");                    // ..., t
+////    lua_pushstring(L, "preload");                   // ..., t, ""
+////    lua_rawget(L, -2);                              // ..., t, t
+////    lua_pushstring(L, "socket.core");               // ..., t, t, ""
+////    lua_pushcclosure(L, luaopen_socket_core, 0);    // ..., t, t, "", f
+////    lua_rawset(L, -3);                              // ..., t, t
+////    lua_pushstring(L, "mime.core");                 // ..., t, t, ""
+////    lua_pushcclosure(L, luaopen_mime_core, 0);      // ..., t, t, "", f
+////    lua_rawset(L, -3);                              // ..., t, t
+////    lua_pop(L, 2);                                  // ...,
+//
+//    SetGlobalCClosure(L, "Nows", [](auto L) -> int { return xx::Lua::Push(L, xx::NowEpochSeconds()); });
+//    SetGlobalCClosure(L, "NowSteadyEpochMS", [](auto L) -> int { return xx::Lua::Push(L, xx::NowSteadyEpochMilliseconds()); });
+//    xx::Lua::UvClient::Register(L);
+//    xx::Lua::Data::Register(L);
+//
+//    auto r = xx::Lua::Try(L, [&] {
+//        xx::Lua::DoFile(L, "test_uv.lua");
+//        auto cb = xx::Lua::GetGlobalFunc(L, "gUpdate");
+//        while (true) {
+//            cb.Call();
+//            Sleep(16);
+//        }
+//    });
+//    if (r) {
+//        xx::CoutN(r.m);
+//    }
+//}
 
 
 #include "xx_ptr.h"
