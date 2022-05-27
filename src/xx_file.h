@@ -80,7 +80,7 @@ namespace xx
 	}
 
 #ifdef _WIN32
-	void ExecuteFile(LPCTSTR lpApplicationName) {
+	inline void ExecuteFile(LPCTSTR lpApplicationName) {
 		// additional information
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
