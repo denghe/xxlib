@@ -36,6 +36,12 @@ CREATE TABLE acc (
 )
 )#");
 
+		// 建索引
+		conn.Call(R"#(
+CREATE UNIQUE INDEX idx_unique_username on acc (username);
+CREATE INDEX idx_coin on acc (coin);
+)#");
+
 		xx::CoutN("begin insert");
 		xx::SQLite::Query qAccInsert(conn, "insert into acc(id, username, password, nickname, coin) values (?, ?, ?, ?, ?)");
 		auto secs = xx::NowSteadyEpochSeconds();
@@ -50,15 +56,15 @@ CREATE TABLE acc (
 		// conn.Commit();
 		xx::CoutN("insert finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
 
+
 		auto numRows = conn.Execute<int64_t>("select count(*) from acc");
 		xx::CoutN("acc.count(*) = ", numRows);
 
-		xx::CoutN("begin select");
+
+		xx::CoutN("begin select coin by id");
 		xx::SQLite::Query qAccSelectCoinById(conn, "select coin from acc where id = ?");
 		double totalCoin = 0;
 		secs = xx::NowSteadyEpochSeconds();
-
-		// * 2: 这里 故意使用 超范围的 不存在的 id 查询 多一倍次数
 		for (i = 0; i < n * 2; ++i) {
 			if (double coin; qAccSelectCoinById.SetParameters(i).ExecuteTo(coin)) {
 				totalCoin += coin;
@@ -67,7 +73,35 @@ CREATE TABLE acc (
 		xx::CoutN("select finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
 		xx::CoutN("totalCoin = ", totalCoin);
 
-		// ...
+
+		xx::CoutN("begin select coin by username");
+		xx::SQLite::Query qAccSelectCoinByUsername(conn, "select coin from acc where username = ?");
+		totalCoin = 0;
+		secs = xx::NowSteadyEpochSeconds();
+		for (i = 0; i < n * 2; ++i) {
+			auto upn = std::to_string(i);
+			if (double coin; qAccSelectCoinByUsername.SetParameters(upn).ExecuteTo(coin)) {
+				totalCoin += coin;
+			}
+		}
+		xx::CoutN("select finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
+		xx::CoutN("totalCoin = ", totalCoin);
+
+
+		xx::CoutN("begin select top 3 most coin");
+		xx::SQLite::Query qAccSelectTopCoin(conn, "select id, coin from acc order by coin desc limit ?");
+		secs = xx::NowSteadyEpochSeconds();
+		std::vector<std::pair<int64_t, double>> top3;
+		for (i = 0; i < n; ++i) {
+			top3.clear();
+			qAccSelectTopCoin.SetParameters(3).Execute([&](auto& r) {
+				auto& o = top3.emplace_back();
+				r.Reads(o.first, o.second);
+				return 0;
+			});
+		}
+		xx::CoutN("select finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
+		xx::CoutN(top3);
 	}
 	catch (std::exception const& ex) {
 		xx::CoutN("throw exception after conn.Open. ex = ", ex.what());
@@ -89,34 +123,23 @@ using boost::multi_index_container;
 using namespace boost::multi_index;
 
 struct Acc {
-	Acc() = delete;
-	Acc(Acc const&) = delete;
-	Acc& operator=(Acc const&) = delete;
-
 	int64_t id;
 	std::string username;
 	std::string password;
 	std::string nickname;
 	double coin;
-
-	template<typename A1, typename A2, typename A3, typename A4, typename A5>
-	explicit Acc(A1&& a1, A2&& a2, A3&& a3, A4&& a4, A5&& a5)
-		: id(std::forward<A1>(a1))
-		, username(std::forward<A2>(a2))
-		, password(std::forward<A3>(a3))
-		, nickname(std::forward<A4>(a4))
-		, coin(std::forward<A5>(a5))
-	{}
 };
 
 namespace tags {
 	struct id {};
 	struct username {};
-	struct nickname {};
+	struct coin {};
 }
 
 typedef multi_index_container<Acc,indexed_by<
-	ordered_unique<tag<tags::id>, BOOST_MULTI_INDEX_MEMBER(Acc, int64_t, id)>
+	ordered_unique<tag<tags::id>, BOOST_MULTI_INDEX_MEMBER(Acc, int64_t, id)>,
+	ordered_unique<tag<tags::username>, BOOST_MULTI_INDEX_MEMBER(Acc, std::string, username)>,
+	ordered_non_unique<tag<tags::coin>, BOOST_MULTI_INDEX_MEMBER(Acc, double, coin)>
 >> Accs;
 
 void TestBoostMultiIndexContainer() {
@@ -130,25 +153,55 @@ void TestBoostMultiIndexContainer() {
 	int i = 0;
 	for (; i < n; ++i) {
 		auto upn = std::to_string(i);
-		accs.emplace(i, upn, upn, upn, i * 100);
+		accs.emplace(Acc{ i, upn, upn, upn, (double)i * 100 });
 	}
 	xx::CoutN("insert finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
 
+
 	xx::CoutN("acc.count(*) = ", accs.size());
 
-	xx::CoutN("begin select");
+
+	xx::CoutN("begin select coin by id");
 	double totalCoin = 0;
 	secs = xx::NowSteadyEpochSeconds();
-
-	auto&& col = accs.get<tags::id>();
-	// * 2: 这里 故意使用 超范围的 不存在的 id 查询 多一倍次数
+	auto&& col_id = accs.get<tags::id>();
 	for (i = 0; i < n * 2; ++i) {
-		if (auto r = col.find(i); r != col.end()) {
+		if (auto r = col_id.find(i); r != col_id.end()) {
 			totalCoin += r->coin;
 		}
 	}
 	xx::CoutN("select finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
 	xx::CoutN("totalCoin = ", totalCoin);
+
+
+	xx::CoutN("begin select coin by username");
+	totalCoin = 0;
+	secs = xx::NowSteadyEpochSeconds();
+	auto&& col_username = accs.get<tags::username>();
+	for (i = 0; i < n * 2; ++i) {
+		auto upn = std::to_string(i);
+		if (auto r = col_username.find(upn); r != col_username.end()) {
+			totalCoin += r->coin;
+		}
+	}
+	xx::CoutN("select finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
+	xx::CoutN("totalCoin = ", totalCoin);
+
+
+	xx::CoutN("begin select top 3 most coin");
+	secs = xx::NowSteadyEpochSeconds();
+	auto&& col_coin = accs.get<tags::coin>();
+	std::vector<std::pair<int64_t, double>> top3;
+	for (i = 0; i < n; ++i) {
+		top3.clear();
+		auto iter = col_coin.rbegin();
+		for (int i = 0; i < 3; ++i) {
+			if (iter++ == col_coin.rend()) break;
+			top3.emplace_back(iter->id, iter->coin);
+		}
+	}
+	xx::CoutN("select finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
+	xx::CoutN(top3);
 }
 
 int main() {
