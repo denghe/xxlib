@@ -19,7 +19,7 @@ SQLITE_MAX_EXPR_DEPTH=0
 int main() {
     xx::SQLite::Init();
     xx::SQLite::Connection conn;
-    conn.Open("test1.db3");
+    conn.Open(1 ? "test1.db3" : ":memory:");    // 内存模式 在 不利用事务合批的 随机 insert 情况下，快得多
     if (!conn) {
         xx::CoutN("xx::SQLite::Connection.Open( test1.db3 ) failed. error code = ", conn.lastErrorCode);
         return __LINE__;
@@ -29,7 +29,10 @@ int main() {
     conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);           // 独立事务文件( 随机 insert 性能大幅提升 )，感觉可以无脑设置
     conn.SetPragmaLockingMode(xx::SQLite::LockingModes::Exclusive);     // 文件独占模式( 随机 insert 有一定提升 ), 视需求而定
     try {
-        ....
+        xx::SQLite::Query qAccInsert(conn, "insert into acc(id, username, password, nickname, coin) values (?, ?, ?, ?, ?)");
+        ...
+        qAccInsert.SetParameters(i, upn, upn, upn, i * 100).Execute();
+        auto numRows = conn.Execute<int64_t>("select count(*) from acc");
     }
     catch (std::exception const& ex) {
         xx::CoutN("throw exception after conn.Open. ex = ", ex.what());
