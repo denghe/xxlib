@@ -208,5 +208,6 @@ int main() {
 	xx::SQLite::Init();	// 开机必做
 	TestSQLite();
 	TestBoostMultiIndexContainer();
+    std::cin.get();
 	return 0;
 }

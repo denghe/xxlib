@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(all)
+
+IF(APPLE)
+    SET(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)	# x86_64;arm64
+ENDIF(APPLE)
  
 add_subdirectory(xx_data_cpp_test1)
 add_subdirectory(xx_obj_test1)
