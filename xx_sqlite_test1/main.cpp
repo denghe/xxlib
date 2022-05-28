@@ -195,9 +195,10 @@ void TestBoostMultiIndexContainer() {
 	for (i = 0; i < n; ++i) {
 		top3.clear();
 		auto iter = col_coin.rbegin();
-		for (int i = 0; i < 3; ++i) {
-			if (iter++ == col_coin.rend()) break;
+		for (int j = 0; j < 3; ++j) {
+			if (iter == col_coin.rend()) break;
 			top3.emplace_back(iter->id, iter->coin);
+            ++iter;
 		}
 	}
 	xx::CoutN("select finished. i = ", i, ". secs = ", xx::NowSteadyEpochSeconds() - secs);
