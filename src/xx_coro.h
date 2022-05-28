@@ -18,9 +18,10 @@ static_assert(false, "No co_await support");
 
 #define CoAwait(func) {auto&& g = func; while(!g.Done()) { co_yield g.Value(); g.Resume(); }}
 
+namespace cxx14 {}
 namespace xx {
-#if __has_include(<coroutine>)
     using namespace std;
+#if __has_include(<coroutine>)
 #else
     using namespace std::experimental;
     using namespace cxx14;

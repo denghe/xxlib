@@ -39,8 +39,8 @@ end
             fi();
         }
         std::cout << "for 100000000 test_counter_inc  elapsed secs = " << xx::NowEpochSeconds(secs) << std::endl;
-        auto r = fg.Call<int>();
-        std::cout << "counter = " << r << std::endl;
+        auto rr = fg.Call<int>();
+        std::cout << "counter = " << rr << std::endl;
     })) {
         xx::CoutN("catch error n = ", r.n, " m = ", r.m);
     }

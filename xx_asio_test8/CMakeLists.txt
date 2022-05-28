@@ -10,7 +10,7 @@ set(libs)
 
 # global
 if (UNIX)
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -static")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 	list(APPEND libs
 			pthread
 			)
@@ -22,11 +22,11 @@ list(APPEND dirs
 		../src
 		../3rd
 		../asio_include
-		../codegen_test2/cpp
+		../xx_asio_testA
 		)
 list(APPEND srcs
 		main.cpp
-		../codegen_test2/cpp/pkg_generic.cpp
+		../xx_asio_testA/pkg.cpp
 		)
 
 

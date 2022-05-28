@@ -10,7 +10,7 @@ set(libs)
 
 # global
 if (UNIX)
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -static")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 	list(APPEND libs
 			pthread
 			)
@@ -18,13 +18,17 @@ else()
 	add_definitions("-D_WIN32_WINNT=0x0602")	# for asio
 endif ()
 
+add_definitions("-DONELUA_MAKE_LIB")
+
 list(APPEND dirs
 		../src
 		../3rd
 		../asio_include
+		../lua-5.4.x/src
 		)
 list(APPEND srcs
 		main.cpp
+		../lua-5.4.x/src/onelua.cpp
 		)
 
 

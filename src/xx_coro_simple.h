@@ -21,9 +21,10 @@ static_assert(false, "No co_await support");
 using namespace std::literals;
 using namespace std::literals::chrono_literals;
 
+namespace cxx14 {}
 namespace xx {
-#if __has_include(<coroutine>)
     using namespace std;
+#if __has_include(<coroutine>)
 #else
     using namespace std::experimental;
     using namespace cxx14;
@@ -31,7 +32,7 @@ namespace xx {
 
     struct Coro {
         struct promise_type;
-        using handle_type = std::coroutine_handle<promise_type>;
+        using handle_type = coroutine_handle<promise_type>;
         struct promise_type {
             auto get_return_object() { return Coro(handle_type::from_promise(*this)); }
             suspend_never initial_suspend() { return {}; }

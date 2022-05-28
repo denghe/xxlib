@@ -55,13 +55,13 @@ namespace xx {
         }
 
         // 判断数据是否一致
-        XX_INLINE bool operator==(Span const& o) {
+        XX_INLINE bool operator==(Span const& o) const {
             if (&o == this) return true;
             if (len != o.len) return false;
             return 0 == memcmp(buf, o.buf, len);
         }
 
-        XX_INLINE bool operator!=(Span const& o) {
+        XX_INLINE bool operator!=(Span const& o) const {
             return !this->operator==(o);
         }
 
@@ -358,11 +358,11 @@ namespace xx {
         }
 
         // 判断数据是否一致( 忽略 offset, cap )
-        XX_INLINE bool operator==(Data_rw const &o) {
+        XX_INLINE bool operator==(Data_rw const &o) const {
             return this->Span::operator==(o);
         }
 
-        XX_INLINE bool operator!=(Data_rw const &o) {
+        XX_INLINE bool operator!=(Data_rw const &o) const {
             return !this->operator==(o);
         }
 

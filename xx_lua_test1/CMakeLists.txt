@@ -80,6 +80,6 @@ add_executable(xx_lua_test1
 if(UNIX)
     target_link_libraries(xx_lua_test1
             pthread
-            uv
+            #uv
             )
 endif()

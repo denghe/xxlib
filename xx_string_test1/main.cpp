@@ -1,5 +1,6 @@
 ﻿#include <xx_nodepool.h>
 #include <functional>
+#include <vector>
 
 namespace xx {
 
@@ -29,7 +30,7 @@ namespace xx {
             wheel.resize(wheelSize, -1);
             if (nodeCapacity) {
                 this->cap = nodeCapacity;
-                this->nodes = (typename Base::Node*)malloc(nodeCapacity * sizeof(Base::Node));
+                this->nodes = (typename Base::Node*)malloc(nodeCapacity * sizeof(typename Base::Node));
             }
         }
 
@@ -65,10 +66,10 @@ namespace xx {
             this->Free(idx);
         }
 
-        template<typename F>
-        int Create(int timeoutSteps, F&& func) {
+        template<typename FU>
+        int Create(int timeoutSteps, FU&& func) {
             assert(!wheel.empty());
-            auto idx = this->Alloc(-1, std::forward<F>(func));
+            auto idx = this->Alloc(-1, std::forward<FU>(func));
             Set(idx, timeoutSteps);
             return idx;
         }
