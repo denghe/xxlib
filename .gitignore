@@ -14,4 +14,3 @@ zig-out
 /zig_tests/*.pdb
 /tool_win32_loader/loader/files_idx.json
 .DS_Store
-tmp_arch_detect.c

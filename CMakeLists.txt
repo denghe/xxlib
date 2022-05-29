@@ -2,12 +2,13 @@ cmake_minimum_required(VERSION 3.10)
 project(all)
 
 IF(APPLE)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp_arch_detect.c "int main(void) { return 0; }")
-    execute_process(COMMAND /usr/bin/xcrun clang -arch arm64 ${CMAKE_CURRENT_BINARY_DIR}/tmp_arch_detect.c RESULT_VARIABLE arm64Error)
-    if (arm64Error)
-        SET(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Build architectures for Mac OS X" FORCE)
-    else()
+    execute_process(COMMAND uname -m OUTPUT_VARIABLE archstr)
+    string (SUBSTRING ${archstr} 0 5 arch)
+    if (arch STREQUAL "arm64")
+        message("m1")
         SET(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)	# x86_64;arm64
+    else()
+        SET(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Build architectures for Mac OS X" FORCE)
     endif()
 ENDIF(APPLE)
 
