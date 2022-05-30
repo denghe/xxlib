@@ -80,9 +80,9 @@ struct PeerBase : xx::PeerCode<PeerDeriveType>, xx::PeerRequestCode<PeerDeriveTy
 		}, detached);
 	}
 
-	// HandleRequest 的 顺序版。oid_ 为线程选择依据. 故意放最后以便优先从 要 move 到 f[] 的上下文获取值
+	// HandleRequest 的 顺序版。oid_ 为线程选择依据. 最好先获取到独立变量，再传递，避免 lambda move 影响 oid 所在容器( 靠传参顺序不稳定, gcc clang 表现出来不一致 )
 	template<typename F>
-	void HandleOrderedRequest(int32_t serial, F&& f, uint64_t oid_) {
+	void HandleOrderedRequest(int32_t serial, uint64_t oid_, F&& f) {
 		co_spawn(PEERTHIS->ioc, [this, self = PEERTHIS->shared_from_this(), oid_, serial, f = std::forward<F>(f)]()->awaitable<void> {
 			co_await HandleRequestCore(server.GetOrderedWork(oid_), serial, f);				// 参数为 顺序 worker.ioc
 		}, detached);
@@ -138,7 +138,8 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 	}
 
 	void HandleRequest(int32_t serial, xx::Shared<All_Db::GetPlayerInfo>&& o) {
-		HandleOrderedRequest(serial, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
+        auto oid = o->id;   // 独立写一行存下来 避免 o move 后取不到
+		HandleOrderedRequest(serial, oid, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
 			std::this_thread::sleep_for(500ms);											// 模拟 db 慢查询
 			if (o->id == 1) {
 				auto v = xx::Make<Generic::PlayerInfo>();
@@ -155,7 +156,7 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 				xx::Append(v->message, "can't find player id : ", o->id);
 				r = std::move(v);
 			}
-		}, o->id);
+		});
 	}
 
 };
@@ -188,7 +189,8 @@ struct Game1Peer : PeerBase<Game1Peer> {
 	}
 
 	void HandleRequest(int32_t serial, xx::Shared<All_Db::GetPlayerInfo>&& o) {
-		HandleOrderedRequest(serial, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
+        auto oid = o->id;
+		HandleOrderedRequest(serial, oid, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
 			std::this_thread::sleep_for(500ms);											// 模拟 db 慢查询
 			if (o->id == 1) {
 				auto v = xx::Make<Generic::PlayerInfo>();
@@ -205,7 +207,7 @@ struct Game1Peer : PeerBase<Game1Peer> {
 				xx::Append(v->message, "can't find player id : ", o->id);
 				r = std::move(v);
 			}
-		}, o->id);
+		});
 	}
 };
 
