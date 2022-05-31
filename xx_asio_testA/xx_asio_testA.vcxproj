@@ -105,7 +105,7 @@
     <None Include="pkg_gen.bat" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gvpeer_inc.h" />
+    <ClInclude Include="gpeer_code.h" />
     <ClInclude Include="pkg.h" />
     <ClInclude Include="pkg_ajson.h" />
   </ItemGroup>

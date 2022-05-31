@@ -5,6 +5,7 @@
 
 // lobby
 #include "xx_asio_codes.h"
+#include "gpeer_code.h"
 #include "pkg.h"
 
 struct GPeer;                                                                       // G = Gateway
@@ -73,13 +74,43 @@ struct Game1Peer : GamePeerBase<Game1Peer> {
     }
 };
 
-#include "gvpeer_inc.h"
+struct GPeer;
+struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
+    using VPC = xx::VPeerCode<VPeer, GPeer>;
+    using VPC::VPC;
+    Server& server;
+    VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+        : VPC(server_.ioc, server_.om, ownerPeer_, clientId_, clientIP_)
+        , server(server_)
+    {}
 
-int GPeer::HandleCommand_Accept(std::string_view ip) {
-    return 0;                                                                       // 当前没有针对 ip 的 check. 直接返回 0 表示通过
-}
+    // todo: 连接上下文。多步骤操作上下文存在 peer 还是 player 上需要斟酌
+    // 
+    // 状态标记区. doing 表示正在做, 起到独占作用. done 表示已完成
+    bool doingLogin = false;
+    bool doneLogin = false;
 
-int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
+    xx::Shared<Lobby_Client::Scene> scene;
+
+    void Start_() {
+        ResetTimeout(15s);                                                          // 设置初始的超时时长
+    }
+
+    void Kick(int64_t const& delayMS = 3000) {                                      // 通知网关延迟掐线 并 Stop. 调用前应先 Send 给客户端要收的东西
+        if (!Alive()) return;
+        Send(xx::MakeCommandData("kick"sv, clientId, delayMS));                     // 给 gateway 发 延迟掐线指令
+        Stop();
+    }
+
+    int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_);                         // 处理 client 的 request
+};
+
+struct GPeer : GPeerCode<GPeer, VPeer, Server>, std::enable_shared_from_this<GPeer> {
+    using GPC = GPeerCode<GPeer, VPeer, Server>;
+    using GPC::GPC;
+};
+
+inline int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
     //om.CoutTN("ReceiveRequest serial = ", serial, " o_ = ", o_);
     ResetTimeout(15s);                                                              // 无脑续命
     switch (o_.typeId()) {
@@ -122,7 +153,7 @@ int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
                             auto&& r2 = r2_.ReinterpretCast<Generic::PlayerInfo>();
                             scene.Emplace();
                             scene->playerInfo = std::move(r2);
-                            scene->gamesIntro = "hi " + scene->playerInfo->nickname + "! welcome to lobby!";
+                            scene->gamesIntro = "hi " + scene->playerInfo->nickname + "! welcome to lobby! avaliable game id list = { 1, 2 }";
                             doneLogin = true;
                             SendResponse<Generic::Success>(serial, scene->playerInfo->id);  // 返回 成功 + id
                             SendPush(scene);                                        // 推送场景
@@ -144,6 +175,15 @@ int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
             }
             // -- co_spawn
         }, detached);
+        break;
+    }
+    case xx::TypeId_v<Client_Lobby::EnterGame>: {
+        auto&& o = o_.ReinterpretCast<Client_Lobby::EnterGame>();                   // 转为具体类型
+        if (o->gamePath.empty()) {
+            //xx::CoutTN("VPeer ReceiveRequest Client_Lobby::EnterGame error. gamePath is empty. player id = ", );
+            return -__LINE__;
+        }
+        //SendResponse<Pong>(serial, o->ticks);                                       // 回应结果
         break;
     }
     default:

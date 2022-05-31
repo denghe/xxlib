@@ -5,6 +5,7 @@
 
 // game1
 #include "xx_asio_codes.h"
+#include "gpeer_code.h"
 #include "pkg.h"
 
 struct GPeer;                                                                       // G = Gateway
@@ -45,11 +46,35 @@ struct LPeer : xx::PeerCode<LPeer>, xx::PeerRequestCode<LPeer>, std::enable_shar
     int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_);
 };
 
-#include "gvpeer_inc.h"                                                             // 嵌入 VPeer & GPeer 的公共代码。下面继续实现两个空缺函数
+struct GPeer;
+struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
+    using VPC = xx::VPeerCode<VPeer, GPeer>;
+    using VPC::VPC;
+    Server& server;
+    VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+        : VPC(server_.ioc, server_.om, ownerPeer_, clientId_, clientIP_)
+        , server(server_) {}
 
-int GPeer::HandleCommand_Accept(std::string_view ip) {
-    return -1;                                                                      // 一般游戏服务，不该收到 accept 指令. 直接返回非0 报错
-}
+    // todo: 双向绑定 上下文啥的?
+
+    void Start_() {
+        ResetTimeout(15s);                                                          // 设置初始的超时时长
+    }
+
+    // 通知网关延迟掐线 并 Stop. 调用前应先 Send 给客户端要收的东西
+    void Kick(int64_t const& delayMS = 3000) {
+        if (!Alive()) return;
+        Send(xx::MakeCommandData("kick"sv, clientId, delayMS));                     // 给 gateway 发 延迟掐线指令
+        Stop();
+    }
+
+    int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_);
+};
+
+struct GPeer : GPeerCode<GPeer, VPeer, Server>, std::enable_shared_from_this<GPeer> {
+    using GPC = GPeerCode<GPeer, VPeer, Server>;
+    using GPC::GPC;
+};
 
 int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
     //om.CoutTN("ReceiveRequest serial = ", serial, " o_ = ", o_);

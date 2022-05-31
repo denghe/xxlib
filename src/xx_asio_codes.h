@@ -706,14 +706,16 @@ namespace xx {
 		OwnerPeer* ownerPeer = nullptr;
 		asio::steady_timer timeouter;
 		uint32_t clientId;
+		std::string clientIP;                                                           // 保存 gpeer 告知的 对端ip
 
 		void Tag_VPeerCode() {}	// for check flag
-		VPeerCode(asio::io_context& ioc_, ObjManager& om_, OwnerPeer& ownerPeer_, uint32_t const& clientId_)
+		VPeerCode(asio::io_context& ioc_, ObjManager& om_, OwnerPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
 			: PRC(om_)
 			, ioc(ioc_)
 			, ownerPeer(&ownerPeer_)
 			, timeouter(ioc_)
 			, clientId(clientId_)
+			, clientIP(clientIP_)
 		{}
 		void Start() {
 			if constexpr (Has_Peer_Start_<PeerDeriveType>) {
@@ -733,14 +735,20 @@ namespace xx {
 			ownerPeer = nullptr;
 		}
 
-		void ResetOwner(OwnerPeer& ownerPeer_, uint32_t const& clientId_) {
+		void ResetOwner(OwnerPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_) {
 			if (Alive()) {
 				Stop();
 			}
 			ownerPeer = &ownerPeer_;
 			clientId = clientId_;
+			clientIP = clientIP_;
 			this->PRC::reqAutoId = 0;
 			this->PRC::reqs.clear();
+		}
+
+		void RemoveFromOwner() {
+			assert(ownerPeer);
+			ownerPeer->vpeers.erase(clientId);
 		}
 
 		void ResetTimeout(std::chrono::steady_clock::duration const& d) {
