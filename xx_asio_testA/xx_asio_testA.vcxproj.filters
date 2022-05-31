@@ -38,5 +38,6 @@
     <ClInclude Include="pkg_ajson.h">
       <Filter>PKG</Filter>
     </ClInclude>
+    <ClInclude Include="gvpeer_inc.h" />
   </ItemGroup>
 </Project>

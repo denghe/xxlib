@@ -265,7 +265,7 @@ namespace xx::Asio::Tcp::Gateway {
 	awaitable<bool> Client::Pop(std::chrono::steady_clock::duration d, Package<Shared<T>>& ro, std::optional<uint32_t> serverId) {
 		if (!*this) co_return false;																// 异常：已断开
 		if (peer->waitingObject) co_return false;													// 异常：正在等??
-		if (TryPop(ro), serverId) co_return true;													// 如果已经有数据了，立刻填充 & 返回 true
+		if (TryPop(ro, serverId)) co_return true;													// 如果已经有数据了，立刻填充 & 返回 true
 		peer->waitingObject = true;																	// 标记状态为 正在等
 		peer->objectWaiter.expires_after(d);														// 初始化 timer 超时时长
 		co_await peer->objectWaiter.async_wait(use_nothrow_awaitable);								// 开始等待

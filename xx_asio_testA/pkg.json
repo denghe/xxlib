@@ -3,6 +3,6 @@
   "name": "pkg",
   "files": [ "pkg.cs" ],
   "!outdir_cs": "cs",
-  "outdir_lua": "./",
+  "!outdir_lua": "./",
   "outdir_cpp": "./"
 }
