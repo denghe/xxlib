@@ -1131,8 +1131,6 @@ namespace xx {
 	};
 }
 
-
-
 #define XX_OBJ_OBJECT_H(T, BT) \
 using BaseType = BT; \
 T() = default; \
@@ -1149,13 +1147,29 @@ int RecursiveCheck(xx::ObjManager& o) const override; \
 void RecursiveReset(xx::ObjManager& o) override; \
 void SetDefaultValue(xx::ObjManager& o) override;
 
+// android does not support c++20 now. can't support operator==   = default
+#ifdef __ANDROID__
+
+#define XX_OBJ_STRUCT_H(T) \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o) = default; \
+T& operator=(T&& o) = default;
+
+#else
+
 #define XX_OBJ_STRUCT_H(T) \
 T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
 T(T&& o) = default; \
 T& operator=(T&& o) = default; \
-bool operator==(T const&) const = default;
+bool operator==(T const&) const = default; \
+bool operator!=(T const&) const = default; \
+auto operator<=>(T const&) const = default;
+
+#endif
 
 #define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \

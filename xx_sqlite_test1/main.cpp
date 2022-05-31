@@ -6,9 +6,9 @@ void TestSQLite() {
 	xx::CoutN("test sqlite3 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
 	xx::SQLite::Connection conn;
-	conn.Open(1 ? "test1.db3" : ":memory:");
+	conn.Open(1 ? "test_sqlite_db.sqlite3" : ":memory:");
 	if (!conn) {
-		xx::CoutN("xx::SQLite::Connection.Open( test1.db3 ) failed. error code = ", conn.lastErrorCode);
+		xx::CoutN("xx::SQLite::Connection.Open( test_sqlite_db.sqlite3 ) failed. error code = ", conn.lastErrorCode);
 		return;
 	}
 
