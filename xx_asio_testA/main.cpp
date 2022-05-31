@@ -77,7 +77,7 @@ struct Game1Peer : GamePeerBase<Game1Peer> {
 struct GPeer;
 struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
     using VPC = xx::VPeerCode<VPeer, GPeer>;
-    using VPC::VPC;
+
     Server& server;
     VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
         : VPC(server_.ioc, server_.om, ownerPeer_, clientId_, clientIP_)
@@ -132,7 +132,7 @@ inline int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
         om.CoutTN("VPeer clientId = ", clientId, " ReceiveRequest o_ = ", o);
         doingLogin = true;                                                          // 启动协程之前先设置独占标记
         co_spawn(ioc, [this, self = shared_from_this(), serial, o = std::move(o)]()->awaitable<void> {
-            auto sg = xx::MakeSimpleScopeGuard([&] { doingLogin = false; });    // 确保退出协程时清除独占标记
+            auto sg = xx::MakeSimpleScopeGuard([&] { doingLogin = false; });        // 确保退出协程时清除独占标记
             if (auto r_ = co_await server.dpeer->SendRequest<All_Db::GetPlayerId>(15s, o->username, o->password)) {
                 switch (r_.typeId()) {
                 case xx::TypeId_v<Generic::Error>: {                                // db 返回的错误信息 转发

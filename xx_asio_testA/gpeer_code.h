@@ -45,8 +45,9 @@ struct GPeerCode : xx::PeerCode<PeerDeriveType>, xx::PeerTimeoutCode<PeerDeriveT
                 if constexpr (Has_GPeer_HandleCommand_Accept<PeerDeriveType>) {
                     if (int r = PEERTHIS->HandleCommand_Accept(ip)) return -__LINE__;   // ip 前置 check
                 }
-                CreateVPeer(clientId, ip);                                          // 创建相应的 VPeer
-                PEERTHIS->Send(xx::MakeCommandData("open"sv, clientId));            // 下发 open 指令
+                if (auto p = CreateVPeer(clientId, ip)) {                           // 创建相应的 VPeer
+                    PEERTHIS->Send(xx::MakeCommandData("open"sv, clientId));        // 下发 open 指令
+                }
             } else if (cmd == "close"sv) {                                          // gateway client socket 已断开
                 uint32_t clientId;
                 if (int r = dr.Read(clientId)) return -__LINE__;

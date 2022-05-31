@@ -49,7 +49,7 @@ struct LPeer : xx::PeerCode<LPeer>, xx::PeerRequestCode<LPeer>, std::enable_shar
 struct GPeer;
 struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
     using VPC = xx::VPeerCode<VPeer, GPeer>;
-    using VPC::VPC;
+
     Server& server;
     VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
         : VPC(server_.ioc, server_.om, ownerPeer_, clientId_, clientIP_)
