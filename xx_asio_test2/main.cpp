@@ -126,18 +126,7 @@ int Server::FrameUpdate(int64_t nowMS) {
                 auto& o = recvs.front().ReinterpretCast<SS_C2S::Cmd>();                         // 定位到头部
                 assert(scene->shooters.contains(kv.first));                                     // todo: 数据校验
                 auto& shooter = scene->shooters[kv.first];                                      // 定位到 shooter
-#ifdef __ANDROID__
                 if (shooter->cs != o->cs) {                                                     // 如果 cmd 的内容 和 shooter 身上的 不一致：
-#else
-                if (shooter->cs.aimPos != o->cs.aimPos
-                    || shooter->cs.moveLeft != o->cs.moveLeft
-                    || shooter->cs.moveRight != o->cs.moveRight
-                    || shooter->cs.moveUp != o->cs.moveUp
-                    || shooter->cs.moveDown != o->cs.moveDown
-                    || shooter->cs.button1 != o->cs.button1
-                    || shooter->cs.button2 != o->cs.button2
-                    ) {
-#endif
                     shooter->cs = o->cs;                                                        // 应用差异( 模拟玩家输入 )
                     event->css.emplace_back(kv.first, o->cs);                                   // 产生事件
                 }
