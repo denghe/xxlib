@@ -1,1 +1,1 @@
-﻿
+﻿struct VPeer;

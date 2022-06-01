@@ -27,7 +27,7 @@ namespace Generic {
         string message;
     }
 
-    [TypeId(14), Desc("response")]
+    [TypeId(14), Desc("response"), Include]
     class PlayerInfo {
         long id;
         string username;

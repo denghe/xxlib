@@ -30,6 +30,9 @@
     <None Include="pkg_gen.bat">
       <Filter>PKG</Filter>
     </None>
+    <None Include="pkg_GenericPlayerInfo.inc">
+      <Filter>PKG</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pkg.h">

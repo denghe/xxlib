@@ -1,5 +1,31 @@
 ﻿#pragma once
 
+// GPeer 公用代码片段。传入的 server 需要继承自 xx::IOCCode 且具备成员 gpeers 容器
+/*
+用法示例：
+struct GPeer;
+...
+struct Server : xx::IOCCode<Server> {
+    xx::ObjManager om;
+    std::unordered_map<uint32_t, std::shared_ptr<GPeer>> gpeers;
+    ...
+};
+struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> {
+    Server& server;
+    ...
+    VPeer(Server& server_, GPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+        : VPeerCode(server_.ioc, server_.om, ownerPeer_, clientId_, clientIP_)
+        , server(server_)
+    {}
+    int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {...}
+    int ReceivePush(xx::ObjBase_s&& o_) {...}
+};
+struct GPeer : GPeerCode<GPeer, VPeer, Server>, std::enable_shared_from_this<GPeer> {
+    using GPeerCode::GPeerCode;
+};
+*/
+
+
 #ifndef __ANDROID__
 template<typename T> concept Has_GPeer_HandleCommand_Accept = requires(T t) { t.HandleCommand_Accept(std::string_view()); };
 #else
@@ -61,12 +87,12 @@ struct GPeerCode : xx::PeerCode<PeerDeriveType>, xx::PeerTimeoutCode<PeerDeriveT
                 PEERTHIS->Send(dr);
             } else if (cmd == "gatewayId"sv) {                                      // gateway 连上之后的首包, 注册自己
                 if (gatewayId != 0xFFFFFFFFu) {                                     // 如果不是初始值, 说明收到过了
-                    xx::CoutTN("GPeer HandleData dupelicate cmd = ", cmd);
+                    // xx::CoutTN("GPeer HandleData dupelicate cmd = ", cmd);
                     return -__LINE__;
                 }
                 if (int r = dr.Read(gatewayId)) return -__LINE__;
-                xx::CoutTN("GPeer HandleData cmd = ", cmd, ", gatewayId = ", gatewayId);
-                if (auto iter = server.gpeers.find(gatewayId); iter != server.gpeers.end()) return -__LINE__;   // 相同id已存在：掐线
+                // xx::CoutTN("GPeer HandleData cmd = ", cmd, ", gatewayId = ", gatewayId);
+                if (auto iter = server.gpeers.find(gatewayId); iter != server.gpeers.end()) return -__LINE__;   // id 已存在
                 server.gpeers[gatewayId] = PEERTHIS->shared_from_this();            // 放入容器备用
             } else {
                 std::cout << "GPeer HandleData unknown cmd = " << cmd << std::endl;

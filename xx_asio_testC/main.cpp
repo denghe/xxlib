@@ -105,11 +105,8 @@ int main() {
 	// 模拟游戏每帧来一发
 	std::cout << "client running..." << std::endl;
 	while (true) {
-		c.ioc.poll_one();
-		//std::cout << ".";	
-		std::this_thread::sleep_for(8ms);			// 模拟逻辑损耗
-		c.ioc.poll_one();
-		std::this_thread::sleep_for(8ms);			// 模拟渲染 + wait vsync
+		c.ioc.poll();
+		std::this_thread::sleep_for(16ms);			// 模拟渲染 + wait vsync
 	}
 	return 0;
 }

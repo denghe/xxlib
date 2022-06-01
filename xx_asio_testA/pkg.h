@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <pkg.h.inc>
 struct CodeGen_pkg {
-	inline static const ::std::string md5 = "#*MD5<b330579541a9ca02d02cab9fa4967570>*#";
+	inline static const ::std::string md5 = "#*MD5<5bbef36f6ac1da2cda0616ab76e5daa4>*#";
     static void Register();
     CodeGen_pkg() { Register(); }
 };
@@ -60,6 +60,7 @@ namespace Generic {
     struct PlayerInfo : ::xx::ObjBase {
         XX_OBJ_OBJECT_H(PlayerInfo, ::xx::ObjBase)
         using IsSimpleType_v = PlayerInfo;
+#include <pkg_GenericPlayerInfo.inc>
         int64_t id = 0;
         ::std::string username;
         ::std::string password;

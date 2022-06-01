@@ -58,7 +58,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -77,7 +77,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -103,6 +103,7 @@
     <None Include="pkg.json" />
     <None Include="pkg_.h.inc" />
     <None Include="pkg_gen.bat" />
+    <None Include="pkg_GenericPlayerInfo.inc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gpeer_code.h" />
