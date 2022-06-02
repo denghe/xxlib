@@ -145,7 +145,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
         //om.CoutTN("ReceiveRequest serial = ", serial, " o_ = ", o_);
         ResetTimeout(15s);                                                              // 给连接续命
         if (playerInfo) {
-            playerInfo->lastActiveTime = xx::NowSteadyEpochSeconds();                   // 更新最后活动时间点
+            playerInfo->lastActiveTime = xx::NowSteadyEpochMilliseconds();              // 更新最后活动时间点
         }
         if (o_.typeId() == xx::TypeId_v<Ping>) {
             SendResponse<Pong>(serial, o_.ReinterpretCast<Ping>()->ticks);              // 回应结果
@@ -200,7 +200,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
                             }
                             playerInfo = std::move(pi);                                 // 开始双向绑定
                             playerInfo->vpeer = shared_from_this();
-                            playerInfo->lastActiveTime = xx::NowSteadyEpochSeconds();
+                            playerInfo->lastActiveTime = xx::NowSteadyEpochMilliseconds();
                             co_return;
                         }
                     }
@@ -246,7 +246,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
                                     }
                                     playerInfo = r2;                                    // 插入成功。开始双向 bind
                                     playerInfo->vpeer = shared_from_this();
-                                    playerInfo->lastActiveTime = xx::NowSteadyEpochSeconds();
+                                    playerInfo->lastActiveTime = xx::NowSteadyEpochMilliseconds();
 
                                     auto& s = playerInfo->scene.Emplace();              // 创建个人场景
                                     s->gamesIntro = "hi " + playerInfo->nickname + "! welcome to lobby! avaliable game id list = { 1, 2 }"; // 继续填充场景内容
@@ -331,7 +331,7 @@ inline void Server::Run() {
         auto&& c = players.get<tags::lastActiveTime>();
         while (running) {
             co_await xx::Timeout(50ms);									            // 避免无脑空转，省点 cpu. 但也不能间隔太久，这样会导致 db 瞬间压力大
-            auto tp = (int64_t)xx::NowEpochSeconds() - 60;                          // 算出超时时间点( 60 可来自配置 )
+            auto tp = xx::NowSteadyEpochMilliseconds() - 1000 * 60;                 // 算出超时时间点. 当前认为不在线 1 分钟就可以清理( 可配置 )
 
             for (auto it = c.cbegin(); it != c.cend();) {
                 auto& p = (*it);

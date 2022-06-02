@@ -3,7 +3,7 @@
 // SQLITE helpers. 第一时间需要调用 Init
 // 下面是一些常用编译参数. 第一个看情况吧。全部配置上据说有 5% 提升( 第一个 2% )
 /*
-SQLITE_THREADSAFE=0
+SQLITE_THREADSAFE=0             // 如果运行需要开线程安全支持，这个就不能设置
 SQLITE_OMIT_PROGRESS_CALLBACK
 SQLITE_DEFAULT_MEMSTATUS=0
 SQLITE_USE_ALLOCA
@@ -11,7 +11,7 @@ SQLITE_LIKE_DOESNT_MATCH_BLOBS
 SQLITE_OMIT_DEPRECATED
 SQLITE_OMIT_AUTOINIT
 SQLITE_OMIT_LOAD_EXTENSION
-SQLITE_OMIT_SHARED_CACHE
+SQLITE_OMIT_SHARED_CACHE        // 这个在多线模式下可能也不妥当
 SQLITE_DQS=0
 SQLITE_MAX_EXPR_DEPTH=0
 
@@ -49,6 +49,35 @@ namespace xx::SQLite {
     struct Reader;
     struct Null {
     };
+
+    // sqlite3_open_v2 flags
+    enum class OpenFlags : int {
+        ReadOnly = SQLITE_OPEN_READONLY,
+        ReadWrite = SQLITE_OPEN_READWRITE,
+        Create = SQLITE_OPEN_CREATE,
+        DeleteOnCose = SQLITE_OPEN_DELETEONCLOSE,
+        Exclusive = SQLITE_OPEN_EXCLUSIVE,
+        AutoProxy = SQLITE_OPEN_AUTOPROXY,
+        Uri = SQLITE_OPEN_URI,
+        Memory = SQLITE_OPEN_MEMORY,
+        MainDB = SQLITE_OPEN_MAIN_DB,
+        TempDB = SQLITE_OPEN_TEMP_DB,
+        TransientDB = SQLITE_OPEN_TRANSIENT_DB,
+        MainJournal = SQLITE_OPEN_MAIN_JOURNAL,
+        TempJournal = SQLITE_OPEN_TEMP_JOURNAL,
+        SubJournal = SQLITE_OPEN_SUBJOURNAL,
+        SuperJournal = SQLITE_OPEN_SUPER_JOURNAL,
+        NoMutex = SQLITE_OPEN_NOMUTEX,
+        FullMutex = SQLITE_OPEN_FULLMUTEX,
+        SharedCache = SQLITE_OPEN_SHAREDCACHE,
+        PrivateCache = SQLITE_OPEN_PRIVATECACHE,
+        Wal = SQLITE_OPEN_WAL,
+        NoFollow = SQLITE_OPEN_NOFOLLOW,
+        ExresCode = SQLITE_OPEN_EXRESCODE
+    };
+    inline OpenFlags operator|(OpenFlags const& a, OpenFlags const& b) {
+        return OpenFlags(int(a) | int(b));
+    }                                                                                                               \
 
     // 保持与 SQLite 的宏一致
     enum class DataTypes : uint8_t {
@@ -238,11 +267,8 @@ namespace xx::SQLite {
         // 默认构造需要接下来用 Open 来初始化
         Connection() noexcept;
 
-        // fn 可以是 :memory: 以创建内存数据库
-        explicit Connection(char const *const &fn, bool const &readOnly = false) noexcept;
-
         // 同 上面这个构造函数. 是否成功需要用 operator bool() 来判断
-        void Open(char const* const& fn, bool const& readOnly = false) noexcept;
+        void Open(char const* const& fn, OpenFlags const& flags = OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::Wal) noexcept;
 
         ~Connection();
 
@@ -413,9 +439,9 @@ namespace xx::SQLite {
     /***************************************************************/
     // Connection
 
-    inline void Connection::Open(char const* const& fn, bool const& readOnly) noexcept {
+    inline void Connection::Open(char const* const& fn, OpenFlags const& flags) noexcept {
         assert(ctx == nullptr);
-        lastErrorCode = sqlite3_open_v2(fn, &ctx, readOnly ? SQLITE_OPEN_READONLY : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE), nullptr);
+        lastErrorCode = sqlite3_open_v2(fn, &ctx, (int)flags, nullptr);
         if (lastErrorCode != SQLITE_OK) {
             assert(ctx == nullptr);
             return;
@@ -432,10 +458,6 @@ namespace xx::SQLite {
 
     inline Connection::Connection() noexcept : qBeginTransaction(*this), qCommit(*this), qRollback(*this), qEndTransaction(*this), qTableExists(*this),
         qGetTableCount(*this), qAttach(*this), qDetach(*this) {
-    }
-
-    inline Connection::Connection(char const *const &fn, bool const &readOnly) noexcept : Connection() {
-        Open(fn, readOnly);
     }
 
     inline Connection::~Connection() {

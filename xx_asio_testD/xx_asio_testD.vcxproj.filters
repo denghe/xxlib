@@ -5,10 +5,14 @@
       <Filter>PKG</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="..\sqlite3\sqlite3.c" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="PKG">
       <UniqueIdentifier>{de37a2e8-ad0c-492f-9d65-d710459294e1}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="sqlite.h" />
   </ItemGroup>
 </Project>

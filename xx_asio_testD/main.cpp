@@ -6,9 +6,11 @@
 // db
 #include "xx_asio_codes.h"
 #include "pkg.h"
+#include "sqlite.h"
 
 struct Worker : xx::WorkerCode<Worker> {
 	xx::ObjManager om;
+	DB db;
 };
 
 struct LobbyPeer;

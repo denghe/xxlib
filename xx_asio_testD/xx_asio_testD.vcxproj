@@ -46,9 +46,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(SolutionDir)xx_asio_testA;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)../boost;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(SolutionDir)xx_asio_testA;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)../boost;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -58,7 +60,6 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;$(SolutionDir)codegen_test2/cpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -73,11 +74,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;_WIN32_WINNT=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;_WIN32_WINNT=0x0A00;SQLITE_OMIT_PROGRESS_CALLBACK;SQLITE_DEFAULT_MEMSTATUS=0;SQLITE_USE_ALLOCA;SQLITE_LIKE_DOESNT_MATCH_BLOBS;SQLITE_OMIT_DEPRECATED;SQLITE_OMIT_AUTOINIT;SQLITE_OMIT_LOAD_EXTENSION;SQLITE_DQS=0;SQLITE_MAX_EXPR_DEPTH=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)asio_include;$(SolutionDir)codegen_test2/cpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -93,8 +93,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\sqlite3\sqlite3.c" />
     <ClCompile Include="..\xx_asio_testA\pkg.cpp" />
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="sqlite.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

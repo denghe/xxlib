@@ -14,7 +14,7 @@ void TestSQLite() {
 
 	// 设置一组常用参数
 	conn.SetPragmaSynchronousType(xx::SQLite::SynchronousTypes::Normal);	// Full Normal Off
-	conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);
+	//conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);
 	conn.SetPragmaLockingMode(xx::SQLite::LockingModes::Exclusive);
 	conn.SetPragmaTempStoreType(xx::SQLite::TempStoreTypes::Memory);
 	// 如果是大size库, 可能还要关注 cache size page size mmapsize ...
