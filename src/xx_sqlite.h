@@ -268,7 +268,7 @@ namespace xx::SQLite {
         Connection() noexcept;
 
         // 同 上面这个构造函数. 是否成功需要用 operator bool() 来判断
-        void Open(std::string_view fn, OpenFlags const& flags = OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::Wal) noexcept;
+        void Open(std::string_view fn, OpenFlags const& flags = OpenFlags::ReadWrite | OpenFlags::Create) noexcept;
 
         ~Connection();
 
@@ -282,6 +282,9 @@ namespace xx::SQLite {
         // 获取受影响行数
         int GetAffectedRows();
         int64_t GetAffectedRows64();
+
+        // 获取插入的最后一行的 rowid ( 表创建时如果没在 扩号后 跟 WITHOUT ROWID 的话 就有 )
+        int64_t GetLastInsertRowId();
 
         // 下列函数均靠 try 检测是否执行出错
 
@@ -486,6 +489,10 @@ namespace xx::SQLite {
 
     inline int64_t Connection::GetAffectedRows64() {
         return sqlite3_changes64(ctx);
+    }
+
+    inline int64_t Connection::GetLastInsertRowId() {
+        return sqlite3_last_insert_rowid(ctx);
     }
 
     inline void Connection::SetPragmaSynchronousType(SynchronousTypes st) {

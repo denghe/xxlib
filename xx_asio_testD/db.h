@@ -7,8 +7,13 @@ struct DB {
 
 	// 需要在 main 第一时间执行, 做建表啥的基础操作
 	inline static void MainInit() {
+		xx::SQLite::Init();	// 开机必做
+
 		xx::SQLite::Connection conn;
-		conn.Open(dbName);	// NoMutex 启用多线程并发模式
+		conn.Open(dbName);
+		conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);
+		conn.SetPragmaTempStoreType(xx::SQLite::TempStoreTypes::Memory);
+
 		assert(conn);
 		// 每次都删 免得改了字段 不生效
 		if (!conn.TableExists("acc")) {
@@ -20,7 +25,7 @@ CREATE TABLE acc (
     password        text                        not null,
     nickname        text                        not null,
     gold            int                         not null
-)
+) WITHOUT ROWID
 )#");
 			// 建索引
 			conn.Call(R"#(
@@ -51,8 +56,10 @@ CREATE INDEX ordered_non_unique_acc_gold on acc (gold);
 		// ...
 	{
 		using namespace xx::SQLite;
-		conn.Open(dbName, OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::Wal | OpenFlags::NoMutex);	// NoMutex 启用多线程并发模式
+		conn.Open(dbName, OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::NoMutex);	// NoMutex 启用多线程并发模式
 		assert(conn);
+		conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);
+		conn.SetPragmaTempStoreType(xx::SQLite::TempStoreTypes::Memory);
 
 		qAccSelectIdByUsernamePassword.SetQuery("select id from acc where username = ? and password = ?");
 		qAccSelectRowById.SetQuery("select id, username, password, nickname, gold from acc where id = ?");

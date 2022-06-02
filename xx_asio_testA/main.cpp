@@ -343,22 +343,17 @@ inline void Server::Run() {
                         auto sg = xx::MakeSimpleScopeGuard([&] {                    // 退出时自动从 队列 移除
                             unloadingPlayers.erase(p->username);
                         });
-                        while (true) {
-                            if (!running) {
-                                om.CoutTN("player info store to db failed: ", p);
+                        while (running) {                                           // 如果失败就一直存( 实际逻辑中这种方案很危险 )
+                            if (auto r2_ = co_await dpeer->SendRequest<All_Db::SetPlayerGold>(15s, p->id, p->gold)) {
+                                switch (r2_.typeId()) {
+                                case xx::TypeId_v<Generic::Success>: co_return;     // 存钱成功，退出协程
+                                default:
+                                    om.CoutTN("player info store to db failed: ", r2_);
+                                }
                             }
-                            // todo
-                            co_return;  // 先模拟存盘成功
-                            //if (auto r2_ = co_await dpeer->SendRequest<All_Db::SavePlayerData>(15s, p)) {
-                            //    switch (r2_.typeId()) {
-                            //    case xx::TypeId_v<Generic::Success>: co_return;
-                            //    default:
-                            //        om.CoutTN("player info store to db failed: ", r2_);
-                            //    }
-                            //}
                             co_await xx::Timeout(100ms);
                         }
-                        }, detached);
+                    }, detached);
 
                     it = c.erase(it);                                               // 从在线列表移除, it 定位到下一个对象
                 } else {

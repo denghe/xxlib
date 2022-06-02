@@ -18,6 +18,18 @@ else()
 	add_definitions("-D_WIN32_WINNT=0x0602")	# for asio 0602 win8
 endif ()
 
+add_definitions("-DSQLITE_OMIT_PROGRESS_CALLBACK")
+add_definitions("-DSQLITE_OMIT_PROGRESS_CALLBACK")
+add_definitions("-DSQLITE_DEFAULT_MEMSTATUS=0")
+add_definitions("-DSQLITE_USE_ALLOCA")
+add_definitions("-DSQLITE_LIKE_DOESNT_MATCH_BLOBS")
+add_definitions("-DSQLITE_OMIT_DEPRECATED")
+add_definitions("-DSQLITE_OMIT_AUTOINIT")
+add_definitions("-DSQLITE_OMIT_LOAD_EXTENSION")
+add_definitions("-DSQLITE_DQS=0")
+add_definitions("-DSQLITE_MAX_EXPR_DEPTH=0")
+add_definitions("-DSQLITE_THREADSAFE=0")
+
 list(APPEND dirs
 		../src
 		../3rd
