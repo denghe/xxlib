@@ -268,7 +268,7 @@ namespace xx::SQLite {
         Connection() noexcept;
 
         // 同 上面这个构造函数. 是否成功需要用 operator bool() 来判断
-        void Open(char const* const& fn, OpenFlags const& flags = OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::Wal) noexcept;
+        void Open(std::string_view fn, OpenFlags const& flags = OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::Wal) noexcept;
 
         ~Connection();
 
@@ -281,6 +281,7 @@ namespace xx::SQLite {
 
         // 获取受影响行数
         int GetAffectedRows();
+        int64_t GetAffectedRows64();
 
         // 下列函数均靠 try 检测是否执行出错
 
@@ -439,9 +440,10 @@ namespace xx::SQLite {
     /***************************************************************/
     // Connection
 
-    inline void Connection::Open(char const* const& fn, OpenFlags const& flags) noexcept {
+    inline void Connection::Open(std::string_view fn, OpenFlags const& flags) noexcept {
         assert(ctx == nullptr);
-        lastErrorCode = sqlite3_open_v2(fn, &ctx, (int)flags, nullptr);
+        std::string f(fn);
+        lastErrorCode = sqlite3_open_v2(f.c_str(), &ctx, (int)flags, nullptr);
         if (lastErrorCode != SQLITE_OK) {
             assert(ctx == nullptr);
             return;
@@ -480,6 +482,10 @@ namespace xx::SQLite {
 
     inline int Connection::GetAffectedRows() {
         return sqlite3_changes(ctx);
+    }
+
+    inline int64_t Connection::GetAffectedRows64() {
+        return sqlite3_changes64(ctx);
     }
 
     inline void Connection::SetPragmaSynchronousType(SynchronousTypes st) {

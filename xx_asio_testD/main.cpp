@@ -6,7 +6,7 @@
 // db
 #include "xx_asio_codes.h"
 #include "pkg.h"
-#include "sqlite.h"
+#include "db.h"
 
 struct Worker : xx::WorkerCode<Worker> {
 	xx::ObjManager om;
@@ -216,6 +216,7 @@ struct Game1Peer : PeerBase<Game1Peer> {
 // ...
 
 int main() {
+	DB::MainInit();
 	Server server;
 	server.Listen<LobbyPeer>(55100);
 	server.Listen<Game1Peer>(55101);

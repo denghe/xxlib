@@ -13,6 +13,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="sqlite.h" />
+    <ClInclude Include="db.h" />
   </ItemGroup>
 </Project>

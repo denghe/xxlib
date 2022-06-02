@@ -15,3 +15,4 @@ zig-out
 /tool_win32_loader/loader/files_idx.json
 .DS_Store
 test_sqlite_db.*
+xx_asio_testd_db.*
