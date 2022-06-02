@@ -79,11 +79,11 @@ struct PeerBase : xx::PeerCode<PeerDeriveType>, xx::PeerRequestCode<PeerDeriveTy
 		}, detached);
 	}
 
-	// HandleRequest 的 顺序版。oid_ 为线程选择依据. 最好先获取到独立变量，再传递，避免 lambda move 影响 oid 所在容器( 靠传参顺序不稳定, gcc clang 表现出来不一致 )
+	// 上面函数的 有序版。tid 取模 后作为下标 定位线程. 最好先获取到独立变量，再传递，避免 lambda move 影响 oid 所在容器( 靠传参顺序不稳定, gcc clang 表现出来不一致 )
 	template<typename F>
-	void AsyncExecute(int32_t serial, uint64_t oid_, F&& f) {
-		co_spawn(PEERTHIS->ioc, [this, self = PEERTHIS->shared_from_this(), oid_, serial, f = std::forward<F>(f)]()->awaitable<void> {
-			co_await AsyncExecute_(server.GetOrderedWork(oid_), serial, f);				// 参数为 顺序 worker.ioc
+	void AsyncExecute(int32_t serial, uint64_t tid, F&& f) {
+		co_spawn(PEERTHIS->ioc, [this, self = PEERTHIS->shared_from_this(), tid, serial, f = std::forward<F>(f)]()->awaitable<void> {
+			co_await AsyncExecute_(server.GetOrderedWork(tid), serial, f);				// 参数为 顺序 worker.ioc
 		}, detached);
 	}
 };
