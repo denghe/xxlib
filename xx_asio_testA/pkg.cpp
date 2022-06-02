@@ -4,6 +4,7 @@ void CodeGen_pkg::Register() {
 	::xx::ObjManager::Register<::Generic::PlayerInfo>();
 	::xx::ObjManager::Register<::Generic::Success>();
 	::xx::ObjManager::Register<::Generic::Register>();
+	::xx::ObjManager::Register<::All_Db::SetPlayerGold>();
 	::xx::ObjManager::Register<::All_Db::GetPlayerInfo>();
 	::xx::ObjManager::Register<::All_Db::GetPlayerId>();
 	::xx::ObjManager::Register<::Lobby_Game1::PlayerEnter>();
@@ -220,6 +221,53 @@ namespace Generic{
     }
     void Register::SetDefaultValue(::xx::ObjManager& om) {
         this->id = 0;
+    }
+}
+namespace All_Db{
+    void SetPlayerGold::WriteTo(xx::Data& d, int64_t const& id, int64_t const& gold) {
+        d.Write(xx::TypeId_v<SetPlayerGold>);
+        d.Write(id);
+        d.Write(gold);
+    }
+    void SetPlayerGold::Write(::xx::ObjManager& om, ::xx::Data& d) const {
+        d.Write(this->id);
+        d.Write(this->gold);
+    }
+    int SetPlayerGold::Read(::xx::ObjManager& om, ::xx::Data_r& d) {
+        if (int r = d.Read(this->id)) return r;
+        if (int r = d.Read(this->gold)) return r;
+        return 0;
+    }
+    void SetPlayerGold::Append(::xx::ObjManager& om, std::string& s) const {
+#ifndef XX_DISABLE_APPEND
+        ::xx::Append(s, "{\"__typeId__\":203");
+        this->AppendCore(om, s);
+        s.push_back('}');
+#endif
+    }
+    void SetPlayerGold::AppendCore(::xx::ObjManager& om, std::string& s) const {
+#ifndef XX_DISABLE_APPEND
+        om.Append(s, ",\"id\":", this->id);
+        om.Append(s, ",\"gold\":", this->gold);
+#endif
+    }
+    void SetPlayerGold::Clone(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::All_Db::SetPlayerGold*)tar;
+        om.Clone_(this->id, out->id);
+        om.Clone_(this->gold, out->gold);
+    }
+    int SetPlayerGold::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        if (int r = om.RecursiveCheck(this->gold)) return r;
+        return 0;
+    }
+    void SetPlayerGold::RecursiveReset(::xx::ObjManager& om) {
+        om.RecursiveReset(this->id);
+        om.RecursiveReset(this->gold);
+    }
+    void SetPlayerGold::SetDefaultValue(::xx::ObjManager& om) {
+        this->id = 0;
+        this->gold = 0;
     }
 }
 namespace All_Db{

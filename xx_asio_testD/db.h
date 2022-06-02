@@ -60,13 +60,13 @@ CREATE INDEX ordered_non_unique_acc_gold on acc (gold);
 		// ...
 	}
 
-	int64_t GetPlayerIdByUsernamePassword(std::string_view un, std::string_view pw) {
+	int64_t GetPlayerId(std::string_view un, std::string_view pw) {
 		int64_t id = 0;
 		qAccSelectIdByUsernamePassword.SetParameters(un, pw).ExecuteTo(id);
 		return id;
 	}
 
-	auto GetPlayerInfoById(int64_t id) {
+	auto GetPlayerInfo(int64_t id) {
 		auto r = xx::Make<Generic::PlayerInfo>();
 		if (!qAccSelectRowById.SetParameters(id).ExecuteTo(r->id, r->username, r->password, r->nickname, r->gold)) {
 			r.Reset();
@@ -74,7 +74,7 @@ CREATE INDEX ordered_non_unique_acc_gold on acc (gold);
 		return r;
 	}
 	
-	bool UpdatePlayerGoldById(int64_t id, int64_t gold) {
+	bool SetPlayerGold(int64_t id, int64_t gold) {
 		qAccUpdatePlayerGoldById.SetParameters(id, gold).Execute();
 		return conn.GetAffectedRows64() == 1;
 	}

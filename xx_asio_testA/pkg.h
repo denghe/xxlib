@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <pkg.h.inc>
 struct CodeGen_pkg {
-	inline static const ::std::string md5 = "#*MD5<5bbef36f6ac1da2cda0616ab76e5daa4>*#";
+	inline static const ::std::string md5 = "#*MD5<102333442c921ada0fa305fe93bfe09c>*#";
     static void Register();
     CodeGen_pkg() { Register(); }
 };
@@ -10,6 +10,7 @@ inline CodeGen_pkg __CodeGen_pkg;
 namespace Generic { struct PlayerInfo; }
 namespace Generic { struct Success; }
 namespace Generic { struct Register; }
+namespace All_Db { struct SetPlayerGold; }
 namespace All_Db { struct GetPlayerInfo; }
 namespace All_Db { struct GetPlayerId; }
 namespace Lobby_Game1 { struct PlayerEnter; }
@@ -29,6 +30,7 @@ namespace xx {
     template<> struct TypeId<::Generic::PlayerInfo> { static const uint16_t value = 14; };
     template<> struct TypeId<::Generic::Success> { static const uint16_t value = 12; };
     template<> struct TypeId<::Generic::Register> { static const uint16_t value = 11; };
+    template<> struct TypeId<::All_Db::SetPlayerGold> { static const uint16_t value = 203; };
     template<> struct TypeId<::All_Db::GetPlayerInfo> { static const uint16_t value = 202; };
     template<> struct TypeId<::All_Db::GetPlayerId> { static const uint16_t value = 201; };
     template<> struct TypeId<::Lobby_Game1::PlayerEnter> { static const uint16_t value = 301; };
@@ -85,6 +87,16 @@ namespace Generic {
         using IsSimpleType_v = Register;
         uint32_t id = 0;
         static void WriteTo(xx::Data& d, uint32_t const& id);
+    };
+}
+namespace All_Db {
+    // request. return Generic.Error || Generic.Success{ value = gold }
+    struct SetPlayerGold : ::xx::ObjBase {
+        XX_OBJ_OBJECT_H(SetPlayerGold, ::xx::ObjBase)
+        using IsSimpleType_v = SetPlayerGold;
+        int64_t id = 0;
+        int64_t gold = 0;
+        static void WriteTo(xx::Data& d, int64_t const& id, int64_t const& gold);
     };
 }
 namespace All_Db {

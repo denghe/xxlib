@@ -13,8 +13,7 @@ struct Worker : xx::WorkerCode<Worker> {
 	DB db;
 };
 
-struct LobbyPeer;
-struct Game1Peer;
+struct ServerPeer;
 // ...
 struct Server : xx::IOCCode<Server> {
 	xx::ObjManager om;
@@ -37,9 +36,7 @@ struct Server : xx::IOCCode<Server> {
 		return orderedWorkers[id % numWorkers];
 	}
 
-	// server peers
-	std::shared_ptr<LobbyPeer> lobbyPeer;
-	std::unordered_set<std::shared_ptr<Game1Peer>> game1Peers;
+	std::unordered_set<std::shared_ptr<ServerPeer>> peers;									// 存放各种连接. 可分类存放以便于做 广播 / 推送 啥的
 	// ...
 };
 
@@ -57,7 +54,7 @@ struct PeerBase : xx::PeerCode<PeerDeriveType>, xx::PeerRequestCode<PeerDeriveTy
 	// 将 f 放入 worker 执行，并于其执行完毕后 主线程 放行
 	// F: void(Worker& w, xx::ObjBase_s& r)
 	template<typename F>
-	awaitable<void> HandleRequestCore(Worker& w, int32_t serial, F& f) {
+	awaitable<void> AsyncExecute_(Worker& w, int32_t serial, F& f) {
 		xx::Data d;																			// 待发数据容器
 		asio::steady_timer t(PEERTHIS->ioc, std::chrono::steady_clock::time_point::max());	// 结果等待器
 		w.ioc.post([&] {
@@ -76,36 +73,35 @@ struct PeerBase : xx::PeerCode<PeerDeriveType>, xx::PeerRequestCode<PeerDeriveTy
 
 	// 启动一个乱序工作协程处理请求。处理完毕后回发处理结果. 会加持 peer 智能指针, 复制序列号，移动 f 进协程。
 	template<typename F>
-	void HandleUnorderedRequest(int32_t serial, F&& f) {
+	void AsyncExecute(int32_t serial, F&& f) {
 		co_spawn(PEERTHIS->ioc, [this, self = PEERTHIS->shared_from_this(), serial, f = std::forward<F>(f)]()->awaitable<void> {
-			co_await HandleRequestCore(server.GetWork(), serial, f);						// 参数为 乱序 worker.ioc
+			co_await AsyncExecute_(server.GetWork(), serial, f);						// 参数为 乱序 worker.ioc
 		}, detached);
 	}
 
 	// HandleRequest 的 顺序版。oid_ 为线程选择依据. 最好先获取到独立变量，再传递，避免 lambda move 影响 oid 所在容器( 靠传参顺序不稳定, gcc clang 表现出来不一致 )
 	template<typename F>
-	void HandleOrderedRequest(int32_t serial, uint64_t oid_, F&& f) {
+	void AsyncExecute(int32_t serial, uint64_t oid_, F&& f) {
 		co_spawn(PEERTHIS->ioc, [this, self = PEERTHIS->shared_from_this(), oid_, serial, f = std::forward<F>(f)]()->awaitable<void> {
-			co_await HandleRequestCore(server.GetOrderedWork(oid_), serial, f);				// 参数为 顺序 worker.ioc
+			co_await AsyncExecute_(server.GetOrderedWork(oid_), serial, f);				// 参数为 顺序 worker.ioc
 		}, detached);
 	}
 };
 
-struct LobbyPeer : PeerBase<LobbyPeer> {
-	using PB = PeerBase<LobbyPeer>;
-	using PB::PB;
+struct ServerPeer : PeerBase<ServerPeer> {
+	using PeerBase::PeerBase;
 
 	void Start_() {
-		server.lobbyPeer = shared_from_this();
+		server.peers.emplace(shared_from_this());
 	}
 
 	void Stop_() {
-		server.lobbyPeer.reset();
+		server.peers.erase(shared_from_this());
 	}
 
 	// 收到 请求( 返回非 0 表示失败，会 Stop )
 	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
-		server.om.CoutTN("LobbyPeer ReceiveRequest serial = ", serial, " o_ = ", o_);
+		server.om.CoutTN("ServerPeer ReceiveRequest serial = ", serial, " o_ = ", o_);
 		switch (o_.typeId()) {
 		case xx::TypeId_v<All_Db::GetPlayerId>: {
 			HandleRequest(serial, std::move(o_.ReinterpretCast<All_Db::GetPlayerId>()));
@@ -115,42 +111,38 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 			HandleRequest(serial, std::move(o_.ReinterpretCast<All_Db::GetPlayerInfo>()));
 			break;
 		}
+		case xx::TypeId_v<All_Db::SetPlayerGold>: {
+			HandleRequest(serial, std::move(o_.ReinterpretCast<All_Db::SetPlayerGold>()));
+			break;
+		}
 		default:
-			server.om.CoutN("LobbyPeer receive unhandled package: ", o_);
+			server.om.CoutN("ServerPeer receive unhandled package: ", o_);
 			om.KillRecursive(o_);
 		}
 		return 0;
 	}
 
 	void HandleRequest(int32_t serial, xx::Shared<All_Db::GetPlayerId>&& o) {
-		HandleUnorderedRequest(serial, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
-			std::this_thread::sleep_for(500ms);											// 模拟 db 慢查询
-			if (o->username == "a"sv && o->password == "1"sv) {
+		AsyncExecute(serial, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
+			if (auto id = w.db.GetPlayerId(o->username, o->password)) {
 				auto v = xx::Make<Generic::Success>();
-				v->value = 1;
+				v->value = id;
 				r = std::move(v);
 			}
 			else {
 				auto v = xx::Make<Generic::Error>();
-				v->number = 2;
-				v->message = "bad username or password.";
+				v->number = __LINE__;
+				xx::AppendFormat(v->message, "bad username {0} or password {1}", o->username, o->password);
 				r = std::move(v);
 			}
 		});
 	}
 
 	void HandleRequest(int32_t serial, xx::Shared<All_Db::GetPlayerInfo>&& o) {
-        auto oid = o->id;   // 独立写一行存下来 避免 o move 后取不到
-		HandleOrderedRequest(serial, oid, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
-			std::this_thread::sleep_for(500ms);											// 模拟 db 慢查询
-			if (o->id == 1) {
-				auto v = xx::Make<Generic::PlayerInfo>();
-				v->username = "a"sv;
-				v->password = "1"sv;
-				v->id = 1;
-				v->nickname = "asdf";
-				v->gold = 123;
-				r = std::move(v);
+        auto oid = o->id; // 独立写一行存下来 避免 o move 后取不到
+		AsyncExecute(serial, oid, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
+			if (auto pi = w.db.GetPlayerInfo(o->id)) {
+				r = std::move(pi);
 			}
 			else {
 				auto v = xx::Make<Generic::Error>();
@@ -161,46 +153,12 @@ struct LobbyPeer : PeerBase<LobbyPeer> {
 		});
 	}
 
-};
-
-struct Game1Peer : PeerBase<Game1Peer> {
-	using PB = PeerBase<Game1Peer>;
-	using PB::PB;
-
-	void Start_() {
-		server.game1Peers.insert(shared_from_this());
-	}
-
-	void Stop_() {
-		server.game1Peers.erase(shared_from_this());
-	}
-
-	// 收到 请求( 返回非 0 表示失败，会 Stop )
-	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
-		server.om.CoutTN("Game1Peer ReceiveRequest serial = ", serial, " o_ = ", o_);
-		switch (o_.typeId()) {
-		case xx::TypeId_v<All_Db::GetPlayerInfo>: {
-			HandleRequest(serial, std::move(o_.ReinterpretCast<All_Db::GetPlayerInfo>()));
-			break;
-		}
-		default:
-			server.om.CoutN("Game1Peer receive unhandled package: ", o_);
-			om.KillRecursive(o_);
-		}
-		return 0;
-	}
-
-	void HandleRequest(int32_t serial, xx::Shared<All_Db::GetPlayerInfo>&& o) {
+	void HandleRequest(int32_t serial, xx::Shared<All_Db::SetPlayerGold>&& o) {
         auto oid = o->id;
-		HandleOrderedRequest(serial, oid, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
-			std::this_thread::sleep_for(500ms);											// 模拟 db 慢查询
-			if (o->id == 1) {
-				auto v = xx::Make<Generic::PlayerInfo>();
-				v->username = "a"sv;
-				v->password = "1"sv;
-				v->id = 1;
-				v->nickname = "asdf";
-				v->gold = 123;
+		AsyncExecute(serial, oid, [o = std::move(o)](Worker& w, xx::ObjBase_s& r) {
+			if (w.db.SetPlayerGold(o->id, o->gold)) {
+				auto v = xx::Make<Generic::Success>();
+				v->value = o->gold;
 				r = std::move(v);
 			}
 			else {
@@ -212,14 +170,12 @@ struct Game1Peer : PeerBase<Game1Peer> {
 		});
 	}
 };
-
-// ...
 
 int main() {
 	DB::MainInit();
 	Server server;
-	server.Listen<LobbyPeer>(55100);
-	server.Listen<Game1Peer>(55101);
+	server.Listen<ServerPeer>(55100);
+	server.Listen<ServerPeer>(55101);	// 这里没有给 game 配一个专用类型，先将就用了
 	// ...
 	std::cout << "db running..." << std::endl;
 	server.ioc.run();

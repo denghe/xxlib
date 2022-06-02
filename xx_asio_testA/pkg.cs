@@ -49,6 +49,12 @@ namespace All_Db {
     class GetPlayerInfo {
         long id;
     }
+
+    [TypeId(203), Desc("request. return Generic.Error || Generic.Success{ value = gold }")]
+    class SetPlayerGold {
+        long id;
+        long gold;
+    }
 }
 
 namespace Lobby_Game1 {
