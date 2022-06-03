@@ -606,6 +606,44 @@ namespace xx {
 
 
 
+    /***********************************************************************************/
+    // Hash for Dict, tsl::xxxxxxmap. 顺序数字 key 简单绕开 std::hash
+    /***********************************************************************************/
+
+    template<typename T, typename ENABLED = void>
+    struct Hash {
+        inline size_t operator()(T const& k) const {
+            return std::hash<T>{}(k);
+        }
+    };
+
+    // 适配所有数字
+    template<typename T>
+    struct Hash<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
+        inline size_t operator()(T const& k) const {
+            return (size_t)k;
+        }
+    };
+
+    // 适配 enum
+    template<typename T>
+    struct Hash<T, std::enable_if_t<std::is_enum_v<T>>> {
+        inline size_t operator()(T const& k) const {
+            return (std::underlying_type_t<T>)k;
+        }
+    };
+
+    // 适配 指针( 除以 4/8 )
+    template<typename T>
+    struct Hash<T, std::enable_if_t<std::is_pointer_v<T>>> {
+        inline size_t operator()(T const& k) const {
+            if constexpr (sizeof(size_t) == 8) return (size_t)k / 8;
+            else return (size_t)k / 4;
+        }
+    };
+
+
+
 
     /************************************************************************************/
     // TypeName_v

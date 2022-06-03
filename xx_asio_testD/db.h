@@ -11,11 +11,8 @@ struct DB {
 
 		xx::SQLite::Connection conn;
 		conn.Open(dbName);
-		conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);
-		conn.SetPragmaTempStoreType(xx::SQLite::TempStoreTypes::Memory);
-
 		assert(conn);
-		// 每次都删 免得改了字段 不生效
+
 		if (!conn.TableExists("acc")) {
 			// 建表
 			conn.Call(R"#(
@@ -58,8 +55,6 @@ CREATE INDEX ordered_non_unique_acc_gold on acc (gold);
 		using namespace xx::SQLite;
 		conn.Open(dbName, OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::NoMutex);	// NoMutex 启用多线程并发模式
 		assert(conn);
-		conn.SetPragmaJournalMode(xx::SQLite::JournalModes::WAL);
-		conn.SetPragmaTempStoreType(xx::SQLite::TempStoreTypes::Memory);
 
 		qAccSelectIdByUsernamePassword.SetQuery("select id from acc where username = ? and password = ?");
 		qAccSelectRowById.SetQuery("select id, username, password, nickname, gold from acc where id = ?");

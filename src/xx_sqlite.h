@@ -459,6 +459,9 @@ namespace xx::SQLite {
         qEndTransaction.SetQuery("END TRANSACTION");
         qTableExists.SetQuery("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?");
         qGetTableCount.SetQuery("SELECT count(*) FROM sqlite_master WHERE type = 'table'");
+
+        SetPragmaJournalMode(JournalModes::WAL);
+        SetPragmaTempStoreType(TempStoreTypes::Memory);
     }
 
     inline Connection::Connection() noexcept : qBeginTransaction(*this), qCommit(*this), qRollback(*this), qEndTransaction(*this), qTableExists(*this),

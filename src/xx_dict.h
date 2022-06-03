@@ -6,7 +6,6 @@
 #include <cstring>
 
 namespace xx {
-
 	// Dict.Add 的操作结果
 	struct DictAddResult {
 		bool success;
@@ -168,7 +167,7 @@ namespace xx {
 		assert(bucketsLen);
 
 		// hash 按桶数取模 定位到具体 链表, 扫找
-		auto hashCode = std::hash<TK>{}(k);
+		auto hashCode = Hash<TK>{}(k);
 		auto targetBucket = hashCode % bucketsLen;
 		for (int i = buckets[targetBucket]; i >= 0; i = nodes[i].next) {
 			if (nodes[i].hashCode == hashCode && items[i].key == k) {
@@ -272,7 +271,7 @@ namespace xx {
 	template <typename TK, typename TV>
 	int Dict<TK, TV>::Find(TK const& k) const noexcept {
 		assert(buckets);
-		auto hashCode = std::hash<TK>{}(k);
+		auto hashCode = Hash<TK>{}(k);
 		for (int i = buckets[hashCode % bucketsLen]; i >= 0; i = nodes[i].next) {
 			if (nodes[i].hashCode == hashCode && items[i].key == k) return i;
 		}
@@ -416,7 +415,7 @@ namespace xx {
 		assert(idx >= 0 && idx < count && items[idx].prev != -2);
 
 		// 算 newKey hash, 定位到桶
-		auto newHashCode = std::hash<TK>{}(newKey);
+		auto newHashCode = Hash<TK>{}(newKey);
         auto newBucket = newHashCode % (uint32_t)bucketsLen;
 
         // 检查 newKey 是否已存在
