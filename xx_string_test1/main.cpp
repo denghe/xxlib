@@ -1,15 +1,285 @@
 ﻿#include <xx_dict.h>
 #include <xx_string.h>
+#include <unordered_map>
+#include <tsl/hopscotch_map.h>
 
-int main() {
-	xx::Dict<std::string, int> d;
-	d.Add("asdf", 1);
-	d["qwer"] = 2;
-	d["zxcv"sv] = 3;
-	xx::CoutN(d.Find("asdf"sv));
-	xx::CoutN(d.Find("qwer"));
-	xx::CoutN(d.Find(std::string("zxcv")));
+#include <xxh3.h>
+namespace xx {
+	// 适配 std::string
+	template<typename T>
+	struct Hash<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>>> {
+		inline size_t operator()(T const& k) const {
+			return (size_t)XXH3_64bits(k.data(), k.size());
+		}
+	};
 }
+struct string_hash {
+	using hash_type = xx::Hash<std::string_view>; 
+	//using hash_type = std::hash<std::string_view>;
+	using is_transparent = void;
+	size_t operator()(const char* str) const { return hash_type{}(str); }
+	size_t operator()(std::string_view str) const { return hash_type{}(str); }
+	size_t operator()(std::string const& str) const { return hash_type{}(str); }
+};
+int main() {
+	xx::Dict<std::string_view, int> d1;
+	std::unordered_map<std::string_view, int, string_hash, std::equal_to<void>> d2;
+	tsl::hopscotch_map<std::string_view, int, string_hash, std::equal_to<void>> d3;
+	int n = 1000000;
+	std::vector<std::string> ss;
+	for (int j = 0; j < n; j++) {
+		ss.emplace_back(std::to_string(j) + "asdfqwerasdf"
+			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+		);
+	}
+	std::vector<std::string_view> svs;
+	for (auto& s : ss) {
+		svs.push_back(s);
+	}
+	for (int i = 0; i < n; ++i) {
+		d1.Add(ss[i], i);
+		d2.emplace(ss[i], i);
+		d3.emplace(ss[i], i);
+	}
+
+	for (int i = 0; i < 5; i++) {
+		auto secs = xx::NowSteadyEpochSeconds();
+		int64_t counter = 0;
+		for (int j = 0; j < n; j++) {
+			if (auto r = d1.Find(svs[j]); r != -1) {
+				counter += d1.ValueAt(r);
+			}
+		}
+		xx::CoutN("counter = ", counter, ", xx::Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
+	}
+	for (int i = 0; i < 5; i++) {
+		auto secs = xx::NowSteadyEpochSeconds();
+		int64_t counter = 0;
+		for (int j = 0; j < n; j++) {
+			if (auto r = d2.find(svs[j]); r != d2.end()) {
+				counter += r->second;
+			}
+		}
+		xx::CoutN("counter = ", counter, ", std::unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+	}
+	for (int i = 0; i < 5; i++) {
+		auto secs = xx::NowSteadyEpochSeconds();
+		int64_t counter = 0;
+		for (int j = 0; j < n; j++) {
+			if (auto r = d3.find(svs[j]); r != d3.end()) {
+				counter += r->second;
+			}
+		}
+		xx::CoutN("counter = ", counter, ", tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+	}
+}
+
+
+
+
+
+
+
+// 一些测试结论:  tsl::hopscotch_map 主要适合用于 int 等小 key. std string 等大 key 性能 似乎还不如 std::unordered_map.  xx::Dict 小key 不如 tsl, 但综合都比 std::umap 快
+//
+//#include <tsl/hopscotch_map.h>
+//#include <tsl/robin_map.h>
+//#include <xx_dict.h>
+//
+//int main() {
+//	tsl::hopscotch_map<int, int, xx::Hash<int>> dict1;
+//	std::unordered_map<int, int, xx::Hash<int>> dict2;
+//	xx::Dict<int, int> dict3;
+//
+//	tsl::hopscotch_map<std::string, int> dict4;
+//	std::unordered_map<std::string, int> dict5;
+//	xx::Dict<std::string, int> dict6;
+//
+//	std::vector<std::string> ss;
+//	for (int j = 0; j < n; j++) {
+//		ss.emplace_back(std::to_string(j));
+//	}
+//	for (int i = 0; i < n; ++i) {
+//		dict1.emplace(i, i);
+//		dict2.emplace(i, i);
+//		dict3.Add(i, i);
+//		dict4.emplace(ss[i], i);
+//		dict5.emplace(ss[i], i);
+//		dict6.Add(ss[i], i);
+//	}
+//
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict1[j];
+//		}
+//		xx::CoutN("counter = ", counter, ", hopscotch_map<int secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict2[j];
+//		}
+//		xx::CoutN("counter = ", counter, ", std::unordered_map<int secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict3[j];
+//		}
+//		xx::CoutN("counter = ", counter, ", Dict<int secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict4[ss[j]];
+//		}
+//		xx::CoutN("counter = ", counter, ", hopscotch_map<std::string secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict5[ss[j]];
+//		}
+//		xx::CoutN("counter = ", counter, ", std::unordered_map<std::string secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict6[ss[j]];
+//		}
+//		xx::CoutN("counter = ", counter, ", Dict<std::string secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//}
+
+
+//struct HString : std::string {
+//	using std::string::string;
+//	size_t hashCode = 0;
+//	void FillHashCode();
+//};
+//namespace std {
+//	template <> struct hash<HString> {
+//		size_t operator()(HString const& k) const {
+//			return k.hashCode;
+//		}
+//	};
+//}
+//void HString::FillHashCode() {
+//	hashCode = ::std::hash<std::string>()(*this);
+//}
+
+
+//#include <xx_dict.h>
+//#include <tsl/hopscotch_map.h>
+//#include <tsl/robin_map.h>
+//
+//#include <xxh3.h>
+//namespace xx {
+//	// 适配 std::string
+//	template<typename T>
+//	struct Hash<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>>> {
+//		inline size_t operator()(T const& k) const {
+//			return (size_t)XXH3_64bits(k.data(), k.size());
+//		}
+//	};
+//}
+
+//std::unordered_map<std::string, int> dict1;
+//xx::Dict<std::string, int> dict2;
+//tsl::hopscotch_map<std::string, int, xx::Hash<std::string>> dict3;
+
+//for (int i = 0; i < n; ++i) {
+//	auto s = std::to_string(i);
+//	dict1.emplace(s, i);
+//	dict2.Add(s, i);
+//	dict3.emplace(s, i);
+//}
+
+//for (int i = 0; i < 10; i++) {
+//	auto secs = xx::NowSteadyEpochSeconds();
+//	int64_t counter = 0;
+//	for (int j = 0; j < n; j++) {
+//		auto s = std::to_string(j);
+//		counter += dict1[s];
+//	}
+//	xx::CoutN("counter = ", counter, ", unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//}
+
+//for (int i = 0; i < 10; i++) {
+//	auto secs = xx::NowSteadyEpochSeconds();
+//	int64_t counter = 0;
+//	for( int j = 0; j < n; j++) {
+//		auto s = std::to_string(j);
+//		counter += dict2[s];
+//	}
+//	xx::CoutN("counter = ", counter, ", Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
+//}
+
+//for (int i = 0; i < 10; i++) {
+//	auto secs = xx::NowSteadyEpochSeconds();
+//	int64_t counter = 0;
+//	for( int j = 0; j < n; j++) {
+//		auto s = std::to_string(j);
+//		counter += dict3[s];
+//	}
+//	xx::CoutN("counter = ", counter, ", hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//}
+
+
+
+//std::map<int, int> dict1;
+//xx::Dict<int, int> dict2;
+//tsl::hopscotch_map<int, int, xx::Hash<int>> dict3;
+
+//for (int i = 0; i < n; ++i) {
+//	dict1.emplace(i, i);
+//	dict2.Add(i, i);
+//	dict3.emplace(i, i);
+//}
+
+//for (int i = 0; i < 10; i++) {
+//	auto secs = xx::NowSteadyEpochSeconds();
+//	int64_t counter = 0;
+//	for (int j = 0; j < n; j++) {
+//		counter += dict1[j];
+//	}
+//	xx::CoutN("counter = ", counter, ", map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//}
+
+//for (int i = 0; i < 10; i++) {
+//	auto secs = xx::NowSteadyEpochSeconds();
+//	int64_t counter = 0;
+//	for (int j = 0; j < n; j++) {
+//		counter += dict2[j];
+//	}
+//	xx::CoutN("counter = ", counter, ", Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
+//}
+
+//for (int i = 0; i < 10; i++) {
+//	auto secs = xx::NowSteadyEpochSeconds();
+//	int64_t counter = 0;
+//	for (int j = 0; j < n; j++) {
+//		counter += dict3[j];
+//	}
+//	xx::CoutN("counter = ", counter, ", hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//}
+
+
+
+
+
 
 
 //#include <xx_nodepool.h>

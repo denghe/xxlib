@@ -169,7 +169,7 @@ namespace xx {
 		size_t hashCode;
 		if constexpr (std::is_same_v<std::string, TK>) {
 			if constexpr (std::is_same_v<std::string_view, std::decay_t<K>> || std::is_same_v<std::string, std::decay_t<K>>) {
-				hashCode = Hash<K>{}(k);
+				hashCode = Hash<std::decay_t<K>>{}(k);
 			}
 			else {
 				hashCode = Hash<std::string_view>{}(k);
@@ -285,7 +285,7 @@ namespace xx {
 		size_t hashCode;
 		if constexpr (std::is_same_v<std::string, TK>) {
 			if constexpr (std::is_same_v<std::string_view, std::decay_t<K>> || std::is_same_v<std::string, std::decay_t<K>>) {
-				hashCode = Hash<K>{}(k);
+				hashCode = Hash<std::decay_t<K>>{}(k);
 			}
 			else {
 				hashCode = Hash<std::string_view>{}(k);
