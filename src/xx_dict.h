@@ -1,11 +1,8 @@
 ﻿#pragma once
-#include "xx_bits.h"
-#include <cassert>
-#include <cstdint>
-#include <memory>
-#include <cstring>
+#include "xx_helpers.h"
 
 namespace xx {
+
 	// Dict.Add 的操作结果
 	struct DictAddResult {
 		bool success;
@@ -51,10 +48,12 @@ namespace xx {
 		void Reserve(int capacity = 0) noexcept;
 
 		// 根据 key 返回下标. -1 表示没找到.
-		int Find(TK const& key) const noexcept;
+		template<typename K>
+		int Find(K const& key) const noexcept;
 
 		// 根据 key 移除一条数据
-		void Remove(TK const& key) noexcept;
+		template<typename K>
+		void Remove(K const& key) noexcept;
 
 		// 根据 下标 移除一条数据( unsafe )
 		void RemoveAt(int const& idx) noexcept;
@@ -167,7 +166,18 @@ namespace xx {
 		assert(bucketsLen);
 
 		// hash 按桶数取模 定位到具体 链表, 扫找
-		auto hashCode = Hash<TK>{}(k);
+		size_t hashCode;
+		if constexpr (std::is_same_v<std::string, TK>) {
+			if constexpr (std::is_same_v<std::string_view, std::decay_t<K>> || std::is_same_v<std::string, std::decay_t<K>>) {
+				hashCode = Hash<K>{}(k);
+			}
+			else {
+				hashCode = Hash<std::string_view>{}(k);
+			}
+		}
+		else {
+			hashCode = Hash<TK>{}(k);
+		}
 		auto targetBucket = hashCode % bucketsLen;
 		for (int i = buckets[targetBucket]; i >= 0; i = nodes[i].next) {
 			if (nodes[i].hashCode == hashCode && items[i].key == k) {
@@ -269,13 +279,35 @@ namespace xx {
 	}
 
 	template <typename TK, typename TV>
-	int Dict<TK, TV>::Find(TK const& k) const noexcept {
+	template<typename K>
+	int Dict<TK, TV>::Find(K const& k) const noexcept {
 		assert(buckets);
-		auto hashCode = Hash<TK>{}(k);
+		size_t hashCode;
+		if constexpr (std::is_same_v<std::string, TK>) {
+			if constexpr (std::is_same_v<std::string_view, std::decay_t<K>> || std::is_same_v<std::string, std::decay_t<K>>) {
+				hashCode = Hash<K>{}(k);
+			}
+			else {
+				hashCode = Hash<std::string_view>{}(k);
+			}
+		}
+		else {
+			hashCode = Hash<TK>{}(k);
+		}
 		for (int i = buckets[hashCode % bucketsLen]; i >= 0; i = nodes[i].next) {
 			if (nodes[i].hashCode == hashCode && items[i].key == k) return i;
 		}
 		return -1;
+	}
+
+	template <typename TK, typename TV>
+	template<typename K>
+	void Dict<TK, TV>::Remove(K const& k) noexcept {
+		assert(buckets);
+		auto idx = Find(k);
+		if (idx != -1) {
+			RemoveAt(idx);
+		}
 	}
 
 	template <typename TK, typename TV>
@@ -323,15 +355,6 @@ namespace xx {
 		auto&& r = Add(std::forward<K>(k), TV(), false);
 		return items[r.index].value;
 		// return items[Add(std::forward<K>(k), TV(), false).index].value;		// 这样写会导致 gcc 先记录下 items 的指针，Add 如果 renew 了 items 就 crash
-	}
-
-	template <typename TK, typename TV>
-	void Dict<TK, TV>::Remove(TK const &k) noexcept {
-		assert(buckets);
-		auto idx = Find(k);
-		if (idx != -1) {
-			RemoveAt(idx);
-		}
 	}
 
 	template <typename TK, typename TV>

@@ -2,7 +2,7 @@
 #include "xx_sqlite.h"
 #include "xx_string.h"
 
-inline static int n = 1000000;
+inline static int n = 100000;
 inline static std::vector<std::string> ss;
 
 void TestSQLite() {
@@ -143,7 +143,7 @@ typedef multi_index_container<Acc, indexed_by<
 	hashed_unique<tag<tags::id>, BOOST_MULTI_INDEX_MEMBER(Acc, int64_t, id)>,
 	hashed_unique<tag<tags::username>, BOOST_MULTI_INDEX_MEMBER(Acc, std::string, username)>,
 	ordered_non_unique<tag<tags::coin>, BOOST_MULTI_INDEX_MEMBER(Acc, double, coin)>
->> Accs;
+	>> Accs;
 
 void TestBoostMultiIndexContainer() {
 	xx::CoutN("test multi_index_container ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -153,7 +153,7 @@ void TestBoostMultiIndexContainer() {
 	for (int j = 0; j < 10; j++) {
 		accs.clear();
 		auto secs = xx::NowSteadyEpochSeconds();
-		
+
 		for (int i = 0; i < n; ++i) {
 			auto& upn = ss[i];
 			accs.emplace(i, upn, upn, upn, (double)i * 100);
@@ -224,8 +224,85 @@ int main() {
 }
 
 
-
 // 一些测试结论:  tsl::hopscotch_map 主要适合用于 int 等小 key. std string 等大 key 性能 似乎还不如 std::unordered_map.  xx::Dict 小key 不如 tsl, 但综合都比 std::umap 快
+//
+//#include <tsl/hopscotch_map.h>
+//#include <tsl/robin_map.h>
+//#include <xx_dict.h>
+//
+//int main() {
+//	tsl::hopscotch_map<int, int, xx::Hash<int>> dict1;
+//	std::unordered_map<int, int, xx::Hash<int>> dict2;
+//	xx::Dict<int, int> dict3;
+//
+//	tsl::hopscotch_map<std::string, int> dict4;
+//	std::unordered_map<std::string, int> dict5;
+//	xx::Dict<std::string, int> dict6;
+//
+//	std::vector<std::string> ss;
+//	for (int j = 0; j < n; j++) {
+//		ss.emplace_back(std::to_string(j));
+//	}
+//	for (int i = 0; i < n; ++i) {
+//		dict1.emplace(i, i);
+//		dict2.emplace(i, i);
+//		dict3.Add(i, i);
+//		dict4.emplace(ss[i], i);
+//		dict5.emplace(ss[i], i);
+//		dict6.Add(ss[i], i);
+//	}
+//
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict1[j];
+//		}
+//		xx::CoutN("counter = ", counter, ", hopscotch_map<int secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict2[j];
+//		}
+//		xx::CoutN("counter = ", counter, ", std::unordered_map<int secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict3[j];
+//		}
+//		xx::CoutN("counter = ", counter, ", Dict<int secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict4[ss[j]];
+//		}
+//		xx::CoutN("counter = ", counter, ", hopscotch_map<std::string secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict5[ss[j]];
+//		}
+//		xx::CoutN("counter = ", counter, ", std::unordered_map<std::string secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			counter += dict6[ss[j]];
+//		}
+//		xx::CoutN("counter = ", counter, ", Dict<std::string secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//}
+
 
 //struct HString : std::string {
 //	using std::string::string;
@@ -246,6 +323,7 @@ int main() {
 
 //#include <xx_dict.h>
 //#include <tsl/hopscotch_map.h>
+//#include <tsl/robin_map.h>
 //
 //#include <xxh3.h>
 //namespace xx {
