@@ -156,7 +156,7 @@ void TestBoostMultiIndexContainer() {
 
 		for (int i = 0; i < n; ++i) {
 			auto& upn = ss[i];
-			accs.emplace(i, upn, upn, upn, (double)i * 100);
+			accs.emplace(Acc {i, upn, upn, upn, (double)i * 100});
 		}
 		xx::CoutN("insert finished. secs = ", xx::NowSteadyEpochSeconds() - secs, " acc.count(*) = ", accs.size());
 	}

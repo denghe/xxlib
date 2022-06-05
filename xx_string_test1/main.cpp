@@ -22,6 +22,8 @@ struct string_hash {
 	size_t operator()(std::string const& str) const { return hash_type{}(str); }
 };
 int main() {
+    // 测试结论：5950x win msvc Dict 性能大约是 后者的 2-3 倍, m1 macos clang Dict 比后者略慢
+
 	xx::Dict<std::string_view, int> d1;
 	std::unordered_map<std::string_view, int, string_hash, std::equal_to<void>> d2;
 	tsl::hopscotch_map<std::string_view, int, string_hash, std::equal_to<void>> d3;

@@ -8,6 +8,7 @@ endif()
 
 include_directories(
 	../src
+	../3rd
 )
 
 add_executable(xx_string_test1
