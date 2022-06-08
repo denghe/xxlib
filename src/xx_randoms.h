@@ -192,7 +192,7 @@ namespace xx {
 
     // reference from https://github.com/cslarsen/mersenne-twister
     // faster than std impl, can store & restore state data directly
-    // ser/de data size >= 5004 bytes
+    // ser/de data size == 5000 bytes
     struct Random5 : RandomBase<Random5> {
         static const size_t SIZE = 624;
         static const size_t PERIOD = 397;
@@ -263,16 +263,18 @@ namespace xx {
     template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random5>>> {
         template<bool needReserve = true>
         static inline void Write(Data& d, T const& in) {
-            d.WriteFixedArray<needReserve>(in.MT, T::SIZE);
-            d.WriteFixedArray<needReserve>(in.MT_TEMPERED, T::SIZE);
-            d.WriteFixed<needReserve>(in.index);
+            d.WriteFixedArray<needReserve, uint32_t>(in.MT, T::SIZE);
+            d.WriteFixedArray<needReserve, uint32_t>(in.MT_TEMPERED, T::SIZE);
+            d.WriteFixed<needReserve>((uint32_t)in.index);
             d.WriteFixed<needReserve>(in.seed);
         }
         static inline int Read(Data_r& d, T& out) {
-            if (int r = d.ReadFixedArray(&out.MT, T::SIZE)) return r;
-            if (int r = d.ReadFixedArray(&out.MT_TEMPERED, T::SIZE)) return r;
-            if (int r = d.ReadFixed(&out.index)) return r;
-            if (int r = d.ReadFixed(&out.seed)) return r;
+            if (int r = d.ReadFixedArray<uint32_t>(out.MT, T::SIZE)) return r;
+            if (int r = d.ReadFixedArray<uint32_t>(out.MT_TEMPERED, T::SIZE)) return r;
+            uint32_t idx;
+            if (int r = d.ReadFixed(idx)) return r;
+            out.index = idx;
+            if (int r = d.ReadFixed(out.seed)) return r;
             return 0;
         }
     };
