@@ -958,7 +958,7 @@ namespace xx::SQLite {
         } else if constexpr (std::is_same_v<xx::Data, T>) {
             auto &&r = ReadBlob(colIdx);
             outVal.Clear();
-            outVal.AddRange((uint8_t *) r.first, r.second);
+            outVal.WriteBuf((uint8_t *) r.first, r.second);
         } else if constexpr (std::is_enum_v<T>) {
             if constexpr (sizeof(T) <= 4) {
                 outVal = (T) ReadInt32(colIdx);
