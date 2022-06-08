@@ -24,7 +24,7 @@ namespace xx {
 
 	struct Random1 : RandomBase<Random1> {
 		int seed;
-		static const int m = 1 << 31, a = 1103515245, c = 12345;
+		inline static const int m = 1 << 31, a = 1103515245, c = 12345;
 
 		void Reset(int const& seed = 123456789) { this->seed = seed; }
 
@@ -61,7 +61,7 @@ namespace xx {
 
     struct Random2 : RandomBase<Random2> {
 		uint64_t x, w;
-		static const uint64_t s = 0xb5ad4eceda1ce2a9;
+		inline static const uint64_t s = 0xb5ad4eceda1ce2a9;
 
 		void Reset(uint64_t const& x = 0, uint64_t const& w = 0) { this->x = x; this->w = w; }
 
@@ -194,10 +194,10 @@ namespace xx {
     // faster than std impl, can store & restore state data directly
     // ser/de data size == 5000 bytes
     struct Random5 : RandomBase<Random5> {
-        static const size_t SIZE = 624;
-        static const size_t PERIOD = 397;
-        static const size_t DIFF = SIZE - PERIOD;
-        static const uint32_t MAGIC = 0x9908b0df;
+        inline static const size_t SIZE = 624;
+        inline static const size_t PERIOD = 397;
+        inline static const size_t DIFF = SIZE - PERIOD;
+        inline static const uint32_t MAGIC = 0x9908b0df;
         uint32_t MT[SIZE];
         uint32_t MT_TEMPERED[SIZE];
         size_t index = SIZE;
