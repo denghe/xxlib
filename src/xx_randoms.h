@@ -10,10 +10,10 @@ namespace xx {
 
     template<typename T>
     struct RandomBase {
-        inline int32_t NextInt() {
+        int32_t NextInt() {
             return ((T*)this)->Next() & 0x7FFFFFFFu;
         };
-        inline double NextDouble() {
+        double NextDouble() {
             return (double) ((T*)this)->Next() / (double) std::numeric_limits<uint32_t>::max();
         };
         // todo: more Next funcs?
@@ -26,7 +26,7 @@ namespace xx {
 		int seed;
 		static const int m = 1 << 31, a = 1103515245, c = 12345;
 
-		inline void Reset(int const& seed = 123456789) { this->seed = seed; }
+		void Reset(int const& seed = 123456789) { this->seed = seed; }
 
 		Random1(int const& seed = 123456789) : seed(seed) {}
 
@@ -38,7 +38,7 @@ namespace xx {
 
 		Random1& operator=(Random1&& o) = default;
 
-		inline uint32_t Next() {
+		uint32_t Next() {
 			seed = (a * seed + c) % m;
 			return (uint32_t)seed;
 		}
@@ -63,7 +63,7 @@ namespace xx {
 		uint64_t x, w;
 		static const uint64_t s = 0xb5ad4eceda1ce2a9;
 
-		inline void Reset(uint64_t const& x = 0, uint64_t const& w = 0) { this->x = x; this->w = w; }
+		void Reset(uint64_t const& x = 0, uint64_t const& w = 0) { this->x = x; this->w = w; }
 
 		Random2(uint64_t const& x = 0, uint64_t const& w = 0) : x(x), w(w) {}
 
@@ -75,7 +75,7 @@ namespace xx {
 
 		Random2& operator=(Random2&& o) = default;
 
-		inline uint32_t Next() {
+		uint32_t Next() {
 			x *= x;
 			x += (w += s);
 			return (uint32_t)(x = (x >> 32) | (x << 32));
@@ -103,7 +103,7 @@ namespace xx {
     struct Random3 : RandomBase<Random3> {
 		uint64_t seed;
 
-		inline void Reset(uint64_t const& seed = 1234567891234567890) { this->seed = seed; }
+		void Reset(uint64_t const& seed = 1234567891234567890) { this->seed = seed; }
 
 		explicit Random3(uint64_t const& seed = 1234567891234567890) : seed(seed) {}
 
@@ -115,7 +115,7 @@ namespace xx {
 
 		Random3& operator=(Random3&& o) = default;
 
-		inline uint32_t Next() {
+		uint32_t Next() {
 			seed ^= (seed << 21u);
 			seed ^= (seed >> 35u);
 			seed ^= (seed << 4u);
@@ -145,7 +145,7 @@ namespace xx {
         uint64_t count;
 		std::mt19937 rand;
 
-		inline void Reset(SeedType const& seed = 1234567890, uint64_t const& count = 0) {
+		void Reset(SeedType const& seed = 1234567890, uint64_t const& count = 0) {
 			this->seed = seed;
             this->count = count;
 			rand.seed(seed);
@@ -167,7 +167,7 @@ namespace xx {
 
 		Random4& operator=(Random4&& o) = default;
 
-		inline uint32_t Next() {
+		uint32_t Next() {
 			++count;
 			return (uint32_t)rand();
 		}
@@ -187,6 +187,95 @@ namespace xx {
         }
     };
 
+    /**************************************************************************************************************/
+    /**************************************************************************************************************/
+
+    // reference from https://github.com/cslarsen/mersenne-twister
+    // faster than std impl, can store & restore state data directly
+    // ser/de data size >= 5004 bytes
+    struct Random5 : RandomBase<Random5> {
+        static const size_t SIZE = 624;
+        static const size_t PERIOD = 397;
+        static const size_t DIFF = SIZE - PERIOD;
+        static const uint32_t MAGIC = 0x9908b0df;
+        uint32_t MT[SIZE];
+        uint32_t MT_TEMPERED[SIZE];
+        size_t index = SIZE;
+        uint32_t seed;
+        void Reset(uint32_t const& seed = 1234567890) {
+            this->seed = seed;
+            MT[0] = seed;
+            index = SIZE;
+            for (uint_fast32_t i = 1; i < SIZE; ++i) {
+                MT[i] = 0x6c078965 * (MT[i - 1] ^ MT[i - 1] >> 30) + i;
+            }
+        }
+        Random5(uint32_t const& seed = 1234567890) {
+            Reset(seed);
+        }
+
+        Random5& operator=(Random5 const&) = default;
+        Random5(Random5&& o) = default;
+        Random5& operator=(Random5&& o) = default;
+
+#define Random5_M32(x) (0x80000000 & x) // 32nd MSB
+#define Random5_L31(x) (0x7FFFFFFF & x) // 31 LSBs
+#define Random5_UNROLL(expr) \
+  y = Random5_M32(MT[i]) | Random5_L31(MT[i+1]); \
+  MT[i] = MT[expr] ^ (y >> 1) ^ (((int32_t(y) << 31) >> 31) & MAGIC); \
+  ++i;
+        void Generate() {
+            size_t i = 0;
+            uint32_t y;
+            while (i < DIFF) {
+                Random5_UNROLL(i + PERIOD);
+            }
+            while (i < SIZE - 1) {
+                Random5_UNROLL(i - DIFF);
+            }
+            {
+                y = Random5_M32(MT[SIZE - 1]) | Random5_L31(MT[0]);
+                MT[SIZE - 1] = MT[PERIOD - 1] ^ (y >> 1) ^ (((int32_t(y) << 31) >> 31) & MAGIC);
+            }
+            for (size_t i = 0; i < SIZE; ++i) {
+                y = MT[i];
+                y ^= y >> 11;
+                y ^= y << 7 & 0x9d2c5680;
+                y ^= y << 15 & 0xefc60000;
+                y ^= y >> 18;
+                MT_TEMPERED[i] = y;
+            }
+            index = 0;
+        }
+#undef Random5_UNROLL
+#undef Random5_L31
+#undef Random5_M32
+
+        uint32_t Next() {
+            if (index == SIZE) {
+                Generate();
+                index = 0;
+            }
+            return MT_TEMPERED[index++];
+        }
+    };
+
+    template<typename T> struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random5>>> {
+        template<bool needReserve = true>
+        static inline void Write(Data& d, T const& in) {
+            d.WriteFixedArray<needReserve>(in.MT, T::SIZE);
+            d.WriteFixedArray<needReserve>(in.MT_TEMPERED, T::SIZE);
+            d.WriteFixed<needReserve>(in.index);
+            d.WriteFixed<needReserve>(in.seed);
+        }
+        static inline int Read(Data_r& d, T& out) {
+            if (int r = d.ReadFixedArray(&out.MT, T::SIZE)) return r;
+            if (int r = d.ReadFixedArray(&out.MT_TEMPERED, T::SIZE)) return r;
+            if (int r = d.ReadFixed(&out.index)) return r;
+            if (int r = d.ReadFixed(&out.seed)) return r;
+            return 0;
+        }
+    };
 
     /**************************************************************************************************************/
     /**************************************************************************************************************/
@@ -197,11 +286,14 @@ namespace xx {
             || std::is_same_v<std::decay_t<T>, Random2>
             || std::is_same_v<std::decay_t<T>, Random3>
             || std::is_same_v<std::decay_t<T>, Random4>
+            || std::is_same_v<std::decay_t<T>, Random5>
             >> {
         static inline void Append(std::string& s, T const& in) {
             s.push_back('{');
             if constexpr (std::is_same_v < std::decay_t<T>, Random1 >
-                          || std::is_same_v < std::decay_t<T>, Random3 >) {
+                          || std::is_same_v < std::decay_t<T>, Random3 >
+                          || std::is_same_v < std::decay_t<T>, Random5 >
+                ) {
                 ::xx::Append(s, "\"seed\":", in.seed);
             }
             else if constexpr (std::is_same_v < std::decay_t<T>, Random2>) {
@@ -220,6 +312,7 @@ namespace xx {
 		|| std::is_same_v<std::decay_t<T>, Random2>
 		|| std::is_same_v<std::decay_t<T>, Random3>
 		|| std::is_same_v<std::decay_t<T>, Random4>
+		|| std::is_same_v<std::decay_t<T>, Random5>
 		>> {
 		static inline void Write(ObjManager& om, Data& d, T const& in) {
 			d.Write(in);

@@ -53,34 +53,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xx_lua_test1", "xx_lua_test
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xx_sqlite_test1", "xx_sqlite_test1\xx_sqlite_test1.vcxproj", "{0653FBCF-1111-41F7-0201-333619F57E00}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xx_random_test1", "xx_random_test1\xx_random_test1.vcxproj", "{0653FBCF-82A5-41F7-0012-F0D1712F53E2}"
+EndProject
 Global
-	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		src\src.vcxitems*{0653fbcf-1111-41f7-0201-333619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0001-f0d6719f57e2}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0002-f0d6711237e2}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0002-f0d6719f57e2}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0012-f0d6719f57e2}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0022-f0d6719f57e2}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-123419f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-123519f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-123619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-213619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-321619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-333619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-444619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-555619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666719f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666819f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666919f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-987619f57e00}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-f0d6719f57e2}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-1122-f0d6719f57e2}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-ac62-123471912345}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-ac62-f0d671912345}*SharedItemsImports = 4
-		src\src.vcxitems*{0653fbcf-82a5-41f7-ac62-f0d6719f57e2}*SharedItemsImports = 4
-		src\src.vcxitems*{867ab1eb-2575-44d6-8a47-868c1643df95}*SharedItemsImports = 9
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Release|x64 = Release|x64
@@ -182,11 +157,43 @@ Global
 		{0653FBCF-1111-41F7-0201-333619F57E00}.Debug|x64.Build.0 = Debug|x64
 		{0653FBCF-1111-41F7-0201-333619F57E00}.Release|x64.ActiveCfg = Release|x64
 		{0653FBCF-1111-41F7-0201-333619F57E00}.Release|x64.Build.0 = Release|x64
+		{0653FBCF-82A5-41F7-0012-F0D1712F53E2}.Debug|x64.ActiveCfg = Debug|x64
+		{0653FBCF-82A5-41F7-0012-F0D1712F53E2}.Debug|x64.Build.0 = Debug|x64
+		{0653FBCF-82A5-41F7-0012-F0D1712F53E2}.Release|x64.ActiveCfg = Release|x64
+		{0653FBCF-82A5-41F7-0012-F0D1712F53E2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B5E38D05-4A3F-43E8-8FAF-57D16C77C62F}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		src\src.vcxitems*{0653fbcf-1111-41f7-0201-333619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0001-f0d6719f57e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0002-f0d6711237e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0002-f0d6719f57e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0012-f0d1712f53e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0012-f0d6719f57e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0022-f0d6719f57e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-123419f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-123519f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-123619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-213619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-321619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-333619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-444619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-555619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666719f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666819f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-666919f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-987619f57e00}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-0201-f0d6719f57e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-1122-f0d6719f57e2}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-ac62-123471912345}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-ac62-f0d671912345}*SharedItemsImports = 4
+		src\src.vcxitems*{0653fbcf-82a5-41f7-ac62-f0d6719f57e2}*SharedItemsImports = 4
+		src\src.vcxitems*{867ab1eb-2575-44d6-8a47-868c1643df95}*SharedItemsImports = 9
 	EndGlobalSection
 EndGlobal
