@@ -53,7 +53,7 @@ CREATE INDEX ordered_non_unique_acc_gold on acc (gold);
 		// ...
 	{
 		using namespace xx::SQLite;
-		conn.Open(dbName, OpenFlags::ReadWrite | OpenFlags::Create | OpenFlags::NoMutex);	// NoMutex 启用多线程并发模式
+		conn.Open(dbName, OpenFlags::ReadWrite | OpenFlags::NoMutex);	// MainInit 中已创建库，这里不再创建。且启用 NoMutex 多线程并发模式
 		assert(conn);
 
 		qAccSelectIdByUsernamePassword.SetQuery("select id from acc where username = ? and password = ?");

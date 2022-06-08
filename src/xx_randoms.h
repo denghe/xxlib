@@ -147,7 +147,7 @@ namespace xx {
 
 		inline void Reset(SeedType const& seed = 1234567890, uint64_t const& count = 0) {
 			this->seed = seed;
-            this->count = 0;
+            this->count = count;
 			rand.seed(seed);
             if (count) {
                 rand.discard(count);
