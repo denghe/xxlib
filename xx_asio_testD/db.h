@@ -1,20 +1,20 @@
-#pragma once
+ï»¿#pragma once
 #include "xx_sqlite.h"
 #include "pkg.h"
 
 struct DB {
 	constexpr static const std::string_view dbName = "xx_asio_testd_db.sqlite3";
 
-	// ĞèÒªÔÚ main µÚÒ»Ê±¼äÖ´ĞĞ, ×ö½¨±íÉ¶µÄ»ù´¡²Ù×÷
+	// éœ€è¦åœ¨ main ç¬¬ä¸€æ—¶é—´æ‰§è¡Œ, åšå»ºè¡¨å•¥çš„åŸºç¡€æ“ä½œ
 	inline static void MainInit() {
-		xx::SQLite::Init();	// ¿ª»ú±Ø×ö
+		xx::SQLite::Init();	// å¼€æœºå¿…åš
 
 		xx::SQLite::Connection conn;
 		conn.Open(dbName);
 		assert(conn);
 
 		if (!conn.TableExists("acc")) {
-			// ½¨±í
+			// å»ºè¡¨
 			conn.Call(R"#(
 CREATE TABLE acc (
     id              int		primary key			not null,
@@ -24,14 +24,14 @@ CREATE TABLE acc (
     gold            int                         not null
 ) WITHOUT ROWID
 )#");
-			// ½¨Ë÷Òı
+			// å»ºç´¢å¼•
 			conn.Call(R"#(
 CREATE UNIQUE INDEX hashed_unique_acc_username on acc (username);
 CREATE INDEX ordered_non_unique_acc_gold on acc (gold);
 )#");
 		}
 
-		// ²åÈëÒ»Ğ©»ù´¡Êı¾İ
+		// æ’å…¥ä¸€äº›åŸºç¡€æ•°æ®
 		if (auto numRows = conn.Execute<int64_t>("select count(*) from acc"); !numRows) {
 			xx::SQLite::Query qAccInsert(conn, "insert into acc(id, username, password, nickname, gold) values (?, ?, ?, ?, ?)");
 			qAccInsert.SetParameters(1, "un1", "pw1", "nn1", 100).Execute();
@@ -53,7 +53,7 @@ CREATE INDEX ordered_non_unique_acc_gold on acc (gold);
 		// ...
 	{
 		using namespace xx::SQLite;
-		conn.Open(dbName, OpenFlags::ReadWrite | OpenFlags::NoMutex);	// MainInit ÖĞÒÑ´´½¨¿â£¬ÕâÀï²»ÔÙ´´½¨¡£ÇÒÆôÓÃ NoMutex ¶àÏß³Ì²¢·¢Ä£Ê½
+		conn.Open(dbName, OpenFlags::ReadWrite | OpenFlags::NoMutex);	// MainInit ä¸­å·²åˆ›å»ºåº“ï¼Œè¿™é‡Œä¸å†åˆ›å»ºã€‚ä¸”å¯ç”¨ NoMutex å¤šçº¿ç¨‹å¹¶å‘æ¨¡å¼
 		assert(conn);
 
 		qAccSelectIdByUsernamePassword.SetQuery("select id from acc where username = ? and password = ?");
