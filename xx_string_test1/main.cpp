@@ -4,7 +4,6 @@
 #include <tsl/hopscotch_map.h>
 
 int main() {
-	// 测试结论：5950x win msvc Dict 性能大约是 后者的 2-3 倍, m1 macos clang Dict 比后者略慢
 
 	xx::Dict<int, int> d1;
 	std::unordered_map<int, int> d2;
