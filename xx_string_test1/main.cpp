@@ -3,56 +3,46 @@
 #include <unordered_map>
 #include <tsl/hopscotch_map.h>
 
-#include <xxh3.h>
-namespace xx {
-	// 适配 std::string
-	template<typename T>
-	struct Hash<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>>> {
-		inline size_t operator()(T const& k) const {
-			return (size_t)XXH3_64bits(k.data(), k.size());
-		}
-	};
-}
-struct string_hash {
-	using hash_type = xx::Hash<std::string_view>; 
-	//using hash_type = std::hash<std::string_view>;
-	using is_transparent = void;
-	size_t operator()(const char* str) const { return hash_type{}(str); }
-	size_t operator()(std::string_view str) const { return hash_type{}(str); }
-	size_t operator()(std::string const& str) const { return hash_type{}(str); }
-};
 int main() {
-    // 测试结论：5950x win msvc Dict 性能大约是 后者的 2-3 倍, m1 macos clang Dict 比后者略慢
+	// 测试结论：5950x win msvc Dict 性能大约是 后者的 2-3 倍, m1 macos clang Dict 比后者略慢
 
-	xx::Dict<std::string_view, int> d1;
-	std::unordered_map<std::string_view, int, string_hash, std::equal_to<void>> d2;
-	tsl::hopscotch_map<std::string_view, int, string_hash, std::equal_to<void>> d3;
-	int n = 1000000;
-	std::vector<std::string> ss;
-	for (int j = 0; j < n; j++) {
-		ss.emplace_back(std::to_string(j) + "asdfqwerasdf"
-			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-		);
-	}
-	std::vector<std::string_view> svs;
-	for (auto& s : ss) {
-		svs.push_back(s);
-	}
-	for (int i = 0; i < n; ++i) {
-		d1.Add(ss[i], i);
-		d2.emplace(ss[i], i);
-		d3.emplace(ss[i], i);
+	xx::Dict<int, int> d1;
+	std::unordered_map<int, int> d2;
+	tsl::hopscotch_map<int, int, xx::Hash<int>> d3;
+	int n = 10000000;
+
+	for (int j = 0; j < 3; j++) {
+		{
+			d1.Clear();
+			auto secs = xx::NowSteadyEpochSeconds();
+			for (int i = 0; i < n; ++i) {
+				d1.Add(i, i);
+			}
+			xx::CoutN("insert ", n, " rows xx::Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
+		}
+		{
+			d2.clear();
+			auto secs = xx::NowSteadyEpochSeconds();
+			for (int i = 0; i < n; ++i) {
+				d2.emplace(i, i);
+			}
+			xx::CoutN("insert ", n, " rows std::unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+		}
+		{
+			d3.clear();
+			auto secs = xx::NowSteadyEpochSeconds();
+			for (int i = 0; i < n; ++i) {
+				d3.emplace(i, i);
+			}
+			xx::CoutN("insert ", n, " rows tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+		}
 	}
 
 	for (int i = 0; i < 5; i++) {
 		auto secs = xx::NowSteadyEpochSeconds();
 		int64_t counter = 0;
 		for (int j = 0; j < n; j++) {
-			if (auto r = d1.Find(svs[j]); r != -1) {
+			if (auto r = d1.Find(j); r != -1) {
 				counter += d1.ValueAt(r);
 			}
 		}
@@ -62,7 +52,7 @@ int main() {
 		auto secs = xx::NowSteadyEpochSeconds();
 		int64_t counter = 0;
 		for (int j = 0; j < n; j++) {
-			if (auto r = d2.find(svs[j]); r != d2.end()) {
+			if (auto r = d2.find(j); r != d2.end()) {
 				counter += r->second;
 			}
 		}
@@ -72,13 +62,102 @@ int main() {
 		auto secs = xx::NowSteadyEpochSeconds();
 		int64_t counter = 0;
 		for (int j = 0; j < n; j++) {
-			if (auto r = d3.find(svs[j]); r != d3.end()) {
+			if (auto r = d3.find(j); r != d3.end()) {
 				counter += r->second;
 			}
 		}
 		xx::CoutN("counter = ", counter, ", tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
 	}
 }
+
+
+
+
+
+
+
+
+//#include <xx_dict.h>
+//#include <xx_string.h>
+//#include <unordered_map>
+//#include <tsl/hopscotch_map.h>
+//
+//#include <xxh3.h>
+//namespace xx {
+//	// 适配 std::string
+//	template<typename T>
+//	struct Hash<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>>> {
+//		inline size_t operator()(T const& k) const {
+//			return (size_t)XXH3_64bits(k.data(), k.size());
+//		}
+//	};
+//}
+//struct string_hash {
+//	using hash_type = xx::Hash<std::string_view>; 
+//	//using hash_type = std::hash<std::string_view>;
+//	using is_transparent = void;
+//	size_t operator()(const char* str) const { return hash_type{}(str); }
+//	size_t operator()(std::string_view str) const { return hash_type{}(str); }
+//	size_t operator()(std::string const& str) const { return hash_type{}(str); }
+//};
+//int main() {
+//    // 测试结论：5950x win msvc Dict 性能大约是 后者的 2-3 倍, m1 macos clang Dict 比后者略慢
+//
+//	xx::Dict<std::string_view, int> d1;
+//	std::unordered_map<std::string_view, int, string_hash, std::equal_to<void>> d2;
+//	tsl::hopscotch_map<std::string_view, int, string_hash, std::equal_to<void>> d3;
+//	int n = 1000000;
+//	std::vector<std::string> ss;
+//	for (int j = 0; j < n; j++) {
+//		ss.emplace_back(std::to_string(j) + "asdfqwerasdf"
+//			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+//			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+//			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+//			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+//			//"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+//		);
+//	}
+//	std::vector<std::string_view> svs;
+//	for (auto& s : ss) {
+//		svs.push_back(s);
+//	}
+//	for (int i = 0; i < n; ++i) {
+//		d1.Add(ss[i], i);
+//		d2.emplace(ss[i], i);
+//		d3.emplace(ss[i], i);
+//	}
+//
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			if (auto r = d1.Find(svs[j]); r != -1) {
+//				counter += d1.ValueAt(r);
+//			}
+//		}
+//		xx::CoutN("counter = ", counter, ", xx::Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			if (auto r = d2.find(svs[j]); r != d2.end()) {
+//				counter += r->second;
+//			}
+//		}
+//		xx::CoutN("counter = ", counter, ", std::unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			if (auto r = d3.find(svs[j]); r != d3.end()) {
+//				counter += r->second;
+//			}
+//		}
+//		xx::CoutN("counter = ", counter, ", tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//}
 
 
 
