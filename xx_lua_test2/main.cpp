@@ -1,52 +1,154 @@
-﻿// 测试 lua 调用损耗
-#include "xx_lua_bind.h"
+﻿#include "xx_lua_bind.h"
 #include "xx_string.h"
-
 namespace XL = xx::Lua;
+
+template<typename T>
+T& GetThisFromTable(lua_State* L, int idx = 1) {    // ..., t, ...
+    lua_pushstring(L, "this");                      // ..., t, ..., "this"
+    lua_rawget(L, idx);                             // ..., t, ..., mem
+    auto& r = *(T*)lua_touserdata(L, -1);
+    lua_pop(L, 1);                                  // ..., t, ...
+    return r;
+}
+
+template<typename T>
+int PushThisToTable(lua_State* L, T&& v) {
+    using U = std::decay_t<T>;
+    lua_newtable(L);                                // ..., t
+    lua_pushstring(L, "this");                      // ..., t, "this"
+    auto ptr = lua_newuserdata(L, sizeof(T));       // ..., t, "this", mem
+    new (ptr) T(std::forward<T>(v));                // ..., t, "this", v
+
+    lua_newtable(L);                                // ..., t, "this", v, mt
+    lua_pushstring(L, "__gc");                      // ..., t, "this", v, mt, "__gc"
+    lua_pushcclosure(L, [](auto L)->int{            // ..., t, "this", v, mt, "__gc", lambda
+        auto ptr = lua_touserdata(L, 1);
+        ((U*)ptr)->~U();
+        return 0;
+    }, 0);
+    lua_settable(L, -3);                            // ..., t, "this", v, mt
+    lua_setmetatable(L, -2);                        // ..., t, "this", v
+    lua_settable(L, -3);                            // ..., t
+    return 1;
+}
+
+struct Foo {
+    int id = 123;
+    xx::Lua::Func cb;
+};
+typedef std::shared_ptr<Foo> Foo_s;
+
+namespace xx::Lua {
+    template<typename T>
+    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Foo_s>>> {
+        using U = Foo_s;
+        static int Push(lua_State* const& L, T&& in) {
+            auto r = PushThisToTable(L, std::forward<T>(in));
+            SetFieldCClosure(L, "get_id", [](auto L)->int {
+                auto& self = GetThisFromTable<U>(L);
+                return xx::Lua::Push(L, self->id);
+            });
+            SetFieldCClosure(L, "set_id", [](auto L)->int{
+                auto& self = GetThisFromTable<U>(L);
+                self->id = xx::Lua::To<int>(L, 2);
+                return 0;
+            });
+            SetFieldCClosure(L, "set_cb", [](auto L)->int{
+                auto& self = GetThisFromTable<U>(L);
+                self->cb = xx::Lua::To<Func>(L, 2);
+                return 0;
+            });
+            return r;
+        }
+        static void To(lua_State* const& L, int const& idx, T& out) {
+            out = GetThisFromTable<U>(L, idx);
+        }
+    };
+}
+
+
 int main() {
     XL::State L;
-    if (auto r = XL::Try(L, [&]{
-        XL::DoString(L, R"(
-counter = 0
-
-function test_counter_get()
-    return counter
-end
-
-function test_counter_inc()
-    counter = counter + 1
-end
-
-function test_sum_n_times(n)
-    local f = sum
-    for i = 1, n, 1 do
-        f(i, i)
-    end
-end
+    lua_newtable(L);
+    XL::SetFieldCClosure(L, "new", [](auto L)->int {
+        return XL::Push(L, std::make_shared<Foo>());
+    });
+    lua_setglobal(L, "Foo");
+    XL::DoString(L, R"(
+foo = Foo.new()
+print(foo)
+foo.abc = "hahaha"
+foo:set_id(12345)
+print(foo:get_id())
+foo:set_cb(function( msg )
+    print( msg )
+end)
 )");
-        XL::SetGlobalCClosure(L, "sum", [](lua_State* L)->int {
-            return XL::Push(L, XL::To<int>(L, 1) + XL::To<int>(L, 2));
-        });
-        auto test_sum_n_times = XL::GetGlobalFunc(L, "test_sum_n_times");
-        auto secs = xx::NowEpochSeconds();
-        test_sum_n_times(100000000);
-        std::cout << "call test_sum_n_times(100000000)  elapsed secs = " << xx::NowEpochSeconds(secs) << std::endl;
+    auto foo = XL::GetGlobal<Foo_s>(L, "foo");
+    foo->cb("hi lua");
 
-        auto fg = XL::GetGlobalFunc(L, "test_counter_get");
-        auto fi = XL::GetGlobalFunc(L, "test_counter_inc");
-        secs = xx::NowEpochSeconds();
-        for (size_t i = 0; i < 100000000; i++) {
-            fi();
-        }
-        std::cout << "for 100000000 test_counter_inc  elapsed secs = " << xx::NowEpochSeconds(secs) << std::endl;
-        auto rr = fg.Call<int>();
-        std::cout << "counter = " << rr << std::endl;
-    })) {
-        xx::CoutN("catch error n = ", r.n, " m = ", r.m);
-    }
+    // todo: foo 放入 lua 时，存储其 容器 table 的引用，以便于随时访问它
+
     return 0;
 }
 
+
+
+
+//// 测试 lua 调用损耗
+//#include "xx_lua_bind.h"
+//#include "xx_string.h"
+//
+//struct Foo {
+//    int id = 123;
+//    xx::Lua::Func luafunc;
+//};
+//
+//namespace XL = xx::Lua;
+//int main() {
+//    XL::State L;
+//    if (auto r = XL::Try(L, [&]{
+//        XL::DoString(L, R"(
+//counter = 0
+//
+//function test_counter_get()
+//    return counter
+//end
+//
+//function test_counter_inc()
+//    counter = counter + 1
+//end
+//
+//function test_sum_n_times(n)
+//    local f = sum
+//    for i = 1, n, 1 do
+//        f(i, i)
+//    end
+//end
+//)");
+//        XL::SetGlobalCClosure(L, "sum", [](lua_State* L)->int {
+//            return XL::Push(L, XL::To<int>(L, 1) + XL::To<int>(L, 2));
+//        });
+//        auto test_sum_n_times = XL::GetGlobalFunc(L, "test_sum_n_times");
+//        auto secs = xx::NowEpochSeconds();
+//        test_sum_n_times(100000000);
+//        std::cout << "call test_sum_n_times(100000000)  elapsed secs = " << xx::NowEpochSeconds(secs) << std::endl;
+//
+//        auto fg = XL::GetGlobalFunc(L, "test_counter_get");
+//        auto fi = XL::GetGlobalFunc(L, "test_counter_inc");
+//        secs = xx::NowEpochSeconds();
+//        for (size_t i = 0; i < 100000000; i++) {
+//            fi();
+//        }
+//        std::cout << "for 100000000 test_counter_inc  elapsed secs = " << xx::NowEpochSeconds(secs) << std::endl;
+//        auto rr = fg.Call<int>();
+//        std::cout << "counter = " << rr << std::endl;
+//    })) {
+//        xx::CoutN("catch error n = ", r.n, " m = ", r.m);
+//    }
+//    return 0;
+//}
+//
 
 
 
