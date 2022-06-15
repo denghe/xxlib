@@ -1,5 +1,6 @@
 ﻿#include "xx_lua_bind.h"
 #include "xx_string.h"
+#include "xx_dict.h"
 namespace XL = xx::Lua;
 
 template<typename T>
@@ -35,6 +36,7 @@ int PushThisToTable(lua_State* L, T&& v) {
 struct Foo {
     int id = 123;
     xx::Lua::Func cb;
+    xx::Dict<std::string, double> nums;
 };
 typedef std::shared_ptr<Foo> Foo_s;
 
@@ -57,6 +59,23 @@ namespace xx::Lua {
                 auto& self = GetThisFromTable<U>(L);
                 self->cb = xx::Lua::To<Func>(L, 2);
                 return 0;
+            });
+            SetFieldCClosure(L, "set_nums", [](auto L)->int{
+                auto& self = GetThisFromTable<U>(L);
+                auto key = xx::Lua::To<std::string_view>(L, 2);
+                if (lua_isnil(L, 3)) {
+                    self->nums.Remove(key);
+                }
+                else {
+                    self->nums[key] = xx::Lua::To<double>(L, 3);
+                }
+                return 0;
+            });
+            SetFieldCClosure(L, "get_nums", [](auto L)->int{
+                auto& self = GetThisFromTable<U>(L);
+                auto key = xx::Lua::To<std::string_view>(L, 2);
+                auto iter = self->nums.Find(key);
+                return xx::Lua::Push(L, iter != -1 ? self->nums.ValueAt(iter) : 0.);
             });
             return r;
         }
@@ -83,11 +102,11 @@ print(foo:get_id())
 foo:set_cb(function( msg )
     print( msg )
 end)
+foo:set_nums("a", 123)
+print(foo:get_nums("a"))
 )");
     auto foo = XL::GetGlobal<Foo_s>(L, "foo");
     foo->cb("hi lua");
-
-    // todo: foo 放入 lua 时，存储其 容器 table 的引用，以便于随时访问它
 
     return 0;
 }
