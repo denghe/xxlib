@@ -1,6 +1,5 @@
 ﻿#include "xx_lua_bind.h"
 #include "xx_string.h"
-#include "xx_dict.h"
 namespace XL = xx::Lua;
 
 template<typename T>
@@ -35,8 +34,7 @@ int PushThisToTable(lua_State* L, T&& v) {
 
 struct Foo {
     int id = 123;
-    xx::Lua::Func cb;
-    xx::Dict<std::string, double> nums;
+    xx::Lua::Func cb;   // 指向 lua 返回 table 的函数
 };
 typedef std::shared_ptr<Foo> Foo_s;
 
@@ -60,31 +58,27 @@ namespace xx::Lua {
                 self->cb = xx::Lua::To<Func>(L, 2);
                 return 0;
             });
-            SetFieldCClosure(L, "set_nums", [](auto L)->int{
-                auto& self = GetThisFromTable<U>(L);
-                auto key = xx::Lua::To<std::string_view>(L, 2);
-                if (lua_isnil(L, 3)) {
-                    self->nums.Remove(key);
-                }
-                else {
-                    self->nums[key] = xx::Lua::To<double>(L, 3);
-                }
-                return 0;
-            });
-            SetFieldCClosure(L, "get_nums", [](auto L)->int{
-                auto& self = GetThisFromTable<U>(L);
-                auto key = xx::Lua::To<std::string_view>(L, 2);
-                auto iter = self->nums.Find(key);
-                return xx::Lua::Push(L, iter != -1 ? self->nums.ValueAt(iter) : 0.);
-            });
             return r;
         }
-        static void To(lua_State* const& L, int const& idx, T& out) {
+        static void To(lua_State* const& L, int const& idx, U& out) {
             out = GetThisFromTable<U>(L, idx);
         }
     };
 }
 
+struct TableFieldReader {
+    std::string key;
+    double value;
+};
+namespace xx::Lua {
+    template<typename T>
+    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, TableFieldReader>>> {
+        using U = TableFieldReader;
+        static void To(lua_State* const& L, int const& idx, U& out) {
+            GetField(L, idx, out.key, out.value);
+        }
+    };
+}
 
 int main() {
     XL::State L;
@@ -94,19 +88,22 @@ int main() {
     });
     lua_setglobal(L, "Foo");
     XL::DoString(L, R"(
+local Foo_new = Foo.new
+Foo.new = function()
+    local foo = Foo_new()
+    foo:set_cb( function() return foo end )
+    return foo
+end
+
 foo = Foo.new()
 print(foo)
-foo.abc = "hahaha"
-foo:set_id(12345)
 print(foo:get_id())
-foo:set_cb(function( msg )
-    print( msg )
-end)
-foo:set_nums("a", 123)
-print(foo:get_nums("a"))
+foo.abc = 23423423
 )");
     auto foo = XL::GetGlobal<Foo_s>(L, "foo");
-    foo->cb("hi lua");
+    TableFieldReader tfr { "abc", 0 };
+    foo->cb.ExecuteTo(tfr);
+    std::cout << tfr.value << std::endl;
 
     return 0;
 }

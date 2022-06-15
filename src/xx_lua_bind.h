@@ -75,6 +75,19 @@ namespace xx::Lua {
 			}
 		}
 
+        template<typename T, typename...Args>
+        void ExecuteTo(T& rtv, Args&&...args) const {
+            assert(p);
+            auto& L = p->first;
+            auto top = lua_gettop(L);
+            CheckStack(L, 1);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, p->second);					// ..., func
+            auto n = Push(L, std::forward<Args>(args)...);					// ..., func, args...
+            lua_call(L, n, LUA_MULTRET);									// ..., rtv...?
+            To(L, top + 1, rtv);
+            lua_settop(L, top);											    // ...
+        }
+
         // 简化 Call 调用
         template<typename T = void, typename...Args>
         XX_FORCE_INLINE T operator()(Args&&...args) const {
