@@ -2,50 +2,16 @@
 #include "xx_string.h"
 namespace XL = xx::Lua;
 
-namespace xx::Lua {
-    struct MT : RegistryStoreler {
-        using RegistryStoreler::RegistryStoreler;
-
-        template<typename V>
-        void Get(std::string_view const& k, V& v) const {
-            assert(p);
-            auto L = p->first;
-            CheckStack(L, 4);
-            PushStore(L);                                                   // ..., t
-            GetField(L, -1, k, v);
-            lua_pop(L, 1);                                                  // ...
-        }
-        template<typename V>
-        V Get(std::string_view const& k) const {
-            V v;
-            Get(k, v);
-            return v;
-        }
-
-        template<typename T>
-        void Set(std::string_view key, T& val) {
-            assert(p);
-            auto L = p->first;
-            CheckStack(L, 4);
-            PushStore(L);                                                   // ..., t
-            SetField(L, -1, key, val);
-            lua_pop(L, 1);                                                  // ...
-        }
-
-        // todo: GetFields SetFields?
-    };
-}
-
 struct Foo {
     int id = 123;
-    xx::Lua::MT mt;   // 压入 lua 后，该值指向 private metatable
+    std::string name = "asdf";
+    xx::Lua::TableRef mt;   // 压入 lua 后，该值指向 private metatable
 };
 typedef std::shared_ptr<Foo> Foo_s;
 
-template<typename T>
-T& GetUpUD(lua_State* const& L, int idx = 1) {
-    return *(T*)lua_touserdata(L, lua_upvalueindex(idx));
-}
+#define BIND_FIELD(NAME) \
+SetFieldCClosure(L, "get_" XX_STRINGIFY(NAME), [](auto L)->int { return xx::Lua::Push(L, GetUpUD<V>(L).NAME); }, p); \
+SetFieldCClosure(L, "set_" XX_STRINGIFY(NAME), [](auto L)->int { xx::Lua::To(L, 1, GetUpUD<V>(L).NAME); return 0; }, p)
 
 namespace xx::Lua {
     template<typename T>
@@ -54,47 +20,13 @@ namespace xx::Lua {
         using V = U::element_type;
         static int Push(lua_State* const& L, T&& in) {
             CheckStack(L, 4);
-            if (!in) {
-                lua_pushnil(L);
-                return 1;
-            }
-            auto o = &*in;
-            auto ud = lua_newuserdata(L, sizeof(U));						// ..., ud
-            new(ud) U(std::forward<T>(in));                                 //                                  这之后 in 不可再用, 用 o, p
-
-            lua_createtable(L, 0, 20);                                      // ..., ud, mt
-            o->mt.Reset(L, -1);                                             //                                  store mt to registry
-
-            lua_pushstring(L, "__gc");                                      // ..., ud, mt, "__gc"
-            lua_pushcclosure(L, [](auto L)->int {                           // ..., ud, mt, "__gc", cc
-                ((U*)lua_touserdata(L, -1))->~U();
-                return 0;
-            }, 0);
-            lua_rawset(L, -3);                                              // ..., ud, mt
-
-            lua_pushstring(L, "__index");                                   // ..., ud, mt, "__index"
-            lua_pushvalue(L, -2);                                           // ..., ud, mt, "__index", mt
-            lua_rawset(L, -3);                                              // ..., ud, mt
-
-            lua_pushstring(L, "__newindex");                                // ..., ud, mt, "__newindex"
-            lua_pushcclosure(L, [](auto L)->int {                           // ..., ud, mt, "__newindex", cc
-                lua_getmetatable(L, 1);                                         // sender, k, v, mt
-                lua_pushvalue(L, -3);                                           // sender, k, v, mt, k
-                lua_pushvalue(L, -3);                                           // sender, k, v, mt, k, v
-                lua_rawset(L, -3);                                              // sender, k, v, mt
-                lua_pop(L, 1);                                                  // sender, k, v
-                return 0;
-            }, 0);
-            lua_rawset(L, -3);                                              // ..., ud, mt
-
-            auto p = (void*)o;
-            SetFieldCClosure(L, "get_id", [](auto L)->int { return xx::Lua::Push(L, GetUpUD<V>(L).id); }, p);
-            SetFieldCClosure(L, "set_id", [](auto L)->int { xx::Lua::To(L, 1, GetUpUD<V>(L).id); return 0; }, p);
-
-            lua_setmetatable(L, -2);										// ..., ud
+            if (!in) { lua_pushnil(L); return 1; }
+            auto p = (void*)PushUdMt<U, V, &V::mt>(L, std::forward<T>(in));         // ..., ud, mt
+            BIND_FIELD(id);
+            BIND_FIELD(name);
+            lua_setmetatable(L, -2);								                // ..., ud
             return 1;
         }
-
         static void To(lua_State* const& L, int const& idx, U& out) {
             out = *(U*)lua_touserdata(L, idx);
         }
@@ -112,10 +44,15 @@ foo = newFoo()
 print(foo)
 foo.set_id(12345)
 print(foo.get_id())
+print(foo.get_name())
 foo.abc = 23423423
+foo.xxx = function(a, b)
+    print(a, b, " = ", a + b)
+end
 )");
         auto foo = XL::GetGlobal<Foo_s>(L, "foo");
         xx::CoutN("foo.abc = ", foo->mt.Get<double>("abc"));
+        foo->mt.Get<xx::Lua::Func>("xxx")(12, 34);
     })) {
         xx::CoutN("catch error n = ", r.n, " m = ", r.m);
     }

@@ -64,6 +64,83 @@ namespace xx::Lua {
         }
     };
 
+    // 用于指向一张存到 注册表 的 table
+    struct TableRef : RegistryStoreler {
+        using RegistryStoreler::RegistryStoreler;
+
+        template<typename V>
+        void Get(std::string_view const& k, V& v) const {
+            assert(p);
+            auto L = p->first;
+            CheckStack(L, 4);
+            PushStore(L);                                                   // ..., t
+            GetField(L, -1, k, v);
+            lua_pop(L, 1);                                                  // ...
+        }
+        template<typename V>
+        V Get(std::string_view const& k) const {
+            V v;
+            Get(k, v);
+            return v;
+        }
+
+        template<typename T>
+        void Set(std::string_view key, T& val) {
+            assert(p);
+            auto L = p->first;
+            CheckStack(L, 4);
+            PushStore(L);                                                   // ..., t
+            SetField(L, -1, key, val);
+            lua_pop(L, 1);                                                  // ...
+        }
+
+        // todo: GetFields SetFields?
+    };
+
+    // 从 upvalue 中拿 userdata 转为目标类型的引用
+    template<typename T>
+    T& GetUpUD(lua_State* const& L, int idx = 1) {
+        return *(T*)lua_touserdata(L, lua_upvalueindex(idx));
+    }
+
+    // 针对 含有 in->mt_ref 成员的类型, Push userdata + metatable ( 留在 stack 里 ), 并将 in->mt 指向该 metatable
+    // 返回 in 在放入 userdata 之前的 原始指针值 备用( 避免 move 后 in 失效 )
+    template<typename T, typename E = T::element_type, TableRef E::* ptr>
+    auto PushUdMt(lua_State* const& L, T&& in) {
+        using U = std::decay_t<T>;
+        auto o = &*in;
+        auto ud = lua_newuserdata(L, sizeof(U));						// ..., ud
+        new(ud) U(std::forward<T>(in));
+
+        lua_createtable(L, 0, 20);                                      // ..., ud, mt
+        (o->*ptr).Reset(L, -1);                                         //                                  store mt to registry
+
+        lua_pushstring(L, "__gc");                                      // ..., ud, mt, "__gc"
+        lua_pushcclosure(L, [](auto L)->int {                           // ..., ud, mt, "__gc", cc
+            using UU = U;                                               // fix vs compile bug
+            ((U*)lua_touserdata(L, -1))->~UU();
+            return 0;
+        }, 0);
+        lua_rawset(L, -3);                                              // ..., ud, mt
+
+        lua_pushstring(L, "__index");                                   // ..., ud, mt, "__index"
+        lua_pushvalue(L, -2);                                           // ..., ud, mt, "__index", mt
+        lua_rawset(L, -3);                                              // ..., ud, mt
+
+        lua_pushstring(L, "__newindex");                                // ..., ud, mt, "__newindex"
+        lua_pushcclosure(L, [](auto L)->int {                           // ..., ud, mt, "__newindex", cc
+            lua_getmetatable(L, 1);                                         // sender, k, v, mt
+            lua_pushvalue(L, -3);                                           // sender, k, v, mt, k
+            lua_pushvalue(L, -3);                                           // sender, k, v, mt, k, v
+            lua_rawset(L, -3);                                              // sender, k, v, mt
+            lua_pop(L, 1);                                                  // sender, k, v
+            return 0;
+            }, 0);
+        lua_rawset(L, -3);                                              // ..., ud, mt
+        return o;
+    }
+
+
 	/****************************************************************************************/
 	/****************************************************************************************/
 	// lua 向 c++ 注册的回调函数的封装, 将函数以 luaL_ref 方式放入注册表
@@ -132,7 +209,12 @@ namespace xx::Lua {
             return 1;
 		}
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
-			out.Reset(L, idx);
+            if (!lua_isfunction(L, idx)) {
+                out.Reset();
+            }
+            else {
+                out.Reset(L, idx);
+            }
 		}
 	};
 
