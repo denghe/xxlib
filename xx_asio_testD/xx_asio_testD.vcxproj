@@ -46,11 +46,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)xx_asio_testA;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)../boost;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)xx_asio_testA;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)../boost;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -62,6 +60,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -83,6 +82,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

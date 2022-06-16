@@ -12,56 +12,73 @@ extern int LUA_RIDX_MAINTHREAD;
 
 namespace xx::Lua {
 
+    /****************************************************************************************/
+    /****************************************************************************************/
+    // 将 指定 idx 的 luavalue 以 luaL_ref 方式放入 注册表
+    // 通常由 c++ 结构体携带, 析构时可同步从 注册表 luaL_unref 删除
+    struct RegistryStoreler {
+        RegistryStoreler() = default;
+        RegistryStoreler(RegistryStoreler const& o) = default;
+        RegistryStoreler& operator=(RegistryStoreler const& o) = default;
+        RegistryStoreler(RegistryStoreler&& o) = default;
+        RegistryStoreler& operator=(RegistryStoreler&& o) = default;
+
+        // 存储 L 和 ref 值
+        Shared<std::pair<lua_State*, int>> p;
+
+        RegistryStoreler(lua_State* const& L, int const& idx) {
+            Reset(L, idx);
+        }
+        ~RegistryStoreler() {
+            Reset();
+        }
+
+        // 从指定位置 pushvalue, 弄到注册表并存储返回的 ref 值
+        void Reset(lua_State* const& L, int const& idx) {
+            Reset();
+            CheckStack(L, 2);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);         // ..., tar, ..., L
+            p.Emplace();
+            p->first = lua_tothread(L, -1);
+            lua_pop(L, 1);                                                  // ..., tar, ...
+            lua_pushvalue(L, idx);											// ..., tar, ..., tar
+            p->second = luaL_ref(L, LUA_REGISTRYINDEX);						// ..., tar, ...
+        }
+
+        // 如果 p 引用计数唯一, 则反注册
+        void Reset() {
+            if (p.useCount() == 1) {
+                luaL_unref(p->first, LUA_REGISTRYINDEX, p->second);
+            }
+            p.Reset();
+        }
+
+        // 将 注册表 里的值 压到 栈
+        void PushStore(lua_State* const& L) const {
+            lua_rawgeti(L, LUA_REGISTRYINDEX, p->second);
+        }
+
+        // 判断是否有值
+        operator bool() const {
+            return (bool)p;
+        }
+    };
+
 	/****************************************************************************************/
 	/****************************************************************************************/
 	// lua 向 c++ 注册的回调函数的封装, 将函数以 luaL_ref 方式放入注册表
 	// 通常被 lambda 捕获携带, 析构时同步删除 lua 端函数。 需确保比 L 早死, 否则 L 就野了
-	struct Func {
-		Func() = default;
-		Func(Func const& o) = default;
-		Func& operator=(Func const& o) = default;
-		Func(Func&& o) = default;
-		Func& operator=(Func&& o) = default;
+	struct Func : RegistryStoreler {
+        using RegistryStoreler::RegistryStoreler;
 
-		// 存储 L 和 ref 值
-		Shared<std::pair<lua_State*, int>> p;
-
-		Func(lua_State* const& L, int const& idx) {
-			Reset(L, idx);
-		}
-		~Func() {
-			Reset();
-		}
-
-		// 从指定位置读出 func 弄到注册表并存储返回的 ref 值
-		void Reset(lua_State* const& L, int const& idx) {
-			if (!lua_isfunction(L, idx)) Error(L, "args[", std::to_string(idx), "] is not a lua function");
-			Reset();
-			CheckStack(L, 2);
-            lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);         // ..., func, ..., L
-			p.Emplace();
-			p->first = lua_tothread(L, -1);
-			lua_pop(L, 1);                                                  // ..., func, ...
-			lua_pushvalue(L, idx);											// ..., func, ..., func
-			p->second = luaL_ref(L, LUA_REGISTRYINDEX);						// ..., func, ...
-		}
-
-		// 如果 p 引用计数唯一, 则反注册
-		void Reset() {
-			if (p.useCount() == 1) {
-				luaL_unref(p->first, LUA_REGISTRYINDEX, p->second);
-			}
-			p.Reset();
-		}
-
-		// 执行并返回( 会还原 call 前堆栈长度 )
+		// 执行并返回 T, 最后还原堆栈
 		template<typename T = void, typename...Args>
 		T Call(Args&&...args) const {
 			assert(p);
 			auto& L = p->first;
 			auto top = lua_gettop(L);
 			CheckStack(L, 1);
-			lua_rawgeti(L, LUA_REGISTRYINDEX, p->second);					// ..., func
+            PushStore(L);					                                // ..., func
 			auto n = Push(L, std::forward<Args>(args)...);					// ..., func, args...
 			lua_call(L, n, LUA_MULTRET);									// ..., rtv...?
 			if constexpr (!std::is_void_v<T>) {
@@ -75,16 +92,18 @@ namespace xx::Lua {
 			}
 		}
 
-        template<typename T, typename...Args>
-        void ExecuteTo(T& rtv, Args&&...args) const {
+        // 执行并用 lambda 处理返回值( 位于 lua_State, 自已搞 ), 最后还原堆栈
+        // rh 通常传入 [&](auto L, int idx) { ... }
+        template<typename RtvHandler, typename...Args>
+        void ExecuteTo(RtvHandler&& rh, Args&&...args) const {
             assert(p);
             auto& L = p->first;
             auto top = lua_gettop(L);
             CheckStack(L, 1);
-            lua_rawgeti(L, LUA_REGISTRYINDEX, p->second);					// ..., func
+            PushStore(L);					                                // ..., func
             auto n = Push(L, std::forward<Args>(args)...);					// ..., func, args...
             lua_call(L, n, LUA_MULTRET);									// ..., rtv...?
-            To(L, top + 1, rtv);
+            rh(L, top + 1);
             lua_settop(L, top);											    // ...
         }
 
@@ -98,26 +117,19 @@ namespace xx::Lua {
                 Call(std::forward<Args>(args)...);
             }
         }
-
-		// 判断是否有值
-		operator bool() const {
-			return (bool)p;
-		}
 	};
 
 	// 适配 Func
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<Func, std::decay_t<T>>>> {
 		static inline int Push(lua_State* const& L, Func const& f) {
-			CheckStack(L, 1);
-			if (f) {
-				assert(f.p->first == L);
-				lua_rawgeti(L, LUA_REGISTRYINDEX, f.p->second);
-			}
-			else {
-				lua_pushnil(L);
-			}
-			return 1;
+            CheckStack(L, 1);
+            if (f) {
+                f.PushStore(L);
+            } else {
+                lua_pushnil(L);
+            }
+            return 1;
 		}
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			out.Reset(L, idx);

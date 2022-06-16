@@ -2,111 +2,240 @@
 #include "xx_string.h"
 namespace XL = xx::Lua;
 
-template<typename T>
-T& GetThisFromTable(lua_State* L, int idx = 1) {    // ..., t, ...
-    lua_pushstring(L, "this");                      // ..., t, ..., "this"
-    lua_rawget(L, idx);                             // ..., t, ..., mem
-    auto& r = *(T*)lua_touserdata(L, -1);
-    lua_pop(L, 1);                                  // ..., t, ...
-    return r;
-}
+namespace xx::Lua {
+    struct MT : RegistryStoreler {
+        using RegistryStoreler::RegistryStoreler;
 
-template<typename T>
-int PushThisToTable(lua_State* L, T&& v) {
-    using U = std::decay_t<T>;
-    lua_newtable(L);                                // ..., t
-    lua_pushstring(L, "this");                      // ..., t, "this"
-    auto ptr = lua_newuserdata(L, sizeof(T));       // ..., t, "this", mem
-    new (ptr) T(std::forward<T>(v));                // ..., t, "this", v
+        template<typename V>
+        void Get(std::string_view const& k, V& v) const {
+            assert(p);
+            auto L = p->first;
+            CheckStack(L, 4);
+            PushStore(L);                                                   // ..., t
+            GetField(L, -1, k, v);
+            lua_pop(L, 1);                                                  // ...
+        }
+        template<typename V>
+        V Get(std::string_view const& k) const {
+            V v;
+            Get(k, v);
+            return v;
+        }
 
-    lua_newtable(L);                                // ..., t, "this", v, mt
-    lua_pushstring(L, "__gc");                      // ..., t, "this", v, mt, "__gc"
-    lua_pushcclosure(L, [](auto L)->int{            // ..., t, "this", v, mt, "__gc", lambda
-        auto ptr = lua_touserdata(L, 1);
-        ((U*)ptr)->~U();
-        return 0;
-    }, 0);
-    lua_settable(L, -3);                            // ..., t, "this", v, mt
-    lua_setmetatable(L, -2);                        // ..., t, "this", v
-    lua_settable(L, -3);                            // ..., t
-    return 1;
+        template<typename T>
+        void Set(std::string_view key, T& val) {
+            assert(p);
+            auto L = p->first;
+            CheckStack(L, 4);
+            PushStore(L);                                                   // ..., t
+            SetField(L, -1, key, val);
+            lua_pop(L, 1);                                                  // ...
+        }
+
+        // todo: GetFields SetFields?
+    };
 }
 
 struct Foo {
     int id = 123;
-    xx::Lua::Func cb;   // 指向 lua 返回 table 的函数
+    xx::Lua::MT mt;   // 压入 lua 后，该值指向 private metatable
 };
 typedef std::shared_ptr<Foo> Foo_s;
+
+template<typename T>
+T& GetUpUD(lua_State* const& L, int idx = 1) {
+    return *(T*)lua_touserdata(L, lua_upvalueindex(idx));
+}
 
 namespace xx::Lua {
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Foo_s>>> {
         using U = Foo_s;
+        using V = U::element_type;
         static int Push(lua_State* const& L, T&& in) {
-            auto r = PushThisToTable(L, std::forward<T>(in));
-            SetFieldCClosure(L, "get_id", [](auto L)->int {
-                auto& self = GetThisFromTable<U>(L);
-                return xx::Lua::Push(L, self->id);
-            });
-            SetFieldCClosure(L, "set_id", [](auto L)->int{
-                auto& self = GetThisFromTable<U>(L);
-                self->id = xx::Lua::To<int>(L, 2);
-                return 0;
-            });
-            SetFieldCClosure(L, "set_cb", [](auto L)->int{
-                auto& self = GetThisFromTable<U>(L);
-                self->cb = xx::Lua::To<Func>(L, 2);
-                return 0;
-            });
-            return r;
-        }
-        static void To(lua_State* const& L, int const& idx, U& out) {
-            out = GetThisFromTable<U>(L, idx);
-        }
-    };
-}
+            CheckStack(L, 4);
+            if (!in) {
+                lua_pushnil(L);
+                return 1;
+            }
+            auto o = &*in;
+            auto ud = lua_newuserdata(L, sizeof(U));						// ..., ud
+            new(ud) U(std::forward<T>(in));                                 //                                  这之后 in 不可再用, 用 o, p
 
-struct TableFieldReader {
-    std::string key;
-    double value;
-};
-namespace xx::Lua {
-    template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, TableFieldReader>>> {
-        using U = TableFieldReader;
+            lua_createtable(L, 0, 20);                                      // ..., ud, mt
+            o->mt.Reset(L, -1);                                             //                                  store mt to registry
+
+            lua_pushstring(L, "__gc");                                      // ..., ud, mt, "__gc"
+            lua_pushcclosure(L, [](auto L)->int {                           // ..., ud, mt, "__gc", cc
+                ((U*)lua_touserdata(L, -1))->~U();
+                return 0;
+            }, 0);
+            lua_rawset(L, -3);                                              // ..., ud, mt
+
+            lua_pushstring(L, "__index");                                   // ..., ud, mt, "__index"
+            lua_pushvalue(L, -2);                                           // ..., ud, mt, "__index", mt
+            lua_rawset(L, -3);                                              // ..., ud, mt
+
+            lua_pushstring(L, "__newindex");                                // ..., ud, mt, "__newindex"
+            lua_pushcclosure(L, [](auto L)->int {                           // ..., ud, mt, "__newindex", cc
+                lua_getmetatable(L, 1);                                         // sender, k, v, mt
+                lua_pushvalue(L, -3);                                           // sender, k, v, mt, k
+                lua_pushvalue(L, -3);                                           // sender, k, v, mt, k, v
+                lua_rawset(L, -3);                                              // sender, k, v, mt
+                lua_pop(L, 1);                                                  // sender, k, v
+                return 0;
+            }, 0);
+            lua_rawset(L, -3);                                              // ..., ud, mt
+
+            auto p = (void*)o;
+            SetFieldCClosure(L, "get_id", [](auto L)->int { return xx::Lua::Push(L, GetUpUD<V>(L).id); }, p);
+            SetFieldCClosure(L, "set_id", [](auto L)->int { xx::Lua::To(L, 1, GetUpUD<V>(L).id); return 0; }, p);
+
+            lua_setmetatable(L, -2);										// ..., ud
+            return 1;
+        }
+
         static void To(lua_State* const& L, int const& idx, U& out) {
-            GetField(L, idx, out.key, out.value);
+            out = *(U*)lua_touserdata(L, idx);
         }
     };
 }
 
 int main() {
     XL::State L;
-    lua_newtable(L);
-    XL::SetFieldCClosure(L, "new", [](auto L)->int {
+    XL::SetGlobalCClosure(L, "newFoo", [](auto L)->int {
         return XL::Push(L, std::make_shared<Foo>());
     });
-    lua_setglobal(L, "Foo");
-    XL::DoString(L, R"(
-local Foo_new = Foo.new
-Foo.new = function()
-    local foo = Foo_new()
-    foo:set_cb( function() return foo end )
-    return foo
-end
-
-foo = Foo.new()
+    if (auto r = XL::Try(L, [&] {
+        XL::DoString(L, R"(
+foo = newFoo()
 print(foo)
-print(foo:get_id())
+foo.set_id(12345)
+print(foo.get_id())
 foo.abc = 23423423
 )");
-    auto foo = XL::GetGlobal<Foo_s>(L, "foo");
-    TableFieldReader tfr { "abc", 0 };
-    foo->cb.ExecuteTo(tfr);
-    std::cout << tfr.value << std::endl;
-
+        auto foo = XL::GetGlobal<Foo_s>(L, "foo");
+        xx::CoutN("foo.abc = ", foo->mt.Get<double>("abc"));
+    })) {
+        xx::CoutN("catch error n = ", r.n, " m = ", r.m);
+    }
     return 0;
 }
+
+
+
+
+
+
+//#include "xx_lua_bind.h"
+//#include "xx_string.h"
+//namespace XL = xx::Lua;
+//
+//template<typename T>
+//T& GetThisFromTable(lua_State* L, int idx = 1) {    // ..., t, ...
+//    lua_pushstring(L, "this");                      // ..., t, ..., "this"
+//    lua_rawget(L, idx);                             // ..., t, ..., mem
+//    auto& r = *(T*)lua_touserdata(L, -1);
+//    lua_pop(L, 1);                                  // ..., t, ...
+//    return r;
+//}
+//
+//template<typename T>
+//int PushThisToTable(lua_State* L, T&& v) {
+//    using U = std::decay_t<T>;
+//    lua_newtable(L);                                // ..., t
+//    lua_pushstring(L, "this");                      // ..., t, "this"
+//    auto ptr = lua_newuserdata(L, sizeof(T));       // ..., t, "this", mem
+//    new (ptr) T(std::forward<T>(v));                // ..., t, "this", v
+//
+//    lua_newtable(L);                                // ..., t, "this", v, mt
+//    lua_pushstring(L, "__gc");                      // ..., t, "this", v, mt, "__gc"
+//    lua_pushcclosure(L, [](auto L)->int{            // ..., t, "this", v, mt, "__gc", lambda
+//        auto ptr = lua_touserdata(L, 1);
+//        ((U*)ptr)->~U();
+//        return 0;
+//    }, 0);
+//    lua_settable(L, -3);                            // ..., t, "this", v, mt
+//    lua_setmetatable(L, -2);                        // ..., t, "this", v
+//    lua_settable(L, -3);                            // ..., t
+//    return 1;
+//}
+//
+//struct Foo {
+//    int id = 123;
+//    xx::Lua::Func cb;   // 指向 lua 返回 table 的函数
+//};
+//typedef std::shared_ptr<Foo> Foo_s;
+//
+//namespace xx::Lua {
+//    template<typename T>
+//    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Foo_s>>> {
+//        using U = Foo_s;
+//        static int Push(lua_State* const& L, T&& in) {
+//            auto r = PushThisToTable(L, std::forward<T>(in));
+//            SetFieldCClosure(L, "get_id", [](auto L)->int {
+//                auto& self = GetThisFromTable<U>(L);
+//                return xx::Lua::Push(L, self->id);
+//            });
+//            SetFieldCClosure(L, "set_id", [](auto L)->int{
+//                auto& self = GetThisFromTable<U>(L);
+//                self->id = xx::Lua::To<int>(L, 2);
+//                return 0;
+//            });
+//            SetFieldCClosure(L, "set_cb", [](auto L)->int{
+//                auto& self = GetThisFromTable<U>(L);
+//                self->cb = xx::Lua::To<Func>(L, 2);
+//                return 0;
+//            });
+//            return r;
+//        }
+//        static void To(lua_State* const& L, int const& idx, U& out) {
+//            out = GetThisFromTable<U>(L, idx);
+//        }
+//    };
+//}
+//
+//struct TableFieldReader {
+//    std::string key;
+//    double value;
+//};
+//namespace xx::Lua {
+//    template<typename T>
+//    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, TableFieldReader>>> {
+//        using U = TableFieldReader;
+//        static void To(lua_State* const& L, int const& idx, U& out) {
+//            GetField(L, idx, out.key, out.value);
+//        }
+//    };
+//}
+//
+//int main() {
+//    XL::State L;
+//    lua_newtable(L);
+//    XL::SetFieldCClosure(L, "new", [](auto L)->int {
+//        return XL::Push(L, std::make_shared<Foo>());
+//    });
+//    lua_setglobal(L, "Foo");
+//    XL::DoString(L, R"(
+//local Foo_new = Foo.new
+//Foo.new = function()
+//    local foo = Foo_new()
+//    foo:set_cb( function() return foo end )
+//    return foo
+//end
+//
+//foo = Foo.new()
+//print(foo)
+//print(foo:get_id())
+//foo.abc = 23423423
+//)");
+//    auto foo = XL::GetGlobal<Foo_s>(L, "foo");
+//    TableFieldReader tfr { "abc", 0 };
+//    foo->cb.ExecuteTo(tfr);
+//    std::cout << tfr.value << std::endl;
+//
+//    return 0;
+//}
 
 
 
