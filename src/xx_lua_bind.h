@@ -130,10 +130,8 @@ namespace xx::Lua {
         lua_pushstring(L, "__newindex");                                // ..., ud, mt, "__newindex"
         lua_pushcclosure(L, [](auto L)->int {                           // ..., ud, mt, "__newindex", cc
             lua_getmetatable(L, 1);                                         // sender, k, v, mt
-            lua_pushvalue(L, -3);                                           // sender, k, v, mt, k
-            lua_pushvalue(L, -3);                                           // sender, k, v, mt, k, v
-            lua_rawset(L, -3);                                              // sender, k, v, mt
-            lua_pop(L, 1);                                                  // sender, k, v
+            lua_replace(L, -4);                                             // mt, k, v
+            lua_rawset(L, -3);                                              // mt
             return 0;
             }, 0);
         lua_rawset(L, -3);                                              // ..., ud, mt
