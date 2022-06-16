@@ -10,8 +10,8 @@ struct Foo {
 typedef std::shared_ptr<Foo> Foo_s;
 
 #define BIND_FIELD(NAME) \
-SetFieldCClosure(L, "get_" XX_STRINGIFY(NAME), [](auto L)->int { return xx::Lua::Push(L, GetUpUD<V>(L).NAME); }, p); \
-SetFieldCClosure(L, "set_" XX_STRINGIFY(NAME), [](auto L)->int { xx::Lua::To(L, 1, GetUpUD<V>(L).NAME); return 0; }, p)
+SetFieldCClosure(L, "get_" XX_STRINGIFY(NAME), [](auto L)->int { return xx::Lua::Push(L, GetUpUD<decltype(p->NAME)>(L)); }, (void*)&p->NAME); \
+SetFieldCClosure(L, "set_" XX_STRINGIFY(NAME), [](auto L)->int { xx::Lua::To(L, 1, GetUpUD<decltype(p->NAME)>(L)); return 0; }, (void*)&p->NAME)
 
 namespace xx::Lua {
     template<typename T>
@@ -21,13 +21,23 @@ namespace xx::Lua {
         static int Push(lua_State* const& L, T&& in) {
             CheckStack(L, 4);
             if (!in) { lua_pushnil(L); return 1; }
-            auto p = (void*)PushUdMt<U, V, &V::mt>(L, std::forward<T>(in));         // ..., ud, mt
+            auto p = PushUdMt<U, V, &V::mt>(L, std::forward<T>(in));                // ..., ud, mt
+
+            // 在 up value 中保存 成员变量指针( 性能最佳 )
             BIND_FIELD(id);
             BIND_FIELD(name);
+
+            // 在 up value 中保存 类指针( 该方案和 成员变量指针 性能差异极小 )
+            SetFieldCClosure(L, "get_id2", [](auto L)->int { return xx::Lua::Push(L, GetUpUD<V>(L).id); }, (void*)p);
+
+            // 传统工艺, 从参数 1 self 转为 类智能指针的引用( 性能比上面两种差很多 )
+            SetFieldCClosure(L, "get_id3", [](auto L)->int { return xx::Lua::Push(L, xx::Lua::To<U>(L)->id); });
+
             lua_setmetatable(L, -2);								                // ..., ud
             return 1;
         }
         static void To(lua_State* const& L, int const& idx, U& out) {
+            // todo: type verify
             out = *(U*)lua_touserdata(L, idx);
         }
     };
@@ -53,6 +63,58 @@ end
         auto foo = XL::GetGlobal<Foo_s>(L, "foo");
         xx::CoutN("foo.abc = ", foo->mt.Get<double>("abc"));
         foo->mt.Get<xx::Lua::Func>("xxx")(12, 34);
+
+        {
+            // 预热
+            XL::DoString(L, R"(
+local n = 0
+foo.set_id(1)
+for i = 1, 100000000 do
+    n = n + foo.get_id()
+end
+)");
+        }
+
+        {
+            auto secs = xx::NowEpochSeconds();
+            XL::DoString(L, R"(
+local n = 0
+foo.set_id(1)
+local f = foo.get_id        -- cache
+for i = 1, 10000000 do
+    n = n + f()
+end
+print(n)
+)");
+            xx::CoutN("get_id() elapsed secs = ", xx::NowEpochSeconds() - secs);
+        }
+        {
+            auto secs = xx::NowEpochSeconds();
+            XL::DoString(L, R"(
+local n = 0
+foo.set_id(1)
+local f = foo.get_id2        -- cache
+for i = 1, 10000000 do
+    n = n + f()
+end
+print(n)
+)");
+            xx::CoutN("get_id2() elapsed secs = ", xx::NowEpochSeconds() - secs);
+        }
+        {
+            auto secs = xx::NowEpochSeconds();
+            XL::DoString(L, R"(
+local n = 0
+foo.set_id(1)
+local f = foo.get_id3        -- cache
+for i = 1, 10000000 do
+    n = n + f(foo)
+end
+print(n)
+)");
+            xx::CoutN("get_id3() elapsed secs = ", xx::NowEpochSeconds() - secs);
+        }
+
     })) {
         xx::CoutN("catch error n = ", r.n, " m = ", r.m);
     }
