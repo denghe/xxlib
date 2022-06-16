@@ -105,7 +105,7 @@ namespace xx::Lua {
 
     // 针对 含有 in->mt_ref 成员的类型, Push userdata + metatable ( 留在 stack 里 ), 并将 in->mt 指向该 metatable
     // 返回 in 在放入 userdata 之前的 原始指针值 备用( 避免 move 后 in 失效 )
-    template<typename T, typename E = T::element_type, TableRef E::* ptr>
+    template<typename T, typename E, TableRef E::* ptr>
     auto PushUdMt(lua_State* const& L, T&& in) {
         using U = std::decay_t<T>;
         auto o = &*in;
