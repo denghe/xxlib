@@ -105,12 +105,18 @@ namespace xx::Lua {
 
     // 针对 含有 in->mt_ref 成员的类型, Push userdata + metatable ( 留在 stack 里 ), 并将 in->mt 指向该 metatable
     // 返回 in 在放入 userdata 之前的 原始指针值 备用( 避免 move 后 in 失效 )
+    // 如果已存在 mt. 找回, 返回 nullptr
     template<typename T, typename E, TableRef E::* ptr>
     auto PushUdMt(lua_State* const& L, T&& in) {
         using U = std::decay_t<T>;
         auto o = &*in;
         auto ud = lua_newuserdata(L, sizeof(U));						// ..., ud
         new(ud) U(std::forward<T>(in));
+
+        if (o->*ptr) {                                                  // 已存在 mt. 找回, 返回 nullptr
+            (o->*ptr).PushStore(L);                                     // ..., ud, mt
+            return (decltype(o))nullptr;
+        }
 
         lua_createtable(L, 0, 20);                                      // ..., ud, mt
         (o->*ptr).Reset(L, -1);                                         //                                  store mt to registry
@@ -197,7 +203,8 @@ namespace xx::Lua {
 	// 适配 Func
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<Func, std::decay_t<T>>>> {
-		static inline int Push(lua_State* const& L, Func const& f) {
+        static constexpr int checkStackSize = 1;
+		static inline int Push_(lua_State* const& L, Func const& f) {
             CheckStack(L, 1);
             if (f) {
                 f.PushStore(L);
@@ -206,7 +213,7 @@ namespace xx::Lua {
             }
             return 1;
 		}
-		static inline void To(lua_State* const& L, int const& idx, T& out) {
+		static inline void To_(lua_State* const& L, int const& idx, T& out) {
             if (!lua_isfunction(L, idx)) {
                 out.Reset();
             }
@@ -257,7 +264,7 @@ namespace xx::Lua {
         inline static std::string name = std::string(TypeName_v<T>);
 
         // 该函数被调用时, 栈顶即为 mt
-        // 使用 SetUDType<std::decay_t<T>>(L); 附加 type 信息
+        // 使用 SetType<std::decay_t<T>>(L); 附加 type 信息
         // 调用 MetaFuncs<基类>::Fill(L); 填充依赖
         // 使用 SetFieldCClosure(L, "key", [](auto L) { ..... return ?; }, ...) 添加函数
         // 使用 luaL_setfuncs 批量添加函数也行
@@ -370,8 +377,9 @@ namespace xx::Lua {
     // 适配 lambda ( 这个性能一般，不要滥用，尽量使用 CClosure )
     // 在 userdata 申请 lambda 捕获上下文的内存 并将 lambda 挪进去, 参数利用 tuple 暂存并展开转发。附加的 mt 啥都没有，只有 __gc 析构
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
-        static inline int Push(lua_State* const& L, T&& in) {
+    struct PushToFuncs<T, std::enable_if_t<IsLambda_v<std::decay_t<T>>>> {
+        static constexpr int checkStackSize = 1;
+        static inline int Push_(lua_State* const& L, T&& in) {
             using U = std::decay_t<T>;
             PushUserdata<U>(L, std::forward<T>(in));						// ..., ud
             lua_pushcclosure(L, [](auto L) {								// ..., cc
@@ -384,7 +392,7 @@ namespace xx::Lua {
                         (*f)(args...);
                     }
                     else {
-                        rtv = ::xx::Lua::Push(L, (*f)(args...));
+                        rtv = Push(L, (*f)(args...));
                     }
                     }, tuple);
                 return rtv;
@@ -436,16 +444,16 @@ namespace xx::Lua {
     }
 
     // id 对应的 ReadFrom 函数( 读取 data 并在 L 顶创建相应的 userdata )
-    typedef int(*UserdataReadFromFunc)(lua_State* const& L, xx::Data_r& d);
+    typedef int(*UserdataReadFromFunc)(lua_State* const& L, Data_r& d);
 
     // Userdata ReadFrom 函数集
     inline static std::array<UserdataReadFromFunc, 65536> urffs{};
 
     // 适配范例:
-    // urffs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data_r& d)->int { ...... }
+    // urffs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, Data_r& d)->int { ...... }
 
     // 根据 id 调用相应 ReadFrom
-    inline int UserdataReadFrom(lua_State* const& L, xx::Data_r& d, uint16_t const& uid) {
+    inline int UserdataReadFrom(lua_State* const& L, Data_r& d, uint16_t const& uid) {
         assert(urffs[uid]);
         return urffs[uid](L, d);
     }
@@ -453,17 +461,17 @@ namespace xx::Lua {
 
 
     // id 对应的 WriteTo 函数( 将 L 中位于 index 位置的 userdata 写到 data )
-    typedef void(*UserdataWriteToFunc)(lua_State* const& L, xx::Data& d, int const& idx);
+    typedef void(*UserdataWriteToFunc)(lua_State* const& L, Data& d, int const& idx);
 
     // Userdata WriteTo 函数集
     inline static std::array<UserdataWriteToFunc, 65536> uwtfs{};
 
     // 适配范例:
-    // uwtfs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, xx::Data& d, int const& idx)->void { ...... }
+    // uwtfs[UserdataId_v<TTTTTTT>] = [](lua_State* const& L, Data& d, int const& idx)->void { ...... }
 
 
     // 将栈顶的数据写入 Data (不支持 table 循环引用, 注意： lua5.1 不支持 int64, 这里并没有走 userdata 规则)
-    static inline void WriteTo(xx::Data& d, lua_State* const& L) {
+    static inline void WriteTo(Data& d, lua_State* const& L) {
         switch (auto t = lua_type(L, -1)) {
             case LUA_TNIL:
                 d.WriteFixed(ValueTypes::NilType);
@@ -545,7 +553,7 @@ namespace xx::Lua {
 
     // 从 Data 读出一个 lua value 压入 L 栈顶
     // 如果读失败, 可能会有残留数据已经压入，外界需自己做 lua state 的 cleanup
-    static inline int ReadFrom(xx::Data_r& d, lua_State* const& L) {
+    static inline int ReadFrom(Data_r& d, lua_State* const& L) {
         ValueTypes lt;
         if (int r = d.ReadFixed(lt)) return r;
         switch (lt) {
@@ -626,9 +634,9 @@ namespace xx::Lua {
         });
 
 
-        xx::Lua::SetGlobalCClosure(L, "Epoch10mToDateTime", [](auto L)->int {
-            auto e10m = xx::Lua::To<int64_t>(L, 1);
-            auto tp = xx::Epoch10mToTimePoint(e10m);
+        SetGlobalCClosure(L, "Epoch10mToDateTime", [](auto L)->int {
+            auto e10m = To<int64_t>(L, 1);
+            auto tp = Epoch10mToTimePoint(e10m);
             auto t = std::chrono::system_clock::to_time_t(tp);
             std::tm tm{};
 #ifdef _WIN32
@@ -636,7 +644,7 @@ namespace xx::Lua {
 #else
             localtime_r(&t, &tm);
 #endif
-            return xx::Lua::Push(L
+            return Push(L
                 , tm.tm_year + 1900
                 , tm.tm_mon + 1
                 , tm.tm_mday

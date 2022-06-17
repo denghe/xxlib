@@ -5,38 +5,42 @@ namespace XL = xx::Lua;
 struct Foo {
 	int id = 123;
 	std::string name = "asdf";
-	xx::Lua::TableRef mt;   // 压入 lua 后，该值指向 private metatable
+	xx::Lua::TableRef mt;   // 压入 lua 后，该值指向 private metatable. 属性名 和 PushUdMt 适配即可
 };
 typedef std::shared_ptr<Foo> Foo_s;
 
 #define BIND_FIELD(NAME) \
-SetFieldCClosure(L, "get_" XX_STRINGIFY(NAME), [](auto L)->int { return xx::Lua::Push(L, GetUpUD<decltype(p->NAME)>(L)); }, (void*)&p->NAME); \
-SetFieldCClosure(L, "set_" XX_STRINGIFY(NAME), [](auto L)->int { xx::Lua::To(L, 1, GetUpUD<decltype(p->NAME)>(L)); return 0; }, (void*)&p->NAME)
+SetFieldCClosure(L, "get_" XX_STRINGIFY(NAME), [](auto L)->int { return Push(L, GetUpUD<decltype(p->NAME)>(L)); }, (void*)&p->NAME); \
+SetFieldCClosure(L, "set_" XX_STRINGIFY(NAME), [](auto L)->int { To(L, 1, GetUpUD<decltype(p->NAME)>(L)); return 0; }, (void*)&p->NAME)
 
 namespace xx::Lua {
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Foo_s>>> {
 		using U = Foo_s;
 		using V = U::element_type;
-		static int Push(lua_State* const& L, T&& in) {
-			CheckStack(L, 4);
-			if (!in) { lua_pushnil(L); return 1; }
-			auto p = PushUdMt<U, V, &V::mt>(L, std::forward<T>(in));                // ..., ud, mt
+        static constexpr int checkStackSize = 4;
+		static int Push_(lua_State* const& L, T&& in) {
+			if (!in) {
+                lua_pushnil(L);
+                return 1;
+            }
+			if (auto p = PushUdMt<U, V, &V::mt>(L, std::forward<T>(in))) {          // ..., ud, mt
+                // todo: type verify
 
-			// 在 up value 中保存 成员变量指针( 性能最佳 )
-			BIND_FIELD(id);
-			BIND_FIELD(name);
+                // 在 up value 中保存 成员变量指针( 性能最佳 )
+                BIND_FIELD(id);
+                BIND_FIELD(name);
 
-			// 在 up value 中保存 类指针( 该方案和 成员变量指针 性能差异极小 )
-			SetFieldCClosure(L, "get_id2", [](auto L)->int { return xx::Lua::Push(L, GetUpUD<V>(L).id); }, (void*)p);
+                // 在 up value 中保存 类指针( 该方案和 成员变量指针 性能差异极小 )
+                SetFieldCClosure(L, "get_id2", [](auto L) -> int { return Push(L, GetUpUD<V>(L).id); }, (void *) p);
 
-			// 传统工艺, 从参数 1 self 转为 类智能指针的引用( 性能比上面两种差很多 )
-			SetFieldCClosure(L, "get_id3", [](auto L)->int { return xx::Lua::Push(L, xx::Lua::To<U>(L)->id); });
-
+                // 传统工艺, 从参数 1 self 转为 类智能指针的引用( 性能比上面两种差很多 )
+                SetFieldCClosure(L, "get_id3", [](auto L) -> int { return Push(L, To<U>(L)->id); });
+            }
 			lua_setmetatable(L, -2);								                // ..., ud
 			return 1;
 		}
-		static void To(lua_State* const& L, int const& idx, U& out) {
+		static void To_(lua_State* const& L, int const& idx, U& out) {
 			// todo: type verify
 			out = *(U*)lua_touserdata(L, idx);
 		}
@@ -62,7 +66,7 @@ end
 )");
 		auto foo = XL::GetGlobal<Foo_s>(L, "foo");
 		xx::CoutN("foo.abc = ", foo->mt.Get<double>("abc"));
-		foo->mt.Get<xx::Lua::Func>("xxx")(12, 34);
+		foo->mt.Get<XL::Func>("xxx")(12, 34);
 
 		{
 			// 预热
