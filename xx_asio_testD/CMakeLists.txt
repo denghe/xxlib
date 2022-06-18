@@ -31,6 +31,7 @@ add_definitions("-DSQLITE_MAX_EXPR_DEPTH=0")
 #add_definitions("-DSQLITE_THREADSAFE=0")
 
 list(APPEND dirs
+		../sqlite3
 		../src
 		../3rd
 		../asio_include
