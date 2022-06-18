@@ -24,6 +24,7 @@ list(APPEND dirs
 		../asio_include
 		../xx_asio_testA
 		../../boost
+		../../adxe/thirdparty/openssl/include
 		)
 list(APPEND srcs
 		main.cpp
