@@ -2,6 +2,8 @@
 #include "xx_string.h"
 namespace XL = xx::Lua;
 
+// todo: 继续完善 最终能序列化 含c++对象的 table, 以及支持 cocos 常用对象的序列化
+
 struct Foo {
 	int id = 123;
 	std::string name = "asdf";
@@ -36,6 +38,8 @@ namespace xx::Lua {
 
                 // 传统工艺, 从参数 1 self 转为 类智能指针的引用( 性能比上面两种差很多 )
                 SetFieldCClosure(L, "get_id3", [](auto L) -> int { return Push(L, To<U>(L)->id); });
+
+				// todo: 测试二级 mt 的性能
             }
 			lua_setmetatable(L, -2);								                // ..., ud
 			return 1;

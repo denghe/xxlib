@@ -644,10 +644,11 @@ namespace xx::Lua {
 	// push ( 移动或拷贝 ), to ( 数据会挪走 )
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Data, std::decay_t<T>>>> {
-		static int Push(lua_State* const& L, T&& in) {
+		static constexpr int checkStackSize = 1;
+		static int Push_(lua_State* const& L, T&& in) {
 			return PushUserdata<xx::Data>(L, std::forward<T>(in));
 		}
-		static void To(lua_State* const& L, int const& idx, T& out) {
+		static void To_(lua_State* const& L, int const& idx, T& out) {
 			AssertType<xx::Data>(L, idx);
 			out = std::move(*(T*)lua_touserdata(L, idx));
 		}
@@ -655,7 +656,7 @@ namespace xx::Lua {
 	// 指针方式 to ( 不希望挪走数据 就用这个 )
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>> && std::is_same_v<xx::Data, std::decay_t<std::remove_pointer_t<std::decay_t<T>>>>>> {
-		static void To(lua_State* const& L, int const& idx, T& out) {
+		static void To_(lua_State* const& L, int const& idx, T& out) {
 			AssertType<xx::Data>(L, idx);
 			out = (T)lua_touserdata(L, idx);
 		}

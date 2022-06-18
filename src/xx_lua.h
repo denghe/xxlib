@@ -594,7 +594,7 @@ namespace xx::Lua {
 	// 适配 std::optional ( move or copy )
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<IsOptional_v<std::decay_t<T>>>> {
-        static constexpr int checkStackSize = ::xx::Lua::PushToFuncs<typename T::value_type>::checkStackSize;
+        static constexpr int checkStackSize = ::xx::Lua::PushToFuncs<typename std::decay_t<T>::value_type, void>::checkStackSize;
 		static int Push_(lua_State* const& L, T&& in) {
 			if (in.has_value()) {
 			    if constexpr (std::is_rvalue_reference_v<decltype(in)>) {
@@ -614,7 +614,7 @@ namespace xx::Lua {
 				out.reset();
 			}
 			else {
-			    out = std::move(To<typename T::value_type>(L, idx));
+			    out = std::move(To<typename std::decay_t<T>::value_type>(L, idx));
 			}
 		}
 	};
@@ -623,8 +623,7 @@ namespace xx::Lua {
 	// 适配 std::pair ( 值展开 move or copy )
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<xx::IsPair_v<std::decay_t<T>>>> {
-        static constexpr int checkStackSize = ::xx::Lua::PushToFuncs<typename T::first_type>::checkStackSize
-        + ::xx::Lua::PushToFuncs<typename T::second_type>::checkStackSize;
+        static constexpr int checkStackSize = ::xx::Lua::PushToFuncs<typename std::decay_t<T>::first_type>::checkStackSize + ::xx::Lua::PushToFuncs<typename std::decay_t<T>::second_type>::checkStackSize;
 		static int Push_(lua_State* const& L, T && in) {
             if constexpr (std::is_rvalue_reference_v<decltype(in)>) {
                 return Push(L, std::move(in.first), std::move(in.second));

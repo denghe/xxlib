@@ -205,7 +205,6 @@ namespace xx::Lua {
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<Func, std::decay_t<T>>>> {
         static constexpr int checkStackSize = 1;
 		static inline int Push_(lua_State* const& L, Func const& f) {
-            CheckStack(L, 1);
             if (f) {
                 f.PushStore(L);
             } else {

@@ -92,14 +92,15 @@ namespace xx::Lua {
 	// 值方式 push
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Asio::Tcp::Gateway::Client, std::decay_t<T>>>> {
-		static int Push(lua_State* const& L, T&& in) {
+		static constexpr int checkStackSize = 1;
+		static int Push_(lua_State* const& L, T&& in) {
 			return PushUserdata<xx::Asio::Tcp::Gateway::Client>(L, std::forward<T>(in));
 		}
 	};
 	// 指针方式 to 但是做 值方式 检查
 	template<typename T>
 	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>>&& std::is_same_v<xx::Asio::Tcp::Gateway::Client, std::decay_t<std::remove_pointer_t<std::decay_t<T>>>>>> {
-		static void To(lua_State* const& L, int const& idx, T& out) {
+		static void To_(lua_State* const& L, int const& idx, T& out) {
 			AssertType<xx::Asio::Tcp::Gateway::Client>(L, idx);
 			out = (T)lua_touserdata(L, idx);
 		}

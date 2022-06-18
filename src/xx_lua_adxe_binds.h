@@ -112,8 +112,8 @@ namespace xx::Lua {
         || std::is_same_v<cocos2d::Vec4, std::decay_t<T>>
         >> {
         using U = std::decay_t<T>;
-        static int Push(lua_State* const& L, T&& in) {
-            CheckStack(L, 3);
+        static constexpr int checkStackSize = 4;
+        static int Push_(lua_State* const& L, T&& in) {
             lua_createtable(L, sizeof(U) / 4, 0);
             SetField(L, 1, in.x);
             SetField(L, 2, in.y);
@@ -125,7 +125,7 @@ namespace xx::Lua {
             }
             return 1;
         }
-        static void To(lua_State* const& L, int const& idx, T& out) {
+        static void To_(lua_State* const& L, int const& idx, T& out) {
             if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(xx::TypeName_v<U>));
             int vpos = lua_gettop(L) + 1;
             CheckStack(L, 3);
@@ -176,7 +176,8 @@ namespace xx::Lua {
         || std::is_same_v<cocos2d::Color4B, std::decay_t<T>>
         >> {
         using U = std::decay_t<T>;
-        static int Push(lua_State* const& L, T&& in) {
+        static constexpr int checkStackSize = 4;
+        static int Push_(lua_State* const& L, T&& in) {
             CheckStack(L, 3);
             lua_createtable(L, 4, 0);
             SetField(L, 1, in.r);
@@ -187,7 +188,7 @@ namespace xx::Lua {
             }
             return 1;
         }
-        static void To(lua_State* const& L, int const& idx, T& out) {
+        static void To_(lua_State* const& L, int const& idx, T& out) {
             if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(xx::TypeName_v<U>));
             int vpos = lua_gettop(L) + 1;
             CheckStack(L, 3);
@@ -232,8 +233,8 @@ namespace xx::Lua {
     // 适配 cocos2d::Vector<T>
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<IsCocosVector_v<std::decay_t<T>>>> {
-        static int Push(lua_State* const& L, T&& in) {
-            CheckStack(L, 3);
+        static constexpr int checkStackSize = 4;
+        static int Push_(lua_State* const& L, T&& in) {
             auto siz = (int)in.size();
             lua_createtable(L, siz, 0);
             for (int i = 0; i < siz; ++i) {
@@ -241,7 +242,7 @@ namespace xx::Lua {
             }
             return 1;
         }
-        static void To(lua_State* const& L, int const& idx, T& out) {
+        static void To_(lua_State* const& L, int const& idx, T& out) {
 #if XX_LUA_TO_ENABLE_TYPE_CHECK
             if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(xx::TypeName_v<T>));
 #endif
@@ -2236,10 +2237,11 @@ namespace xx::Lua {
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>>&& std::is_base_of_v<cocos2d::Ref, std::remove_pointer_t<std::decay_t<T>>>>> {
         using U = std::decay_t<T>;
-        static int Push(lua_State* const& L, T&& in) {
+        static constexpr int checkStackSize = 1;
+        static int Push_(lua_State* const& L, T&& in) {
             return PushUserdata<U>(L, in);
         }
-        static void To(lua_State* const& L, int const& idx, T& out) {
+        static void To_(lua_State* const& L, int const& idx, T& out) {
 #if XX_LUA_TO_ENABLE_TYPE_CHECK
             EnsureType<U>(L, idx);  // 在 Release 也生效
 #endif
