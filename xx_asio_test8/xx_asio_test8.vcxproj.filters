@@ -2,13 +2,5 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="..\xx_asio_testA\pkg.cpp">
-      <Filter>PKG</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Filter Include="PKG">
-      <UniqueIdentifier>{26b60ef5-e36f-4e1a-ae47-47ad8fc3eb11}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
 </Project>

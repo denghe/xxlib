@@ -1,18 +1,15 @@
 ﻿// asio simple tcp client( xx::Data container )
 #include "xx_asio_codes.h"
-#include <pkg.h>
 
 struct Client : xx::IOCCode<Client> {
-	xx::ObjManager om;
 	void Run(uint16_t const& port);
 };
 
-struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestCode<CPeer>, std::enable_shared_from_this<CPeer> {
+struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestDataCode<CPeer>, std::enable_shared_from_this<CPeer> {
 	Client& client;
 	CPeer(Client& client_)
 		: PeerCode(client_.ioc, asio::ip::tcp::socket(client_.ioc))
 		, PeerTimeoutCode(client_.ioc)
-		, PeerRequestCode(client_.om)
 		, client(client_)
 	{}
 };
@@ -27,18 +24,20 @@ void Client::Run(uint16_t const& port) {
 			auto r = co_await d->Connect(asio::ip::address::from_string("127.0.0.1"), port);
 			std::cout << "client Connect r = " << r << std::endl;
 		}
-		om.CoutN("d->stoped = ", d->stoped);
+		xx::CoutN("d->stoped = ", d->stoped);
 
-		// 连上了，发 Ping
-		if (auto o = co_await d->SendRequest<Ping>(15s, xx::NowEpoch10m()); !o) {
-			om.CoutN("SendRequest timeout!");
+		// 连上了，发点啥
+		if (auto o = co_await d->SendRequest(15s, [&](xx::Data& d) {
+			d.WriteVarInteger(uint16_t(1));
+			d.Write("asdf");
+			}); o.buf) {
+			xx::CoutN("receive o = ", o);
 		}
 		else {
-			om.CoutN("receive o = ", o);
-			om.KillRecursive(o);
+			xx::CoutN("SendRequest timeout!");
 		}
 
-		om.CoutN("d->stoped = ", d->stoped);
+		xx::CoutN("d->stoped = ", d->stoped);
 
 		// 等一段时间退出
 		co_await xx::Timeout(60s);

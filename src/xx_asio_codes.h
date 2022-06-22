@@ -90,7 +90,7 @@ namespace xx {
 
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + uint32_le target + args 的 类 序列化包 并返回
 	template<bool containTarget, bool containSerial, size_t cap, typename PKG = ObjBase, typename ... Args>
-	xx::Data MakeData(ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
+	Data MakeData(ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
 		Data d;
 		d.Reserve(cap);
 		auto bak = d.WriteJump<false>(sizeof(uint32_t));
@@ -101,11 +101,11 @@ namespace xx {
 			d.WriteVarInteger<false>(serial);
 		}
 		// 传统写包
-		if constexpr (std::is_same_v<xx::ObjBase, PKG>) {
+		if constexpr (std::is_same_v<ObjBase, PKG>) {
 			om.WriteTo(d, args...);
 		}
 		// 直写 cache buf 包
-		else if constexpr (std::is_same_v<xx::Span, PKG>) {
+		else if constexpr (std::is_same_v<Span, PKG>) {
 			d.WriteBufSpans(args...);
 		}
 		// 简单构造命令行包
@@ -122,19 +122,19 @@ namespace xx {
 
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + uint32_le 命令标记 + args 的 简单数据 序列化包 并返回
 	template<uint32_t cmdFlag = 0xFFFFFFFFu, typename...Args>
-	xx::Data MakeCommandData(Args const &... cmdAndArgs) {
+	Data MakeCommandData(Args const &... cmdAndArgs) {
 		return MakeData<true, false, 512, std::string>(*(ObjManager*)1, cmdFlag, 0, cmdAndArgs...);
 	}
 
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
 	template<size_t cap = 8192, typename PKG = ObjBase, typename ... Args>
-	xx::Data MakePackageData(xx::ObjManager& om, int32_t const& serial, Args const&... args) {
+	Data MakePackageData(ObjManager& om, int32_t const& serial, Args const&... args) {
 		return MakeData<false, true, cap, PKG>(om, 0, serial, args...);
 	}
 
 	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
 	template<size_t cap = 8192, typename PKG = ObjBase, typename ... Args>
-	xx::Data MakeTargetPackageData(xx::ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
+	Data MakeTargetPackageData(ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
 		return MakeData<true, true, cap, PKG>(om, target, serial, args...);
 	}
 
@@ -163,7 +163,7 @@ namespace xx {
 	template<typename T> concept Has_PeerTimeoutCode = requires(T t) { t.ResetTimeout(1s); };
 
 	// 用于检测是否继承了 PeerRequestCode 代码片段
-	template<typename T> concept Has_PeerRequestCode = requires(T t) { t.ReadFrom(std::declval<Data_r&>()); };
+	template<typename T> concept Has_PeerRequestCode = requires(T t) { t.Tag_PeerRequestCode(); };
 
 	// 用于检测是否继承了 VPeerCode 代码片段
 	template<typename T> concept Has_VPeerCode = requires(T t) { t.Tag_VPeerCode(); };
@@ -176,6 +176,16 @@ namespace xx {
 	template<typename T> concept Has_Peer_ReceiveTargetRequest = requires(T t) { t.ReceiveTargetRequest(0, 0, ObjBase_s()); };
 	template<typename T> concept Has_Peer_ReceiveTargetResponse = requires(T t) { t.ReceiveTargetResponse(0, 0, std::declval<ObjBase_s&>()); };
 	template<typename T> concept Has_Peer_HandleTargetMessage = requires(T t) { t.HandleTargetMessage(0, std::declval<Data_r&>()); };
+
+	// PeerRequestDataCode 片段依赖的函数
+	template<typename T> concept Has_Peer_ReceivePushData = requires(T t) { t.ReceivePush(std::declval<Data_r&>()); };
+	template<typename T> concept Has_Peer_ReceiveRequestData = requires(T t) { t.ReceiveRequest(0, std::declval<Data_r&>()); };
+	template<typename T> concept Has_Peer_ReceiveResponseData = requires(T t) { t.ReceiveResponse(0, std::declval<Data&>()); };
+	template<typename T> concept Has_Peer_ReceiveTargetPushData = requires(T t) { t.ReceiveTargetPush(0, std::declval<Data_r&>()); };
+	template<typename T> concept Has_Peer_ReceiveTargetRequestData = requires(T t) { t.ReceiveTargetRequest(0, 0, std::declval<Data_r&>()); };
+	template<typename T> concept Has_Peer_ReceiveTargetResponseData = requires(T t) { t.ReceiveTargetResponse(0, 0, std::declval<Data&>()); };
+
+
 #else
 	template<class T, class = void> struct _Has_Peer_HandleMessage : std::false_type {};
 	template<class T> struct _Has_Peer_HandleMessage<T, std::void_t<decltype(std::declval<T&>().HandleMessage((uint8_t*)0, 0))>> : std::true_type {};
@@ -206,7 +216,7 @@ namespace xx {
 	template<class T> constexpr bool Has_PeerTimeoutCode = _Has_Peer_ResetTimeout<T>::value;
 
 	template<class T, class = void> struct _Has_Peer_ReadFrom : std::false_type {};
-	template<class T> struct _Has_Peer_ReadFrom<T, std::void_t<decltype(std::declval<T&>().ReadFrom(std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T> struct _Has_Peer_ReadFrom<T, std::void_t<decltype(std::declval<T&>().Tag_PeerRequestCode())>> : std::true_type {};
 	template<class T> constexpr bool Has_PeerRequestCode = _Has_Peer_ReadFrom<T>::value;
 
 	template<class T, class = void> struct _Has_Peer_ReceivePush : std::false_type {};
@@ -240,6 +250,30 @@ namespace xx {
 	template<class T, class = void> struct _Has_VPeerCode : std::false_type {};
 	template<class T> struct _Has_VPeerCode<T, std::void_t<decltype(std::declval<T&>().Tag_VPeerCode())>> : std::true_type {};
 	template<class T> constexpr bool Has_VPeerCode = _Has_VPeerCode<T>::value;
+
+	template<class T, class = void> struct _Has_Peer_ReceivePushData : std::false_type {};
+	template<class T> struct _Has_Peer_ReceivePushData<T, std::void_t<decltype(std::declval<T&>().ReceivePush(std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceivePushData = _Has_Peer_ReceivePushData<T>::value;
+
+	template<class T, class = void> struct _Has_Peer_ReceiveRequestData : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveRequestData<T, std::void_t<decltype(std::declval<T&>().ReceiveRequest(0, std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveRequestData = _Has_Peer_ReceiveRequestData<T>::value;
+
+	template<class T, class = void> struct _Has_Peer_ReceiveResponseData : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveResponseData<T, std::void_t<decltype(std::declval<T&>().ReceiveResponse(0, std::declval<Data&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveResponseData = _Has_Peer_ReceiveResponseData<T>::value;
+
+	template<class T, class = void> struct _Has_Peer_ReceiveTargetPushData : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveTargetPushData<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetPush(0, std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveTargetPushData = _Has_Peer_ReceiveTargetPushData<T>::value;
+
+	template<class T, class = void> struct _Has_Peer_ReceiveTargetRequestData : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveTargetRequestData<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetRequest(0, 0, std::declval<Data_r&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveTargetRequestData = _Has_Peer_ReceiveTargetRequestData<T>::value;
+
+	template<class T, class = void> struct _Has_Peer_ReceiveTargetResponseData : std::false_type {};
+	template<class T> struct _Has_Peer_ReceiveTargetResponseData<T, std::void_t<decltype(std::declval<T&>().ReceiveTargetResponse(0, 0, std::declval<Data&>()))>> : std::true_type {};
+	template<class T> constexpr bool Has_Peer_ReceiveTargetResponseData = _Has_Peer_ReceiveTargetResponseData<T>::value;
 #endif
 
 
@@ -442,7 +476,7 @@ namespace xx {
 				// 检测是否含有 HandleData 函数, 有就调用
 				if constexpr (Has_Peer_HandleData<PeerDeriveType>) {
 					// 调用派生类的 HandleData 函数。如果返回非 0 表示出错，需要 Stop. 返回 0 则继续
-					if (int r = PEERTHIS->HandleData(xx::Data_r(buf, totalLen, sizeof(dataLen)))) 
+					if (int r = PEERTHIS->HandleData(Data_r(buf, totalLen, sizeof(dataLen)))) 
 						return 0;	// Stop
 				}
 
@@ -491,6 +525,7 @@ namespace xx {
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
 		ObjManager& om;
 		PeerRequestCode(ObjManager& om_) : om(om_) {}
+		void Tag_PeerRequestCode() {}	// for check flag
 
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponse(int32_t const& serial, Args const &... args) {
@@ -534,8 +569,8 @@ namespace xx {
 			co_return r;
 		}
 
-		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
-			xx::ObjBase_s o;
+		ObjBase_s ReadFrom(Data_r& dr) {
+			ObjBase_s o;
 			if (om.ReadFrom(dr, o) || (o && o.typeId() == 0)) {
 				om.KillRecursive(o);
 				return {};
@@ -543,7 +578,7 @@ namespace xx {
 			return o;
 		}
 
-		int HandleData(xx::Data_r&& dr) {
+		int HandleData(Data_r&& dr) {
 			// 读出序号
 			int32_t serial;
 			if (dr.Read(serial)) return __LINE__;
@@ -594,13 +629,14 @@ namespace xx {
 		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
 		ObjManager& om;
 		PeerRequestTargetCode(ObjManager& om_) : om(om_) {}
+		void Tag_PeerRequestCode() {}	// for check flag
 
-		template<typename PKG = xx::ObjBase, typename ... Args>
+		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args) {
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, serial, args...));
 		}
 
-		template<typename PKG = xx::ObjBase, typename ... Args>
+		template<typename PKG = ObjBase, typename ... Args>
 		void SendPushTo(uint32_t const& target, Args const& ... args) {
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, 0, args...));
 		}
@@ -619,8 +655,8 @@ namespace xx {
 			co_return r;
 		}
 
-		xx::ObjBase_s ReadFrom(xx::Data_r& dr) {
-			xx::ObjBase_s o;
+		ObjBase_s ReadFrom(Data_r& dr) {
+			ObjBase_s o;
 			int r = om.ReadFrom(dr, o);
 			if (r || (o && o.typeId() == 0)) {
 				om.KillRecursive(o);
@@ -629,7 +665,7 @@ namespace xx {
 			return o;
 		}
 
-		int HandleData(xx::Data_r&& dr) {
+		int HandleData(Data_r&& dr) {
 			// 读出 target
 			uint32_t target;
 			if (dr.ReadFixed(target)) return __LINE__;
@@ -683,25 +719,8 @@ namespace xx {
 		}
 	};
 
-	
-	// 虚拟 peer 基础代码 ( 通常用于 服务 和 网关 对接 )
-	/*
-	须提供下列函数的实现
-	
-		// 收到 请求( 返回非 0 表示失败，会 Stop )
-		int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
-			// todo: handle o_
-			om.KillRecursive(o_);
-			return 0;
-		}
-
-		// 收到 推送( 返回非 0 表示失败，会 Stop )
-		int ReceivePush(xx::ObjBase_s&& o_) {
-
-	*/
 	template<typename PeerDeriveType, typename OwnerPeer>
-	struct VPeerCode : asio::noncopyable, PeerRequestCode<PeerDeriveType> {
-		using PRC = PeerRequestCode<PeerDeriveType>;
+	struct VPeerBaseCode : asio::noncopyable {
 		asio::io_context& ioc;
 		OwnerPeer* ownerPeer = nullptr;
 		asio::steady_timer timeouter;
@@ -709,9 +728,8 @@ namespace xx {
 		std::string clientIP;                                                           // 保存 gpeer 告知的 对端ip
 
 		void Tag_VPeerCode() {}	// for check flag
-		VPeerCode(asio::io_context& ioc_, ObjManager& om_, OwnerPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
-			: PRC(om_)
-			, ioc(ioc_)
+		VPeerBaseCode(asio::io_context& ioc_, OwnerPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+			: ioc(ioc_)
 			, ownerPeer(&ownerPeer_)
 			, timeouter(ioc_)
 			, clientId(clientId_)
@@ -726,7 +744,7 @@ namespace xx {
 		void Stop() {
 			if (!Alive()) return;
 			timeouter.cancel();
-			for (auto& kv : this->reqs) {
+			for (auto& kv : PEERTHIS->reqs) {
 				kv.second.first.cancel();
 			}
 			if constexpr (Has_Peer_Stop_<PeerDeriveType>) {
@@ -763,12 +781,273 @@ namespace xx {
 			return !!ownerPeer;
 		}
 
-		void Send(xx::Data&& msg) {
+		void Send(Data&& msg) {
 			if (!Alive()) return;
 			assert(ownerPeer && ownerPeer->Alive());
 			ownerPeer->Send(std::move(msg));
 		}
 	};
+
+
+	// 虚拟 peer 基础代码 ( 通常用于 服务 和 网关 对接 )
+/*
+须提供下列函数的实现
+
+	// 收到 请求( 返回非 0 表示失败，会 Stop )
+	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
+		// todo: handle o_
+		om.KillRecursive(o_);
+		return 0;
+	}
+
+	// 收到 推送( 返回非 0 表示失败，会 Stop )
+	int ReceivePush(xx::ObjBase_s&& o_) {
+
+*/
+	template<typename PeerDeriveType, typename OwnerPeer>
+	struct VPeerCode : VPeerBaseCode<PeerDeriveType, OwnerPeer>, PeerRequestCode<PeerDeriveType> {
+		using VPBC = VPeerBaseCode<PeerDeriveType, OwnerPeer>;
+		using PRC = PeerRequestCode<PeerDeriveType>;
+
+		VPeerCode(asio::io_context& ioc_, ObjManager& om_, OwnerPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+			: VPBC(ioc_, ownerPeer_, clientId_, clientIP_)
+			, PRC(om_)
+			{}
+	};
+
+	/*********************************************************************************************************************************/
+	/*********************************************************************************************************************************/
+
+	// 为 peer 附加 SendPush, SendRequest, SendResponse( Data ) 等 相关功能, 非 Obj 系列，方便兼容 pb 等协议, 用法类似上面的 Obj 系列
+	template<typename PeerDeriveType, size_t sendCap = 8192, size_t maxDataLen = 524288>
+	struct PeerRequestDataCode : PeerHandleMessageCode<PeerDeriveType, maxDataLen> {
+		static_assert(sendCap >= 32);
+		int32_t reqAutoId = 0;
+		std::unordered_map<int32_t, std::pair<asio::steady_timer, Data>> reqs;
+		void Tag_PeerRequestCode() {}	// for check flag
+
+		template<typename F>
+		void SendResponse(int32_t const& serial, F&& dataFiller) {
+			if (!PEERTHIS->Alive()) return;
+			Data d;
+			d.Reserve(sendCap);
+			auto bak = d.WriteJump<false>(sizeof(uint32_t));
+			if constexpr (Has_VPeerCode<PeerDeriveType>) {
+				d.WriteFixed<false>(PEERTHIS->clientId);
+			}
+			d.WriteVarInteger<false>(serial);
+			dataFiller(d);
+			d.WriteFixedAt(bak, (uint32_t)(d.len - 4));
+			if constexpr (Has_VPeerCode<PeerDeriveType>) {
+				PEERTHIS->ownerPeer->Send(std::move(d));
+			} else {
+				PEERTHIS->Send((std::move(d)));
+			}
+		}
+
+		void SendResponse(int32_t const& serial, Data const& data) {
+			SendResponse(serial, [&](Data& d) {
+				d.WriteBuf(data.buf, data.len);
+			});
+		}
+
+		template<typename F>
+		void SendPush(F&& dataFiller) {
+			SendResponse(0, std::forward<F>(dataFiller));
+		}
+
+		void SendPush(Data const& data) {
+			SendResponse(0, [&](Data& d) {
+				d.WriteBuf(data.buf, data.len);
+			});
+		}
+
+		template<typename F>
+		awaitable<Data> SendRequest(std::chrono::steady_clock::duration d, F&& dataFiller) {
+			if (!PEERTHIS->Alive()) co_return Data();
+			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
+			auto key = reqAutoId;
+			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
+			assert(result.second);
+			SendResponse(-reqAutoId, std::forward<F>(dataFiller));
+			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped) co_return Data();
+			auto r = std::move(result.first->second.second);
+			reqs.erase(result.first);
+			co_return r;
+		}
+
+		awaitable<Data> SendRequest(std::chrono::steady_clock::duration d, Data const& data) {
+			co_return SendRequest(d, [&](Data& d) { d.WriteBuf(data.buf, data.len); });
+		}
+
+		int HandleData(Data_r&& dr) {
+			// 读出序号
+			int32_t serial;
+			if (dr.Read(serial)) return __LINE__;
+
+			// 如果是 Response 包，则在 req 字典查找。如果找到就 填充 到 Data + 协程放行( 暂时想不到好办法避开这次 new + copy )
+			if (serial > 0) {
+				if (auto iter = reqs.find(serial); iter != reqs.end()) {
+					auto r = dr.LeftData_r();
+					static_assert(!Has_Peer_ReceiveTargetResponseData<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveResponseData<PeerDeriveType>) {
+						if (PEERTHIS->ReceiveResponse(serial, r)) return __LINE__;
+					}
+					iter->second.second.WriteBuf(r.buf, r.len);
+					iter->second.first.cancel();
+				}
+			} else {
+				// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 传递
+				if (serial == 0) {
+					static_assert(!Has_Peer_ReceiveTargetPushData<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceivePushData<PeerDeriveType>) {
+						if (PEERTHIS->ReceivePush(dr)) return __LINE__;
+					}
+				}
+				// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 传递
+				else {
+					static_assert(!Has_Peer_ReceiveTargetRequestData<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveRequestData<PeerDeriveType>) {
+						if (PEERTHIS->ReceiveRequest(-serial, dr)) return __LINE__;
+					}
+				}
+				if constexpr (Has_Peer_ReceivePushData<PeerDeriveType> || Has_Peer_ReceiveRequestData<PeerDeriveType>) {
+					if (!PEERTHIS->Alive()) return __LINE__;
+				}
+			}
+			return 0;
+		}
+	};
+
+	template<typename PeerDeriveType, size_t sendCap = 8192, size_t maxDataLen = 524288>
+	struct PeerRequestTargetDataCode : PeerHandleMessageCode<PeerDeriveType, maxDataLen> {
+		static_assert(sendCap >= 32);
+		int32_t reqAutoId = 0;
+		std::unordered_map<int32_t, std::pair<asio::steady_timer, Data>> reqs;
+		void Tag_PeerRequestCode() {}	// for check flag
+
+		template<typename F>
+		void SendResponseTo(uint32_t const& target, int32_t const& serial, F&& dataFiller) {
+			if (!PEERTHIS->Alive()) return;
+			Data d;
+			d.Reserve(sendCap);
+			auto bak = d.WriteJump<false>(sizeof(uint32_t));
+			d.WriteVarInteger<false>(target);
+			d.WriteVarInteger<false>(serial);
+			dataFiller(d);
+			d.WriteFixedAt(bak, (uint32_t)(d.len - 4));
+			PEERTHIS->Send((std::move(d)));
+		}
+
+		void SendResponseTo(uint32_t const& target, int32_t const& serial, Data const& data) {
+			SendResponseTo(target, serial, [&](Data& d) { d.WriteBuf(data.buf, data.len); });
+		}
+
+		template<typename F>
+		void SendPushTo(uint32_t const& target, F&& dataFiller) {
+			SendResponseTo(target, 0, std::forward<F>(dataFiller));
+		}
+
+		void SendPushTo(uint32_t const& target, Data const& data) {
+			SendResponseTo(target, 0, [&](Data& d) { d.WriteBuf(data.buf, data.len); });
+		}
+
+		template<typename F>
+		awaitable<Data> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, F&& dataFiller) {
+			if (!PEERTHIS->Alive()) co_return Data();
+			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
+			auto key = reqAutoId;
+			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
+			assert(result.second);
+			SendResponseTo(target, -reqAutoId, std::forward<F>(dataFiller));
+			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped) co_return Data();
+			auto r = std::move(result.first->second.second);
+			reqs.erase(result.first);
+			co_return r;
+		}
+
+		awaitable<Data> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Data const& data) {
+			co_return SendRequestTo(target, d, [&](Data& d) { d.WriteBuf(data.buf, data.len); });
+		}
+
+
+		int HandleData(Data_r&& dr) {
+			// 读出 target
+			uint32_t target;
+			if (dr.ReadFixed(target)) return __LINE__;
+			if constexpr (Has_Peer_HandleTargetMessage<PeerDeriveType>) {
+				int r = PEERTHIS->HandleTargetMessage(target, dr);
+				if (r == 0) return 0;		// continue
+				if (r < 0) return __LINE__;
+			}
+
+			// 读出序号
+			int32_t serial;
+			if (dr.Read(serial)) return __LINE__;
+
+			// 如果是 Response 包，则在 req 字典查找。如果找到就 填充 到 Data + 协程放行
+			if (serial > 0) {
+				if (auto iter = reqs.find(serial); iter != reqs.end()) {
+					auto r = dr.LeftData_r();
+					static_assert(!Has_Peer_ReceiveResponseData<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveTargetResponseData<PeerDeriveType>) {
+						if (PEERTHIS->ReceiveTargetResponseData(target, serial, r)) return __LINE__;
+					}
+					iter->second.second.WriteBuf(r.buf, r.len);
+					iter->second.first.cancel();
+				}
+			} else {
+				// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
+				if (serial == 0) {
+					static_assert(!Has_Peer_ReceivePushData<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveTargetPushData<PeerDeriveType>) {
+						if (PEERTHIS->ReceiveTargetPushData(target, dr)) return __LINE__;
+					}
+				}
+				// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
+				else {
+					static_assert(!Has_Peer_ReceiveRequestData<PeerDeriveType>);
+					if constexpr (Has_Peer_ReceiveTargetRequestData<PeerDeriveType>) {
+						if (PEERTHIS->ReceiveTargetRequest(target, -serial, dr)) return __LINE__;
+					}
+				}
+				if constexpr (Has_Peer_ReceivePushData<PeerDeriveType> || Has_Peer_ReceiveRequestData<PeerDeriveType>) {
+					if (!PEERTHIS->Alive()) return __LINE__;
+				}
+			}
+			return 0;
+		}
+	};
+
+
+	// 虚拟 peer 基础代码 Data 版, 用法同上 ( 通常用于 服务 和 网关 对接 )
+	/*
+	须提供下列函数的实现
+
+		// 收到 请求( 返回非 0 表示失败，会 Stop )
+		int ReceiveRequest(int32_t serial, xx::Data_r& dr) {
+			// todo: handle dr
+			return 0;
+		}
+
+		// 收到 推送( 返回非 0 表示失败，会 Stop )
+		int ReceivePush(xx::Data_r& dr) {
+			// todo: handle dr
+			return 0;
+		}
+	*/
+	template<typename PeerDeriveType, typename OwnerPeer>
+	struct VPeerDataCode : VPeerBaseCode<PeerDeriveType, OwnerPeer>, PeerRequestCode<PeerDeriveType> {
+		using VPBC = VPeerBaseCode<PeerDeriveType, OwnerPeer>;
+		using PRDC = PeerRequestDataCode<PeerDeriveType>;
+
+		VPeerDataCode(asio::io_context& ioc_, OwnerPeer& ownerPeer_, uint32_t const& clientId_, std::string_view const& clientIP_)
+			: VPBC(ioc_, ownerPeer_, clientId_, clientIP_)
+			, PRDC() {}
+	};
+
 
 	// todo: more xxxxCode here
 }

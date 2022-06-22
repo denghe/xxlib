@@ -1,30 +1,33 @@
 ﻿// asio simple tcp server( xx::Data container )
 #include "xx_asio_codes.h"
-#include <pkg.h>
 
 struct Server : xx::IOCCode<Server> {
-	xx::ObjManager om;
 };
 
-struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestCode<SPeer>, std::enable_shared_from_this<SPeer> {
+struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerRequestDataCode<SPeer>, std::enable_shared_from_this<SPeer> {
 	Server& server;
 	SPeer(Server& server_, asio::ip::tcp::socket&& socket_)
 		: PeerCode(server_.ioc, std::move(socket_))
 		, PeerTimeoutCode(server_.ioc)
-		, PeerRequestCode(server_.om)
 		, server(server_)
 	{}
-	int ReceiveRequest(int32_t const& serial_, xx::ObjBase_s&& o_) {
-		switch (o_.typeId()) {
-		case xx::TypeId_v<Ping>: {
-			auto&& o = o_.ReinterpretCast<Ping>();
-			SendResponse<Pong>(serial_, o->ticks);
+	int ReceiveRequest(int32_t const& serial_, xx::Data_r& dr) {
+		uint16_t typeId;
+		if (int r = dr.ReadVarInteger(typeId)) return r;
+		switch (typeId) {
+		case 1: {
+			std::string s;
+			if (int r = dr.Read(s)) return r;
+			xx::CoutN("ReceiveRequest Data: typeId = ", typeId, " s = ", s);
+			SendResponse(serial_, [&](xx::Data& d) {
+				d.WriteVarInteger(uint16_t(2));
+				d.Write("ok...");
+			});
 			break;
 		}
 		default:
-			om.CoutN("ReceiveRequest unhandled package: ", o_);
+			xx::CoutN("ReceiveRequest unhandled package: ", dr);
 		}
-		om.KillRecursive(o_);
 		return 0;
 	}
 };
