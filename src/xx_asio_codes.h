@@ -379,10 +379,11 @@ namespace xx {
 					if constexpr (Has_PeerTimeoutCode<PeerDeriveType>) {
 						if (PEERTHIS->stoping) co_return;
 					}
-					if (!n) break;
 				}
-				len -= n;
-				memmove(buf, buf + n, len);
+				if (n) {
+					len -= n;
+					memmove(buf, buf + n, len);
+				}
 			}
 			Stop();
 		}

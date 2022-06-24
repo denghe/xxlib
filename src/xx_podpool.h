@@ -6,11 +6,13 @@
 
 namespace xx {
 
+	// 放入对象，得到固定下标用于快速访问
 	// 只支持内存可随意移动的小对象放入. 例如智能指针啥的. 并且会用 0 来表达空的特殊值做 Clear
 	template<typename T
 		, typename D = std::aligned_storage_t<sizeof(T)>
 		, class = std::enable_if_t<sizeof(D) >= sizeof(T) && sizeof(D) >= sizeof(int) >>
 	struct PodPool {
+		static_assert(sizeof(T) >= sizeof(int));
 		int freeList = -1;
 		int freeCount = 0;
 		int count = 0;
