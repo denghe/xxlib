@@ -74,30 +74,26 @@ protected:
 	awaitable<void> Read() {
 		for (;;) {
 			std::vector<char> buf;
-			size_t bufCap = 0;
 			{
 				// 读 2 字节 包头
 				uint16_t dataLen = 0;
-				auto [ec, n] = co_await socket.async_read_some(asio::buffer(&dataLen, sizeof(dataLen)), use_nothrow_awaitable);
-				if (ec || n != sizeof(dataLen) || !n) break;
+				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, sizeof(dataLen)), use_nothrow_awaitable);
+				if (ec || !n) break;
 				if (stoped) co_return;
-				buf.reserve(n);
-				bufCap = n;
+				buf.resize(n);
 			}
 			for (;;) {
 				// 读 数据
-				auto [ec, n] = co_await socket.async_read_some(asio::buffer(buf.data() + buf.size(), bufCap - buf.size()), use_nothrow_awaitable);
+				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(buf.data(), buf.size()), use_nothrow_awaitable);
 				if (ec) break;
 				if (stoped) co_return;
-				if (!n) continue;
-				buf.resize(buf.size() + n);
-				if (bufCap == buf.size()) break;
 			}
 			HandleMessage(std::move(buf));
 			if (stoped) co_return;
 		}
 		Stop();
 	}
+
 	awaitable<void> Write() {
 		while (socket.is_open()) {
 			if (writeQueue.empty()) {
