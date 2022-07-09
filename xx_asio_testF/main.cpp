@@ -137,10 +137,12 @@ struct Data : Data_r {
 		len += sizeof(T);
 	}
 
-	template<typename T>
+	template<bool checkReserve = true, typename T>
 	void WriteFixedAt(size_t const& idx, T v) {
-		if (idx + sizeof(T) > len) {
-			Resize(sizeof(T) + idx);
+		if constexpr (checkReserve) {
+			if (idx + sizeof(T) > len) {
+				Resize(sizeof(T) + idx);
+			}
 		}
 		memcpy(buf + idx, &v, sizeof(T));
 	}
@@ -328,8 +330,8 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 		d.Resize(sizeof(uint16_t) + sizeof(int32_t));
 		dataFiller(d);
 		if (d.len > std::numeric_limits<uint16_t>::max()) return;	// break? log?
-		d.WriteFixedAt(0, (uint16_t)d.len);
-		d.WriteFixedAt(2, serial);
+		d.WriteFixedAt<false>(0, (uint16_t)d.len);
+		d.WriteFixedAt<false>(2, serial);
 		PEERTHIS->Send((std::move(d)));
 	}
 
