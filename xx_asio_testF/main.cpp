@@ -46,11 +46,35 @@ struct Listener : asio::noncopyable {
 /*************************************************************************************************************************/
 /*************************************************************************************************************************/
 
-struct Data {
-	uint8_t* buf = nullptr;
-	size_t len = 0;
-	size_t offset = 0;
-	size_t cap = 0;
+struct Data_r {
+	uint8_t* buf;
+	size_t len;
+	size_t offset;
+
+	void Reset(void* buf_, size_t len_, size_t offset_ = 0) {
+		buf = (uint8_t*)buf_;
+		len = len_;
+		offset = offset_;
+	}
+
+	template<typename T>
+	int ReadFixed(T& v) {
+		if (offset + sizeof(T) > len) return __LINE__;
+		memcpy(&v, buf + offset, sizeof(T));
+		offset += sizeof(T);
+		return 0;
+	}
+
+	template<typename T>
+	int ReadFixedAt(size_t const& idx, T& v) {
+		if (idx + sizeof(T) > len) return __LINE__;
+		memcpy(&v, buf + idx, sizeof(T));
+		return 0;
+	}
+};
+
+struct Data : Data_r {
+	size_t cap;
 
 	Data(Data&& o) noexcept {
 		memcpy((void*)this, &o, sizeof(Data));
@@ -65,10 +89,16 @@ struct Data {
 	}
 	Data(Data&) = delete;
 	Data& operator=(Data&) = delete;
-	Data() = default;
+	Data() {
+		buf = nullptr;
+		len = 0;
+		offset = 0;
+		cap = 0;
+	}
 	Data(void* buf_, size_t len_) {
 		Resize(len_);
 		memcpy(buf, buf_, len_);
+		offset = 0;
 	}
 	~Data() {
 		Clear(true);
@@ -106,26 +136,11 @@ struct Data {
 	}
 
 	template<typename T>
-	int ReadFixed(T& v) {
-		if (offset + sizeof(T) > len) return __LINE__;
-		memcpy(&v, buf + offset, sizeof(T));
-		offset += sizeof(T);
-		return 0;
-	}
-
-	template<typename T>
 	void WriteFixedAt(size_t const& idx, T v) {
 		if (idx + sizeof(T) > len) {
 			Resize(sizeof(T) + idx);
 		}
 		memcpy(buf + idx, &v, sizeof(T));
-	}
-
-	template<typename T>
-	int ReadFixedAt(size_t const& idx, T& v) {
-		if (idx + sizeof(T) > len) return __LINE__;
-		memcpy(&v, buf + idx, sizeof(T));
-		return 0;
 	}
 
 	// { 1,2,3. ....}
@@ -235,7 +250,7 @@ protected:
 	//	Stop();
 	//}
 
-	// 另外一种写法. 少一次 read
+	// 另外一种写法. 少一次 read, 数据引用处理
 	awaitable<void> Read() {
 		uint8_t buf[16384];
 		size_t len = 0;
@@ -253,7 +268,9 @@ protected:
 			// 读 2 字节 包头( 含自身长度 )
 			dataLen = (uint16_t)( p[0] | (p[1] << 8) );
 			if (p + dataLen > pe) goto LabEnd;
-			if (int r = PEERTHIS->HandleMessage(Data(p, dataLen))) break;
+			Data_r dr;
+			dr.Reset(p, dataLen);
+			if (int r = PEERTHIS->HandleMessage(dr)) break;
 			if (stoped) co_return;
 			p += dataLen;
 			goto LabBegin;
@@ -334,23 +351,23 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 		co_return r;
 	}
 
-	int HandleMessage(Data&& d) {
+	int HandleMessage(Data_r& d) {
 		int32_t serial;
 		if (d.ReadFixedAt(2, serial)) return __LINE__;
 		d.offset = sizeof(uint16_t) + sizeof(int32_t);	// skip header area
 
 		if (serial > 0) {
 			if (auto iter = reqs.find(serial); iter != reqs.end()) {
-				iter->second.second = std::move(d);
+				iter->second.second = Data(d.buf, d.len);						// copy to new Data
 				iter->second.first.cancel();
 			}
 		}
 		else {
 			if (serial == 0) {
-				if (PEERTHIS->ReceivePush(std::move(d))) return __LINE__;					// PeerDeriveType need supply this function: int ReceivePush(Data&& d)
+				if (PEERTHIS->ReceivePush(d)) return __LINE__;					// PeerDeriveType need supply this function: int ReceivePush(Data_r& d)
 			}
 			else {
-				if (PEERTHIS->ReceiveRequest(-serial, std::move(d))) return __LINE__;		// PeerDeriveType need supply this function: int ReceiveRequest(int32_t serial, Data&& d)
+				if (PEERTHIS->ReceiveRequest(-serial, d)) return __LINE__;		// PeerDeriveType need supply this function: int ReceiveRequest(int32_t serial, Data_r& d)
 			}
 		}
 		return 0;
@@ -383,11 +400,11 @@ struct Peer : PeerReqCode<Peer>, std::enable_shared_from_this<Peer> {
 		co_return rtv;
 	}
 
-	int ReceivePush(Data&& d) {
+	int ReceivePush(Data_r& d) {
 		return 0;
 	}
 
-	int ReceiveRequest(int32_t serial, Data&& d) {
+	int ReceiveRequest(int32_t serial, Data_r& d) {
 		uint16_t typeId = 0;
 		if (int r = d.ReadFixed(typeId)) return __LINE__;
 		switch (typeId) {
