@@ -158,6 +158,7 @@ struct PeerBaseCode {
 	asio::steady_timer writeBlocker;
 	std::deque<Data> writeQueue;
 	bool stoped = true;
+	PeerBaseCode(asio::io_context& ioc_) : ioc(ioc_), socket(ioc_), writeBlocker(ioc_) {}
 	PeerBaseCode(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_) : ioc(ioc_), socket(std::move(socket_)), writeBlocker(ioc_) {}
 
 	void Start() {
@@ -198,15 +199,15 @@ protected:
 		for (;;) {
 			Data d;
 			{
-				// 读 2 字节 包头
+				// 读 2 字节 包头( 含自身长度 )
 				uint16_t dataLen = 0;
 				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, sizeof(uint16_t)), use_nothrow_awaitable);
-				if (ec || !n) break;
+				if (ec || !dataLen) break;
 				if (stoped) co_return;
-				d.Resize(sizeof(uint16_t) + n);
+				d.Resize(dataLen);
 				d.WriteFixedAt(0, dataLen);		// 顺便也把 包头 写入容器 以方便某些转发逻辑
 			}
-			for (;;) {
+			{
 				// 读 数据
 				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(d.buf + sizeof(uint16_t), d.len - sizeof(uint16_t)), use_nothrow_awaitable);
 				if (ec) break;
@@ -255,11 +256,11 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 	int32_t reqAutoId = 0;
 	std::unordered_map<int32_t, std::pair<asio::steady_timer, Data>> reqs;
 
-	template<typename F>
+	template<size_t reserveLen = 128, typename F>
 	void SendResponse(int32_t const& serial, F&& dataFiller) {
 		if (PEERTHIS->stoped) return;
 		Data d;
-		d.Reserve(128);
+		d.Reserve(reserveLen);
 		d.Resize(sizeof(uint16_t) + sizeof(int32_t));
 		dataFiller(d);
 		if (d.len > std::numeric_limits<uint16_t>::max()) return;	// break? log?
@@ -291,6 +292,7 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 	int HandleMessage(Data&& d) {
 		int32_t serial;
 		if (d.ReadFixedAt(2, serial)) return __LINE__;
+		d.offset = sizeof(uint16_t) + sizeof(int32_t);	// skip header area
 
 		if (serial > 0) {
 			if (auto iter = reqs.find(serial); iter != reqs.end()) {
@@ -314,12 +316,46 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 /*************************************************************************************************************************/
 /*************************************************************************************************************************/
 
+#include <iostream>
+#include <chrono>
+
 struct Peer : PeerReqCode<Peer>, std::enable_shared_from_this<Peer> {
 	using PeerReqCode::PeerReqCode;
+
+	// 模拟 RPC ?
+	awaitable<int> Add(int a, int b) {
+		uint16_t typeId = 1;
+		auto d = co_await SendRequest(3s, [&](Data& d) {
+			d.WriteFixed(typeId);
+			d.WriteFixed(a);
+			d.WriteFixed(b);
+		});
+		if (!d.len) 
+			throw std::logic_error("int Add(a,b) receive 0 len data");
+		int rtv;
+		if (int r = d.ReadFixed(rtv)) 
+			throw std::logic_error("int Add(a,b) receive data read result error");
+		co_return rtv;
+	}
+
 	int ReceivePush(Data&& d) {
 		return 0;
 	}
+
 	int ReceiveRequest(int32_t serial, Data&& d) {
+		uint16_t typeId = 0;
+		if (int r = d.ReadFixed(typeId)) return __LINE__;
+		switch (typeId) {
+		case 1: {
+			int a;
+			if (int r = d.ReadFixed(a)) return __LINE__;
+			int b;
+			if (int r = d.ReadFixed(b)) return __LINE__;
+			SendResponse(serial, [a, b](Data& d) {
+				d.WriteFixed(a + b);
+			});
+		}
+		}
 		return 0;
 	}
 };
@@ -336,6 +372,30 @@ int main() {
 		s.ps.insert(p);
 		p->Start();
 	});
+
+	co_spawn(s.ioc, [&]()->awaitable<void> {
+		auto p = std::make_shared<Peer>(s.ioc);
+		while (p->stoped) {
+			co_await p->Connect(asio::ip::address::from_string("127.0.0.1"), 12345);
+		}
+		std::cout << "connected" << std::endl;
+		try {
+			auto tp1 = std::chrono::steady_clock::now();
+			int n = 0;
+			for (size_t i = 0; i < 100000; i++) {
+				n = co_await p->Add(n, 1);
+			}
+			std::cout << "n = " << n << std::endl;
+			auto tp2 = std::chrono::steady_clock::now();
+			std::cout << "ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp1).count() << std::endl;
+		}
+		catch (std::exception const& e) {
+			std::cout << "e = " << e.what() << std::endl;
+		}
+		p->Stop();
+		co_return;
+	}, detached);
+
 	s.ioc.run();
 	return 0;
 }
