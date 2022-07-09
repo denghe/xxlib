@@ -47,15 +47,9 @@ struct Listener : asio::noncopyable {
 /*************************************************************************************************************************/
 
 struct Data_r {
-	uint8_t* buf;
-	size_t len;
-	size_t offset;
-
-	void Reset(void* buf_, size_t len_, size_t offset_ = 0) {
-		buf = (uint8_t*)buf_;
-		len = len_;
-		offset = offset_;
-	}
+	uint8_t* buf = nullptr;
+	size_t len = 0;
+	size_t offset = 0;
 
 	template<typename T>
 	int ReadFixed(T& v) {
@@ -74,7 +68,7 @@ struct Data_r {
 };
 
 struct Data : Data_r {
-	size_t cap;
+	size_t cap = 0;
 
 	Data(Data&& o) noexcept {
 		memcpy((void*)this, &o, sizeof(Data));
@@ -89,16 +83,11 @@ struct Data : Data_r {
 	}
 	Data(Data&) = delete;
 	Data& operator=(Data&) = delete;
-	Data() {
-		buf = nullptr;
-		len = 0;
-		offset = 0;
-		cap = 0;
-	}
-	Data(void* buf_, size_t len_) {
+	Data() = default;
+	Data(void* buf_, size_t len_, size_t offset_ = 0) {
 		Resize(len_);
 		memcpy(buf, buf_, len_);
-		offset = 0;
+		offset = offset_;
 	}
 	~Data() {
 		Clear(true);
@@ -259,6 +248,7 @@ protected:
 		uint8_t buf[16384];
 		size_t len = 0;
 		uint16_t dataLen;
+		Data_r dr;
 		for (;;) {
 			auto [ec, n] = co_await socket.async_read_some(asio::buffer(buf + len, sizeof(buf) - len), use_nothrow_awaitable);
 			if (ec) break;
@@ -272,16 +262,18 @@ protected:
 			// 读 2 字节 包头( 含自身长度 )
 			dataLen = (uint16_t)( p[0] | (p[1] << 8) );
 			if (p + dataLen > pe) goto LabEnd;
-			Data_r dr;
-			dr.Reset(p, dataLen);
+			dr.buf = p;
+			dr.len = dataLen;
+			dr.offset = 0;
 			if (int r = PEERTHIS->HandleMessage(dr)) break;
 			if (stoped) co_return;
 			p += dataLen;
 			goto LabBegin;
 		LabEnd:
 			if (p != buf) {
-				len = pe - p;
-				memmove(buf, p, len);
+				if ((len = pe - p)) {
+					memmove(buf, p, len);
+				}
 			}
 		}
 		Stop();
@@ -327,7 +319,7 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 		if (PEERTHIS->stoped) return;
 		Data d;
 		d.Reserve(reserveLen);
-		d.Resize(sizeof(uint16_t) + sizeof(int32_t));
+		d.len = sizeof(uint16_t) + sizeof(int32_t);
 		dataFiller(d);
 		if (d.len > std::numeric_limits<uint16_t>::max()) return;	// break? log?
 		d.WriteFixedAt<false>(0, (uint16_t)d.len);
@@ -335,19 +327,19 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 		PEERTHIS->Send((std::move(d)));
 	}
 
-	template<typename F>
+	template<size_t reserveLen = 128, typename F>
 	void SendPush(F&& dataFiller) {
-		SendResponse(0, std::forward<F>(dataFiller));
+		SendResponse<reserveLen>(0, std::forward<F>(dataFiller));
 	}
 
-	template<typename F>
+	template<size_t reserveLen = 128, typename F>
 	awaitable<Data> SendRequest(std::chrono::steady_clock::duration d, F&& dataFiller) {
 		if (PEERTHIS->stoped) co_return Data();
 		reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 		auto key = reqAutoId;
 		auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
 		assert(result.second);
-		SendResponse(-reqAutoId, std::forward<F>(dataFiller));
+		SendResponse<reserveLen>(-reqAutoId, std::forward<F>(dataFiller));
 		co_await result.first->second.first.async_wait(use_nothrow_awaitable);
 		if (PEERTHIS->stoped) co_return Data();
 		auto r = std::move(result.first->second.second);
@@ -362,7 +354,7 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 
 		if (serial > 0) {
 			if (auto iter = reqs.find(serial); iter != reqs.end()) {
-				iter->second.second = Data(d.buf, d.len);						// copy to new Data
+				iter->second.second = Data(d.buf, d.len, d.offset);				// copy to new Data
 				iter->second.first.cancel();
 			}
 		}
@@ -391,8 +383,7 @@ struct Peer : PeerReqCode<Peer>, std::enable_shared_from_this<Peer> {
 	// 模拟 RPC ?
 	awaitable<int> Add(int a, int b) {
 		uint16_t typeId = 1;
-		auto d = co_await SendRequest(3s, [&](Data& d) {
-			d.Reserve(d.len + sizeof(uint16_t) + sizeof(int) + sizeof(int));
+		auto d = co_await SendRequest<32>(3s, [&](Data& d) {
 			d.WriteFixed<false>(typeId);
 			d.WriteFixed<false>(a);
 			d.WriteFixed<false>(b);
@@ -409,17 +400,17 @@ struct Peer : PeerReqCode<Peer>, std::enable_shared_from_this<Peer> {
 		return 0;
 	}
 
-	int ReceiveRequest(int32_t serial, Data_r& d) {
+	int ReceiveRequest(int32_t serial, Data_r& dr) {
 		uint16_t typeId = 0;
-		if (int r = d.ReadFixed(typeId)) return __LINE__;
+		if (int r = dr.ReadFixed(typeId)) return __LINE__;
 		switch (typeId) {
 		case 1: {
 			int a;
-			if (int r = d.ReadFixed(a)) return __LINE__;
+			if (int r = dr.ReadFixed(a)) return __LINE__;
 			int b;
-			if (int r = d.ReadFixed(b)) return __LINE__;
-			SendResponse(serial, [a, b](Data& d) {
-				d.WriteFixed(a + b);
+			if (int r = dr.ReadFixed(b)) return __LINE__;
+			SendResponse<16>(serial, [a, b](Data& d) {
+				d.WriteFixed<false>(a + b);
 			});
 		}
 		}
