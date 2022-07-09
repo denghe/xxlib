@@ -41,6 +41,10 @@ include_directories(
 add_executable(xx_asio_testF
 		${srcs}
 		)
+
+#find_package(mimalloc 2.0 REQUIRED)
 target_link_libraries(xx_asio_testF
 		${libs}
+		#mimalloc-static
 		)
+
