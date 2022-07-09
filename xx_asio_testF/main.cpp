@@ -65,6 +65,10 @@ struct Data {
 	Data(Data&) = delete;
 	Data& operator=(Data&) = delete;
 	Data() = default;
+	Data(void* buf_, size_t len_) {
+		Resize(len_);
+		memcpy(buf, buf_, len_);
+	}
 	~Data() {
 		Clear(true);
 	}
@@ -142,6 +146,15 @@ struct Data {
 		len = 0;
 		offset = 0;
 	}
+
+	void RemoveFront(size_t const& siz) {
+		assert(siz <= len);
+		if (!siz) return;
+		len -= siz;
+		if (len) {
+			memmove(buf, buf + siz, len);
+		}
+	}
 };
 
 
@@ -195,28 +208,57 @@ struct PeerBaseCode {
 	}
 
 protected:
+	//awaitable<void> Read() {
+	//	for (;;) {
+	//		Data d;
+	//		{
+	//			// 读 2 字节 包头( 含自身长度 )
+	//			uint16_t dataLen = 0;
+	//			auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, sizeof(uint16_t)), use_nothrow_awaitable);
+	//			if (ec || !dataLen) break;
+	//			if (stoped) co_return;
+	//			d.Resize(dataLen);
+	//			d.WriteFixedAt(0, dataLen);		// 顺便也把 包头 写入容器 以方便某些转发逻辑
+	//		}
+	//		{
+	//			// 读 数据
+	//			auto [ec, n] = co_await asio::async_read(socket, asio::buffer(d.buf + sizeof(uint16_t), d.len - sizeof(uint16_t)), use_nothrow_awaitable);
+	//			if (ec) break;
+	//			if (stoped) co_return;
+	//		}
+	//		if (auto r = PEERTHIS->HandleMessage(std::move(d))) {							// PeerDeriveType need supply this function: int HandleMessage(Data&& d)
+	//			Stop();
+	//		}
+	//		if (stoped) co_return;
+	//	}
+	//	Stop();
+	//}
+
+	// 另外一种写法. 少一次 read
 	awaitable<void> Read() {
+		uint8_t buf[16384];
+		size_t len = 0;
+		uint16_t dataLen;
 		for (;;) {
-			Data d;
-			{
-				// 读 2 字节 包头( 含自身长度 )
-				uint16_t dataLen = 0;
-				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, sizeof(uint16_t)), use_nothrow_awaitable);
-				if (ec || !dataLen) break;
-				if (stoped) co_return;
-				d.Resize(dataLen);
-				d.WriteFixedAt(0, dataLen);		// 顺便也把 包头 写入容器 以方便某些转发逻辑
-			}
-			{
-				// 读 数据
-				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(d.buf + sizeof(uint16_t), d.len - sizeof(uint16_t)), use_nothrow_awaitable);
-				if (ec) break;
-				if (stoped) co_return;
-			}
-			if (auto r = PEERTHIS->HandleMessage(std::move(d))) {							// PeerDeriveType need supply this function: int HandleMessage(Data&& d)
-				Stop();
-			}
+			auto [ec, n] = co_await socket.async_read_some(asio::buffer(buf + len, sizeof(buf) - len), use_nothrow_awaitable);
+			if (ec) break;
 			if (stoped) co_return;
+			len += n;
+
+			auto p = buf;
+			auto pe = buf + len;
+		LabBegin:
+			if (p + sizeof(uint16_t) > pe) goto LabEnd;
+			// 读 2 字节 包头( 含自身长度 )
+			dataLen = (uint16_t)( p[0] | (p[1] << 8) );
+			if (p + dataLen > pe) goto LabEnd;
+			if (int r = PEERTHIS->HandleMessage(Data(p, dataLen))) break;
+			if (stoped) co_return;
+			p += dataLen;
+			goto LabBegin;
+		LabEnd:
+			len = pe - p;
+			memmove(buf, p, len);
 		}
 		Stop();
 	}
