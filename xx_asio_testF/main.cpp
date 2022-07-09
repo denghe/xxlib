@@ -258,8 +258,10 @@ protected:
 			p += dataLen;
 			goto LabBegin;
 		LabEnd:
-			len = pe - p;
-			memmove(buf, p, len);
+			if (p != buf) {
+				len = pe - p;
+				memmove(buf, p, len);
+			}
 		}
 		Stop();
 	}
