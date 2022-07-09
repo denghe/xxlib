@@ -14,6 +14,12 @@ using asio::detached;
 #include <unordered_set>
 #pragma endregion
 
+inline awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
+	asio::steady_timer t(co_await asio::this_coro::executor);
+	t.expires_after(d);
+	co_await t.async_wait(use_nothrow_awaitable);
+}
+
 struct Listener : asio::noncopyable {
 	asio::io_context ioc;
 	asio::signal_set signals;
@@ -35,22 +41,132 @@ struct Listener : asio::noncopyable {
 	}
 };
 
-struct Server;
-struct Peer : std::enable_shared_from_this<Peer> {
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+
+struct Data {
+	uint8_t* buf = nullptr;
+	size_t len = 0;
+	size_t offset = 0;
+	size_t cap = 0;
+
+	Data(Data&& o) noexcept {
+		memcpy((void*)this, &o, sizeof(Data));
+		memset((void*)&o, 0, sizeof(Data));
+	}
+	Data& operator=(Data&& o) noexcept {
+		std::swap(buf, o.buf);
+		std::swap(len, o.len);
+		std::swap(cap, o.cap);
+		std::swap(offset, o.offset);
+		return *this;
+	}
+	Data(Data&) = delete;
+	Data& operator=(Data&) = delete;
+	Data() = default;
+	~Data() {
+		Clear(true);
+	}
+
+	void Reserve(size_t const& newCap) {
+		if (newCap <= cap) return;
+		if (cap) {
+			do {
+				cap *= 2;
+			} while (cap < newCap);
+			auto newBuf = ((uint8_t*)malloc(cap));
+			if (len) {
+				memcpy(newBuf, buf, len);
+			}
+			free(buf);
+			buf = newBuf;
+		}
+		else {
+			buf = ((uint8_t*)malloc(newCap));
+			cap = newCap;
+		}
+	}
+
+	void Resize(size_t const& newLen) {
+		Reserve(newLen);
+		len = newLen;
+	}
+
+	template<typename T>
+	void WriteFixed(T&& v) {
+		Reserve(len + sizeof(T));
+		memcpy(buf + len, &v, sizeof(T));
+		len += sizeof(T);
+	}
+
+	template<typename T>
+	int ReadFixed(T& v) {
+		if (offset + sizeof(T) > len) return __LINE__;
+		memcpy(&v, buf + offset, sizeof(T));
+		offset += sizeof(T);
+		return 0;
+	}
+
+	template<typename T>
+	void WriteFixedAt(size_t const& idx, T v) {
+		if (idx + sizeof(T) > len) {
+			Resize(sizeof(T) + idx);
+		}
+		memcpy(buf + idx, &v, sizeof(T));
+	}
+
+	template<typename T>
+	int ReadFixedAt(size_t const& idx, T& v) {
+		if (idx + sizeof(T) > len) return __LINE__;
+		memcpy(&v, buf + idx, sizeof(T));
+		return 0;
+	}
+
+	// { 1,2,3. ....}
+	template<typename T = int32_t, typename = std::enable_if_t<std::is_convertible_v<T, uint8_t>>>
+	void Fill(std::initializer_list<T> const& bytes) {
+		Clear();
+		Reserve(bytes.size());
+		for (auto&& b : bytes) {
+			buf[len++] = (uint8_t)b;
+		}
+	}
+
+	void Clear(bool const& freeBuf = false) {
+		if (freeBuf && cap) {
+			free(buf);
+			buf = nullptr;
+			cap = 0;
+		}
+		len = 0;
+		offset = 0;
+	}
+};
+
+
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+
+#define PEERTHIS ((PeerDeriveType*)(this))
+
+template<class PeerDeriveType>
+struct PeerBaseCode {
 	asio::io_context& ioc;
 	asio::ip::tcp::socket socket;
 	asio::steady_timer writeBlocker;
-	std::deque<std::vector<char>> writeQueue;
+	std::deque<Data> writeQueue;
 	bool stoped = true;
-	Peer(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_) : ioc(ioc_), socket(std::move(socket_)), writeBlocker(ioc_) {}
+	PeerBaseCode(asio::io_context& ioc_, asio::ip::tcp::socket&& socket_) : ioc(ioc_), socket(std::move(socket_)), writeBlocker(ioc_) {}
 
 	void Start() {
 		if (!stoped) return;
 		stoped = false;
 		writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 		writeQueue.clear();
-		co_spawn(ioc, [self = shared_from_this()]{ return self->Read(); }, detached);
-		co_spawn(ioc, [self = shared_from_this()]{ return self->Write(); }, detached);
+		co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, detached);
+		co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, detached);
 	}
 
 	void Stop() {
@@ -60,35 +176,45 @@ struct Peer : std::enable_shared_from_this<Peer> {
 		writeBlocker.cancel();
 	}
 
-	void Send(std::vector<char>&& buf) {
+	void Send(Data&& buf) {
 		if (stoped) return;
 		writeQueue.emplace_back(std::move(buf));
 		writeBlocker.cancel_one();
 	}
 
-	void HandleMessage(std::vector<char>&& buf) {
-		// switch case decode xxxxxxxx
+	// for connect to listener
+	awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+		if (!stoped) co_return 1;
+		socket = asio::ip::tcp::socket(ioc);    // for macos
+		auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
+		if (r.index()) co_return 2;
+		if (auto& [e] = std::get<0>(r); e) co_return 3;
+		Start();
+		co_return 0;
 	}
 
 protected:
 	awaitable<void> Read() {
 		for (;;) {
-			std::vector<char> buf;
+			Data d;
 			{
 				// 读 2 字节 包头
 				uint16_t dataLen = 0;
-				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, sizeof(dataLen)), use_nothrow_awaitable);
+				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, sizeof(uint16_t)), use_nothrow_awaitable);
 				if (ec || !n) break;
 				if (stoped) co_return;
-				buf.resize(n);
+				d.Resize(sizeof(uint16_t) + n);
+				d.WriteFixedAt(0, dataLen);		// 顺便也把 包头 写入容器 以方便某些转发逻辑
 			}
 			for (;;) {
 				// 读 数据
-				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(buf.data(), buf.size()), use_nothrow_awaitable);
+				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(d.buf + sizeof(uint16_t), d.len - sizeof(uint16_t)), use_nothrow_awaitable);
 				if (ec) break;
 				if (stoped) co_return;
 			}
-			HandleMessage(std::move(buf));
+			if (auto r = PEERTHIS->HandleMessage(std::move(d))) {							// PeerDeriveType need supply this function: int HandleMessage(Data&& d)
+				Stop();
+			}
 			if (stoped) co_return;
 		}
 		Stop();
@@ -101,8 +227,8 @@ protected:
 				if (stoped) co_return;
 			}
 			auto& msg = writeQueue.front();
-			auto buf = msg.data();
-			auto len = msg.size();
+			auto buf = msg.buf;
+			auto len = msg.len;
 		LabBegin:
 			auto [ec, n] = co_await asio::async_write(socket, asio::buffer(buf, len), use_nothrow_awaitable);
 			if (ec) break;
@@ -115,6 +241,86 @@ protected:
 			writeQueue.pop_front();
 		}
 		Stop();
+	}
+};
+
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+
+template<typename PeerDeriveType>
+struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
+	using PBC = PeerBaseCode<PeerDeriveType>;
+	using PBC::PBC;
+	int32_t reqAutoId = 0;
+	std::unordered_map<int32_t, std::pair<asio::steady_timer, Data>> reqs;
+
+	template<typename F>
+	void SendResponse(int32_t const& serial, F&& dataFiller) {
+		if (PEERTHIS->stoped) return;
+		Data d;
+		d.Reserve(128);
+		d.Resize(sizeof(uint16_t) + sizeof(int32_t));
+		dataFiller(d);
+		if (d.len > std::numeric_limits<uint16_t>::max()) return;	// break? log?
+		d.WriteFixedAt(0, (uint16_t)d.len);
+		d.WriteFixedAt(2, serial);
+		PEERTHIS->Send((std::move(d)));
+	}
+
+	template<typename F>
+	void SendPush(F&& dataFiller) {
+		SendResponse(0, std::forward<F>(dataFiller));
+	}
+
+	template<typename F>
+	awaitable<Data> SendRequest(std::chrono::steady_clock::duration d, F&& dataFiller) {
+		if (PEERTHIS->stoped) co_return Data();
+		reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
+		auto key = reqAutoId;
+		auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
+		assert(result.second);
+		SendResponse(-reqAutoId, std::forward<F>(dataFiller));
+		co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+		if (PEERTHIS->stoped) co_return Data();
+		auto r = std::move(result.first->second.second);
+		reqs.erase(result.first);
+		co_return r;
+	}
+
+	int HandleMessage(Data&& d) {
+		int32_t serial;
+		if (d.ReadFixedAt(2, serial)) return __LINE__;
+
+		if (serial > 0) {
+			if (auto iter = reqs.find(serial); iter != reqs.end()) {
+				iter->second.second = std::move(d);
+				iter->second.first.cancel();
+			}
+		}
+		else {
+			if (serial == 0) {
+				if (PEERTHIS->ReceivePush(std::move(d))) return __LINE__;					// PeerDeriveType need supply this function: int ReceivePush(Data&& d)
+			}
+			else {
+				if (PEERTHIS->ReceiveRequest(-serial, std::move(d))) return __LINE__;		// PeerDeriveType need supply this function: int ReceiveRequest(int32_t serial, Data&& d)
+			}
+		}
+		return 0;
+	}
+};
+
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+/*************************************************************************************************************************/
+
+struct Peer : PeerReqCode<Peer>, std::enable_shared_from_this<Peer> {
+	using PeerReqCode::PeerReqCode;
+	int ReceivePush(Data&& d) {
+		return 0;
+	}
+	int ReceiveRequest(int32_t serial, Data&& d) {
+		return 0;
 	}
 };
 
