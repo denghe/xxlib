@@ -12,6 +12,7 @@ using asio::detached;
 #include <deque>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #pragma endregion
 
 inline awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
