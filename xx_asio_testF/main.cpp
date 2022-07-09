@@ -128,9 +128,11 @@ struct Data : Data_r {
 		len = newLen;
 	}
 
-	template<typename T>
+	template<bool checkReserve = true, typename T>
 	void WriteFixed(T&& v) {
-		Reserve(len + sizeof(T));
+		if constexpr (checkReserve) {
+			Reserve(len + sizeof(T));
+		}
 		memcpy(buf + len, &v, sizeof(T));
 		len += sizeof(T);
 	}
@@ -388,9 +390,10 @@ struct Peer : PeerReqCode<Peer>, std::enable_shared_from_this<Peer> {
 	awaitable<int> Add(int a, int b) {
 		uint16_t typeId = 1;
 		auto d = co_await SendRequest(3s, [&](Data& d) {
-			d.WriteFixed(typeId);
-			d.WriteFixed(a);
-			d.WriteFixed(b);
+			d.Reserve(d.len + sizeof(uint16_t) + sizeof(int) + sizeof(int));
+			d.WriteFixed<false>(typeId);
+			d.WriteFixed<false>(a);
+			d.WriteFixed<false>(b);
 		});
 		if (!d.len) 
 			throw std::logic_error("int Add(a,b) receive 0 len data");
