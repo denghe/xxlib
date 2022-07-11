@@ -761,8 +761,8 @@ namespace xx {
 			ownerPeer = &ownerPeer_;
 			clientId = clientId_;
 			clientIP = clientIP_;
-			this->PRC::reqAutoId = 0;
-			this->PRC::reqs.clear();
+			PEERTHIS->reqAutoId = 0;
+			PEERTHIS->reqs.clear();
 		}
 
 		void RemoveFromOwner() {
