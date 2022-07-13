@@ -17,7 +17,6 @@
 
 #include "asio/detail/config.hpp"
 #include "asio/detail/throw_error.hpp"
-#include "asio/detail/throw_exception.hpp"
 #include "asio/system_error.hpp"
 
 #include "asio/detail/push_options.hpp"
@@ -25,13 +24,18 @@
 namespace asio {
 namespace detail {
 
-void do_throw_error(const asio::error_code& err)
+void do_throw_error(
+    const asio::error_code& err
+    ASIO_SOURCE_LOCATION_PARAM)
 {
   asio::system_error e(err);
-  asio::detail::throw_exception(e);
+  asio::detail::throw_exception(e ASIO_SOURCE_LOCATION_ARG);
 }
 
-void do_throw_error(const asio::error_code& err, const char* location)
+void do_throw_error(
+    const asio::error_code& err,
+    const char* location
+    ASIO_SOURCE_LOCATION_PARAM)
 {
   // boostify: non-boost code starts here
 #if defined(ASIO_MSVC) \
@@ -44,13 +48,13 @@ void do_throw_error(const asio::error_code& err, const char* location)
   what_msg += ": ";
   what_msg += err.message();
   asio::system_error e(err, what_msg);
-  asio::detail::throw_exception(e);
+  asio::detail::throw_exception(e ASIO_SOURCE_LOCATION_ARG);
 #else // defined(ASIO_MSVC)
       //   && defined(ASIO_HAS_STD_SYSTEM_ERROR)
       //   && (_MSC_VER < 1928)
   // boostify: non-boost code ends here
   asio::system_error e(err, location);
-  asio::detail::throw_exception(e);
+  asio::detail::throw_exception(e ASIO_SOURCE_LOCATION_ARG);
   // boostify: non-boost code starts here
 #endif // defined(ASIO_MSVC)
        //   && defined(ASIO_HAS_STD_SYSTEM_ERROR)

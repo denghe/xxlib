@@ -1,6 +1,8 @@
 # find . -name "*.*pp" | sed -e 's/^\.\///' | sed -e 's/^.*$/  & \\/' | sort
 nobase_include_HEADERS = \
 	asio/any_io_executor.hpp \
+	asio/append.hpp \
+	asio/as_tuple.hpp \
 	asio/associated_allocator.hpp \
 	asio/associated_cancellation_slot.hpp \
 	asio/associated_executor.hpp \
@@ -50,6 +52,7 @@ nobase_include_HEADERS = \
 	asio/coroutine.hpp \
 	asio/deadline_timer.hpp \
 	asio/defer.hpp \
+	asio/deferred.hpp \
 	asio/detached.hpp \
 	asio/detail/array_fwd.hpp \
 	asio/detail/array.hpp \
@@ -84,6 +87,7 @@ nobase_include_HEADERS = \
 	asio/detail/epoll_reactor.hpp \
 	asio/detail/eventfd_select_interrupter.hpp \
 	asio/detail/event.hpp \
+	asio/detail/exception.hpp \
 	asio/detail/executor_function.hpp \
 	asio/detail/executor_op.hpp \
 	asio/detail/fd_set_adapter.hpp \
@@ -284,6 +288,7 @@ nobase_include_HEADERS = \
 	asio/detail/timer_scheduler.hpp \
 	asio/detail/tss_ptr.hpp \
 	asio/detail/type_traits.hpp \
+	asio/detail/utility.hpp \
 	asio/detail/variadic_templates.hpp \
 	asio/detail/wait_handler.hpp \
 	asio/detail/wait_op.hpp \
@@ -404,14 +409,10 @@ nobase_include_HEADERS = \
 	asio/experimental/detail/has_signature.hpp \
 	asio/experimental/detail/impl/channel_service.hpp \
 	asio/experimental/detail/partial_promise.hpp \
-	asio/experimental/impl/append.hpp \
 	asio/experimental/impl/as_single.hpp \
-	asio/experimental/impl/as_tuple.hpp \
 	asio/experimental/impl/channel_error.ipp \
 	asio/experimental/impl/coro.hpp \
-	asio/experimental/impl/deferred.hpp \
 	asio/experimental/impl/parallel_group.hpp \
-	asio/experimental/impl/prepend.hpp \
 	asio/experimental/impl/promise.hpp \
 	asio/experimental/impl/use_coro.hpp \
 	asio/experimental/parallel_group.hpp \
@@ -432,16 +433,18 @@ nobase_include_HEADERS = \
 	asio/high_resolution_timer.hpp \
 	asio.hpp \
 	asio/impl/any_io_executor.ipp \
+	asio/impl/append.hpp \
+	asio/impl/as_tuple.hpp \
 	asio/impl/awaitable.hpp \
 	asio/impl/buffered_read_stream.hpp \
 	asio/impl/buffered_write_stream.hpp \
 	asio/impl/cancellation_signal.ipp \
 	asio/impl/co_spawn.hpp \
-	asio/impl/compose.hpp \
 	asio/impl/connect.hpp \
 	asio/impl/connect_pipe.hpp \
 	asio/impl/connect_pipe.ipp \
 	asio/impl/defer.hpp \
+	asio/impl/deferred.hpp \
 	asio/impl/detached.hpp \
 	asio/impl/dispatch.hpp \
 	asio/impl/error_code.ipp \
@@ -455,6 +458,7 @@ nobase_include_HEADERS = \
 	asio/impl/io_context.ipp \
 	asio/impl/multiple_exceptions.ipp \
 	asio/impl/post.hpp \
+	asio/impl/prepend.hpp \
 	asio/impl/read_at.hpp \
 	asio/impl/read.hpp \
 	asio/impl/read_until.hpp \
@@ -517,6 +521,7 @@ nobase_include_HEADERS = \
 	asio/ip/unicast.hpp \
 	asio/ip/v6_only.hpp \
 	asio/is_applicable_property.hpp \
+	asio/is_contiguous_iterator.hpp \
 	asio/is_executor.hpp \
 	asio/is_read_buffered.hpp \
 	asio/is_write_buffered.hpp \
@@ -536,6 +541,7 @@ nobase_include_HEADERS = \
 	asio/posix/stream_descriptor.hpp \
 	asio/post.hpp \
 	asio/prefer.hpp \
+	asio/prepend.hpp \
 	asio/query.hpp \
 	asio/random_access_file.hpp \
 	asio/read_at.hpp \
