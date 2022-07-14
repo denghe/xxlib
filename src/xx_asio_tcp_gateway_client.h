@@ -17,6 +17,10 @@ namespace xx::Asio::Tcp::Gateway {
 
 	struct CPeer;
 	struct Client : IOCCode<Client> {
+        typedef asio::io_context::executor_type ExecutorType;
+        asio::executor_work_guard<ExecutorType> work_guard_;
+        Client() : work_guard_(asio::make_work_guard(ioc)) {
+        }
 		ObjManager om;
 		std::shared_ptr<CPeer> peer;																// 当前 peer
 		std::unordered_set<uint32_t> cppServerIds;													// 属于 cpp 处理的 serverId 存放于此
