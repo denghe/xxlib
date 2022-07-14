@@ -10,6 +10,7 @@
 #include "lprefix.h"
 
 
+#include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
@@ -580,24 +581,41 @@ static int stringK (FuncState *fs, TString *s) {
 
 /*
 ** Add an integer to list of constants and return its index.
-** Integers use userdata as keys to avoid collision with floats with
-** same value; conversion to 'void*' is used only for hashing, so there
-** are no "precision" problems.
 */
 static int luaK_intK (FuncState *fs, lua_Integer n) {
-  TValue k, o;
-  setpvalue(&k, cast_voidp(cast_sizet(n)));
+  TValue o;
   setivalue(&o, n);
-  return addk(fs, &k, &o);
+  return addk(fs, &o, &o);  /* use integer itself as key */
 }
 
 /*
-** Add a float to list of constants and return its index.
+** Add a float to list of constants and return its index. Floats
+** with integral values need a different key, to avoid collision
+** with actual integers. To that, we add to the number its smaller
+** power-of-two fraction that is still significant in its scale.
+** For doubles, that would be 1/2^52.
+** (This method is not bulletproof: there may be another float
+** with that value, and for floats larger than 2^53 the result is
+** still an integer. At worst, this only wastes an entry with
+** a duplicate.)
 */
 static int luaK_numberK (FuncState *fs, lua_Number r) {
   TValue o;
+  lua_Integer ik;
   setfltvalue(&o, r);
-  return addk(fs, &o, &o);  /* use number itself as key */
+  if (!luaV_flttointeger(r, &ik, F2Ieq))  /* not an integral value? */
+    return addk(fs, &o, &o);  /* use number itself as key */
+  else {  /* must build an alternative key */
+    const int nbm = l_floatatt(MANT_DIG);
+    const lua_Number q = l_mathop(ldexp)(l_mathop(1.0), -nbm + 1);
+    const lua_Number k = (ik == 0) ? q : r + r*q;  /* new key */
+    TValue kv;
+    setfltvalue(&kv, k);
+    /* result is not an integral value, unless value is too large */
+    lua_assert(!luaV_flttointeger(k, &ik, F2Ieq) ||
+                l_mathop(fabs)(r) >= l_mathop(1e6));
+    return addk(fs, &kv, &o);
+  }
 }
 
 
@@ -1373,7 +1391,10 @@ static void finishbinexpval (FuncState *fs, expdesc *e1, expdesc *e2,
 */
 static void codebinexpval (FuncState *fs, OpCode op,
                            expdesc *e1, expdesc *e2, int line) {
-  int v2 = luaK_exp2anyreg(fs, e2);  /* both operands are in registers */
+  int v2 = luaK_exp2anyreg(fs, e2);  /* make sure 'e2' is in a register */
+  /* 'e1' must be already in a register or it is a constant */
+  lua_assert((VNIL <= e1->k && e1->k <= VKSTR) ||
+             e1->k == VNONRELOC || e1->k == VRELOC);
   lua_assert(OP_ADD <= op && op <= OP_SHR);
   finishbinexpval(fs, e1, e2, op, v2, 0, line, OP_MMBIN,
                   cast(TMS, (op - OP_ADD) + TM_ADD));
@@ -1389,6 +1410,18 @@ static void codebini (FuncState *fs, OpCode op,
   int v2 = int2sC(cast_int(e2->u.ival));  /* immediate operand */
   lua_assert(e2->k == VKINT);
   finishbinexpval(fs, e1, e2, op, v2, flip, line, OP_MMBINI, event);
+}
+
+
+/*
+** Code binary operators with K operand.
+*/
+static void codebinK (FuncState *fs, BinOpr opr,
+                      expdesc *e1, expdesc *e2, int flip, int line) {
+  TMS event = cast(TMS, opr + TM_ADD);
+  int v2 = e2->u.info;  /* K index */
+  OpCode op = cast(OpCode, opr + OP_ADDK);
+  finishbinexpval(fs, e1, e2, op, v2, flip, line, OP_MMBINK, event);
 }
 
 
@@ -1420,23 +1453,27 @@ static void swapexps (expdesc *e1, expdesc *e2) {
 
 
 /*
+** Code binary operators with no constant operand.
+*/
+static void codebinNoK (FuncState *fs, BinOpr opr,
+                        expdesc *e1, expdesc *e2, int flip, int line) {
+  OpCode op = cast(OpCode, opr + OP_ADD);
+  if (flip)
+    swapexps(e1, e2);  /* back to original order */
+  codebinexpval(fs, op, e1, e2, line);  /* use standard operators */
+}
+
+
+/*
 ** Code arithmetic operators ('+', '-', ...). If second operand is a
 ** constant in the proper range, use variant opcodes with K operands.
 */
 static void codearith (FuncState *fs, BinOpr opr,
                        expdesc *e1, expdesc *e2, int flip, int line) {
-  TMS event = cast(TMS, opr + TM_ADD);
-  if (tonumeral(e2, NULL) && luaK_exp2K(fs, e2)) {  /* K operand? */
-    int v2 = e2->u.info;  /* K index */
-    OpCode op = cast(OpCode, opr + OP_ADDK);
-    finishbinexpval(fs, e1, e2, op, v2, flip, line, OP_MMBINK, event);
-  }
-  else {  /* 'e2' is neither an immediate nor a K operand */
-    OpCode op = cast(OpCode, opr + OP_ADD);
-    if (flip)
-      swapexps(e1, e2);  /* back to original order */
-    codebinexpval(fs, op, e1, e2, line);  /* use standard operators */
-  }
+  if (tonumeral(e2, NULL) && luaK_exp2K(fs, e2))  /* K operand? */
+    codebinK(fs, opr, e1, e2, flip, line);
+  else  /* 'e2' is neither an immediate nor a K operand */
+    codebinNoK(fs, opr, e1, e2, flip, line);
 }
 
 
@@ -1460,28 +1497,20 @@ static void codecommutative (FuncState *fs, BinOpr op,
 
 
 /*
-** Code bitwise operations; they are all associative, so the function
+** Code bitwise operations; they are all commutative, so the function
 ** tries to put an integer constant as the 2nd operand (a K operand).
 */
 static void codebitwise (FuncState *fs, BinOpr opr,
                          expdesc *e1, expdesc *e2, int line) {
   int flip = 0;
-  int v2;
-  OpCode op;
-  if (e1->k == VKINT && luaK_exp2RK(fs, e1)) {
+  if (e1->k == VKINT) {
     swapexps(e1, e2);  /* 'e2' will be the constant operand */
     flip = 1;
   }
-  else if (!(e2->k == VKINT && luaK_exp2RK(fs, e2))) {  /* no constants? */
-    op = cast(OpCode, opr + OP_ADD);
-    codebinexpval(fs, op, e1, e2, line);  /* all-register opcodes */
-    return;
-  }
-  v2 = e2->u.info;  /* index in K array */
-  op = cast(OpCode, opr + OP_ADDK);
-  lua_assert(ttisinteger(&fs->f->k[v2]));
-  finishbinexpval(fs, e1, e2, op, v2, flip, line, OP_MMBINK,
-                  cast(TMS, opr + TM_ADD));
+  if (e2->k == VKINT && luaK_exp2K(fs, e2))  /* K operand? */
+    codebinK(fs, opr, e1, e2, flip, line);
+  else  /* no constants */
+    codebinNoK(fs, opr, e1, e2, flip, line);
 }
 
 
@@ -1533,7 +1562,7 @@ static void codeeq (FuncState *fs, BinOpr opr, expdesc *e1, expdesc *e2) {
     op = OP_EQI;
     r2 = im;  /* immediate operand */
   }
-  else if (luaK_exp2RK(fs, e2)) {  /* 1st expression is constant? */
+  else if (luaK_exp2RK(fs, e2)) {  /* 2nd expression is constant? */
     op = OP_EQK;
     r2 = e2->u.info;  /* constant index */
   }
@@ -1593,7 +1622,8 @@ void luaK_infix (FuncState *fs, BinOpr op, expdesc *v) {
     case OPR_SHL: case OPR_SHR: {
       if (!tonumeral(v, NULL))
         luaK_exp2anyreg(fs, v);
-      /* else keep numeral, which may be folded with 2nd operand */
+      /* else keep numeral, which may be folded or used as an immediate
+         operand */
       break;
     }
     case OPR_EQ: case OPR_NE: {
