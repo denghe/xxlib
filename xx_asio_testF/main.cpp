@@ -33,7 +33,7 @@ struct Listener : asio::noncopyable {
 			for (;;) {
 				asio::ip::tcp::socket socket(ioc);
 				if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
-					socket.set_option(asio::ip::tcp::no_delay(true));
+					//socket.set_option(asio::ip::tcp::no_delay(true));
 					sh(std::move(socket));
 				}
 			}
@@ -170,6 +170,9 @@ struct Data : Data_r {
 /*************************************************************************************************************************/
 /*************************************************************************************************************************/
 
+#define ENABLE_READ_HEADER_READ_DATA_MODE
+
+
 #define PEERTHIS ((PeerDeriveType*)(this))
 
 template<class PeerDeriveType>
@@ -216,32 +219,40 @@ struct PeerBaseCode {
 	}
 
 protected:
-	//awaitable<void> Read() {
-	//	for (;;) {
-	//		Data d;
-	//		{
-	//			// 读 2 字节 包头( 含自身长度 )
-	//			uint16_t dataLen = 0;
-	//			auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, sizeof(uint16_t)), use_nothrow_awaitable);
-	//			if (ec || !dataLen) break;
-	//			if (stoped) co_return;
-	//			d.Resize(dataLen);
-	//			d.WriteFixedAt(0, dataLen);		// 顺便也把 包头 写入容器 以方便某些转发逻辑
-	//		}
-	//		{
-	//			// 读 数据
-	//			auto [ec, n] = co_await asio::async_read(socket, asio::buffer(d.buf + sizeof(uint16_t), d.len - sizeof(uint16_t)), use_nothrow_awaitable);
-	//			if (ec) break;
-	//			if (stoped) co_return;
-	//		}
-	//		if (auto r = PEERTHIS->HandleMessage(std::move(d))) {							// PeerDeriveType need supply this function: int HandleMessage(Data&& d)
-	//			Stop();
-	//		}
-	//		if (stoped) co_return;
-	//	}
-	//	Stop();
-	//}
-
+#ifdef ENABLE_READ_HEADER_READ_DATA_MODE
+	awaitable<void> Read() {
+		for (;;) {
+			Data d;
+			{
+				// 读 2 字节 包头( 含自身长度 )
+				uint16_t dataLen = 0;
+				{
+					auto [ec, n] = co_await asio::async_read(socket, asio::buffer(&dataLen, 1), use_nothrow_awaitable);
+					if (ec) break;
+				}
+				{
+					auto [ec, n] = co_await asio::async_read(socket, asio::buffer((char*)&dataLen + 1, 1), use_nothrow_awaitable);
+					if (ec) break;
+				}
+				if (!dataLen) break;
+				if (stoped) co_return;
+				d.Resize(dataLen);
+				d.WriteFixedAt(0, dataLen);		// 顺便也把 包头 写入容器 以方便某些转发逻辑
+			}
+			{
+				// 读 数据
+				auto [ec, n] = co_await asio::async_read(socket, asio::buffer(d.buf + sizeof(uint16_t), d.len - sizeof(uint16_t)), use_nothrow_awaitable);
+				if (ec) break;
+				if (stoped) co_return;
+			}
+			if (auto r = PEERTHIS->HandleMessage(std::move(d))) {							// PeerDeriveType need supply this function: int HandleMessage(Data&& d)
+				Stop();
+			}
+			if (stoped) co_return;
+		}
+		Stop();
+	}
+#else
 	// 另外一种写法. 少一次 read, 数据引用处理
 	awaitable<void> Read() {
 		uint8_t buf[16384];
@@ -277,6 +288,8 @@ protected:
 		}
 		Stop();
 	}
+#endif
+
 
 	awaitable<void> Write() {
 		while (socket.is_open()) {
@@ -346,6 +359,29 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 		co_return r;
 	}
 
+#ifdef ENABLE_READ_HEADER_READ_DATA_MODE
+	int HandleMessage(Data&& d) {
+		int32_t serial;
+		if (d.ReadFixedAt(2, serial)) return __LINE__;
+		d.offset = sizeof(uint16_t) + sizeof(int32_t);	// skip header area
+
+		if (serial > 0) {
+			if (auto iter = reqs.find(serial); iter != reqs.end()) {
+				iter->second.second = std::move(d);
+				iter->second.first.cancel();
+			}
+		}
+		else {
+			if (serial == 0) {
+				if (PEERTHIS->ReceivePush(std::move(d))) return __LINE__;					// PeerDeriveType need supply this function: int ReceivePush(Data&& d)
+			}
+			else {
+				if (PEERTHIS->ReceiveRequest(-serial, std::move(d))) return __LINE__;		// PeerDeriveType need supply this function: int ReceiveRequest(int32_t serial, Data&& d)
+			}
+		}
+		return 0;
+	}
+#else
 	int HandleMessage(Data_r& d) {
 		int32_t serial;
 		if (d.ReadFixedAt(2, serial)) return __LINE__;
@@ -356,17 +392,16 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 				iter->second.second = Data(d.buf, d.len, d.offset);				// copy to new Data
 				iter->second.first.cancel();
 			}
-		}
-		else {
+		} else {
 			if (serial == 0) {
 				if (PEERTHIS->ReceivePush(d)) return __LINE__;					// PeerDeriveType need supply this function: int ReceivePush(Data_r& d)
-			}
-			else {
+			} else {
 				if (PEERTHIS->ReceiveRequest(-serial, d)) return __LINE__;		// PeerDeriveType need supply this function: int ReceiveRequest(int32_t serial, Data_r& d)
 			}
 		}
 		return 0;
 	}
+#endif
 };
 
 /*************************************************************************************************************************/
@@ -395,19 +430,27 @@ struct Peer : PeerReqCode<Peer>, std::enable_shared_from_this<Peer> {
 		co_return rtv;
 	}
 
+#ifdef ENABLE_READ_HEADER_READ_DATA_MODE
+	int ReceivePush(Data&& d) {
+#else
 	int ReceivePush(Data_r& d) {
+#endif
 		return 0;
 	}
 
-	int ReceiveRequest(int32_t serial, Data_r& dr) {
+#ifdef ENABLE_READ_HEADER_READ_DATA_MODE
+	int ReceiveRequest(int32_t serial, Data&& d) {
+#else
+	int ReceiveRequest(int32_t serial, Data_r& d) {
+#endif
 		uint16_t typeId = 0;
-		if (int r = dr.ReadFixed(typeId)) return __LINE__;
+		if (int r = d.ReadFixed(typeId)) return __LINE__;
 		switch (typeId) {
 		case 1: {
 			int a;
-			if (int r = dr.ReadFixed(a)) return __LINE__;
+			if (int r = d.ReadFixed(a)) return __LINE__;
 			int b;
-			if (int r = dr.ReadFixed(b)) return __LINE__;
+			if (int r = d.ReadFixed(b)) return __LINE__;
 			SendResponse<16>(serial, [a, b](Data& d) {
 				d.WriteFixed<false>(a + b);
 			});
