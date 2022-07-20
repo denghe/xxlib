@@ -13,16 +13,17 @@ namespace xx {
     // 数字字节序交换
     template<typename T>
     static T BSwap(T const& i) {
+        T r;
 #ifdef _WIN32
-        if constexpr (sizeof(T) == 2) return (T)_byteswap_ushort(*(uint16_t*)&i);
-        if constexpr (sizeof(T) == 4) return (T)_byteswap_ulong(*(uint32_t*)&i);
-        if constexpr (sizeof(T) == 8) return (T)_byteswap_uint64(*(uint64_t*)&i);
+        if constexpr (sizeof(T) == 2) *(uint16_t*)&r = _byteswap_ushort(*(uint16_t*)&i);
+        if constexpr (sizeof(T) == 4) *(uint32_t*)&r = _byteswap_ulong(*(uint32_t*)&i);
+        if constexpr (sizeof(T) == 8) *(uint64_t*)&r = _byteswap_uint64(*(uint64_t*)&i);
 #else
-        if constexpr (sizeof(T) == 2) return (T)__builtin_bswap16(*(uint16_t*)&i);
-        if constexpr (sizeof(T) == 4) return (T)__builtin_bswap32(*(uint32_t*)&i);
-        if constexpr (sizeof(T) == 8) return (T)__builtin_bswap64(*(uint64_t*)&i);
+        if constexpr (sizeof(T) == 2) *(uint16_t*)&r = __builtin_bswap16(*(uint16_t*)&i);
+        if constexpr (sizeof(T) == 4) *(uint32_t*)&r = __builtin_bswap32(*(uint32_t*)&i);
+        if constexpr (sizeof(T) == 8) *(uint64_t*)&r = __builtin_bswap64(*(uint64_t*)&i);
 #endif
-        return i;
+        return r;
     }
 
     // 带符号整数 解码 return (in 为单数) ? -(in + 1) / 2 : in / 2
