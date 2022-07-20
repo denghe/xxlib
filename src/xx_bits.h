@@ -4,7 +4,7 @@
 #include <cassert>
 
 #ifdef _WIN32
-#include <intrin.h>     // _BitScanReverse[64] _byteswap_ulong _byteswap_uint64
+#include <intrin.h>     // _BitScanReverseXXXX _byteswap_XXXX
 #endif
 #include <algorithm>
 #include <cmath>
@@ -13,11 +13,12 @@ namespace xx {
     // 数字字节序交换
     template<typename T>
     static T BSwap(T const& i) {
-        if constexpr (sizeof(T) == 2) return (*(uint16_t*)&i >> 8) | (*(uint16_t*)&i << 8);
 #ifdef _WIN32
+        if constexpr (sizeof(T) == 2) return (T)_byteswap_ushort(*(uint16_t*)&i);
         if constexpr (sizeof(T) == 4) return (T)_byteswap_ulong(*(uint32_t*)&i);
         if constexpr (sizeof(T) == 8) return (T)_byteswap_uint64(*(uint64_t*)&i);
 #else
+        if constexpr (sizeof(T) == 2) return (T)__builtin_bswap16(*(uint16_t*)&i);
         if constexpr (sizeof(T) == 4) return (T)__builtin_bswap32(*(uint32_t*)&i);
         if constexpr (sizeof(T) == 8) return (T)__builtin_bswap64(*(uint64_t*)&i);
 #endif
