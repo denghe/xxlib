@@ -18,17 +18,16 @@ else()
 	add_definitions("-D_WIN32_WINNT=0x0602")	# for asio 0602 win8
 endif ()
 
+add_definitions("-DASIO_CONCURRENCY_HINT_1=ASIO_CONCURRENCY_HINT_UNSAFE")
+
 list(APPEND dirs
 		../src
 		../3rd
 		../asio_include
-		../xx_asio_testA
 		)
 list(APPEND srcs
 		main.cpp
-		../xx_asio_testA/pkg.cpp
 		)
-
 
 link_directories(
 		${libdirs}
