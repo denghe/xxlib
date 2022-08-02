@@ -532,7 +532,7 @@ namespace xx {
 
 
     // 将 string 里数字部分转为 n 字节定长（前面补0）后返回( 方便排序 ). 不支持小数
-    inline std::string InnerNumberToFixed(std::string const& s, int const& n = 16) {
+    inline std::string InnerNumberToFixed(std::string_view const& s, int const& n = 16) {
         std::string t, d;
         bool handleDigit = false;
         for (auto&& c : s) {
@@ -545,7 +545,7 @@ namespace xx {
             else {
                 if (handleDigit) {
                     handleDigit = false;
-                    t.append(16 - d.size(), '0');
+                    t.append(n - d.size(), '0');
                     t.append(d);
                     d.clear();
                 }
@@ -556,7 +556,7 @@ namespace xx {
         }
         if (handleDigit) {
             handleDigit = false;
-            t.append(16 - d.size(), '0');
+            t.append(n - d.size(), '0');
             t.append(d);
             d.clear();
         }
