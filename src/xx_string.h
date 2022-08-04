@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "xx_helpers.h"
-#include "xx_data.h"
 #include <iostream>
 
 namespace xx {
@@ -340,6 +339,22 @@ namespace xx {
     /************************************************************************************/
     // string 处理相关
     /************************************************************************************/
+
+    inline constexpr std::string_view TrimRight(std::string_view const& s) {
+        auto idx = s.find_last_not_of(" \t\n\r\f\v");
+        if (idx == s.std::string_view::npos) return {};
+        return { s.data(), idx + 1 };
+    }
+
+    inline constexpr std::string_view TrimLeft(std::string_view const& s) {
+        auto idx = s.find_first_not_of(" \t\n\r\f\v");
+        if (idx == s.std::string_view::npos) return {};
+        return { s.data() + idx, s.size() - idx };
+    }
+
+    inline constexpr std::string_view Trim(std::string_view const& s) {
+        return TrimLeft(TrimRight(s));
+    }
 
     // 转换 s 数据类型 为 T 填充 dst
     template<typename T>

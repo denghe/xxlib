@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "imgui.h"
 #include "imgui_impl_dx9.h"
 #include "imgui_impl_win32.h"
@@ -6,9 +6,9 @@
 #include <d3d9.h>
 #include "ntcvt.hpp"
 
-// ÓÃ·¨ËµÃ÷ÔÚ×îÏÂÃæ
+// ç”¨æ³•è¯´æ˜åœ¨æœ€ä¸‹é¢
 
-// ´°¿Ú¾ÓÖĞ
+// çª—å£å±…ä¸­
 inline void PlaceInCenterOfScreen(HWND window, DWORD style, BOOL menu) {
 	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -24,7 +24,7 @@ inline void PlaceInCenterOfScreen(HWND window, DWORD style, BOOL menu) {
 	);
 }
 
-// ÔÚ×¢²á±íÖÖ²éÕÒ ×ÖÌå ÎÄ¼şÂ·¾¶
+// åœ¨æ³¨å†Œè¡¨ç§æŸ¥æ‰¾ å­—ä½“ æ–‡ä»¶è·¯å¾„
 inline std::string GetSystemFontFile(const std::wstring& faceName) {
 
 	HKEY hKey;
@@ -85,18 +85,18 @@ inline std::string GetSystemFontFile(const std::wstring& faceName) {
 }
 
 
-// DX9 Ïà¹ØÉÏÏÂÎÄ
+// DX9 ç›¸å…³ä¸Šä¸‹æ–‡
 static LPDIRECT3D9              g_pD3D = NULL;
 static LPDIRECT3DDEVICE9        g_pd3dDevice = NULL;
 static D3DPRESENT_PARAMETERS    g_d3dpp = {};
 
-// Ç°ÖÃÉùÃ÷
+// å‰ç½®å£°æ˜
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void ResetDevice();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Èë¿Ú
+// å…¥å£
 template<typename ImGuiContext>
 inline int RunImGuiContext(HINSTANCE hInstance, ImGuiContext& ctx) {
 
@@ -107,8 +107,10 @@ inline int RunImGuiContext(HINSTANCE hInstance, ImGuiContext& ctx) {
 	LARGE_INTEGER nLast;
 	QueryPerformanceCounter(&nLast);
 
-	// ¿ÉÎŞÊÓÏÔÊ¾Æ÷ DPI ·Å´óÉèÖÃ
-	//ImGui_ImplWin32_EnableDpiAwareness();
+	// å¯æ— è§†æ˜¾ç¤ºå™¨ DPI æ”¾å¤§è®¾ç½®
+	if (ctx.enableDpiAwarenes) {
+		ImGui_ImplWin32_EnableDpiAwareness();
+	}
 
 	// register window class
 	WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, ctx.wndName.c_str(), NULL };
@@ -152,7 +154,8 @@ inline int RunImGuiContext(HINSTANCE hInstance, ImGuiContext& ctx) {
 	ImGui_ImplDX9_Init(g_pd3dDevice);
 
 	// Load Fonts
-	io.Fonts->AddFontFromFileTTF(GetSystemFontFile(ctx.fontName).c_str(), ctx.fontSize);
+	auto fontPath = GetSystemFontFile(ctx.fontName);
+	io.Fonts->AddFontFromFileTTF(fontPath.c_str(), ctx.fontSize, nullptr, io.Fonts->GetGlyphRangesChineseFull());
 
 	// Main loop
 	bool done = false;
@@ -204,6 +207,8 @@ inline int RunImGuiContext(HINSTANCE hInstance, ImGuiContext& ctx) {
 			Sleep((int)waitMS);
 		}
 	}
+
+	io.Fonts->ClearFonts();
 
 	ImGui_ImplDX9_Shutdown();
 	ImGui_ImplWin32_Shutdown();
@@ -281,30 +286,33 @@ inline LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return ::DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-// ÒµÎñÀàĞèÒª¼Ì³ĞÕâ¸ö»ùÀà£¬²¢Ìá¹© int Draw() º¯Êı£¬×îºó´«¸ø RunContext
+// ä¸šåŠ¡ç±»éœ€è¦ç»§æ‰¿è¿™ä¸ªåŸºç±»ï¼Œå¹¶æä¾› int Draw() å‡½æ•°ï¼Œæœ€åä¼ ç»™ RunContext
 struct ImGuiContextBase {
 
-	// ´°¿Ú×¢²áÀàÃû
+	// çª—å£æ³¨å†Œç±»å
 	std::wstring wndName = L"imgui_window1";
 
-	// ´°¿Ú±êÌâ
+	// çª—å£æ ‡é¢˜
 	std::wstring wndTitle = L"imgui window1";
 
-	// ´°¿ÚÄÚÈİÉè¼Æ³ß´ç£¨ÊÜ DPI Ëõ·ÅÓ°Ïì£¬Êµ¼Ê¿ÉÄÜ²»Ö¹£©
+	// çª—å£å†…å®¹è®¾è®¡å°ºå¯¸ï¼ˆå— DPI ç¼©æ”¾å½±å“ï¼Œå®é™…å¯èƒ½ä¸æ­¢ï¼‰
 	float wndWidth = 1280, wndHeight = 720;
 
-	// Ä¬ÈÏ×ÖÌåÃû
-	std::wstring fontName = L"consola";
+	// é»˜è®¤å­—ä½“å
+	std::wstring fontName = L"simhei";
 
-	// Ä¬ÈÏ×ÖºÅ
+	// é»˜è®¤å­—å·
 	float fontSize = 16.f;
 
-	// ±³¾°É«
+	// èƒŒæ™¯è‰²
 	ImVec4 clearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+	// æ˜¯å¦å¿½ç•¥æ˜¾ç¤ºå™¨ dpi è®¾ç½®( å¿½ç•¥ + å¤§å­—ä½“ä¼šæ¯”è¾ƒæ¸…æ™° )
+	bool enableDpiAwarenes = false;
 };
 
-// ÏîÄ¿ĞèÒªÁ´½Ó d3d9.lib
-// ÏîÄ¿ĞèÒªÉèÖÃ search path µ½ ÏÂÁĞ ÎÄ¼ş ËùÔÚÄ¿Â¼. Í¬Ê±ÕâĞ© cpp ĞèÒªÀ­µ½ÏîÄ¿ÖĞ ½øĞĞ±àÒë
+// é¡¹ç›®éœ€è¦é“¾æ¥ d3d9.lib
+// é¡¹ç›®éœ€è¦è®¾ç½® search path åˆ° ä¸‹åˆ— æ–‡ä»¶ æ‰€åœ¨ç›®å½•. åŒæ—¶è¿™äº› cpp éœ€è¦æ‹‰åˆ°é¡¹ç›®ä¸­ è¿›è¡Œç¼–è¯‘
 // 
 // imgui.cpp
 // imgui_demo.cpp
@@ -322,9 +330,10 @@ struct ImGuiContextBase {
 
 
 
-// Ê¾Àı
+// ç¤ºä¾‹
 
-//#include <xx_imgui_dx9_helper.h>
+//#pragma execution_character_set("utf-8")
+//#include "xx_imgui_helper.h"
 //
 //struct Context : ImGuiContextBase {
 //	Context() {
@@ -344,18 +353,18 @@ struct ImGuiContextBase {
 //			popuped = true;
 //			ImGui::OpenPopup("Error");
 //		}
-//		// ÉèÖÃ¾ÓÖĞÏÔÊ¾
+//		// è®¾ç½®å±…ä¸­æ˜¾ç¤º
 //		ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 //		ImGui::SetNextWindowPos(center, ImGuiCond_Appearing /* ImGuiCond_Always */, { 0.5f, 0.5f });
-//		// ¿ªÊ¼ÉùÃ÷µ¯³ö´°¿Ú£¬³ß´ç×ÔÊÊÓ¦
+//		// å¼€å§‹å£°æ˜å¼¹å‡ºçª—å£ï¼Œå°ºå¯¸è‡ªé€‚åº”
 //		if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-//			// ÏÔÊ¾´íÎóÎÄ±¾
+//			// æ˜¾ç¤ºé”™è¯¯æ–‡æœ¬
 //			ImGui::Text(errorText.c_str());
-//			// ÉÏÏÂ Áô¿Õ µÄºá¸Ü
+//			// ä¸Šä¸‹ ç•™ç©º çš„æ¨ªæ 
 //			ImGui::Dummy({ 0.0f, 5.0f });
 //			ImGui::Separator();
 //			ImGui::Dummy({ 0.0f, 5.0f });
-//			// ÓÒ¶ÔÆë OK °´Å¥. ¿í¸ßĞèÃ÷È·Ö¸¶¨
+//			// å³å¯¹é½ OK æŒ‰é’®. å®½é«˜éœ€æ˜ç¡®æŒ‡å®š
 //			ImGui::Dummy({ 0.0f, 0.0f });
 //			ImGui::SameLine(ImGui::GetWindowWidth() - (ImGui::GetStyle().ItemSpacing.x + 80));
 //			if (ImGui::Button("OK", { 80, 35 })) {
@@ -363,7 +372,7 @@ struct ImGuiContextBase {
 //				popuped = false;
 //				hasError = false;
 //			}
-//			// ½áÊøÉùÃ÷µ¯³ö´°¿Ú
+//			// ç»“æŸå£°æ˜å¼¹å‡ºçª—å£
 //			ImGui::EndPopup();
 //		}
 //		return rtv;

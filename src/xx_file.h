@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "xx_data.h"
 #include "xx_helpers.h"
 #include <fstream>
 #include <filesystem>
