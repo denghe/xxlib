@@ -307,6 +307,11 @@ struct ImGuiContextBase {
 	// 背景色
 	ImVec4 clearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+	// 常用交互色
+	ImVec4 normalColor { 0, 0, 0, 1.0f };
+	ImVec4 pressColor { 0.5f, 0, 0, 1.0f };
+	ImVec4 releaseColor { 0, 0.5f, 0, 1.0f };
+
 	// 是否忽略显示器 dpi 设置( 忽略 + 大字体会比较清晰 )
 	bool enableDpiAwarenes = false;
 };
