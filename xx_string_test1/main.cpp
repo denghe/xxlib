@@ -1,43 +1,56 @@
 ﻿#include <string_view>
 #include <iostream>
-#include <xx_string.h>
+using namespace std::string_view_literals;
 
-struct sv_spliter {
-	std::string_view sv;
-	sv_spliter(std::string_view const& sv) : sv(sv) {}
+inline constexpr std::string_view split_once(std::string_view& sv, char const& delimiter = '\n') {
+    auto siz = sv.size();
+    if (!siz) return sv;
+    auto data = sv.data();
+    for (size_t i = 0; i != siz; ++i) {
+        if (sv[i] == delimiter) {
+            sv = std::string_view(data + i + 1, siz - i - 1);
+            return {data, i};
+        }
+    }
+    sv = std::string_view(data + siz, 0);
+    return {data, siz};
+}
 
-	operator bool() {
-		return sv.size();
-	}
+inline constexpr std::string_view trim_right(std::string_view const& s) {
+    auto idx = s.find_last_not_of(" \t\n\r\f\v");
+    if (idx == std::string_view::npos) return { s.data(), 0 };
+    return { s.data(), idx + 1 };
+}
 
-	std::string_view cut(char const& delimiter = '\n') {
-		auto siz = sv.size();
-		if (!siz) return sv;
-		auto data = sv.data();
-		for (size_t i = 0; i != siz; ++i) {
-			if (sv[i] == delimiter) {
-				sv = std::string_view(data + i + 1, siz - i - 1);
-				return std::string_view(data, i);
-			}
-		}
-		sv = std::string_view(data + siz, 0);
-		return sv;
-	}
-};
+inline constexpr std::string_view trim_left(std::string_view const& s) {
+    auto idx = s.find_first_not_of(" \t\n\r\f\v");
+    if (idx == std::string_view::npos) return { s.data(), 0 };
+    return { s.data() + idx, s.size() - idx };
+}
+
+inline constexpr std::string_view trim_all(std::string_view const& s) {
+    return trim_left(trim_right(s));
+}
 
 int main() {
-	sv_spliter svs(R"(
+	auto sv = R"(
 
- 1,2,3
+ 1, 2,3
 
-4,5,6 
+4,5     ,6
 
-)");
-	while (svs) {
-		auto line = svs.cut('\n');
-		line = xx::Trim(line);
+789\r )"sv;
+
+	while (!sv.empty()) {
+		auto line = split_once(sv, '\n');
+		line = trim_all(line);
 		if (line.empty()) continue;
-		std::cout << line << std::endl;
+        while (!line.empty()) {
+            auto word = split_once(line, ',');
+            word = trim_all(word);
+            if (word.empty()) continue;
+            std::cout << word << std::endl;
+        }
 	}
 }
 
