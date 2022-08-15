@@ -1,73 +1,117 @@
-﻿#include <xx_dict.h>
+﻿#include <string_view>
+#include <iostream>
 #include <xx_string.h>
-#include <unordered_map>
-#include <tsl/hopscotch_map.h>
+
+struct sv_spliter {
+	std::string_view sv;
+	sv_spliter(std::string_view const& sv) : sv(sv) {}
+
+	operator bool() {
+		return sv.size();
+	}
+
+	std::string_view cut(char const& delimiter = '\n') {
+		auto siz = sv.size();
+		if (!siz) return sv;
+		auto data = sv.data();
+		for (size_t i = 0; i != siz; ++i) {
+			if (sv[i] == delimiter) {
+				sv = std::string_view(data + i + 1, siz - i - 1);
+				return std::string_view(data, i);
+			}
+		}
+		sv = std::string_view(data + siz, 0);
+		return sv;
+	}
+};
 
 int main() {
+	sv_spliter svs(R"(
 
-	xx::Dict<int, int> d1;
-	std::unordered_map<int, int> d2;
-	tsl::hopscotch_map<int, int, xx::Hash<int>> d3;
-	int n = 10000000;
+ 1,2,3
 
-	for (int j = 0; j < 3; j++) {
-		{
-			d1.Clear();
-			auto secs = xx::NowSteadyEpochSeconds();
-			for (int i = 0; i < n; ++i) {
-				d1.Add(i, i);
-			}
-			xx::CoutN("insert ", n, " rows xx::Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
-		}
-		{
-			d2.clear();
-			auto secs = xx::NowSteadyEpochSeconds();
-			for (int i = 0; i < n; ++i) {
-				d2.emplace(i, i);
-			}
-			xx::CoutN("insert ", n, " rows std::unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
-		}
-		{
-			d3.clear();
-			auto secs = xx::NowSteadyEpochSeconds();
-			for (int i = 0; i < n; ++i) {
-				d3.emplace(i, i);
-			}
-			xx::CoutN("insert ", n, " rows tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
-		}
-	}
+4,5,6 
 
-	for (int i = 0; i < 5; i++) {
-		auto secs = xx::NowSteadyEpochSeconds();
-		int64_t counter = 0;
-		for (int j = 0; j < n; j++) {
-			if (auto r = d1.Find(j); r != -1) {
-				counter += d1.ValueAt(r);
-			}
-		}
-		xx::CoutN("counter = ", counter, ", xx::Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
-	}
-	for (int i = 0; i < 5; i++) {
-		auto secs = xx::NowSteadyEpochSeconds();
-		int64_t counter = 0;
-		for (int j = 0; j < n; j++) {
-			if (auto r = d2.find(j); r != d2.end()) {
-				counter += r->second;
-			}
-		}
-		xx::CoutN("counter = ", counter, ", std::unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
-	}
-	for (int i = 0; i < 5; i++) {
-		auto secs = xx::NowSteadyEpochSeconds();
-		int64_t counter = 0;
-		for (int j = 0; j < n; j++) {
-			if (auto r = d3.find(j); r != d3.end()) {
-				counter += r->second;
-			}
-		}
-		xx::CoutN("counter = ", counter, ", tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+)");
+	while (svs) {
+		auto line = svs.cut('\n');
+		line = xx::Trim(line);
+		if (line.empty()) continue;
+		std::cout << line << std::endl;
 	}
 }
+
+
+//#include <xx_dict.h>
+//#include <xx_string.h>
+//#include <unordered_map>
+//#include <tsl/hopscotch_map.h>
+//
+//int main() {
+//
+//	xx::Dict<int, int> d1;
+//	std::unordered_map<int, int> d2;
+//	tsl::hopscotch_map<int, int, xx::Hash<int>> d3;
+//	int n = 10000000;
+//
+//	for (int j = 0; j < 3; j++) {
+//		{
+//			d1.Clear();
+//			auto secs = xx::NowSteadyEpochSeconds();
+//			for (int i = 0; i < n; ++i) {
+//				d1.Add(i, i);
+//			}
+//			xx::CoutN("insert ", n, " rows xx::Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
+//		}
+//		{
+//			d2.clear();
+//			auto secs = xx::NowSteadyEpochSeconds();
+//			for (int i = 0; i < n; ++i) {
+//				d2.emplace(i, i);
+//			}
+//			xx::CoutN("insert ", n, " rows std::unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//		}
+//		{
+//			d3.clear();
+//			auto secs = xx::NowSteadyEpochSeconds();
+//			for (int i = 0; i < n; ++i) {
+//				d3.emplace(i, i);
+//			}
+//			xx::CoutN("insert ", n, " rows tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//		}
+//	}
+//
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			if (auto r = d1.Find(j); r != -1) {
+//				counter += d1.ValueAt(r);
+//			}
+//		}
+//		xx::CoutN("counter = ", counter, ", xx::Dict secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			if (auto r = d2.find(j); r != d2.end()) {
+//				counter += r->second;
+//			}
+//		}
+//		xx::CoutN("counter = ", counter, ", std::unordered_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//	for (int i = 0; i < 5; i++) {
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		int64_t counter = 0;
+//		for (int j = 0; j < n; j++) {
+//			if (auto r = d3.find(j); r != d3.end()) {
+//				counter += r->second;
+//			}
+//		}
+//		xx::CoutN("counter = ", counter, ", tsl::hopscotch_map secs = ", xx::NowSteadyEpochSeconds() - secs);
+//	}
+//}
 
 
 

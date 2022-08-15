@@ -342,13 +342,13 @@ namespace xx {
 
     inline constexpr std::string_view TrimRight(std::string_view const& s) {
         auto idx = s.find_last_not_of(" \t\n\r\f\v");
-        if (idx == s.std::string_view::npos) return {};
+        if (idx == std::string_view::npos) return {};
         return { s.data(), idx + 1 };
     }
 
     inline constexpr std::string_view TrimLeft(std::string_view const& s) {
         auto idx = s.find_first_not_of(" \t\n\r\f\v");
-        if (idx == s.std::string_view::npos) return {};
+        if (idx == std::string_view::npos) return {};
         return { s.data() + idx, s.size() - idx };
     }
 
