@@ -2,12 +2,21 @@
 #include <iostream>
 using namespace std::string_view_literals;
 
-inline constexpr std::string_view split_once(std::string_view& sv, char const& delimiter = '\n') {
+template<size_t numDelimiters>
+inline constexpr std::string_view split_once(std::string_view& sv, char const(&delimiters)[numDelimiters]) {
+    static_assert(numDelimiters >= 2);
     auto siz = sv.size();
     if (!siz) return sv;
     auto data = sv.data();
     for (size_t i = 0; i != siz; ++i) {
-        if (sv[i] == delimiter) {
+        bool found;
+        if constexpr (numDelimiters == 2) {
+            found = sv[i] == delimiters[0];
+        }
+        else {
+            found = std::string_view(delimiters).find(sv[i]) != std::string_view::npos;
+        }
+        if (found) {
             sv = std::string_view(data + i + 1, siz - i - 1);
             return {data, i};
         }
@@ -33,25 +42,31 @@ inline constexpr std::string_view trim_all(std::string_view const& s) {
 }
 
 int main() {
-	auto sv = R"(
+	auto str = R"(
 
  1, 2,3
-
 4,5     ,6
 
-789\r )"sv;
+7,       8,9 )"sv;
 
-	while (!sv.empty()) {
-		auto line = split_once(sv, '\n');
+    auto s = str;
+	while (!s.empty()) {
+		auto line = split_once(s, "\n");
 		line = trim_all(line);
 		if (line.empty()) continue;
         while (!line.empty()) {
-            auto word = split_once(line, ',');
+            auto word = split_once(line, ",");
             word = trim_all(word);
-            if (word.empty()) continue;
             std::cout << word << std::endl;
         }
 	}
+
+    s = str;
+    while (!s.empty()) {
+        if (auto word = trim_all(split_once(s, "\n,")); !word.empty()) {
+            std::cout << word << std::endl;
+        }
+    }
 }
 
 

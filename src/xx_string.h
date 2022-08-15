@@ -356,6 +356,29 @@ namespace xx {
         return TrimLeft(TrimRight(s));
     }
 
+    template<size_t numDelimiters>
+    inline constexpr std::string_view SplitOnce(std::string_view& sv, char const(&delimiters)[numDelimiters]) {
+        static_assert(numDelimiters >= 2);
+        auto siz = sv.size();
+        if (!siz) return sv;
+        auto data = sv.data();
+        for (size_t i = 0; i != siz; ++i) {
+            bool found;
+            if constexpr (numDelimiters == 2) {
+                found = sv[i] == delimiters[0];
+            }
+            else {
+                found = std::string_view(delimiters).find(sv[i]) != std::string_view::npos;
+            }
+            if (found) {
+                sv = std::string_view(data + i + 1, siz - i - 1);
+                return {data, i};
+            }
+        }
+        sv = std::string_view(data + siz, 0);
+        return {data, siz};
+    }
+
     // 转换 s 数据类型 为 T 填充 dst
     template<typename T>
     inline void Convert(char const* const& s, T& dst) {
