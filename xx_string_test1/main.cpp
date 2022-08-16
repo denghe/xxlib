@@ -1,70 +1,40 @@
-﻿#include <string_view>
-#include <iostream>
-using namespace std::string_view_literals;
-
-template<size_t numDelimiters>
-inline constexpr std::string_view split_once(std::string_view& sv, char const(&delimiters)[numDelimiters]) {
-    static_assert(numDelimiters >= 2);
-    auto siz = sv.size();
-    if (!siz) return sv;
-    auto data = sv.data();
-    for (size_t i = 0; i != siz; ++i) {
-        bool found;
-        if constexpr (numDelimiters == 2) {
-            found = sv[i] == delimiters[0];
-        }
-        else {
-            found = std::string_view(delimiters).find(sv[i]) != std::string_view::npos;
-        }
-        if (found) {
-            sv = std::string_view(data + i + 1, siz - i - 1);
-            return {data, i};
-        }
-    }
-    sv = std::string_view(data + siz, 0);
-    return {data, siz};
-}
-
-inline constexpr std::string_view trim_right(std::string_view const& s) {
-    auto idx = s.find_last_not_of(" \t\n\r\f\v");
-    if (idx == std::string_view::npos) return { s.data(), 0 };
-    return { s.data(), idx + 1 };
-}
-
-inline constexpr std::string_view trim_left(std::string_view const& s) {
-    auto idx = s.find_first_not_of(" \t\n\r\f\v");
-    if (idx == std::string_view::npos) return { s.data(), 0 };
-    return { s.data() + idx, s.size() - idx };
-}
-
-inline constexpr std::string_view trim_all(std::string_view const& s) {
-    return trim_left(trim_right(s));
-}
+﻿#include <xx_string.h>
 
 int main() {
-	auto str = R"(
+    {
+        std::string s;
+        xx::AppendFormat(s, "{0} {1}", 1.234, "asdf"sv);
+        std::cout << s << std::endl;
+    }
+
+    {
+        auto str = R"(
 
  1, 2,3
 4,5     ,6
 
 7,       8,9 )"sv;
 
-    auto s = str;
-	while (!s.empty()) {
-		auto line = split_once(s, "\n");
-		line = trim_all(line);
-		if (line.empty()) continue;
-        while (!line.empty()) {
-            auto word = split_once(line, ",");
-            word = trim_all(word);
-            std::cout << word << std::endl;
+        auto s = str;
+        while (!s.empty()) {
+            auto line = xx::SplitOnce(s, "\n");
+            line = xx::Trim(line);
+            if (line.empty()) continue;
+            while (!line.empty()) {
+                auto word = xx::SplitOnce(line, ",");
+                word = xx::Trim(word);
+                int n;
+                if (xx::SvToNumber(word, n)) {
+                    std::cout << n << std::endl;
+                }
+            }
         }
-	}
 
-    s = str;
-    while (!s.empty()) {
-        if (auto word = trim_all(split_once(s, "\n,")); !word.empty()) {
-            std::cout << word << std::endl;
+        s = str;
+        while (!s.empty()) {
+            if (auto word = xx::Trim(xx::SplitOnce(s, "\n,")); !word.empty()) {
+                std::cout << xx::SvToNumber<int>(word) << std::endl;
+            }
         }
     }
 }

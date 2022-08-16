@@ -124,19 +124,17 @@ namespace xx {
         }
     };
 
-    // 适配 std::string( 前后加引号 )
+    // 适配 std::string_view
     template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string, T>>> {
+    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T>>> {
         static inline void Append(std::string& s, T const& in) {
-            s.push_back('\"');
             s.append(in);
-            s.push_back('\"');
         }
     };
 
-    // 适配 std::string_view( 前后加引号 )
+    // 适配 std::string( 前后加引号 )
     template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T>>> {
+    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string, T>>> {
         static inline void Append(std::string& s, T const& in) {
             s.push_back('\"');
             s.append(in);
@@ -165,12 +163,17 @@ namespace xx {
                 s.push_back(in);
             }
             else if constexpr (std::is_floating_point_v<T>) {
-                char buf[32];
-                snprintf(buf, 32, "%.16lf", (double) in);
-                s.append(buf);
+                std::array<char, 40> buf;
+                //snprintf(buf, 32, "%.16lf", (double) in);
+                //s.append(buf);
+                auto [ptr, _] = std::to_chars(buf.data(), buf.data() + buf.size(), in, std::chars_format::general, 16);
+                s.append(std::string_view(buf.data(), ptr));
             }
             else {
-                s.append(std::to_string(in));
+                //s.append(std::to_string(in));
+                std::array<char, 40> buf;
+                auto [ptr, _] = std::to_chars(buf.data(), buf.data() + buf.size(), in);
+                s.append(std::string_view(buf.data(), ptr));
             }
         }
     };
@@ -359,9 +362,8 @@ namespace xx {
     template<size_t numDelimiters>
     inline constexpr std::string_view SplitOnce(std::string_view& sv, char const(&delimiters)[numDelimiters]) {
         static_assert(numDelimiters >= 2);
-        auto siz = sv.size();
-        if (!siz) return sv;
         auto data = sv.data();
+        auto siz = sv.size();
         for (size_t i = 0; i != siz; ++i) {
             bool found;
             if constexpr (numDelimiters == 2) {
@@ -378,6 +380,20 @@ namespace xx {
         sv = std::string_view(data + siz, 0);
         return {data, siz};
     }
+
+    template<typename T>
+    inline constexpr bool SvToNumber(std::string_view const& input, T& out) {
+        auto&& r = std::from_chars(input.data(), input.data() + input.size(), out);
+        return r.ec != std::errc::invalid_argument && r.ec != std::errc::result_out_of_range;
+    }
+
+    template<typename T>
+    inline constexpr T SvToNumber(std::string_view const& input, T const& defaultValue = {}) {
+        T out;
+        auto&& r = std::from_chars(input.data(), input.data() + input.size(), out);
+        return r.ec != std::errc::invalid_argument && r.ec != std::errc::result_out_of_range ? out : defaultValue;
+    }
+
 
     // 转换 s 数据类型 为 T 填充 dst
     template<typename T>
