@@ -1039,7 +1039,7 @@ namespace xx {
 		}
 	*/
 	template<typename PeerDeriveType, typename OwnerPeer>
-	struct VPeerDataCode : VPeerBaseCode<PeerDeriveType, OwnerPeer>, PeerRequestCode<PeerDeriveType> {
+	struct VPeerDataCode : VPeerBaseCode<PeerDeriveType, OwnerPeer>, PeerRequestDataCode<PeerDeriveType> {
 		using VPBC = VPeerBaseCode<PeerDeriveType, OwnerPeer>;
 		using PRDC = PeerRequestDataCode<PeerDeriveType>;
 

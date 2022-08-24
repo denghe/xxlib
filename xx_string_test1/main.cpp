@@ -1,43 +1,68 @@
-﻿#include <xx_string.h>
+﻿#include <iostream>
+#include <string>
+#include <type_traits>
+#include <variant>
+#include <vector>
+
+using var_t = std::variant<double, std::string>;
+
+template<typename...Ts> struct overloaded : Ts...{ using Ts::operator()...; };
 
 int main() {
-    {
-        std::string s;
-        xx::AppendFormat(s, "{0} {1}", 1.234, "asdf"sv);
-        std::cout << s << std::endl;
+    std::vector<var_t> vars = { 1.2, "asdf" };
+    for (auto&& v : vars) {
+        std::visit(overloaded{ 
+            [](auto a) { std::cout << "auto a = " << a << std::endl; },
+            [](double a) { std::cout << "double a = " << a << std::endl; },
+            [](std::string const& a) { std::cout << "string a = " << a << std::endl; },
+        }, v);
     }
-
-    {
-        auto str = R"(
-
- 1, 2,3
-4,5     ,6
-
-7,       8,9 )"sv;
-
-        auto s = str;
-        while (!s.empty()) {
-            auto line = xx::SplitOnce(s, "\n");
-            line = xx::Trim(line);
-            if (line.empty()) continue;
-            while (!line.empty()) {
-                auto word = xx::SplitOnce(line, ",");
-                word = xx::Trim(word);
-                int n;
-                if (xx::SvToNumber(word, n)) {
-                    std::cout << n << std::endl;
-                }
-            }
-        }
-
-        s = str;
-        while (!s.empty()) {
-            if (auto word = xx::Trim(xx::SplitOnce(s, "\n,")); !word.empty()) {
-                std::cout << xx::SvToNumber<int>(word) << std::endl;
-            }
-        }
-    }
+    return 0;
 }
+
+
+//#include <xx_string.h>
+//
+//int main() {
+//    {
+//        std::string s;
+//        xx::AppendFormat(s, "{0} {1}", 1.234, "asdf"sv);
+//        std::cout << s << std::endl;
+//    }
+//
+//    {
+//        auto str = R"(
+//
+// 1, 2,3
+//4,5     ,6
+//
+//7,       8,9 )"sv;
+//
+//        auto s = str;
+//        while (!s.empty()) {
+//            auto line = xx::SplitOnce(s, "\n");
+//            line = xx::Trim(line);
+//            if (line.empty()) continue;
+//            while (!line.empty()) {
+//                auto word = xx::SplitOnce(line, ",");
+//                word = xx::Trim(word);
+//                int n;
+//                if (xx::SvToNumber(word, n)) {
+//                    std::cout << n << std::endl;
+//                }
+//            }
+//        }
+//
+//        s = str;
+//        while (!s.empty()) {
+//            if (auto word = xx::Trim(xx::SplitOnce(s, "\n,")); !word.empty()) {
+//                std::cout << xx::SvToNumber<int>(word) << std::endl;
+//            }
+//        }
+//    }
+//
+//    return 0;
+//}
 
 
 //#include <xx_dict.h>

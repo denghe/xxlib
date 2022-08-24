@@ -76,6 +76,11 @@ namespace xx {
             assert(idx < len);
             return buf[idx];
         }
+
+        // 供 if 简单判断是否为空
+        XX_INLINE operator bool() const {
+            return len != 0;
+        }
     };
 
     // Data 序列化 / 反序列化 基础适配模板
@@ -147,6 +152,11 @@ namespace xx {
         }
 
         /***************************************************************************************************************************/
+
+        // 返回剩余 buf ( 不改变 offset )
+        [[maybe_unused]] [[nodiscard]] XX_INLINE std::pair<uint8_t*, size_t> GetLeftBuf() {
+            return { buf + offset, len - offset };
+        }
 
         // 读 定长buf 到 tar. 返回非 0 则读取失败
         [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadBuf(void *const &tar, size_t const &siz) {
@@ -316,10 +326,11 @@ namespace xx {
             WriteBuf(s.buf, s.len);
         }
 
-        // 复制( offset = 0 )
-        [[maybe_unused]] Data_rw(void const *const &ptr, size_t const &siz)
+        // 复制, 顺便设置 offset
+        [[maybe_unused]] Data_rw(void const* const& ptr, size_t const& siz, size_t const& offset_ = 0)
             : cap(0) {
             WriteBuf(ptr, siz);
+            offset = offset_;
         }
 
         // 复制( offset = 0 )
@@ -554,6 +565,12 @@ namespace xx {
             }
             len += siz;
             return bak;
+        }
+
+        // 跳过指定长度字节数不写。返回起始 指针
+        template<bool needReserve = true>
+        [[maybe_unused]] XX_INLINE uint8_t* WriteSpace(size_t const& siz) {
+            return buf + WriteJump<needReserve>(siz);
         }
 
         // 支持同时写入多个值
