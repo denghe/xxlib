@@ -296,13 +296,18 @@ namespace xx {
 
 
     // 基础二进制数据容器 附带基础 流式读写 功能，可配置预留长度方便有些操作在 buf 最头上放东西
-    template<size_t reserveLen = 0>
+    template<size_t bufHeaderReserveLen = 0>
     struct Data_rw : Data_r {
         size_t cap;
 
         // buf = len = offset = cap = 0
         Data_rw()
             : cap(0) {
+        }
+
+        // 便于读取模板参数 buf 前面的内存预留长度
+        inline static size_t constexpr GetBufHeaderReserveLen() {
+            return bufHeaderReserveLen;
         }
 
         // unsafe: 直接设置成员数值, 常用于有把握的"借壳" 读写( 不会造成 Reserve 操作的 ), 最后记得 Reset 还原
@@ -315,9 +320,9 @@ namespace xx {
         [[maybe_unused]] explicit Data_rw(size_t const &cap)
                 : cap(cap) {
             assert(cap);
-            auto siz = Round2n(reserveLen + cap);
-            buf = (new uint8_t[siz]) + reserveLen;
-            this->cap = siz - reserveLen;
+            auto siz = Round2n(bufHeaderReserveLen + cap);
+            buf = (new uint8_t[siz]) + bufHeaderReserveLen;
+            this->cap = siz - bufHeaderReserveLen;
         }
 
         // 复制( offset = 0 )
@@ -382,24 +387,24 @@ namespace xx {
         XX_NOINLINE void Reserve(size_t const &newCap) {
             if (CheckCap && newCap <= cap) return;
 
-            auto siz = Round2n(reserveLen + newCap);
-            //auto newBuf = (new uint8_t[siz]) + reserveLen;
-            auto newBuf = ((uint8_t*)malloc(siz)) + reserveLen;
+            auto siz = Round2n(bufHeaderReserveLen + newCap);
+            //auto newBuf = (new uint8_t[siz]) + bufHeaderReserveLen;
+            auto newBuf = ((uint8_t*)malloc(siz)) + bufHeaderReserveLen;
             if (len) {
                 memcpy(newBuf, buf, len);
             }
 
             // 这里判断 cap 不判断 buf, 是因为 gcc 优化会导致 if 失效, 无论如何都会执行 free
             if (cap) {
-                //delete[](buf - reserveLen);
-                free(buf - reserveLen);
+                //delete[](buf - bufHeaderReserveLen);
+                free(buf - bufHeaderReserveLen);
             }
             else {
                 // let virtual memory -> physics
-                for(size_t i = 0; i < newCap; i += 4096) (newBuf - reserveLen)[i] = 0;
+                for(size_t i = 0; i < newCap; i += 4096) (newBuf - bufHeaderReserveLen)[i] = 0;
             }
             buf = newBuf;
-            cap = siz - reserveLen;
+            cap = siz - bufHeaderReserveLen;
         }
 
         // 修改数据长度( 可能扩容 )。会返回旧长度
@@ -593,8 +598,8 @@ namespace xx {
         // len 清 0, 可彻底释放 buf
         XX_INLINE void Clear(bool const &freeBuf = false) {
             if (freeBuf && cap) {
-                //delete[](buf - reserveLen);
-                free(buf - reserveLen);
+                //delete[](buf - bufHeaderReserveLen);
+                free(buf - bufHeaderReserveLen);
                 buf = nullptr;
                 cap = 0;
             }
@@ -603,7 +608,7 @@ namespace xx {
         }
     };
 
-    using Data = Data_rw<0>;
+    using Data = Data_rw<sizeof(size_t)*2>;
     using DataView = Data_r;
 
     /************************************************************************************/
@@ -632,9 +637,9 @@ namespace xx {
         return DataFuncs<T>::Read(*this, v);
     }
 
-    template<size_t reserveLen>
+    template<size_t bufHeaderReserveLen>
     template<bool needReserve, typename ...TS>
-    void Data_rw<reserveLen>::Write(TS const& ...vs) {
+    void Data_rw<bufHeaderReserveLen>::Write(TS const& ...vs) {
         (DataFuncs<TS>::template Write<needReserve>(*this, vs), ...);
     }
 }

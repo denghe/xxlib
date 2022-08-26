@@ -77,7 +77,7 @@ namespace xx::SQLite {
     };
     inline OpenFlags operator|(OpenFlags const& a, OpenFlags const& b) {
         return OpenFlags(int(a) | int(b));
-    }                                                                                                               \
+    }
 
     // 保持与 SQLite 的宏一致
     enum class DataTypes : uint8_t {

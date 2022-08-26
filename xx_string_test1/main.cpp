@@ -1,24 +1,55 @@
-﻿#include <iostream>
-#include <string>
-#include <type_traits>
-#include <variant>
-#include <vector>
-
-using var_t = std::variant<double, std::string>;
-
-template<typename...Ts> struct overloaded : Ts...{ using Ts::operator()...; };
+﻿#include <xx_data_shared.h>
+#include <xx_string.h>
 
 int main() {
-    std::vector<var_t> vars = { 1.2, "asdf" };
-    for (auto&& v : vars) {
-        std::visit(overloaded{ 
-            [](auto a) { std::cout << "auto a = " << a << std::endl; },
-            [](double a) { std::cout << "double a = " << a << std::endl; },
-            [](std::string const& a) { std::cout << "string a = " << a << std::endl; },
-        }, v);
+    xx::Data d;
+    d.Write(1, 2, 3);
+    xx::CoutN(d);
+
+    xx::DataShared ds(std::move(d));
+    auto buf = ds.GetBuf();
+    for (int i = 0; i < ds.GetLen(); ++i) {
+        std::cout << (int)buf[i] << std::endl;
     }
+    auto ds2 = ds;
+    std::cout << ds.GetNumRefs() << std::endl;
+
     return 0;
 }
+
+
+
+
+
+
+//#include <iostream>
+//#include <string>
+//#include <type_traits>
+//#include <variant>
+//#include <vector>
+//
+//using var_t = std::variant<double, std::string>;
+//
+//template<typename...Ts> struct overloaded : Ts...{ using Ts::operator()...; };
+//
+//// 当前的 clang 14 即便设置 c++20 也需要这句指引
+////template<typename...Ts> overloaded(Ts...)->overloaded<Ts...>;
+//
+//int main() {
+//    std::vector<var_t> vars = { 1.2, "asdf" };
+//    for (auto&& v : vars) {
+//        std::visit(overloaded{ 
+//            [](auto a) { std::cout << "auto a = " << a << std::endl; },
+//            [](double a) { std::cout << "double a = " << a << std::endl; },
+//            [](std::string const& a) { std::cout << "string a = " << a << std::endl; },
+//        }, v);
+//    }
+//    return 0;
+//}
+
+
+
+
 
 
 //#include <xx_string.h>
