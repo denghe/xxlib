@@ -167,13 +167,13 @@ namespace xx {
                 //snprintf(buf, 32, "%.16lf", (double) in);
                 //s.append(buf);
                 auto [ptr, _] = std::to_chars(buf.data(), buf.data() + buf.size(), in, std::chars_format::general, 16);
-                s.append(std::string_view(buf.data(), ptr));
+                s.append(std::string_view(buf.data(), ptr - buf.data()));
             }
             else {
                 //s.append(std::to_string(in));
                 std::array<char, 40> buf;
                 auto [ptr, _] = std::to_chars(buf.data(), buf.data() + buf.size(), in);
-                s.append(std::string_view(buf.data(), ptr));
+                s.append(std::string_view(buf.data(), ptr - buf.data()));
             }
         }
     };
