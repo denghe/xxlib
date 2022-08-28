@@ -9,9 +9,13 @@ int main() {
     xx::DataShared ds(std::move(d));
     auto buf = ds.GetBuf();
     for (int i = 0; i < ds.GetLen(); ++i) {
-        std::cout << (int)buf[i] << std::endl;
+        std::cout << (int)buf[i] << " ";
     }
-    auto ds2 = ds;
+    std::cout << std::endl << ds.GetNumRefs() << std::endl;
+    {
+        auto ds2 = ds;
+        std::cout << ds.GetNumRefs() << std::endl;
+    }
     std::cout << ds.GetNumRefs() << std::endl;
 
     return 0;
