@@ -1,25 +1,96 @@
-﻿#include <xx_data_shared.h>
-#include <xx_string.h>
+﻿#include <xx_string.h>
+
+struct Foo {
+    Foo() = default;
+    Foo(Foo&& f) {
+        xx::CoutN("Foo(Foo&& f) {");
+    }
+    Foo(Foo const& f) {
+        xx::CoutN("Foo(Foo const& f) {");
+    }
+    Foo& operator=(Foo const& f) {
+        xx::CoutN("Foo& operator=(Foo const& f) {");
+        return *this;
+    }
+    Foo& operator=(Foo&& f) {
+        xx::CoutN("Foo& operator=(Foo&& f) {");
+        return *this;
+    }
+    Foo& operator==(Foo const& f) {
+        xx::CoutN("Foo& operator==(Foo const& f) {");
+        return *this;
+    }
+    ~Foo() {
+        xx::CoutN("~Foo() {");
+    }
+};
+
+struct Bar {
+    int i1 = 1;
+    Foo f1;
+    std::unique_ptr<int> intPtr;
+    Foo f2;
+    // 只要不写任何构造，析构，编译器就会帮生成一切。 operator == 啥的不会帮生成。
+    //~Bar() {
+    //    xx::CoutN("~Bar() {");
+    //}
+    void Func() {
+        xx::CoutN("void Func() {");
+    }
+};
 
 int main() {
-    xx::Data d;
-    d.Write(1, 2, 3);
-    xx::CoutN(d);
-
-    xx::DataShared ds(std::move(d));
-    auto buf = ds.GetBuf();
-    for (int i = 0; i < ds.GetLen(); ++i) {
-        std::cout << (int)buf[i] << " ";
-    }
-    std::cout << std::endl << ds.GetNumRefs() << std::endl;
     {
-        auto ds2 = ds;
-        std::cout << ds.GetNumRefs() << std::endl;
+        xx::Cout(__LINE__, " ");
+        Foo f1, f2;
+        xx::Cout(__LINE__, " ");
+        Bar b(11, std::move(f1), std::make_unique<int>(123) , std::move(f2));
+        xx::Cout(__LINE__, " ");
+        auto b2 = std::move(b);
+        xx::Cout(__LINE__, " ");
+        b2.Func();
+        xx::Cout(__LINE__, " ");
     }
-    std::cout << ds.GetNumRefs() << std::endl;
-
     return 0;
 }
+
+
+
+
+
+//#include <xx_data_shared.h>
+//#include <xx_string.h>
+//#include <random>
+//
+//int main() {
+//    xx::Data d;
+//
+//    std::mt19937 rnd(std::random_device{}());
+//    std::uniform_int_distribution<int> uid1(16, 255);
+//    std::uniform_int_distribution<int> uid2(0, 255);
+//    auto siz = uid1(rnd);
+//    d.WriteFixed((uint8_t)siz);
+//    for (int i = 0; i < siz; ++i) {
+//        d.WriteFixed((uint8_t)uid2(rnd));
+//    }
+//    xx::CoutN("len = ", d.len, ", data = ", d);
+//
+//    xx::DataShared ds(std::move(d));
+//    {
+//        auto buf = ds.GetBuf();
+//        auto len = ds.GetLen();
+//        xx::CoutN("len = ", len, ", data = ", xx::Data_r(buf, len));
+//    }
+//
+//    std::cout << std::endl << ds.GetNumRefs() << std::endl;
+//    {
+//        auto ds2 = ds;
+//        std::cout << ds.GetNumRefs() << std::endl;
+//    }
+//    std::cout << ds.GetNumRefs() << std::endl;
+//
+//    return 0;
+//}
 
 
 
