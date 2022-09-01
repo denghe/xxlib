@@ -9,6 +9,7 @@ endif()
 include_directories(
 	../src
 	../3rd
+	../../boost
 )
 
 add_executable(xx_string_test1

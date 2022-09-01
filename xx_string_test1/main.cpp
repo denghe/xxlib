@@ -40,7 +40,7 @@ int main() {
     std::vector<Foo> users;
     users.reserve(n);
     for (int i = 0; i < n; ++i) {
-        users.emplace_back(i, goldGen(rnd));
+        users.emplace_back(Foo{i, goldGen(rnd)});
     }
 
     Foos ranks;
