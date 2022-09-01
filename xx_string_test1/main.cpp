@@ -24,7 +24,6 @@ namespace tags {
 struct Foo {
     int id;
     int64_t gold;
-    int rank;
 };
 
 typedef multi_index_container<Foo, indexed_by<
@@ -41,7 +40,7 @@ int main() {
     std::vector<Foo> users;
     users.reserve(n);
     for (int i = 0; i < n; ++i) {
-        users.emplace_back(i, goldGen(rnd), 0);
+        users.emplace_back(i, goldGen(rnd));
     }
 
     Foos ranks;
@@ -59,12 +58,14 @@ int main() {
 
     tp = std::chrono::steady_clock::now();
 
+    int64_t gold_sum = 0;
     for (int i = 0; i < n; ++i) {
         auto iter = ranksGold.nth(i);
-        *(int*)&iter->rank = i;
+        gold_sum += iter->gold;
     }
 
-    std::cout << "fill rank by nth ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+    std::cout << "get foo by nth( rank ) ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+    std::cout << "gold_sum = " << gold_sum << std::endl;
 
     tp = std::chrono::steady_clock::now();
 
@@ -85,16 +86,15 @@ int main() {
 
     std::cout << "update 1 user gold n times ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
 
-
-    int num = 10;
-    for (auto iter = ranksGold.rbegin(); iter != ranksGold.rend(); ++iter) {
-        std::cout << iter->id << ", " << iter->gold << ", " << iter->rank << std::endl;
-        if (--num == 0) break;
+    for (int i = 0; i < 10; ++i) {
+        auto iter = ranksId.find(9999);
+        ranks.modify(iter, [&](auto& o) { o.gold = goldGen(rnd); });
+        std::cout << "id = " << iter->id << ", gold = " << iter->gold << ", rank = " << ranksGold.rank(ranks.project<tags::gold>(iter)) << std::endl;
     }
 
     for (int id = 0; id < 10; ++id) {
         auto iter = ranksId.find(id);
-        std::cout << iter->id << ", " << iter->gold << ", " << iter->rank << std::endl;
+        std::cout << "id = " << iter->id << ", gold = " << iter->gold << ", rank = " << ranksGold.rank(ranks.project<tags::gold>(iter)) << std::endl;
     }
 
     return 0;
