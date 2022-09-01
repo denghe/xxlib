@@ -77,14 +77,16 @@ int main() {
     std::cout << "calc rank by id n times ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
     std::cout << "rank_sum = " << rank_sum << std::endl;
 
+    rank_sum = 0;
     tp = std::chrono::steady_clock::now();
-
     for (int i = 0; i < n; ++i) {
         auto iter = ranksId.find(9999);
         ranks.modify(iter, [&](auto& o) { o.gold = goldGen(rnd); });
+        rank_sum += ranksGold.rank(ranks.project<tags::gold>(iter));
     }
 
-    std::cout << "update 1 user gold n times ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+    std::cout << "modify + calc rank 1 user gold n times ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+    std::cout << "rank_sum = " << rank_sum << std::endl;
 
     for (int i = 0; i < 10; ++i) {
         auto iter = ranksId.find(9999);
