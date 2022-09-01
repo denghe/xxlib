@@ -1,4 +1,6 @@
-﻿#include <random>
+﻿// value version
+
+#include <random>
 #include <chrono>
 #include <vector>
 #include <iostream>
@@ -25,10 +27,10 @@ struct Foo {
     int rank;
 };
 
-typedef multi_index_container<std::shared_ptr<Foo>, indexed_by<
+typedef multi_index_container<Foo, indexed_by<
     hashed_unique<tag<tags::id>, BOOST_MULTI_INDEX_MEMBER(Foo, int, id)>,
     ranked_non_unique<tag<tags::gold>, BOOST_MULTI_INDEX_MEMBER(Foo, int64_t, gold)>
->> Foos;
+    >> Foos;
 
 int main() {
     std::mt19937 rnd(std::random_device{}());
@@ -36,17 +38,17 @@ int main() {
 
     int n = 1000000;
 
-    std::vector<std::shared_ptr<Foo>> users;
+    std::vector<Foo> users;
     users.reserve(n);
     for (int i = 0; i < n; ++i) {
-        users.emplace_back(std::make_shared<Foo>(i, goldGen(rnd)));
+        users.emplace_back(i, goldGen(rnd), 0);
     }
 
     Foos ranks;
     ranks.reserve(n);
 
     auto tp = std::chrono::steady_clock::now();
-    for(auto& user : users) {
+    for (auto& user : users) {
         ranks.insert(user);
     }
 
@@ -56,10 +58,10 @@ int main() {
     auto&& ranksGold = ranks.get<tags::gold>();
 
     tp = std::chrono::steady_clock::now();
-    
+
     for (int i = 0; i < n; ++i) {
         auto iter = ranksGold.nth(i);
-        (*iter)->rank = i;
+        *(int*)&iter->rank = i;
     }
 
     std::cout << "fill rank by nth ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
@@ -78,7 +80,7 @@ int main() {
 
     for (int i = 0; i < n; ++i) {
         auto iter = ranksId.find(9999);
-        ranks.modify(iter, [&](auto& o) { o->gold = goldGen(rnd); });
+        ranks.modify(iter, [&](auto& o) { o.gold = goldGen(rnd); });
     }
 
     std::cout << "update 1 user gold n times ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
@@ -86,17 +88,122 @@ int main() {
 
     int num = 10;
     for (auto iter = ranksGold.rbegin(); iter != ranksGold.rend(); ++iter) {
-        std::cout << (*iter)->id << ", " << (*iter)->gold << ", " << (*iter)->rank << std::endl;
+        std::cout << iter->id << ", " << iter->gold << ", " << iter->rank << std::endl;
         if (--num == 0) break;
     }
 
     for (int id = 0; id < 10; ++id) {
         auto iter = ranksId.find(id);
-        std::cout << (*iter)->id << ", " << (*iter)->gold << ", " << (*iter)->rank << std::endl;
+        std::cout << iter->id << ", " << iter->gold << ", " << iter->rank << std::endl;
     }
 
     return 0;
 }
+
+
+
+
+// shared_ptr version
+
+//#include <random>
+//#include <chrono>
+//#include <vector>
+//#include <iostream>
+//#include <memory>
+//using namespace std::chrono_literals;
+//
+//#include <boost/multi_index_container.hpp>
+//#include <boost/multi_index/member.hpp>
+//#include <boost/multi_index/mem_fun.hpp>
+//#include <boost/multi_index/ordered_index.hpp>
+//#include <boost/multi_index/hashed_index.hpp>
+//#include <boost/multi_index/ranked_index.hpp>
+//using boost::multi_index_container;
+//using namespace boost::multi_index;
+//
+//namespace tags {
+//    struct id {};
+//    struct gold {};
+//}
+//
+//struct Foo {
+//    int id;
+//    int64_t gold;
+//    int rank;
+//};
+//
+//typedef multi_index_container<std::shared_ptr<Foo>, indexed_by<
+//    hashed_unique<tag<tags::id>, BOOST_MULTI_INDEX_MEMBER(Foo, int, id)>,
+//    ranked_non_unique<tag<tags::gold>, BOOST_MULTI_INDEX_MEMBER(Foo, int64_t, gold)>
+//>> Foos;
+//
+//int main() {
+//    std::mt19937 rnd(std::random_device{}());
+//    std::uniform_int_distribution<int64_t> goldGen(0, 100000000);
+//
+//    int n = 1000000;
+//
+//    std::vector<std::shared_ptr<Foo>> users;
+//    users.reserve(n);
+//    for (int i = 0; i < n; ++i) {
+//        users.emplace_back(std::make_shared<Foo>(i, goldGen(rnd)));
+//    }
+//
+//    Foos ranks;
+//    ranks.reserve(n);
+//
+//    auto tp = std::chrono::steady_clock::now();
+//    for(auto& user : users) {
+//        ranks.insert(user);
+//    }
+//
+//    std::cout << "insert ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+//
+//    auto&& ranksId = ranks.get<tags::id>();
+//    auto&& ranksGold = ranks.get<tags::gold>();
+//
+//    tp = std::chrono::steady_clock::now();
+//    
+//    for (int i = 0; i < n; ++i) {
+//        auto iter = ranksGold.nth(i);
+//        (*iter)->rank = i;
+//    }
+//
+//    std::cout << "fill rank by nth ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+//
+//    tp = std::chrono::steady_clock::now();
+//
+//    int64_t rank_sum = 0;
+//    for (int id = 0; id < n; ++id) {
+//        rank_sum += ranksGold.rank(ranks.project<tags::gold>(ranksId.find(id)));
+//    }
+//
+//    std::cout << "calc rank by id n times ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+//    std::cout << "rank_sum = " << rank_sum << std::endl;
+//
+//    tp = std::chrono::steady_clock::now();
+//
+//    for (int i = 0; i < n; ++i) {
+//        auto iter = ranksId.find(9999);
+//        ranks.modify(iter, [&](auto& o) { o->gold = goldGen(rnd); });
+//    }
+//
+//    std::cout << "update 1 user gold n times ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp).count() << std::endl;
+//
+//
+//    int num = 10;
+//    for (auto iter = ranksGold.rbegin(); iter != ranksGold.rend(); ++iter) {
+//        std::cout << (*iter)->id << ", " << (*iter)->gold << ", " << (*iter)->rank << std::endl;
+//        if (--num == 0) break;
+//    }
+//
+//    for (int id = 0; id < 10; ++id) {
+//        auto iter = ranksId.find(id);
+//        std::cout << (*iter)->id << ", " << (*iter)->gold << ", " << (*iter)->rank << std::endl;
+//    }
+//
+//    return 0;
+//}
 
 
 
