@@ -1,7 +1,7 @@
 ﻿#pragma once
 #ifdef _WIN32
 #include <mysql.h>
-#pragma comment(lib, "C:/Program Files/MariaDB/MariaDB Connector C 64-bit/lib/libmariadb.lib")
+//#pragma comment(lib, "C:/Program Files/MariaDB/MariaDB Connector C 64-bit/lib/libmariadb.lib")
 #else
 #include <mariadb/mysql.h>
 #endif
