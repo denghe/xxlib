@@ -13,12 +13,20 @@
 #include <xx_obj.h>
 #include <iostream>
 #include <charconv>
+
+#ifdef USE_STANDALONE_ASIO
 #include <asio.hpp>
-using namespace std::literals;
-using namespace std::literals::chrono_literals;
+#include <asio/experimental/as_tuple.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
+#else
+#include <boost/asio.hpp>
+#include <boost/asio/experimental/as_tuple.hpp>
+#include <boost/asio/experimental/awaitable_operators.hpp>
+namespace asio = boost::asio;
+#endif
+
 using namespace asio::experimental::awaitable_operators;
-constexpr auto use_nothrow_awaitable = asio::as_tuple(asio::use_awaitable);
+constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
 using asio::co_spawn;
 using asio::awaitable;
 using asio::detached;
