@@ -56,11 +56,11 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_WIN32_WINNT=0x0A00;SQLITE_OMIT_PROGRESS_CALLBACK;SQLITE_DEFAULT_MEMSTATUS=0;SQLITE_USE_ALLOCA;SQLITE_LIKE_DOESNT_MATCH_BLOBS;SQLITE_OMIT_DEPRECATED;SQLITE_OMIT_AUTOINIT;SQLITE_OMIT_LOAD_EXTENSION;SQLITE_DQS=0;SQLITE_MAX_EXPR_DEPTH=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)sqlite3;$(SolutionDir)..\boost;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -75,14 +75,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;_WIN32_WINNT=0x0A00;SQLITE_OMIT_PROGRESS_CALLBACK;SQLITE_DEFAULT_MEMSTATUS=0;SQLITE_USE_ALLOCA;SQLITE_LIKE_DOESNT_MATCH_BLOBS;SQLITE_OMIT_DEPRECATED;SQLITE_OMIT_AUTOINIT;SQLITE_OMIT_LOAD_EXTENSION;SQLITE_DQS=0;SQLITE_MAX_EXPR_DEPTH=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)sqlite3;$(SolutionDir)asio_include;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)xx_asio_testA;$(SolutionDir)src;$(SolutionDir)3rd;$(SolutionDir)sqlite3;$(SolutionDir)..\boost;$(SolutionDir)../boost;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

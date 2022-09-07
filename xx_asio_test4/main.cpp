@@ -1,6 +1,7 @@
 ﻿// simple echo server
 
-#include <asio.hpp>
+#include <boost/asio.hpp>
+namespace asio = boost::asio;
 #include <iostream>
 
 using namespace std::chrono_literals;

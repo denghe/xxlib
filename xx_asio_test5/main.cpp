@@ -1,6 +1,7 @@
 ﻿// simple echo client
 
-#include <asio.hpp>
+#include <boost/asio.hpp>
+namespace asio = boost::asio;
 
 using namespace std::chrono_literals;
 std::chrono::system_clock::time_point defaultBeginTime;
