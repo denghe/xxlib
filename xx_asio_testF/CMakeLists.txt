@@ -21,9 +21,9 @@ endif ()
 add_definitions("-DASIO_CONCURRENCY_HINT_1=ASIO_CONCURRENCY_HINT_UNSAFE")
 
 list(APPEND dirs
+		../../boost
 		../src
 		../3rd
-		../asio_include
 		)
 list(APPEND srcs
 		main.cpp

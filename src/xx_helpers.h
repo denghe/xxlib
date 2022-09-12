@@ -12,6 +12,7 @@
 #include <queue>
 #include <deque>
 #include <string>
+#include <sstream>
 #include <string_view>
 #include <charconv>
 #include <unordered_set>

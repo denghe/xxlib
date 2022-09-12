@@ -21,9 +21,9 @@ endif ()
 add_definitions("-DONELUA_MAKE_LIB")
 
 list(APPEND dirs
+		../../boost
 		../src
 		../3rd
-		../asio_include
 		../lua-5.4.x/src
 		)
 list(APPEND srcs

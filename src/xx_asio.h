@@ -1,10 +1,28 @@
 ﻿#pragma once
 
 #include "xx_obj.h"
-#include <asio.hpp>
 #include "ikcp.h"
-#include <sstream>
-#include <deque>
+
+#ifdef USE_STANDALONE_ASIO
+#include <asio.hpp>
+#include <asio/experimental/as_tuple.hpp>
+#include <asio/experimental/awaitable_operators.hpp>
+namespace boostsystem = asio;
+#else
+#include <boost/asio.hpp>
+#include <boost/asio/experimental/as_tuple.hpp>
+#include <boost/asio/experimental/awaitable_operators.hpp>
+namespace asio = boost::asio;
+namespace boostsystem = boost::system;
+#endif
+
+using namespace asio::experimental::awaitable_operators;
+constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
+using asio::co_spawn;
+using asio::awaitable;
+using asio::detached;
+
+
 
 // 为 cocos / unity 之类客户端 实现一个带 域名解析, kcp拨号 与 通信 的 网关拨号版本。功能函数和用法，与 xx::UvClient 封装的 lua 接口类似
 
@@ -101,7 +119,7 @@ namespace xx::Asio {
             resolver.cancel();
             addrs.clear();
             resolving = true;
-            resolver.async_resolve(domain, "", [this](asio::error_code const &error, asio::ip::udp::resolver::results_type const &results) {
+            resolver.async_resolve(domain, "", [this](boostsystem::error_code const &error, asio::ip::udp::resolver::results_type const &results) {
                 resolving = false;
                 if (!error.value()) {
                     for (auto &&r : results) {
@@ -199,7 +217,7 @@ namespace xx::Asio {
                 auto sentLen = socket.send_to(asio::buffer(buf, len), ep);
                 return sentLen == len ? 0 : __LINE__;
             }
-            catch (asio::system_error const &/*e*/) {
+            catch (boostsystem::system_error const &/*e*/) {
                 // todo: log?
                 return __LINE__;
             }
@@ -219,7 +237,7 @@ namespace xx::Asio {
                 ikcp_update(kcp, (IUINT32) (ms - kcpCreateMS));
             }
 
-            asio::error_code e;
+            boostsystem::error_code e;
             asio::ip::udp::endpoint p;
             // 如果有 udp 数据收到
             if (auto recvLen = socket.receive_from(asio::buffer(udpRecvBuf), p, 0, e)) {

@@ -31,13 +31,14 @@ add_definitions("-DSQLITE_MAX_EXPR_DEPTH=0")
 #add_definitions("-DSQLITE_THREADSAFE=0")
 
 list(APPEND dirs
+		../../boost
 		../sqlite3
 		../src
 		../3rd
-		../asio_include
 		../xx_asio_testA
 		)
 list(APPEND srcs
+		../sqlite3/sqlite3.c
 		main.cpp
 		../xx_asio_testA/pkg.cpp
 		)

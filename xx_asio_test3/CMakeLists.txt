@@ -19,9 +19,9 @@ else()
 endif ()
 
 list(APPEND dirs
+		../../boost
 		../src
 		../3rd
-		../asio_include
 		../xx_asio_test2
 		)
 list(APPEND srcs

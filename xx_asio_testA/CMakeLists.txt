@@ -19,11 +19,10 @@ else()
 endif ()
 
 list(APPEND dirs
+		../../boost
 		../src
 		../3rd
-		../asio_include
 		../xx_asio_testA
-		../../boost
 		)
 list(APPEND srcs
 		main.cpp

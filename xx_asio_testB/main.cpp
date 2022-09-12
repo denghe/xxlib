@@ -120,7 +120,7 @@ struct SPeer : xx::PeerCode<SPeer>, xx::PeerTimeoutCode<SPeer>, xx::PeerHandleMe
 					if (delayMS > 0) {										// 延迟踢下线?
 						cp->Send(xx::MakeCommandData("close", serverId));	// 下发一个 close 指令以便 client 收到后直接主动断开, 响应会比较快速
 						cp->TryErase();										// 移除
-						cp->DelayStop(std::chrono::milliseconds(std::max((uint64_t)delayMS, 10000ull)));	// 延迟掐( 转无符号 限制最大值 防止调用者傻屄 )
+						cp->DelayStop(std::chrono::milliseconds(std::max((uint64_t)delayMS, (uint64_t)10000)));	// 延迟掐( 转无符号 限制最大值 防止调用者傻屄 )
 					}
 					else {													// 没找到 或已断开 则返回，忽略错误
 						cp->Stop();											// 立即掐, 含 Kick
