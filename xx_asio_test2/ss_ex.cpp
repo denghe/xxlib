@@ -56,7 +56,7 @@ int SS::Shooter::Update() {
     // 发射直线子弹
     if (cs.button1) {
         auto &&b = xx::Make<SS::Bullet_Straight>();
-        b->shooter = WeakFromThis<Shooter>();
+        b->shooter = xx::WeakFromThis(this);
         b->life = 1000;
         b->pos = gunPos;
         b->inc = xx::Rotate(SS::XY{30, 0}, angle);
@@ -78,7 +78,7 @@ int SS::Shooter::Update() {
         }
         if (tar) {
             auto &&b = xx::Make<SS::Bullet_Track>();
-            b->shooter = WeakFromThis<Shooter>();
+            b->shooter = xx::WeakFromThis(this);
             b->life = 1000;
             b->pos = gunPos;
             b->target = tar;

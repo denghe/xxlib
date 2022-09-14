@@ -77,29 +77,29 @@ namespace xx {
 
         [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetSharedCount() const noexcept {
             if (!pointer) return 0;
-            return header()->sharedCount;
+            return GetHeader()->sharedCount;
         }
 
         [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetWeakCount() const noexcept {
             if (!pointer) return 0;
-            return header()->weakCount;
+            return GetHeader()->weakCount;
         }
 
         // for ObjPtrHeader only
         [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetTypeId() const noexcept {
             if (!pointer) return 0;
-            assert(header()->typeId);
-            return header()->typeId;
+            assert(GetHeader()->typeId);
+            return GetHeader()->typeId;
         }
 
         // unsafe
-        [[maybe_unused]] [[nodiscard]] XX_INLINE HeaderType *header() const noexcept {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE HeaderType *GetHeader() const noexcept {
             return ((HeaderType *) pointer - 1);
         }
 
         void Reset() {
             if (pointer) {
-                auto h = header();
+                auto h = GetHeader();
                 assert(h->sharedCount);
                 // 不能在这里 -1, 这将导致成员 weak 指向自己时触发 free
                 if (h->sharedCount == 1) {
@@ -505,9 +505,16 @@ namespace xx {
     // unsafe
     template<typename T>
     Shared<T> SharedFromThis(T *const &thiz) {
+        assert(thiz);
         return *(Shared<T> *) &thiz;
     }
 
+    // unsafe
+    template<typename T>
+    Weak<T> WeakFromThis(T *const &thiz) {
+        assert(thiz);
+        return (*(Shared<T>*)&thiz).ToWeak();
+    }
 }
 
 // 令 Shared Weak 支持放入 hash 容器
@@ -545,7 +552,7 @@ namespace std {
 //    // 如果独占：不加持 不封送 就地删除
 //    template<typename T>
 //    xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
-//        if (s.header()->sharedCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
+//        if (s.GetHeader()->sharedCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
 //        else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
 //    }
 
@@ -562,7 +569,7 @@ namespace std {
 //    template<typename F>
 //    Ptr(Shared<T> const& s, F &&f) {
 //        assert(s);
-//        ++s.header()->sharedCount;
+//        ++s.GetHeader()->sharedCount;
 //        ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
 //    }
 

@@ -10,13 +10,8 @@ namespace xx {
 
 	// Object 智能指针头，附加了点东西
 	struct ObjPtrHeader : PtrHeaderBase {
-		union {
-			struct {
-				uint32_t typeId;        // 序列化 或 类型转换用
-				uint32_t offset;        // 序列化等过程中使用
-			};
-			void* ud;
-		};
+		uint32_t typeId;        // 序列化 或 类型转换用
+		uint32_t offset;        // 序列化等过程中使用
 
 		template<typename T>
 		inline static void Init(ObjPtrHeader& p) {
@@ -26,14 +21,11 @@ namespace xx {
 		}
 	};
 
-
 	struct ObjBase;
-
 	template<typename T>
 	struct PtrHeaderSwitcher<T, std::enable_if_t< (std::is_same_v<ObjBase, T> || TypeId_v<T> > 0) >> {
 		using type = ObjPtrHeader;
 	};
-
 
 	using ObjBase_s = Shared<ObjBase>;
 	struct ObjManager;
@@ -120,28 +112,6 @@ namespace xx {
 
 		// 恢复成员变量初始值
 		virtual void SetDefaultValue(ObjManager& om) = 0;
-
-		// 注意: 如果类以值类型方式使用, 则下列函数不可用
-		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T
-		// 得到当前类的强指针
-		template<typename T = ObjBase>
-		XX_INLINE Shared<T> SharedFromThis() const {
-			auto h = (ObjPtrHeader*)this - 1;
-			return (*((Weak<T>*) & h)).Lock();
-		}
-
-		// 得到当前类的弱指针
-		template<typename T = ObjBase>
-		XX_INLINE Weak<T> WeakFromThis() const {
-			auto h = (ObjPtrHeader*)this - 1;
-			return *((Weak<T>*) & h);
-		}
-
-		// 得到当前类的 typeId( 
-		XX_INLINE int16_t GetTypeId() const {
-			auto h = (ObjPtrHeader*)this - 1;
-			return (int16_t)h->typeId;
-		}
 	};
 
 
@@ -207,7 +177,7 @@ namespace xx {
 				return v.template ReinterpretCast<T>();
 			}
 			else {
-				if (!v || !IsBaseOf<T>(v.header()->typeId)) {
+				if (!v || !IsBaseOf<T>(v.GetHeader()->typeId)) {
 					return null.template ReinterpretCast<T>();
 				}
 				return v.template ReinterpretCast<T>();

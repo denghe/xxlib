@@ -45,8 +45,8 @@ void Test1() {
 
 	std::cout << "auto f = om.Clone(b);" << std::endl;
 	auto f = om.Clone(b);
-	auto hb = b.header();
-	auto hf = f.header();
+	auto hb = b.GetHeader();
+	auto hf = f.GetHeader();
 	std::cout << om.ToString(b) << std::endl;
 	std::cout << om.ToString(f) << std::endl;
 	assert(om.ToString(b) == om.ToString(f));
