@@ -21,6 +21,8 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_gateway_client.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro_simple.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_shared.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_ignores.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_imgui_dx9_helper.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_asio_tcp_gateway_client.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bits.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_bufholder.h" />

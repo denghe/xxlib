@@ -37,8 +37,8 @@ void Test1() {
 
 	std::cout << "auto e = om.Clone(a);" << std::endl;
 	auto e = om.Clone(a);
-	auto ha = ((xx::PtrHeader*)a.pointer - 1);
-	auto he = ((xx::PtrHeader*)e.pointer - 1);
+	auto ha = ((xx::ObjPtrHeader*)a.pointer - 1);
+	auto he = ((xx::ObjPtrHeader*)e.pointer - 1);
 	std::cout << om.ToString(a) << std::endl;
 	std::cout << om.ToString(e) << std::endl;
 	assert(om.ToString(a) == om.ToString(e));

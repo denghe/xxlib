@@ -4,17 +4,34 @@
 #include "xx_data_funcs.h"
 #include "xx_string.h"
 
-
-
 // 辅助宏在最下面
 
 namespace xx {
+
+	// Object 智能指针头，附加了点东西
+	struct ObjPtrHeader : PtrHeaderBase {
+		union {
+			struct {
+				uint32_t typeId;        // 序列化 或 类型转换用
+				uint32_t offset;        // 序列化等过程中使用
+			};
+			void* ud;
+		};
+
+		template<typename T>
+		inline static void Init(ObjPtrHeader& p) {
+			PtrHeaderBase::Init<T>(p);
+			p.typeId = TypeId_v<T>;
+			p.offset = 0;
+		}
+	};
+
 
 	struct ObjBase;
 
 	template<typename T>
 	struct PtrHeaderSwitcher<T, std::enable_if_t< (std::is_same_v<ObjBase, T> || TypeId_v<T> > 0) >> {
-		using type = PtrHeader;
+		using type = ObjPtrHeader;
 	};
 
 
@@ -109,20 +126,20 @@ namespace xx {
 		// 得到当前类的强指针
 		template<typename T = ObjBase>
 		XX_INLINE Shared<T> SharedFromThis() const {
-			auto h = (PtrHeader*)this - 1;
+			auto h = (ObjPtrHeader*)this - 1;
 			return (*((Weak<T>*) & h)).Lock();
 		}
 
 		// 得到当前类的弱指针
 		template<typename T = ObjBase>
 		XX_INLINE Weak<T> WeakFromThis() const {
-			auto h = (PtrHeader*)this - 1;
+			auto h = (ObjPtrHeader*)this - 1;
 			return *((Weak<T>*) & h);
 		}
 
 		// 得到当前类的 typeId( 
 		XX_INLINE int16_t GetTypeId() const {
-			auto h = (PtrHeader*)this - 1;
+			auto h = (ObjPtrHeader*)this - 1;
 			return (int16_t)h->typeId;
 		}
 	};
@@ -142,7 +159,7 @@ namespace xx {
 		// 公共上下文
 		std::vector<void*> ptrs;								// for write, append, clone
 		std::vector<void*> ptrs2;								// for read, clone
-		std::vector<std::pair<PtrHeader*, PtrHeader**>> weaks;	// for clone
+		std::vector<std::pair<ObjPtrHeader*, ObjPtrHeader**>> weaks;	// for clone
 
 		inline static ObjBase_s null;
 
@@ -225,7 +242,7 @@ namespace xx {
 				assert(v);
 				using U = typename T::ElementType;
 				if constexpr (direct) {
-					assert(((PtrHeader*)v.pointer - 1)->typeId == TypeId_v<U>);
+					assert(((ObjPtrHeader*)v.pointer - 1)->typeId == TypeId_v<U>);
 				}
 				if constexpr (direct && IsSimpleType_v<U>) {
 					d.WriteVarInteger<needReserve>(TypeId_v<U>);
@@ -233,7 +250,7 @@ namespace xx {
 					return;
 				}
 				else {
-					auto tid = ((PtrHeader*)v.pointer - 1)->typeId;
+					auto tid = ((ObjPtrHeader*)v.pointer - 1)->typeId;
 					if (simples[tid]) {
 						d.WriteVarInteger<needReserve>(tid);
 						Write_<needReserve>(d, *v.pointer);
@@ -276,7 +293,7 @@ namespace xx {
 					}
 					else {
 						// 写入格式： idx + typeId + content ( idx 临时存入 h->offset )
-						auto h = ((PtrHeader*)v.pointer - 1);
+						auto h = ((ObjPtrHeader*)v.pointer - 1);
 						if (h->offset == 0) {
 							ptrs.push_back(&h->offset);
 							h->offset = (uint32_t)ptrs.size();
@@ -638,7 +655,7 @@ namespace xx {
 				using U = typename T::ElementType;
 				if (v) {
 					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-						auto h = ((PtrHeader*)v.pointer - 1);
+						auto h = ((ObjPtrHeader*)v.pointer - 1);
 						if (h->offset == 0) {
 							ptrs.push_back(&h->offset);
 							h->offset = (uint32_t)ptrs.size();
@@ -744,13 +761,13 @@ namespace xx {
 			Clone_(in, out);
 			for (auto& kv : weaks) {
 				if (kv.first->offset) {
-					auto h = (PtrHeader*)ptrs2[kv.first->offset - 1] - 1;
-					++h->refCount;
+					auto h = (ObjPtrHeader*)ptrs2[kv.first->offset - 1] - 1;
+					++h->weakCount;
 					*kv.second = h;
 				}
 				else {
 					*kv.second = kv.first;
-					++kv.first->refCount;
+					++kv.first->weakCount;
 				}
 			}
 			for (auto&& p : ptrs) {
@@ -792,7 +809,7 @@ namespace xx {
 						out.Reset();
 					}
 					else {
-						auto h = ((PtrHeader*)in.pointer - 1);
+						auto h = ((ObjPtrHeader*)in.pointer - 1);
 						if (h->offset == 0) {
 							ptrs.push_back(&h->offset);
 							h->offset = (uint32_t)ptrs.size();
@@ -819,7 +836,7 @@ namespace xx {
 			}
 			else if constexpr (IsWeak_v<T>) {
 				out.Reset();
-				if (in.h && in.h->useCount) {
+				if (in.h && in.h->sharedCount) {
 					weaks.emplace_back(in.h, &out.h);
 				}
 			}
@@ -900,14 +917,14 @@ namespace xx {
 		XX_INLINE void RecursiveReset_(T& v) {
 			if constexpr (IsShared_v<T>) {
 				if (v) {
-					auto h = ((PtrHeader*)v.pointer - 1);
+					auto h = ((ObjPtrHeader*)v.pointer - 1);
 					if (h->offset == 0) {
 						h->offset = 1;
 						ptrs.push_back(&h->offset);
 						RecursiveReset_(*v);
 					}
 					else {
-						--h->useCount;
+						--h->sharedCount;
 						v.pointer = nullptr;
 					}
 				}
@@ -988,7 +1005,7 @@ namespace xx {
 		XX_INLINE int RecursiveCheck_(T const& v) {
 			if constexpr (IsShared_v<T>) {
 				if (v) {
-					auto h = ((PtrHeader*)v.pointer - 1);
+					auto h = ((ObjPtrHeader*)v.pointer - 1);
 					if (h->offset == 0) {
 						ptrs.push_back(&h->offset);
 						h->offset = (uint32_t)ptrs.size();

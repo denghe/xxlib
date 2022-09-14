@@ -2,7 +2,7 @@
 
 #include "xx_helpers.h"
 
-// 类似 std::shared_ptr / weak_ptr，非线程安全，Weak 提供了无损 useCount 检测功能以方便直接搞事情
+// 类似 std::shared_ptr / weak_ptr，非线程安全，Weak 提供了无损 sharedCount 检测功能以方便直接搞事情
 
 namespace xx {
 
@@ -10,12 +10,18 @@ namespace xx {
     // Make 时会在内存块头部附加
 
     struct PtrHeaderBase {
-        uint32_t useCount;      // 强引用技术
-        uint32_t refCount;      // 弱引用技术
+        uint32_t sharedCount;           // 强引用技术
+        uint32_t weakCount;             // 弱引用技术
+
+        // 创建时会调用这个函数来初始化。派生类需要提供自己的初始化函数
+        template<typename T>
+        inline static void Init(PtrHeaderBase& p) {
+            p.sharedCount = 1;
+            p.weakCount = 0;
+        }
     };
 
-
-    // 适配路由
+    // header 路由 适配模板
     template<typename T, typename ENABLED = void>
     struct PtrHeaderSwitcher {
         using type = PtrHeaderBase;
@@ -26,28 +32,10 @@ namespace xx {
 
 
     /************************************************************************************/
-
-    // for ObjBase 序列化等需求
-    struct PtrHeader : PtrHeaderBase {
-        union {
-            struct {
-                uint32_t typeId;        // 序列化 或 类型转换用
-                uint32_t offset;        // 序列化等过程中使用
-            };
-            void* ud;
-        };
-    };
-
-
-    /************************************************************************************/
     // std::shared_ptr like
 
     template<typename T>
     struct Weak;
-
-    template<typename T>
-    struct Ptr;
-
 
     template<typename T>
     struct Shared {
@@ -87,14 +75,14 @@ namespace xx {
             return pointer != nullptr;
         }
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t useCount() const noexcept {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetSharedCount() const noexcept {
             if (!pointer) return 0;
-            return header()->useCount;
+            return header()->sharedCount;
         }
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t refCount() const noexcept {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetWeakCount() const noexcept {
             if (!pointer) return 0;
-            return header()->refCount;
+            return header()->weakCount;
         }
 
         [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t typeId() const noexcept {
@@ -108,39 +96,21 @@ namespace xx {
             return ((HeaderType *) pointer - 1);
         }
 
-        // 将 header 内容拼接为 string 返回 以方便显示 & 调试
-        [[maybe_unused]] [[nodiscard]] XX_INLINE std::string GetHeaderInfo() const noexcept {
-            std::string s;
-            if (!pointer) {
-                s += "nil";
-            } else {
-                auto h = header();
-                s += "{\"useCount\":" + std::to_string(h->useCount);
-                s += ",\"refCount\":" + std::to_string(h->refCount);
-                if constexpr (std::is_base_of_v<PtrHeader, HeaderType>) {
-                    s += ",\"typeId\":" + std::to_string(h->typeId);
-                    s += ",\"offset\":" + std::to_string(h->offset);
-                }
-                s += "}";
-            }
-            return s;
-        }
-
         void Reset() {
             if (pointer) {
                 auto h = header();
-                assert(h->useCount);
+                assert(h->sharedCount);
                 // 不能在这里 -1, 这将导致成员 weak 指向自己时触发 free
-                if (h->useCount == 1) {
+                if (h->sharedCount == 1) {
                     pointer->~T();
                     pointer = nullptr;
-                    if (h->refCount == 0) {
+                    if (h->weakCount == 0) {
                         free(h);
                     } else {
-                        h->useCount = 0;
+                        h->sharedCount = 0;
                     }
                 } else {
-                    --h->useCount;
+                    --h->sharedCount;
                     pointer = nullptr;
                 }
             }
@@ -153,7 +123,7 @@ namespace xx {
             Reset();
             if (ptr) {
                 pointer = ptr;
-                ++((HeaderType *) ptr - 1)->useCount;
+                ++((HeaderType *) ptr - 1)->sharedCount;
             }
         }
 
@@ -168,14 +138,14 @@ namespace xx {
             static_assert(std::is_base_of_v<T, U>);
             pointer = ptr;
             if (ptr) {
-                ++((HeaderType *) ptr - 1)->useCount;
+                ++((HeaderType *) ptr - 1)->sharedCount;
             }
         }
 
         XX_INLINE Shared(T *const &ptr) {
             pointer = ptr;
             if (ptr) {
-                ++((HeaderType *) ptr - 1)->useCount;
+                ++((HeaderType *) ptr - 1)->sharedCount;
             }
         }
 
@@ -269,7 +239,7 @@ namespace xx {
 
         // singleton convert to std::shared_ptr ( usually for thread safe )
         std::shared_ptr<T> ToSharedPtr() noexcept {
-            assert(useCount() == 1 && refCount() == 0);
+            assert(GetSharedCount() == 1 && GetWeakCount() == 0);
             auto bak = pointer;
             pointer = nullptr;
             return std::shared_ptr<T>(bak, [](T *p) {
@@ -288,14 +258,14 @@ namespace xx {
         using ElementType = T;
         HeaderType *h = nullptr;
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t useCount() const noexcept {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetSharedCount() const noexcept {
             if (!h) return 0;
-            return h->useCount;
+            return h->sharedCount;
         }
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t refCount() const noexcept {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetWeakCount() const noexcept {
             if (!h) return 0;
-            return h->refCount;
+            return h->weakCount;
         }
 
         [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t typeId() const noexcept {
@@ -304,7 +274,7 @@ namespace xx {
         }
 
         [[maybe_unused]] [[nodiscard]] XX_INLINE explicit operator bool() const noexcept {
-            return h && h->useCount;
+            return h && h->sharedCount;
         }
 
         // unsafe: 直接计算出指针
@@ -314,10 +284,10 @@ namespace xx {
 
         XX_INLINE void Reset() {
             if (h) {
-                if (h->refCount == 1 && h->useCount == 0) {
+                if (h->weakCount == 1 && h->sharedCount == 0) {
                     free(h);
                 } else {
-                    --h->refCount;
+                    --h->weakCount;
                 }
                 h = nullptr;
             }
@@ -329,12 +299,12 @@ namespace xx {
             Reset();
             if (s.pointer) {
                 h = ((HeaderType *) s.pointer - 1);
-                ++h->refCount;
+                ++h->weakCount;
             }
         }
 
         [[maybe_unused]] [[nodiscard]] XX_INLINE Shared<T> Lock() const {
-            if (h && h->useCount) {
+            if (h && h->sharedCount) {
                 auto p = h + 1;
                 return *(Shared<T> *) &p;
             }
@@ -379,7 +349,7 @@ namespace xx {
 
         XX_INLINE Weak(Weak const &o) {
             if ((h = o.h)) {
-                ++o.h->refCount;
+                ++o.h->weakCount;
             }
         }
 
@@ -387,7 +357,7 @@ namespace xx {
         XX_INLINE Weak(Weak<U> const &o) {
             static_assert(std::is_base_of_v<T, U>);
             if ((h = o.h)) {
-                ++o.h->refCount;
+                ++o.h->weakCount;
             }
         }
 
@@ -450,12 +420,7 @@ namespace xx {
     Shared<T> &Shared<T>::Emplace(Args &&...args) {
         Reset();
         auto h = (HeaderType *) malloc(sizeof(HeaderType) + sizeof(T));
-        h->useCount = 1;
-        h->refCount = 0;
-        if constexpr (std::is_base_of_v<PtrHeader, HeaderType>) {
-            h->typeId = TypeId_v<T>;
-            h->offset = 0;
-        }
+        HeaderType::Init<T>(*h);
         pointer = new(h + 1) T(std::forward<Args>(args)...);
         return *this;
     }
@@ -541,64 +506,6 @@ namespace xx {
         return *(Shared<T> *) &thiz;
     }
 
-
-
-    // 针对跨线程安全访问需求，将 pointer 持有+1 并塞入 std::shared_ptr，参数为安全删除 lambda
-    // 令 std::shared_ptr 在最终销毁时，将指针( xx::Shared 的原始形态 ) 封送到安全线程操作
-    // 最终利用 o 的析构来安全删除 pointer ( 可能还有别的持有 )
-    // 下面的封装 令 std::shared_ptr<T*> 用起来更友善
-    /* 示例：下列代码可能存在于主线程环境类中
-
-        // 共享：加持 & 封送
-        template<typename T>
-        xx::Ptr<T> ToPtr(xx::Shared<T> const& s) {
-            return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
-        }
-
-        // 如果独占：不加持 不封送 就地删除
-        template<typename T>
-        xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
-            if (s.header()->useCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
-            else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
-        }
-
-    */
-    template<typename T>
-    struct Ptr {
-        Ptr(Ptr const&) = default;
-        Ptr(Ptr &&) = default;
-        Ptr& operator=(Ptr const&) = default;
-        Ptr& operator=(Ptr &&) = default;
-
-        std::shared_ptr<T*> ptr;
-
-        template<typename F>
-        Ptr(Shared<T> const& s, F &&f) {
-            assert(s);
-            ++s.header()->useCount;
-            ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
-        }
-
-        template<typename F>
-        Ptr(Shared<T> && s, F &&f) {
-            assert(s);
-            ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
-            s.pointer = nullptr;
-        }
-
-        XX_INLINE operator T *const &() const noexcept {
-            return *ptr;
-        }
-
-        XX_INLINE operator T *&() noexcept {
-            return *ptr;
-        }
-
-        XX_INLINE T *const &operator->() const noexcept {
-            return *ptr;
-        }
-    };
-
 }
 
 // 令 Shared Weak 支持放入 hash 容器
@@ -617,3 +524,62 @@ namespace std {
         }
     };
 }
+
+
+
+
+//// 针对跨线程安全访问需求，将 pointer 持有+1 并塞入 std::shared_ptr，参数为安全删除 lambda
+//// 令 std::shared_ptr 在最终销毁时，将指针( xx::Shared 的原始形态 ) 封送到安全线程操作
+//// 最终利用 o 的析构来安全删除 pointer ( 可能还有别的持有 )
+//// 下面的封装 令 std::shared_ptr<T*> 用起来更友善
+///* 示例：下列代码可能存在于主线程环境类中
+
+//    // 共享：加持 & 封送
+//    template<typename T>
+//    xx::Ptr<T> ToPtr(xx::Shared<T> const& s) {
+//        return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+//    }
+
+//    // 如果独占：不加持 不封送 就地删除
+//    template<typename T>
+//    xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
+//        if (s.header()->sharedCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
+//        else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+//    }
+
+//*/
+//template<typename T>
+//struct Ptr {
+//    Ptr(Ptr const&) = default;
+//    Ptr(Ptr &&) = default;
+//    Ptr& operator=(Ptr const&) = default;
+//    Ptr& operator=(Ptr &&) = default;
+
+//    std::shared_ptr<T*> ptr;
+
+//    template<typename F>
+//    Ptr(Shared<T> const& s, F &&f) {
+//        assert(s);
+//        ++s.header()->sharedCount;
+//        ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
+//    }
+
+//    template<typename F>
+//    Ptr(Shared<T> && s, F &&f) {
+//        assert(s);
+//        ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
+//        s.pointer = nullptr;
+//    }
+
+//    XX_INLINE operator T *const &() const noexcept {
+//        return *ptr;
+//    }
+
+//    XX_INLINE operator T *&() noexcept {
+//        return *ptr;
+//    }
+
+//    XX_INLINE T *const &operator->() const noexcept {
+//        return *ptr;
+//    }
+//};

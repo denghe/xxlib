@@ -47,7 +47,7 @@ namespace xx::Lua {
 
         // 如果 p 引用计数唯一, 则反注册
         void Reset() {
-            if (p.useCount() == 1) {
+            if (p.GetSharedCount() == 1) {
                 luaL_unref(p->first, LUA_REGISTRYINDEX, p->second);
             }
             p.Reset();
