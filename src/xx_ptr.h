@@ -10,10 +10,10 @@ namespace xx {
     // Make 时会在内存块头部附加
 
     struct PtrHeaderBase {
-        uint32_t sharedCount;           // 强引用技术
-        uint32_t weakCount;             // 弱引用技术
+        uint32_t sharedCount;           // 强引用计数
+        uint32_t weakCount;             // 弱引用计数
 
-        // 创建时会调用这个函数来初始化。派生类需要提供自己的初始化函数
+        // 创建时会调用这个函数来初始化。派生类需要提供自己的初始化函数 并调用基类的 这个函数
         template<typename T>
         inline static void Init(PtrHeaderBase& p) {
             p.sharedCount = 1;
