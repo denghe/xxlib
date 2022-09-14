@@ -471,7 +471,7 @@ namespace xx {
                         if (!fs[typeId]) return __LINE__;
 						if (!IsBaseOf<U>(typeId)) return __LINE__;
 
-						if (!v || v.typeId() != typeId) {
+						if (!v || v.GetTypeId() != typeId) {
 							v = std::move(Create(typeId).template ReinterpretCast<U>());
 							assert(v);
 						}
@@ -481,7 +481,7 @@ namespace xx {
 					else {
 						if (idx > len) return __LINE__;
 						auto& o = *(ObjBase_s*)&ptrs[idx - 1];
-						if (!IsBaseOf<U>(o.typeId())) return __LINE__;
+						if (!IsBaseOf<U>(o.GetTypeId())) return __LINE__;
 						v = o.template ReinterpretCast<U>();
 					}
 					return 0;
@@ -814,8 +814,8 @@ namespace xx {
 							ptrs.push_back(&h->offset);
 							h->offset = (uint32_t)ptrs.size();
 
-							auto inTypeId = in.typeId();
-							if (out.typeId() != inTypeId) {
+							auto inTypeId = in.GetTypeId();
+							if (out.GetTypeId() != inTypeId) {
 								out = std::move(Create(inTypeId).template ReinterpretCast<U>());
 							}
 							ptrs2.push_back(out.pointer);

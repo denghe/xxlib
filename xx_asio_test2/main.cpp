@@ -40,7 +40,7 @@ struct CPeer : xx::PeerCode<CPeer>, xx::PeerTimeoutCode<CPeer>, xx::PeerRequestC
     std::queue<xx::ObjBase_s> recvs;                                                            // 收到的所有包
 
     int ReceivePush(xx::ObjBase_s&& o_) {                                                       // 收包处理
-        switch (o_.typeId()) {
+        switch (o_.GetTypeId()) {
         case xx::TypeId_v<SS_C2S::Enter>: {                                                     // 响应 进入游戏 请求
             om.CoutTN("clientId = ", clientId, " recv package: ", o_);
             if (server.ps.contains(clientId)) return __LINE__;                                  // 重复发起 Enter ? 掐线

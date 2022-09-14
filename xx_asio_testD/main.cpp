@@ -102,7 +102,7 @@ struct ServerPeer : PeerBase<ServerPeer> {
 	// 收到 请求( 返回非 0 表示失败，会 Stop )
 	int ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
 		server.om.CoutTN("ServerPeer ReceiveRequest serial = ", serial, " o_ = ", o_);
-		switch (o_.typeId()) {
+		switch (o_.GetTypeId()) {
 		case xx::TypeId_v<All_Db::GetPlayerId>: {
 			HandleRequest(serial, std::move(o_.ReinterpretCast<All_Db::GetPlayerId>()));
 			break;

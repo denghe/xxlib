@@ -85,7 +85,8 @@ namespace xx {
             return header()->weakCount;
         }
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t typeId() const noexcept {
+        // for ObjPtrHeader only
+        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetTypeId() const noexcept {
             if (!pointer) return 0;
             assert(header()->typeId);
             return header()->typeId;
@@ -268,7 +269,8 @@ namespace xx {
             return h->weakCount;
         }
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t typeId() const noexcept {
+        // for ObjPtrHeader only
+        [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetTypeId() const noexcept {
             if (!h) return 0;
             return h->typeId;
         }

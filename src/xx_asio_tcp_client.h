@@ -150,7 +150,7 @@ namespace xx::Asio::Tcp {
 		}
 		else {
 			static_assert(std::is_base_of_v<ObjBase, T>);
-			if (o.data.typeId() == xx::TypeId_v<T>) {
+			if (o.data.GetTypeId() == xx::TypeId_v<T>) {
 				ro = std::move(reinterpret_cast<Package<Shared<T>>&>(o));
 			}
 			else {

@@ -79,7 +79,7 @@ struct GPeer : GPeerCode<GPeer, VPeer, Server>, std::enable_shared_from_this<GPe
 int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
     //om.CoutTN("ReceiveRequest serial = ", serial, " o_ = ", o_);
     ResetTimeout(15s);                                                              // 无脑续命
-    switch (o_.typeId()) {
+    switch (o_.GetTypeId()) {
     case xx::TypeId_v<Ping>: {
         auto&& o = o_.ReinterpretCast<Ping>();                                      // 转为具体类型
         SendResponse<Pong>(serial, o->ticks);                                       // 回应结果
@@ -95,7 +95,7 @@ int VPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
 
 
 int LPeer::ReceiveRequest(int32_t serial, xx::ObjBase_s&& o_) {
-    switch (o_.typeId()) {
+    switch (o_.GetTypeId()) {
     case xx::TypeId_v<Lobby_Game1::PlayerEnter>: {
         auto&& o = o_.ReinterpretCast<Lobby_Game1::PlayerEnter>();
         auto giter = server.gpeers.find(o->gatewayId);

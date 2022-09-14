@@ -88,7 +88,7 @@ struct Game1Peer : xx::PeerCode<Game1Peer>, xx::PeerRequestCode<Game1Peer>, std:
 
     int ReceivePush(xx::ObjBase_s&& o_) {
         if (serverId == 0xFFFFFFFFu) {                                                  // 当前为未注册状态, 只期待 Generic::Register 数据包. 
-            if (o_.typeId() == xx::TypeId_v<Generic::Register>) {                       // game server 应先发首包 Generic::Register, 自报家门. id 并放入 server.mpeers. 如果已存在，就掐线( 不顶下线 )
+            if (o_.GetTypeId() == xx::TypeId_v<Generic::Register>) {                       // game server 应先发首包 Generic::Register, 自报家门. id 并放入 server.mpeers. 如果已存在，就掐线( 不顶下线 )
                 auto&& o = o_.ReinterpretCast<Generic::Register>();
                 if (o->id == 0xFFFFFFFFu) {                                             // 简单检查 id 值域, 如果为表达 未填写的特殊值, 报错退出
                     xx::CoutTN("Game1Peer ReceivePush Generic::Register error. bad id range: id = ", o->id);
@@ -147,12 +147,12 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
         if (playerInfo) {
             playerInfo->lastActiveTime = xx::NowSteadyEpochMilliseconds();              // 更新最后活动时间点
         }
-        if (o_.typeId() == xx::TypeId_v<Ping>) {
+        if (o_.GetTypeId() == xx::TypeId_v<Ping>) {
             SendResponse<Pong>(serial, o_.ReinterpretCast<Ping>()->ticks);              // 回应结果
             return 0;
         }
         if (playerInfo) {                                                               // 已登录状态
-            switch (o_.typeId()) {
+            switch (o_.GetTypeId()) {
             case xx::TypeId_v<Client_Lobby::EnterGame>: {
                 auto&& o = o_.ReinterpretCast<Client_Lobby::EnterGame>();               // 收到 进入游戏 的请求
 
@@ -170,7 +170,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
             }
         }
         else {                                                                          // 未登录状态
-            switch (o_.typeId()) {
+            switch (o_.GetTypeId()) {
             case xx::TypeId_v<Client_Lobby::Login>: {                                   // 注意: vpper Alive 和 dpeer Alive() 检查看情况，可以不做, 后果为 发不出去, SendRequest 立即返回空
                 auto&& o = o_.ReinterpretCast<Client_Lobby::Login>();                   // 下面开始合法性检测
                 if (playerInfo) {                                                       // 如果 Login 已完成，则本次指令认定为非法
@@ -215,7 +215,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
 
                     // 去 db 获取 id
                     if (auto r_ = co_await server.dpeer->SendRequest<All_Db::GetPlayerId>(15s, o->username, o->password)) {
-                        switch (r_.typeId()) {
+                        switch (r_.GetTypeId()) {
                         case xx::TypeId_v<Generic::Error>:                              // db 返回的错误信息 转发
                         {
                             auto&& r = r_.ReinterpretCast<Generic::Error>();
@@ -228,7 +228,7 @@ struct VPeer : xx::VPeerCode<VPeer, GPeer>, std::enable_shared_from_this<VPeer> 
 
                             // 去 db 获取 玩家信息
                             if (auto r2_ = co_await server.dpeer->SendRequest<All_Db::GetPlayerInfo>(15s, r->value)) {
-                                switch (r2_.typeId()) {
+                                switch (r2_.GetTypeId()) {
                                 case xx::TypeId_v<Generic::Error>:                      // db 返回的错误信息 转发
                                 {
                                     auto&& r2 = r2_.ReinterpretCast<Generic::Error>();
@@ -345,7 +345,7 @@ inline void Server::Run() {
                         });
                         while (running) {                                           // 如果失败就一直存( 实际逻辑中这种方案很危险 )
                             if (auto r2_ = co_await dpeer->SendRequest<All_Db::SetPlayerGold>(15s, p->id, p->gold)) {
-                                switch (r2_.typeId()) {
+                                switch (r2_.GetTypeId()) {
                                 case xx::TypeId_v<Generic::Success>: co_return;     // 存钱成功，退出协程
                                 default:
                                     om.CoutTN("player info store to db failed: ", r2_);

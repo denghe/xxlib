@@ -579,7 +579,7 @@ namespace xx {
 
 		ObjBase_s ReadFrom(Data_r& dr) {
 			ObjBase_s o;
-			if (om.ReadFrom(dr, o) || (o && o.typeId() == 0)) {
+			if (om.ReadFrom(dr, o) || (o && o.GetTypeId() == 0)) {
 				om.KillRecursive(o);
 				return {};
 			}
@@ -666,7 +666,7 @@ namespace xx {
 		ObjBase_s ReadFrom(Data_r& dr) {
 			ObjBase_s o;
 			int r = om.ReadFrom(dr, o);
-			if (r || (o && o.typeId() == 0)) {
+			if (r || (o && o.GetTypeId() == 0)) {
 				om.KillRecursive(o);
 				return nullptr;
 			}

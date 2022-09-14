@@ -44,7 +44,7 @@ int main() {
 
 		int64_t playerId = -1;																// 待填充的 当前玩家 id
 		if (auto o = co_await c.SendRequestTo<Client_Lobby::Login>(lobbyServerId, 5s, "a"sv, "1"sv)) {	// 向 lobby 发个 Login 等回应
-			switch (o.typeId()) {
+			switch (o.GetTypeId()) {
 			case xx::TypeId_v<Generic::Success>: {
 				playerId = o.ReinterpretCast<Generic::Success>()->value;
 				break;
@@ -77,7 +77,7 @@ int main() {
 			if (!c) goto LabBegin;															// 已断开?
 			goto LabProcess;																// 继续取
 		}
-		switch (pkg.data.typeId()) {
+		switch (pkg.data.GetTypeId()) {
 			// case ....
 		default:
 		{
@@ -94,7 +94,7 @@ int main() {
 	LabBegin:
 		co_await xx::Timeout(3s);
 		if (!co_await c.WaitOpens(1s, 0)) goto LabBegin;
-		if (auto o = co_await c.SendRequestTo<Ping>(0, 5s, xx::NowSteadyEpoch10m()); o.typeId() == xx::TypeId_v<Pong>) {
+		if (auto o = co_await c.SendRequestTo<Ping>(0, 5s, xx::NowSteadyEpoch10m()); o.GetTypeId() == xx::TypeId_v<Pong>) {
 			c.om.CoutTN("delay ms = ", double(xx::NowSteadyEpoch10m() - o.ReinterpretCast<Pong>()->ticks) / 10000.0);
 		} else {
 			c.om.KillRecursive(o);
