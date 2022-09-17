@@ -422,7 +422,7 @@ namespace xx {
     Shared<T> &Shared<T>::Emplace(Args &&...args) {
         Reset();
         auto h = (HeaderType *) malloc(sizeof(HeaderType) + sizeof(T));
-        HeaderType::Init<T>(*h);
+        HeaderType::template Init<T>(*h);
         pointer = new(h + 1) T(std::forward<Args>(args)...);
         return *this;
     }
@@ -515,6 +515,69 @@ namespace xx {
         assert(thiz);
         return (*(Shared<T>*)&thiz).ToWeak();
     }
+
+
+
+
+
+
+
+// 针对跨线程安全访问需求，将 pointer 持有+1 并塞入 std::shared_ptr，参数为安全删除 lambda
+// 令 std::shared_ptr 在最终销毁时，将指针( xx::Shared 的原始形态 ) 封送到安全线程操作
+// 最终利用 o 的析构来安全删除 pointer ( 可能还有别的持有 )
+// 下面的封装 令 std::shared_ptr<T*> 用起来更友善
+/* 示例：下列代码可能存在于主线程环境类中
+
+    // 共享：加持 & 封送
+    template<typename T>
+    xx::SharedBox<T> ToSharedBox(xx::Shared<T> const& s) {
+        return xx::SharedBox<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+    }
+
+    // 如果独占：不加持 不封送 就地删除
+    template<typename T>
+    xx::SharedBox<T> ToSharedBox(xx::Shared<T> && s) {
+        if (s.GetHeader()->sharedCount == 1) return xx::SharedBox<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
+        else return xx::SharedBox<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+    }
+
+*/
+    template<typename T>
+    struct SharedBox {
+        SharedBox(SharedBox const&) = default;
+        SharedBox(SharedBox &&) noexcept = default;
+        SharedBox& operator=(SharedBox const&) = default;
+        SharedBox& operator=(SharedBox &&) noexcept = default;
+
+        std::shared_ptr<T*> ptr;
+
+        template<typename F>
+        SharedBox(Shared<T> const& s, F &&f) {
+            assert(s);
+            ++s.GetHeader()->sharedCount;
+            ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
+        }
+
+        template<typename F>
+        SharedBox(Shared<T> && s, F &&f) {
+            assert(s);
+            ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
+            s.pointer = nullptr;
+        }
+
+        XX_INLINE explicit operator T *const &() const noexcept {
+            return *ptr;
+        }
+
+        XX_INLINE explicit operator T *&() noexcept {
+            return *ptr;
+        }
+
+        XX_INLINE T *const &operator->() const noexcept {
+            return *ptr;
+        }
+    };
+
 }
 
 // 令 Shared Weak 支持放入 hash 容器
@@ -533,62 +596,3 @@ namespace std {
         }
     };
 }
-
-
-
-
-//// 针对跨线程安全访问需求，将 pointer 持有+1 并塞入 std::shared_ptr，参数为安全删除 lambda
-//// 令 std::shared_ptr 在最终销毁时，将指针( xx::Shared 的原始形态 ) 封送到安全线程操作
-//// 最终利用 o 的析构来安全删除 pointer ( 可能还有别的持有 )
-//// 下面的封装 令 std::shared_ptr<T*> 用起来更友善
-///* 示例：下列代码可能存在于主线程环境类中
-
-//    // 共享：加持 & 封送
-//    template<typename T>
-//    xx::Ptr<T> ToPtr(xx::Shared<T> const& s) {
-//        return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
-//    }
-
-//    // 如果独占：不加持 不封送 就地删除
-//    template<typename T>
-//    xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
-//        if (s.GetHeader()->sharedCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
-//        else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
-//    }
-
-//*/
-//template<typename T>
-//struct Ptr {
-//    Ptr(Ptr const&) = default;
-//    Ptr(Ptr &&) = default;
-//    Ptr& operator=(Ptr const&) = default;
-//    Ptr& operator=(Ptr &&) = default;
-
-//    std::shared_ptr<T*> ptr;
-
-//    template<typename F>
-//    Ptr(Shared<T> const& s, F &&f) {
-//        assert(s);
-//        ++s.GetHeader()->sharedCount;
-//        ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
-//    }
-
-//    template<typename F>
-//    Ptr(Shared<T> && s, F &&f) {
-//        assert(s);
-//        ptr = std::shared_ptr<T*>(new T *(s.pointer), std::forward<F>(f));
-//        s.pointer = nullptr;
-//    }
-
-//    XX_INLINE operator T *const &() const noexcept {
-//        return *ptr;
-//    }
-
-//    XX_INLINE operator T *&() noexcept {
-//        return *ptr;
-//    }
-
-//    XX_INLINE T *const &operator->() const noexcept {
-//        return *ptr;
-//    }
-//};

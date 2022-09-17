@@ -40,14 +40,14 @@ struct Env {
 
     // 共享：加持 & 封送
     template<typename T>
-    xx::Ptr<T> ToPtr(xx::Shared<T> const& s) {
-        return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+    xx::SharedBox<T> ToSharedBox(xx::Shared<T> const& s) {
+        return xx::SharedBox<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
     }
     // 如果独占：不加持 不封送 就地删除
     template<typename T>
-    xx::Ptr<T> ToPtr(xx::Shared<T> && s) {
-        if (s.header()->useCount == 1) return xx::Ptr<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
-        else return xx::Ptr<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
+    xx::SharedBox<T> ToSharedBox(xx::Shared<T> && s) {
+        if (s.GetHeader()->sharedCount == 1) return xx::SharedBox<T>(std::move(s), [this](T **p) { xx::Shared<T> o; o.pointer = *p; });
+        else return xx::SharedBox<T>(s, [this](T **p) { Dispatch([p] { xx::Shared<T> o; o.pointer = *p; }); });
     }
 };
 
@@ -58,21 +58,25 @@ inline xx::ThreadPool<> tp;
 // 模拟业务逻辑
 struct Foo {
     int id = 0;
-    explicit Foo(int id) : id(id) {        std::cout << id << " new foo at " << std::this_thread::get_id() << std::endl;    }
-    ~Foo() {        std::cout << id << " delete foo at " << std::this_thread::get_id() << std::endl;    }
+    explicit Foo(int id) : id(id) {
+        std::cout << id << " new foo at " << std::this_thread::get_id() << std::endl;
+    }
+    ~Foo() {
+        std::cout << id << " delete foo at " << std::this_thread::get_id() << std::endl;
+    }
 };
 
 int main() {
     // 模拟主线逻辑 得到数据, 压到线程池搞事情
     {
         auto foo = xx::Make<Foo>(1);
-        tp.Add([foo = env.ToPtr(foo)] {
+        tp.Add([foo = env.ToSharedBox(foo)] {
             std::cout << foo->id << std::endl;
         });
     }
     {
         auto foo = xx::Make<Foo>(2);
-        tp.Add([foo = env.ToPtr(std::move(foo))] {
+        tp.Add([foo = env.ToSharedBox(std::move(foo))] {
             std::cout << foo->id << std::endl;
         });
     }

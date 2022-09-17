@@ -156,7 +156,7 @@ namespace xx {
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
         static inline void Append(std::string& s, T const& in) {
-            if constexpr (std::is_same_v<bool, T>) {
+            if constexpr (std::is_same_v<bool, std::decay_t<T>>) {
                 s.append(in ? "true" : "false");
             }
             else if constexpr (std::is_same_v<char, T>) {
@@ -164,10 +164,13 @@ namespace xx {
             }
             else if constexpr (std::is_floating_point_v<T>) {
                 std::array<char, 40> buf;
-                //snprintf(buf, 32, "%.16lf", (double) in);
-                //s.append(buf);
+#ifndef _MSC_VER
+                snprintf(buf.data(), buf.size(), "%.16lf", (double) in);
+                s.append(buf.data());
+#else
                 auto [ptr, _] = std::to_chars(buf.data(), buf.data() + buf.size(), in, std::chars_format::general, 16);
                 s.append(std::string_view(buf.data(), ptr - buf.data()));
+#endif
             }
             else {
                 //s.append(std::to_string(in));
