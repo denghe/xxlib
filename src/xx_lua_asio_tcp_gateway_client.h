@@ -50,9 +50,9 @@ namespace xx::Lua {
 				To<U*>(L)->SetDomainPort(To<std::string_view>(L, 2), To<int>(L, 3));
 				return 0;
 			});
-			SetFieldCClosure(L, "AddCppServerIds", [](auto L)->int {
+			SetFieldCClosure(L, "SetCppServerId", [](auto L)->int {
 				for (int i = lua_gettop(L); i > 1; --i) {
-					To<U*>(L)->AddCppServerIds(To<int>(L, i));
+					To<U*>(L)->SetCppServerId(To<int>(L, i));
 				}
 				return 0;
 			});

@@ -19,11 +19,10 @@ namespace xx::Asio::Tcp::Gateway {
 	struct Client : IOCCode<Client> {
         typedef asio::io_context::executor_type ExecutorType;
         asio::executor_work_guard<ExecutorType> work_guard_;
-        Client() : work_guard_(asio::make_work_guard(ioc)) {
-        }
+        Client() : work_guard_(asio::make_work_guard(ioc)) {}
 		ObjManager om;
 		std::shared_ptr<CPeer> peer;																// 当前 peer
-		std::unordered_set<uint32_t> cppServerIds;													// 属于 cpp 处理的 serverId 存放于此
+		uint32_t cppServerId = 0xFFFFFFFF;															// 属于 cpp 处理的 serverId 存放于此
 
 		std::string secret;																			// 用于数据滚动异或
 		std::string domain;																			// 域名/ip. 需要在 拨号 前填充
@@ -34,8 +33,7 @@ namespace xx::Asio::Tcp::Gateway {
 
 		void SetDomainPort(std::string_view domain_, uint16_t port_);								// 填充 域名/ip, 端口
 
-		template<typename...Args>
-		void AddCppServerIds(Args...ids);															// 添加一到多个 cpp 服务 id
+		void SetCppServerId(uint32_t id);															// 设置 cpp 服务 id
 
 		void Update();																				// 每帧开始和逻辑结束时 call 一次
 
@@ -69,6 +67,17 @@ namespace xx::Asio::Tcp::Gateway {
 
 		void SendTo(uint32_t const& target, int32_t const& serial, Span const& d);					// 转发到 peer-> Send( MakeData ... ) ( for lua )
 		void Send(Data && d);																		// 转发到 peer-> 同名函数 ( for lua )
+
+		// for cpp easy use
+
+		template<typename PKG = ObjBase, typename ... Args>
+		void SendResponse(int32_t const& serial, Args const& ... args);								// SendResponseTo( cppServerId, ...
+
+		template<typename PKG = ObjBase, typename ... Args>
+		void SendPush(Args const& ... args);														// SendPush( cppServerId, ...
+
+		template<typename PKG = ObjBase, typename ... Args>
+		awaitable<ObjBase_s> SendRequest(Args const& ... args);										// SendRequest( cppServerId, 15s, ...
 	};
 
 	struct CPeer : PeerCode<CPeer>, PeerTimeoutCode<CPeer>, PeerRequestTargetCode<CPeer>, std::enable_shared_from_this<CPeer> {
@@ -120,7 +129,7 @@ namespace xx::Asio::Tcp::Gateway {
 		int HandleTargetMessage(uint32_t target, Data_r& dr) {
 			ResetTimeout(15s);
 			if (target == 0xFFFFFFFF) return ReceveCommand(dr);										// 收到 command. 转过去处理
-			if (client.cppServerIds.contains(target)) return 1; 									// 属于 cpp 的: passthrough
+			if (client.cppServerId == target) return 1; 											// 属于 cpp 的: passthrough
 			int32_t serial;																			// 读出序号. 出错 返回负数行号( 掐线 )
 			if (dr.Read(serial)) return -__LINE__;
 			recvDatas.emplace_back(target, serial, Data(dr.buf + dr.offset, dr.len - dr.offset));	// 属于 lua: 放入 data 容器
@@ -170,10 +179,10 @@ namespace xx::Asio::Tcp::Gateway {
 		}
 	};
 
-	template<typename...Args>
-	void Client::AddCppServerIds(Args...ids) {
-		(cppServerIds.insert(ids), ...);
+	inline void Client::SetCppServerId(uint32_t id) {
+		cppServerId = id;
 	}
+
 	inline void Client::SetSecret(std::string_view secret_) {
 		secret = secret_;
 	}
@@ -316,5 +325,24 @@ namespace xx::Asio::Tcp::Gateway {
 	inline void Client::Send(Data && d) {
 		if (!*this) return;
 		peer->Send(std::move(d));
+	}
+
+
+	template<typename PKG, typename ... Args>
+	void Client::SendResponse(int32_t const& serial, Args const& ... args) {
+		assert(cppServerId != 0xFFFFFFFF);
+		SendResponseTo<PKG>(cppServerId, serial, args...);
+	}
+
+	template<typename PKG, typename ... Args>
+	void Client::SendPush(Args const& ... args) {
+		assert(cppServerId != 0xFFFFFFFF);
+		SendPushTo<PKG>(cppServerId, args...);
+	}
+
+	template<typename PKG, typename ... Args>
+	awaitable<ObjBase_s> Client::SendRequest(Args const& ... args) {
+		assert(cppServerId != 0xFFFFFFFF);
+		co_return co_await SendRequestTo<PKG>(cppServerId, 15s, args...);
 	}
 }
