@@ -328,9 +328,7 @@ namespace xx {
 				PEERTHIS->timeouter.cancel();
 			}
 			if constexpr (Has_PeerRequestCode<PeerDeriveType>) {
-				for (auto& kv : PEERTHIS->reqs) {
-					kv.second.first.cancel();
-				}
+				PEERTHIS->reqs.clear();
 			}
 			if constexpr (Has_Peer_Stop_<PeerDeriveType>) {
 				PEERTHIS->Stop_();
@@ -562,19 +560,23 @@ namespace xx {
 			if (!PEERTHIS->Alive()) co_return nullptr;
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto key = reqAutoId;
-			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
+			auto result = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
 			assert(result.second);
 			if constexpr (Has_VPeerCode<PeerDeriveType>) {
-				PEERTHIS->ownerPeer->Send(MakeTargetPackageData<sendCap, PKG>(om, PEERTHIS->clientId, -reqAutoId, args...));
+				PEERTHIS->ownerPeer->Send(MakeTargetPackageData<sendCap, PKG>(om, PEERTHIS->clientId, -key, args...));
 			}
 			else {
-				PEERTHIS->Send(MakePackageData<sendCap, PKG>(om, -reqAutoId, args...));
+				PEERTHIS->Send(MakePackageData<sendCap, PKG>(om, -key, args...));
 			}
-			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
-			if (PEERTHIS->stoped) co_return nullptr;
-			auto r = std::move(result.first->second.second);
-			reqs.erase(result.first);
-			co_return r;
+			auto [e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped || !e) co_return nullptr;
+
+			if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
+			else {
+				auto r = std::move(it->second.second);
+				reqs.erase(it);
+				co_return r;
+			}
 		}
 
 		ObjBase_s ReadFrom(Data_r& dr) {
@@ -653,14 +655,19 @@ namespace xx {
 		awaitable<ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto key = reqAutoId;
-			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
+			auto result = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
 			assert(result.second);
-			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -reqAutoId, args...));
-			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
-			if (PEERTHIS->stoped) co_return nullptr;
-			auto r = std::move(result.first->second.second);
-			reqs.erase(result.first);
-			co_return r;
+			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -key, args...));
+
+			auto [e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped || !e) co_return nullptr;
+
+			if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
+			else {
+				auto r = std::move(it->second.second);
+				reqs.erase(it);
+				co_return r;
+			}
 		}
 
 		ObjBase_s ReadFrom(Data_r& dr) {
@@ -752,9 +759,8 @@ namespace xx {
 		void Stop() {
 			if (!Alive()) return;
 			timeouter.cancel();
-			for (auto& kv : PEERTHIS->reqs) {
-				kv.second.first.cancel();
-			}
+			PEERTHIS->reqs.clear();
+
 			if constexpr (Has_Peer_Stop_<PeerDeriveType>) {
 				PEERTHIS->Stop_();
 			}
@@ -875,14 +881,18 @@ namespace xx {
 			if (!PEERTHIS->Alive()) co_return Data();
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto key = reqAutoId;
-			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
+			auto result = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
 			assert(result.second);
-			SendResponse(-reqAutoId, std::forward<F>(dataFiller));
-			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
-			if (PEERTHIS->stoped) co_return Data();
-			auto r = std::move(result.first->second.second);
-			reqs.erase(result.first);
-			co_return r;
+			SendResponse(-key, std::forward<F>(dataFiller));
+			auto [e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped || !e) co_return nullptr;
+
+			if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
+			else {
+				auto r = std::move(it->second.second);
+				reqs.erase(it);
+				co_return r;
+			}
 		}
 
 		awaitable<Data> SendRequest(std::chrono::steady_clock::duration d, Data const& data) {
@@ -966,14 +976,18 @@ namespace xx {
 			if (!PEERTHIS->Alive()) co_return Data();
 			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 			auto key = reqAutoId;
-			auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
+			auto result = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
 			assert(result.second);
-			SendResponseTo(target, -reqAutoId, std::forward<F>(dataFiller));
-			co_await result.first->second.first.async_wait(use_nothrow_awaitable);
-			if (PEERTHIS->stoped) co_return Data();
-			auto r = std::move(result.first->second.second);
-			reqs.erase(result.first);
-			co_return r;
+			SendResponseTo(target, -key, std::forward<F>(dataFiller));
+			auto [e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+			if (PEERTHIS->stoped || !e) co_return nullptr;
+
+			if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
+			else {
+				auto r = std::move(it->second.second);
+				reqs.erase(it);
+				co_return r;
+			}
 		}
 
 		awaitable<Data> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Data const& data) {

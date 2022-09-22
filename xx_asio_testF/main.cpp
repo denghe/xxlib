@@ -22,6 +22,7 @@ using asio::detached;
 #include <unordered_set>
 #include <unordered_map>
 #include <chrono>
+#include <iostream>
 using namespace std::chrono_literals;
 
 #pragma endregion
@@ -361,14 +362,17 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 		if (PEERTHIS->stoped) co_return Data();
 		reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 		auto key = reqAutoId;
-		auto result = reqs.emplace(reqAutoId, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
+		auto result = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
 		assert(result.second);
-		SendResponse<reserveLen>(-reqAutoId, std::forward<F>(dataFiller));
-		co_await result.first->second.first.async_wait(use_nothrow_awaitable);
-		if (PEERTHIS->stoped) co_return Data();
-		auto r = std::move(result.first->second.second);
-		reqs.erase(result.first);
-		co_return r;
+		SendResponse<reserveLen>(-key, std::forward<F>(dataFiller));
+		auto[e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
+		if (PEERTHIS->stoped || !e) co_return Data();
+		if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
+		else {
+			auto r = std::move(it->second.second);
+			reqs.erase(it);
+			co_return r;
+		}
 	}
 
 #ifdef ENABLE_READ_HEADER_READ_DATA_MODE
