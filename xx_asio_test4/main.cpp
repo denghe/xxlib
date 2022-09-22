@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
 		asio::signal_set signals(ioc, SIGINT, SIGTERM);
 		signals.async_wait([&](auto, auto) { ioc.stop(); });
 
-        auto port = std::strtol(argv[1], nullptr, 10);
+        auto port = (uint16_t)std::strtol(argv[1], nullptr, 10);
 
 		asio::co_spawn(ioc, listener(port, workers.get(), workers_count), asio::detached);
 

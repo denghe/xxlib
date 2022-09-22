@@ -18,10 +18,12 @@
 #ifdef USE_STANDALONE_ASIO
 #include <asio.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
+namespace boostsystem = asio;
 #else
 #include <boost/asio.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 namespace asio = boost::asio;
+namespace boostsystem = boost::system;
 #endif
 
 using namespace asio::experimental::awaitable_operators;

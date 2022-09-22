@@ -361,17 +361,15 @@ struct PeerReqCode : PeerBaseCode<PeerDeriveType> {
 		if (PEERTHIS->stoped) co_return Data();
 		reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
 		auto key = reqAutoId;
-		auto result = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
-		assert(result.second);
+		auto [iter, ok] = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), Data()));
+		assert(ok);
+		auto& [timer, data] = iter->second;
 		SendResponse<reserveLen>(-key, std::forward<F>(dataFiller));
-		auto[e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
-		if (PEERTHIS->stoped || !e) co_return Data();
-		if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
-		else {
-			auto r = std::move(it->second.second);
-			reqs.erase(it);
-			co_return r;
-		}
+		auto [e] = co_await timer.async_wait(use_nothrow_awaitable);
+		if (PEERTHIS->stoped || (e && (iter = reqs.find(key)) == reqs.end())) co_return Data();
+		auto r = std::move(data);
+		reqs.erase(iter);
+		co_return r;
 	}
 
 #ifdef ENABLE_READ_HEADER_READ_DATA_MODE
