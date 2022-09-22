@@ -1,18 +1,17 @@
 ﻿#pragma region includes
 
+// require boost 1.80+
 #ifdef USE_STANDALONE_ASIO
 #include <asio.hpp>
-#include <asio/experimental/as_tuple.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #else
 #include <boost/asio.hpp>
-#include <boost/asio/experimental/as_tuple.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 namespace asio = boost::asio;
 #endif
 
 using namespace asio::experimental::awaitable_operators;
-constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
+constexpr auto use_nothrow_awaitable = asio::as_tuple(asio::use_awaitable);
 using asio::co_spawn;
 using asio::awaitable;
 using asio::detached;

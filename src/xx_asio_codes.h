@@ -14,19 +14,18 @@
 #include <iostream>
 #include <charconv>
 
+// require boost 1.80+
 #ifdef USE_STANDALONE_ASIO
 #include <asio.hpp>
-#include <asio/experimental/as_tuple.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #else
 #include <boost/asio.hpp>
-#include <boost/asio/experimental/as_tuple.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 namespace asio = boost::asio;
 #endif
 
 using namespace asio::experimental::awaitable_operators;
-constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
+constexpr auto use_nothrow_awaitable = asio::as_tuple(asio::use_awaitable);
 using asio::co_spawn;
 using asio::awaitable;
 using asio::detached;
@@ -570,8 +569,7 @@ namespace xx {
 			}
 			auto [e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
 			if (PEERTHIS->stoped || !e) co_return nullptr;
-
-			if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
+			if (auto it = reqs.find(key); it == reqs.end()) co_return nullptr;
 			else {
 				auto r = std::move(it->second.second);
 				reqs.erase(it);
@@ -658,11 +656,9 @@ namespace xx {
 			auto result = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
 			assert(result.second);
 			PEERTHIS->Send(MakeTargetPackageData<sendCap, PKG>(om, target, -key, args...));
-
 			auto [e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
 			if (PEERTHIS->stoped || !e) co_return nullptr;
-
-			if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
+			if (auto it = reqs.find(key); it == reqs.end()) co_return nullptr;
 			else {
 				auto r = std::move(it->second.second);
 				reqs.erase(it);
@@ -885,8 +881,7 @@ namespace xx {
 			assert(result.second);
 			SendResponse(-key, std::forward<F>(dataFiller));
 			auto [e] = co_await result.first->second.first.async_wait(use_nothrow_awaitable);
-			if (PEERTHIS->stoped || !e) co_return nullptr;
-
+			if (PEERTHIS->stoped || !e) co_return Data();
 			if (auto it = reqs.find(key); it == reqs.end()) co_return Data();
 			else {
 				auto r = std::move(it->second.second);

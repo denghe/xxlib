@@ -23,7 +23,7 @@ int main() {
 	xx::Asio::Tcp::Gateway::Client c;														// 创建客户端
 	c.SetDomainPort("127.0.0.1", 54000);													// 初始化连接参数
 	uint32_t constexpr lobbyServerId = 0;													// 定义 lobby server 的 id 号（入口服务，直接和 server 约定好的）
-	c.AddCppServerIds(lobbyServerId);														// 设置当前 lobby server 的处理代码为 cpp 端
+	c.SetCppServerId(lobbyServerId);														// 设置当前 lobby server 的处理代码为 cpp 端
 
 	// 主线逻辑: 连接 gateway 并 处理所有 lobby 消息
 	co_spawn(c.ioc, [&]()->awaitable<void> {
