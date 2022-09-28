@@ -15,7 +15,12 @@ namespace xx {
 
 		Header* h;
 
-		DataShared(Data&& d) {
+		// 供 if 简单判断是否为空
+		XX_INLINE operator bool() const {
+			return h != 0;
+		}
+
+		XX_INLINE DataShared(Data&& d) {
 			if (d) {
 				h = (Header*)(d.buf - hLen);
 				h->len = d.len;
@@ -27,7 +32,7 @@ namespace xx {
 			}
 		}
 
-		DataShared(DataShared const& ds)
+		XX_INLINE DataShared(DataShared const& ds)
 			: h(ds.h) {
 			if (h) {
 				assert(h->numRefs > 0);
@@ -40,7 +45,7 @@ namespace xx {
 			ds.h = nullptr;
 		}
 
-		DataShared& operator=(DataShared const& ds) {
+		XX_INLINE DataShared& operator=(DataShared const& ds) {
 			if (h == ds.h) return *this;
 			Clear();
 			h = ds.h;
@@ -51,12 +56,12 @@ namespace xx {
 			return *this;
 		}
 
-		DataShared& operator=(DataShared&& ds) noexcept {
+		XX_INLINE DataShared& operator=(DataShared&& ds) noexcept {
 			std::swap(h, ds.h);
 			return *this;
 		}
 
-		void Clear() {
+		XX_INLINE void Clear() {
 			if (h) {
 				if (--h->numRefs == 0) {
 					free(h);
@@ -69,17 +74,17 @@ namespace xx {
 			Clear();
 		}
 
-		uint8_t* GetBuf() const {
+		XX_INLINE uint8_t* GetBuf() const {
 			if (h) return (uint8_t*)h + hLen;
 			else return nullptr;
 		}
 
-		size_t GetLen() const {
+		XX_INLINE size_t GetLen() const {
 			if (h) return h->len;
 			else return 0;
 		}
 
-		size_t GetNumRefs() const {
+		XX_INLINE size_t GetNumRefs() const {
 			if (h) return h->numRefs;
 			else return 0;
 		}
