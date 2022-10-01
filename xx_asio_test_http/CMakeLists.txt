@@ -15,7 +15,7 @@ if (UNIX)
 			pthread
 			#mimalloc
 			)
-	#add_definitions("-DASIO_HAS_IO_URING")
+	add_definitions("-DASIO_HAS_IO_URING")
 else()
 	add_definitions("-D_WIN32_WINNT=0x0602")	# for asio 0602 win8
 endif ()

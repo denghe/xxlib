@@ -12,7 +12,7 @@ namespace xx {
 }
 
 struct Server;
-struct HttpPeer : xx::PeerTcpBaseCode<HttpPeer, Server>, xx::PeerHttpCode<HttpPeer, 1024 * 16> {
+struct HttpPeer : xx::PeerTcpBaseCode<HttpPeer, Server>, xx::PeerHttpCode<HttpPeer, 1024 * 32> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 	int ReceiveHttpRequest();
 };
@@ -37,7 +37,7 @@ inline int HttpPeer::ReceiveHttpRequest() {
 struct TcpEchoPeer : xx::PeerTcpBaseCode<TcpEchoPeer, Server> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 	awaitable<void> Read() {
-		constexpr size_t blockSiz = 1024 * 1024 * 4;
+		constexpr size_t blockSiz = 1024 * 4;
 		auto block = std::make_unique<char[]>(blockSiz);
 		for (;;) {
 			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(block.get(), blockSiz), use_nothrow_awaitable);
@@ -84,7 +84,7 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 	void Start_() {
 		// fill cache package
 		xx::Data d;
-		for (size_t i = 0; i < 2; i++) {
+		for (size_t i = 0; i < 20; i++) {
 			d.WriteBuf(reqStr.data(), reqStr.size());
 		}
 		reqPkg = xx::DataShared(std::move(d));
@@ -93,7 +93,7 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 	}
 
 	awaitable<void> Read() {
-		constexpr size_t blockSiz = 1024 * 16;
+		constexpr size_t blockSiz = 1024 * 32;
 		auto block = std::make_unique<char[]>(blockSiz);
 		for (;;) {
 			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(block.get(), blockSiz), use_nothrow_awaitable);
@@ -101,7 +101,7 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 			if (this->stoped) co_return;
 
 			count -= recvLen;
-			if (count < 142 * 1500) {
+			if (count < 142 * 500) {
 				SendPkg();
 			}
 		}
@@ -180,10 +180,12 @@ int RunClient() {
 }
 
 // mac mini m1  2 pkg, 5 thread  QPS = 46w
-// linux 200 pkg, 1 thread QPS = 100w
+// 5950x linux vmware 200 pkg, 1 thread, presend = 1500, QPS = 100w
+// 5950x linux physics machane 20 pkg, 1 thread, presend = 500, QPS = 110w
+// 5950x linux physics machane 200 pkg, 1 thread, presend = 1500, QPS = 130w
 
 int main() {
-	std::array<std::thread, 5> ts;
+	std::array<std::thread, 1> ts;
 	for (auto& t : ts) {
 		t = std::thread([] {
 			RunClient();
