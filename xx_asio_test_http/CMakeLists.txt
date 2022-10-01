@@ -19,6 +19,7 @@ else()
 endif ()
 
 add_definitions("-DASIO_CONCURRENCY_HINT_1=ASIO_CONCURRENCY_HINT_UNSAFE")
+add_definitions("-DASIO_HAS_IO_URING")
 
 list(APPEND dirs
 		../../boost

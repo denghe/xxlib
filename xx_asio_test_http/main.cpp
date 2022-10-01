@@ -20,6 +20,7 @@ struct HttpPeer : xx::PeerTcpBaseCode<HttpPeer, Server>, xx::PeerHttpCode<HttpPe
 struct Server : xx::IOCBase {
 	using IOCBase::IOCBase;
 	std::unordered_map<std::string, std::function<int(HttpPeer&)>, xx::StringHasher<>, std::equal_to<void>> handlers;
+    int64_t counter = 0;
 };
 
 inline int HttpPeer::ReceiveHttpRequest() {
@@ -108,7 +109,6 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(block.get(), blockSiz), use_nothrow_awaitable);
 			if (ec) break;
 			if (this->stoped) co_return;
-			count += recvLen;			// 当前返回内容应该是 142 字节, 次数就 除以 142 来算出
 
 #ifdef PING_PONG_TEST
 			Send(reqPkg);
@@ -146,8 +146,18 @@ int RunServer() {
 		//}
 		//std::cout << std::endl;
 		p.SendResponse(p.prefix404, "<html><body>home!!!</body></html>");
+        p.server.counter++;
 		return 0;
 	};
+
+    // print QPS
+    co_spawn(server, [&]()->awaitable<void> {
+        while (!server.stopped()) {
+            server.counter = 0;
+            co_await xx::Timeout(1000ms);
+            std::cout << server.counter << std::endl;
+        }
+    }, detached);
 
 	server.run();
 	return 0;
@@ -159,17 +169,11 @@ int RunClient() {
 	// 启动个协程压测一下 http 输出性能
 	co_spawn(server, [&]()->awaitable<void> {
 		auto cp = xx::Make<HttpClientPeer>(server);
-		while (true) {
-			if (cp->stoped) {
-				co_await xx::Timeout(500ms);
+        while (!server.stopped()) {
+            if (cp->stoped) {
 				co_await cp->Connect(asio::ip::address::from_string("127.0.0.1"), 12345);
 			}
-			while (!cp->stoped) {
-				cp->count = 0;
-				co_await xx::Timeout(1000ms);
-				//std::cout << cp->count << std::endl;
-				std::cout << (cp->count / 142) << std::endl;
-			}
+            co_await xx::Timeout(500ms);
 		}
 	}, detached);
 
@@ -179,9 +183,12 @@ int RunClient() {
 
 int main() {
 	std::thread t([] {
-		RunServer();
+        RunClient();
 	});
 	t.detach();
-	return RunClient();
-    //return RunServer();
+//	std::thread t2([] {
+//        RunClient();
+//	});
+//	t2.detach();
+	return RunServer();
 }
