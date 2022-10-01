@@ -645,12 +645,12 @@ namespace xx {
     };
 
     // 效果: 为 key 是 string 或 string_view 的 map 提供用 string, string_view 免转换 直接对比哈希码的能力. 普通 string 后面加 sv
-    // 用法: std::???????map<std::string, ????, xx::StringHasher, std::equal_to<void>>
+    // 用法: std::???????map<std::string, ????, xx::StringHasher<>, std::equal_to<void>>
+    template<typename T = std::string_view, typename U = xx::Hash<T>>
     struct StringHasher {
-        using hash_type = xx::Hash<std::string_view>;
         using is_transparent = void;
-        size_t operator()(std::string_view str) const { return hash_type{}(str); }
-        size_t operator()(std::string const& str) const { return hash_type{}(str); }
+        size_t operator()(std::string_view str) const { return U{}(str); }
+        size_t operator()(std::string const& str) const { return U{}(str); }
     };
 
     // 下面的代码方便复制使用, 以提升 hash string[_view] 性能

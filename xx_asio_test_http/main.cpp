@@ -19,14 +19,11 @@ struct HttpPeer : xx::PeerTcpBaseCode<HttpPeer, Server>, xx::PeerHttpCode<HttpPe
 
 struct Server : xx::IOCBase {
 	using IOCBase::IOCBase;
-	std::unordered_map<std::string, std::function<int(HttpPeer&)>, xx::StringHasher, std::equal_to<void>> handlers;
-	//std::unordered_map<std::string, std::function<int(HttpPeer&)>> handlers;
+	std::unordered_map<std::string, std::function<int(HttpPeer&)>, xx::StringHasher<>, std::equal_to<void>> handlers;
 };
 
 inline int HttpPeer::ReceiveHttpRequest() {
 	// todo: split path by / ?
-//    std::string key(path);
-//	auto iter = server.handlers.find(key);
 	auto iter = server.handlers.find(path);
 	if (iter == server.handlers.end()) {
 		std::cout << "unhandled path: " << path << std::endl;
@@ -53,7 +50,7 @@ struct TcpEchoPeer : xx::PeerTcpBaseCode<TcpEchoPeer, Server> {
 	}
 };
 
-//#define PING_PONG_TEST 1
+#define PING_PONG_TEST 1
 
 // for performance test
 struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
