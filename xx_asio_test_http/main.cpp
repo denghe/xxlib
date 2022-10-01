@@ -32,13 +32,34 @@ inline int HttpPeer::ReceiveHttpRequest() {
 	return iter->second(*this);
 }
 
+// 走正常 Send 流程 echo ( 会有协程调度延迟 )
+struct TcpEchoPeer : xx::PeerTcpBaseCode<TcpEchoPeer, Server> {
+	using PeerTcpBaseCode::PeerTcpBaseCode;
+	awaitable<void> Read() {
+		char buf[1024];
+		for (;;) {
+			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(buf, 1024), use_nothrow_awaitable);
+			if (ec) break;
+			if (this->stoped) co_return;
+			xx::Data d;
+			d.WriteBuf(buf, recvLen);
+			Send(std::move(d));
+		}
+		Stop();
+	}
+};
+
 int main() {
 	Server server(1);
-	server.Listen(12345, [&](auto&& socket) {
-		auto p = xx::Make<HttpPeer>(server, std::move(socket));
-		p->Start();
+	server.Listen(12333, [&](auto&& socket) {
+		xx::Make<TcpEchoPeer>(server, std::move(socket))->Start();
 	});
-	std::cout << "HttpListen 12345" << std::endl;
+	std::cout << "tcp echo port: 12333" << std::endl;
+
+	server.Listen(12345, [&](auto&& socket) {
+		xx::Make<HttpPeer>(server, std::move(socket))->Start();
+	});
+	std::cout << "http manage port: 12345" << std::endl;
 
 	server.handlers["/"] = [](HttpPeer& p)->int {
 		std::cout << "method: " << p.method << std::endl;
@@ -52,6 +73,7 @@ int main() {
 		p.SendResponse(p.prefix404, "<html><body>home!!!</body></html>");
 		return 0;
 	};
+
 	server.run();
 	return 0;
 }
