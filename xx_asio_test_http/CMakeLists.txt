@@ -13,13 +13,14 @@ if (UNIX)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 	list(APPEND libs
 			pthread
+			#mimalloc
 			)
+	#add_definitions("-DASIO_HAS_IO_URING")
 else()
 	add_definitions("-D_WIN32_WINNT=0x0602")	# for asio 0602 win8
 endif ()
 
 add_definitions("-DASIO_CONCURRENCY_HINT_1=ASIO_CONCURRENCY_HINT_UNSAFE")
-add_definitions("-DASIO_HAS_IO_URING")
 
 list(APPEND dirs
 		../../boost

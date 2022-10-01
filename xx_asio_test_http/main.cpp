@@ -51,8 +51,6 @@ struct TcpEchoPeer : xx::PeerTcpBaseCode<TcpEchoPeer, Server> {
 	}
 };
 
-#define PING_PONG_TEST 1
-
 // for performance test
 struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
@@ -86,25 +84,12 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 	void Start_() {
 		// fill cache package
 		xx::Data d;
-		for (size_t i = 0; i < 100; i++) {
+		for (size_t i = 0; i < 200; i++) {
 			d.WriteBuf(reqStr.data(), reqStr.size());
 		}
 		reqPkg = xx::DataShared(std::move(d));
 
-#ifdef PING_PONG_TEST
 		SendPkg();
-#else
-		co_spawn(server, [self = xx::SharedFromThis(this)]()->awaitable<void> {
-			while (!self->stoped) {
-				if (self->writeQueue.size() < 100000) {
-					for (size_t i = 0; i < 1; i++) {
-                        self->Send(self->reqPkg);
-					}
-				}
-				co_await xx::Timeout(0ms);
-			}
-		}, detached);
-#endif
 	}
 
 	awaitable<void> Read() {
@@ -115,13 +100,10 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 			if (ec) break;
 			if (this->stoped) co_return;
 
-			//std::cout << "recvLen = " << recvLen << " count = " << count << std::endl;
-#ifdef PING_PONG_TEST
 			count -= recvLen;
-			if (count == 0) {
+			if (count < 142 * 1500) {
 				SendPkg();
 			}
-#endif
 		}
 		Stop();
 	}
@@ -155,7 +137,7 @@ int RunServer() {
 		//}
 		//std::cout << std::endl;
 
-		if (p.writeQueue.size() > 100) {
+		if (p.writeQueue.size() > 100000) {
 			std::cout << "too many data need send" << std::endl;
 			return -1;
 		}
