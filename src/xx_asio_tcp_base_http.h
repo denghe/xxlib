@@ -5,11 +5,9 @@
 namespace xx {
 	template<typename PeerDeriveType, size_t readBufLen = 4194304, size_t headersCap = 64>
 	struct PeerHttpCode {
-		struct {
-			std::string_view method;
-			std::string_view path;
-			std::array<std::pair<std::string_view, std::string_view>, headersCap> headers;
-		};
+		std::string_view method;
+		std::string_view path;
+		std::array<std::pair<std::string_view, std::string_view>, headersCap> headers;
 		// 用来硬转 上面这个结构以迎合 phr_parse_request 参数需求. 这两段代码内存一一对应
 		struct Union {
 			const char* method;
@@ -45,7 +43,11 @@ namespace xx {
 			auto buf = block.get();
 			auto bufEnd = buf + readBufLen;
 			size_t bufLen = 0, prevBufLen = 0;
+#ifdef _WIN32
 			auto& z = *(Union*)&method;
+#else
+            Union z;
+#endif
 
 			for (;;) {
 				auto [ec, recvLen] = co_await PEERTHIS->socket.async_read_some(asio::buffer(buf + bufLen, readBufLen - bufLen), use_nothrow_awaitable);
@@ -58,6 +60,14 @@ namespace xx {
 				numHeaders = headersCap;
 				// -1: parse failed   -2: data is partial   >0 && s.size(): successful
 				if (int httpLen = phr_parse_request(buf, bufLen, &z.method, &z.methodLen, &z.path, &z.pathLen, &minorVersion, z.headers.data(), &numHeaders, prevBufLen); httpLen > 0) {
+#ifndef _WIN32
+                    method = std::string_view(z.method, z.methodLen);
+                    path = std::string_view(z.path, z.pathLen);
+                    for(size_t i = 0; i < numHeaders; ++i) {
+                        headers[i].first = std::string_view(z.headers[i].name, z.headers[i].name_len);
+                        headers[i].second = std::string_view(z.headers[i].value, z.headers[i].value_len);
+                    }
+#endif
 					if (int r = PEERTHIS->ReceiveHttpRequest()) break;
 					prevBufLen = 0;
 					if ((bufLen -= httpLen)) {	// 如果 bufLen 消费掉 httpLen 后 不为 0: 多段 http ( 通常不太可能发生 )

@@ -20,10 +20,13 @@ struct HttpPeer : xx::PeerTcpBaseCode<HttpPeer, Server>, xx::PeerHttpCode<HttpPe
 struct Server : xx::IOCBase {
 	using IOCBase::IOCBase;
 	std::unordered_map<std::string, std::function<int(HttpPeer&)>, xx::StringHasher, std::equal_to<void>> handlers;
+	//std::unordered_map<std::string, std::function<int(HttpPeer&)>> handlers;
 };
 
 inline int HttpPeer::ReceiveHttpRequest() {
 	// todo: split path by / ?
+//    std::string key(path);
+//	auto iter = server.handlers.find(key);
 	auto iter = server.handlers.find(path);
 	if (iter == server.handlers.end()) {
 		std::cout << "unhandled path: " << path << std::endl;
@@ -80,19 +83,21 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 		// fill cache package
 		xx::Data d;
 		d.WriteBuf(reqStr.data(), reqStr.size());
+		d.WriteBuf(reqStr.data(), reqStr.size());
+		d.WriteBuf(reqStr.data(), reqStr.size());
 		reqPkg = xx::DataShared(std::move(d));
 
 #ifdef PING_PONG_TEST
 		Send(reqPkg);
 #else
-		co_spawn(server, [this]()->awaitable<void> {
-			while (!stoped) {
-				if (writeQueue.size() < 100000) {
-					for (size_t i = 0; i < 10000; i++) {
-						Send(reqPkg);
+		co_spawn(server, [self = xx::SharedFromThis(this)]()->awaitable<void> {
+			while (!self->stoped) {
+				if (self->writeQueue.size() < 100000) {
+					for (size_t i = 0; i < 1; i++) {
+                        self->Send(self->reqPkg);
 					}
 				}
-				co_await xx::Timeout(1ms);
+				co_await xx::Timeout(0ms);
 			}
 		}, detached);
 #endif
@@ -181,4 +186,5 @@ int main() {
 	});
 	t.detach();
 	return RunClient();
+    //return RunServer();
 }

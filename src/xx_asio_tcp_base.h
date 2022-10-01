@@ -11,7 +11,7 @@ namespace xx {
 		std::deque<xx::DataShared> writeQueue;
 		bool stoped = true;
 
-		PeerTcpBaseCode(ServerType& server_) : server(server_), socket(server_), writeBlocker(server_) {}
+		explicit PeerTcpBaseCode(ServerType& server_) : server(server_), socket(server_), writeBlocker(server_) {}
 		PeerTcpBaseCode(ServerType& server_, asio::ip::tcp::socket&& socket_) : server(server_), socket(std::move(socket_)), writeBlocker(server_) {}
 
 		// 初始化。通常于 peer 创建后立即调用
