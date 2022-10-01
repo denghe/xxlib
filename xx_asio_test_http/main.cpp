@@ -76,17 +76,23 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 
 	// package cache for send
 	xx::DataShared reqPkg;
+	size_t count = 0;
+
+	void SendPkg() {
+		count += 142 * (reqPkg.GetLen() / 644);
+		Send(reqPkg);
+	}
 
 	void Start_() {
 		// fill cache package
 		xx::Data d;
-		d.WriteBuf(reqStr.data(), reqStr.size());
-		d.WriteBuf(reqStr.data(), reqStr.size());
-		d.WriteBuf(reqStr.data(), reqStr.size());
+		for (size_t i = 0; i < 100; i++) {
+			d.WriteBuf(reqStr.data(), reqStr.size());
+		}
 		reqPkg = xx::DataShared(std::move(d));
 
 #ifdef PING_PONG_TEST
-		Send(reqPkg);
+		SendPkg();
 #else
 		co_spawn(server, [self = xx::SharedFromThis(this)]()->awaitable<void> {
 			while (!self->stoped) {
@@ -101,7 +107,6 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 #endif
 	}
 
-	size_t count = 0;
 	awaitable<void> Read() {
 		constexpr size_t blockSiz = 1024 * 1024 * 4;
 		auto block = std::make_unique<char[]>(blockSiz);
@@ -110,8 +115,12 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 			if (ec) break;
 			if (this->stoped) co_return;
 
+			//std::cout << "recvLen = " << recvLen << " count = " << count << std::endl;
 #ifdef PING_PONG_TEST
-			Send(reqPkg);
+			count -= recvLen;
+			if (count == 0) {
+				SendPkg();
+			}
 #endif
 		}
 		Stop();
@@ -145,6 +154,12 @@ int RunServer() {
 		//	std::cout << "kv: " << p.headers[i].first << ":" << p.headers[i].second << std::endl;
 		//}
 		//std::cout << std::endl;
+
+		if (p.writeQueue.size() > 100) {
+			std::cout << "too many data need send" << std::endl;
+			return -1;
+		}
+
 		p.SendResponse(p.prefix404, "<html><body>home!!!</body></html>");
         p.server.counter++;
 		return 0;
@@ -171,6 +186,7 @@ int RunClient() {
 		auto cp = xx::Make<HttpClientPeer>(server);
         while (!server.stopped()) {
             if (cp->stoped) {
+				std::cout << "connecting..." << std::endl;
 				co_await cp->Connect(asio::ip::address::from_string("127.0.0.1"), 12345);
 			}
             co_await xx::Timeout(500ms);
@@ -182,13 +198,12 @@ int RunClient() {
 }
 
 int main() {
-	std::thread t([] {
-        RunClient();
-	});
-	t.detach();
-//	std::thread t2([] {
-//        RunClient();
-//	});
-//	t2.detach();
+	std::array<std::thread, 1> ts;
+	for (auto& t : ts) {
+		t = std::thread([] {
+			RunClient();
+		});
+		t.detach();
+	}
 	return RunServer();
 }
