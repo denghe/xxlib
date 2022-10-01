@@ -3,7 +3,7 @@
 #include <picohttpparser.h>
 
 namespace xx {
-	template<typename PeerDeriveType, size_t readBufLen = 4194304, size_t headersCap = 32>
+	template<typename PeerDeriveType, size_t readBufLen = 4194304, size_t headersCap = 64>
 	struct PeerHttpCode {
 		struct {
 			std::string_view method;

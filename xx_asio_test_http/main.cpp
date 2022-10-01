@@ -36,19 +36,21 @@ inline int HttpPeer::ReceiveHttpRequest() {
 struct TcpEchoPeer : xx::PeerTcpBaseCode<TcpEchoPeer, Server> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 	awaitable<void> Read() {
-		char buf[4096];
+		constexpr size_t blockSiz = 1024 * 1024 * 4;
+		auto block = std::make_unique<char[]>(blockSiz);
 		for (;;) {
-			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(buf, sizeof(buf)), use_nothrow_awaitable);
+			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(block.get(), blockSiz), use_nothrow_awaitable);
 			if (ec) break;
 			if (this->stoped) co_return;
 			xx::Data d;
-			d.WriteBuf(buf, recvLen);
+			d.WriteBuf(block.get(), recvLen);
 			Send(std::move(d));
 		}
 		Stop();
 	}
 };
 
+//#define PING_PONG_TEST 1
 
 // for performance test
 struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
@@ -76,23 +78,39 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 
 	void Start_() {
 		// fill cache package
-		xx::Data d(reqStr.size());
+		xx::Data d;
 		d.WriteBuf(reqStr.data(), reqStr.size());
 		reqPkg = xx::DataShared(std::move(d));
 
-		// send http request( ref + 1 copy )
+#ifdef PING_PONG_TEST
 		Send(reqPkg);
+#else
+		co_spawn(server, [this]()->awaitable<void> {
+			while (!stoped) {
+				if (writeQueue.size() < 100000) {
+					for (size_t i = 0; i < 10000; i++) {
+						Send(reqPkg);
+					}
+				}
+				co_await xx::Timeout(1ms);
+			}
+		}, detached);
+#endif
 	}
 
 	size_t count = 0;
 	awaitable<void> Read() {
-		char buf[4096];
+		constexpr size_t blockSiz = 1024 * 1024 * 4;
+		auto block = std::make_unique<char[]>(blockSiz);
 		for (;;) {
-			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(buf, sizeof(buf)), use_nothrow_awaitable);
+			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(block.get(), blockSiz), use_nothrow_awaitable);
 			if (ec) break;
 			if (this->stoped) co_return;
-			++count;
-			Send(reqPkg);	// resend
+			count += recvLen;			// 当前返回内容应该是 142 字节, 次数就 除以 142 来算出
+
+#ifdef PING_PONG_TEST
+			Send(reqPkg);
+#endif
 		}
 		Stop();
 	}
@@ -100,7 +118,7 @@ struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
 
 
 
-int main() {
+int RunServer() {
 	Server server(1);
 
 	// 监听 echo
@@ -129,6 +147,13 @@ int main() {
 		return 0;
 	};
 
+	server.run();
+	return 0;
+}
+
+int RunClient() {
+	Server server(1);
+
 	// 启动个协程压测一下 http 输出性能
 	co_spawn(server, [&]()->awaitable<void> {
 		auto cp = xx::Make<HttpClientPeer>(server);
@@ -140,11 +165,20 @@ int main() {
 			while (!cp->stoped) {
 				cp->count = 0;
 				co_await xx::Timeout(1000ms);
-				std::cout << cp->count << std::endl;
+				//std::cout << cp->count << std::endl;
+				std::cout << (cp->count / 142) << std::endl;
 			}
 		}
 	}, detached);
 
 	server.run();
 	return 0;
+}
+
+int main() {
+	std::thread t([] {
+		RunServer();
+	});
+	t.detach();
+	return RunClient();
 }
