@@ -20,6 +20,8 @@ namespace xx {
 			return h != 0;
 		}
 
+		XX_INLINE DataShared() : h(nullptr) {}
+
 		XX_INLINE DataShared(Data&& d) {
 			if (d) {
 				h = (Header*)(d.buf - hLen);

@@ -22,6 +22,9 @@ namespace xx {
 			writeQueue.clear();
 			co_spawn(server, [this, self = xx::SharedFromThis(this)] { return PEERTHIS->Read(); }, detached);	// 派生类需要提供 awaitable<void> Read() 的实现
 			co_spawn(server, [self = xx::SharedFromThis(this)] { return self->Write(); }, detached);
+			if constexpr (Has_Start_<PeerDeriveType>) {
+				PEERTHIS->Start_();
+			}
 		}
 
 		// 判断是否已断开
@@ -35,6 +38,9 @@ namespace xx {
 			stoped = true;
 			socket.close();
 			writeBlocker.cancel();
+			if constexpr (Has_Stop_<PeerDeriveType>) {
+				PEERTHIS->Stop_();
+			}
 			return true;
 		}
 
@@ -46,6 +52,17 @@ namespace xx {
 			if (!d) return;
 			writeQueue.emplace_back(std::forward<D>(d));
 			writeBlocker.cancel_one();
+		}
+
+		// for client dial connect to server only
+		awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+			if (!stoped) co_return 1;
+			socket = asio::ip::tcp::socket(server);    // for macos
+			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
+			if (r.index()) co_return 2;
+			if (auto& [e] = std::get<0>(r); e) co_return 3;
+			Start();
+			co_return 0;
 		}
 
 	protected:

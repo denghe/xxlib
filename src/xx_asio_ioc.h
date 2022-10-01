@@ -43,6 +43,17 @@ namespace xx {
 			}, detached);
 		}
 	};
+
+
+	// 各种成员函数是否存在的检测模板
+
+	template<class T, class = void> struct _Has_Start_ : std::false_type {};
+	template<class T> struct _Has_Start_<T, std::void_t<decltype(std::declval<T&>().Start_())>> : std::true_type {};
+	template<class T> constexpr bool Has_Start_ = _Has_Start_<T>::value;
+
+	template<class T, class = void> struct _Has_Stop_ : std::false_type {};
+	template<class T> struct _Has_Stop_<T, std::void_t<decltype(std::declval<T&>().Stop_())>> : std::true_type {};
+	template<class T> constexpr bool Has_Stop_ = _Has_Stop_<T>::value;
 }
 
 // 用于 template<typename PeerDeriveType, ....> struct XxxxxxxxCode 内部强转 this 为 派生类型
