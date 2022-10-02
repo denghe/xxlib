@@ -94,7 +94,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\3rd\picohttpparser.c" />
+    <ClCompile Include="..\3rd\simdjson.cpp" />
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="bak.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -3,5 +3,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="..\3rd\picohttpparser.c" />
+    <ClCompile Include="..\3rd\simdjson.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="bak.txt" />
   </ItemGroup>
 </Project>

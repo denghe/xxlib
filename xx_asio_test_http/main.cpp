@@ -1,196 +1,136 @@
 ﻿#include <xx_asio_tcp_base_http.h>
+#include <xx_dict.h>
 
+// 适配 std::string[_view] 走 xxhash 以提速
 #include <xxh3.h>
 namespace xx {
-	// 适配 std::string[_view] 走 xxhash
 	template<typename T>
-	struct Hash<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::string> || std::is_same_v<std::decay_t<T>, std::string_view>>> {
+	struct Hash<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::string>
+		|| std::is_same_v<std::decay_t<T>, std::string_view>>> {
 		inline size_t operator()(T const& k) const {
 			return (size_t)XXH3_64bits(k.data(), k.size());
 		}
 	};
 }
 
-struct Server;
-struct HttpPeer : xx::PeerTcpBaseCode<HttpPeer, Server>, xx::PeerHttpCode<HttpPeer, 1024 * 32> {
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// 预声明
+struct IOC;
+
+// 服务端 http peer
+struct ServerHttpPeer
+	: xx::PeerTcpBaseCode<ServerHttpPeer, IOC, 100>
+	, xx::PeerHttpCode<ServerHttpPeer, 1024 * 32> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
+
+	// path 对应的 处理函数 容器
+	inline static xx::Dict<std::string, std::function<int(ServerHttpPeer&)>> httpRequestHandlers;
+
+	// 切割 path 和
+	std::pair<std::string_view, std::string_view> GetPathAndArgs();
+
+	// 处理收到的 http 请求
 	int ReceiveHttpRequest();
+
+	// 打印一下收到的东西
+	std::string& GetDumpInfoRef(bool containsOriginalContent = false);
 };
 
-struct Server : xx::IOCBase {
+// asio io_context 上下文( 生命周期最久的 全局交互 & 胶水 容器 )
+struct IOC : xx::IOCBase {
 	using IOCBase::IOCBase;
-	std::unordered_map<std::string, std::function<int(HttpPeer&)>, xx::StringHasher<>, std::equal_to<void>> handlers;
-    int64_t counter = 0;
+
+	// 一些公用容器( ioc 所在线程适用 )
+	std::string tmpStr;
 };
 
-inline int HttpPeer::ReceiveHttpRequest() {
-	// todo: split path by / ?
-	auto iter = server.handlers.find(path);
-	if (iter == server.handlers.end()) {
-		std::cout << "unhandled path: " << path << std::endl;
-		return -1;
+inline int ServerHttpPeer::ReceiveHttpRequest() {
+	// 打印一下收到的东西
+	std::cout << GetDumpInfoRef(true) << std::endl;
+
+	// 对 url 进一步解析, 切分出 path 和 args
+	FillPathAndArgs();
+
+	// 在 path 对应的 处理函数 容器 中 定位并调用
+	auto& hs = ServerHttpPeer::httpRequestHandlers;
+	if (auto idx = hs.Find(path); idx == -1) {
+		SendResponse(prefix404, "<html><body>404 !!!</body></html>"sv);
+		return 0;
 	}
-	return iter->second(*this);
+	else return hs.ValueAt(idx)(*this);
 }
 
-// 走正常 Send 流程 echo ( 会有协程调度延迟 )
-struct TcpEchoPeer : xx::PeerTcpBaseCode<TcpEchoPeer, Server> {
-	using PeerTcpBaseCode::PeerTcpBaseCode;
-	awaitable<void> Read() {
-		constexpr size_t blockSiz = 1024 * 4;
-		auto block = std::make_unique<char[]>(blockSiz);
-		for (;;) {
-			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(block.get(), blockSiz), use_nothrow_awaitable);
-			if (ec) break;
-			if (this->stoped) co_return;
-			xx::Data d;
-			d.WriteBuf(block.get(), recvLen);
-			Send(std::move(d));
-		}
-		Stop();
-	}
-};
+inline std::string& ServerHttpPeer::GetDumpInfoRef(bool containsOriginalContent) {
+	auto& s = ioc.tmpStr;
+	s.clear();
+	AppendDumpInfo(s, containsOriginalContent);
+	return s;
+}
 
-// for performance test
-struct HttpClientPeer : xx::PeerTcpBaseCode<HttpClientPeer, Server> {
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct ClientHttpPeer
+	: xx::PeerTcpBaseCode<ClientHttpPeer, IOC, 100>
+	, xx::PeerHttpCode<ClientHttpPeer, 1024 * 32> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 
-	// http request content
-	inline static constexpr std::string_view reqStr =
-		"GET / HTTP/1.1\r\n"                                                \
-		"Host: www.kittyhell.com\r\n"                                                                                                  \
-		"User-Agent: Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; ja-JP-mac; rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3 "             \
-		"Pathtraq/0.9\r\n"                                                                                                             \
-		"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"                                                  \
-		"Accept-Language: ja,en-us;q=0.7,en;q=0.3\r\n"                                                                                 \
-		"Accept-Encoding: gzip,deflate\r\n"                                                                                            \
-		"Accept-Charset: Shift_JIS,utf-8;q=0.7,*;q=0.7\r\n"                                                                            \
-		"Keep-Alive: 115\r\n"                                                                                                          \
-		"Connection: keep-alive\r\n"                                                                                                   \
-		"Cookie: wp_ozh_wsa_visits=2; wp_ozh_wsa_visit_lasttime=xxxxxxxxxx; "                                                          \
-		"__utma=xxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.x; "                                                             \
-		"__utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|utmcct=/reader/|utmcmd=referral\r\n"             \
-		"\r\n"sv;
-
-	// package cache for send
-	xx::DataShared reqPkg;
-	size_t count = 0;
-
-	void SendPkg() {
-		count += 142 * (reqPkg.GetLen() / 644);
-		Send(reqPkg);
-	}
+	// 回包 对应的 处理函数 容器
+	inline static std::unordered_map<std::string, std::function<int(ServerHttpPeer&)>
+		, xx::StringHasher<>, std::equal_to<void>> httpResponseHandlers;
 
 	void Start_() {
-		// fill cache package
-		xx::Data d;
-		for (size_t i = 0; i < 20; i++) {
-			d.WriteBuf(reqStr.data(), reqStr.size());
-		}
-		reqPkg = xx::DataShared(std::move(d));
-
-		SendPkg();
+		// todo: 起协程开始测试
 	}
 
-	awaitable<void> Read() {
-		constexpr size_t blockSiz = 1024 * 32;
-		auto block = std::make_unique<char[]>(blockSiz);
-		for (;;) {
-			auto [ec, recvLen] = co_await socket.async_read_some(asio::buffer(block.get(), blockSiz), use_nothrow_awaitable);
-			if (ec) break;
-			if (this->stoped) co_return;
-
-			count -= recvLen;
-			if (count < 142 * 500) {
-				SendPkg();
-			}
-		}
-		Stop();
+	// 处理收到的 http 请求
+	int ReceiveHttpRequest() {
+		// todo
+		return 0;
 	}
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-int RunServer() {
-	Server server(1);
-
-	// 监听 echo
-	server.Listen(12333, [&](auto&& socket) {
-		xx::Make<TcpEchoPeer>(server, std::move(socket))->Start();
-	});
-	std::cout << "tcp echo port: 12333" << std::endl;
+int main() {
+	IOC ioc(1);
 
 	// 监听 http
-	server.Listen(12345, [&](auto&& socket) {
-		xx::Make<HttpPeer>(server, std::move(socket))->Start();
-	});
-	std::cout << "http manage port: 12345" << std::endl;
+	ioc.Listen(12345, [&](auto&& socket) {
+		xx::Make<ServerHttpPeer>(ioc, std::move(socket))->Start();
+		});
+	std::cout << "***** http port: 12345" << std::endl;
 
 	// 注册 http 处理回调
-	server.handlers["/"] = [](HttpPeer& p)->int {
-		//std::cout << "method: " << p.method << std::endl;
-		//std::cout << "path: " << p.path << std::endl;
-		//std::cout << "minorVersion: " << p.minorVersion << std::endl;
-		//std::cout << "numHeaders: " << p.numHeaders << std::endl;
-		//for (size_t i = 0; i < p.numHeaders; ++i) {
-		//	std::cout << "kv: " << p.headers[i].first << ":" << p.headers[i].second << std::endl;
-		//}
-		//std::cout << std::endl;
+	auto& hs = ServerHttpPeer::httpRequestHandlers;
 
-		if (p.writeQueue.size() > 100000) {
-			std::cout << "too many data need send" << std::endl;
-			return -1;
-		}
-
+	hs["/"] = [](ServerHttpPeer& p)->int {
 		p.SendResponse(p.prefix404, "<html><body>home!!!</body></html>");
-        p.server.counter++;
 		return 0;
 	};
 
-    // print QPS
-    co_spawn(server, [&]()->awaitable<void> {
-        while (!server.stopped()) {
-            server.counter = 0;
-            co_await xx::Timeout(1000ms);
-            std::cout << server.counter << std::endl;
-        }
-    }, detached);
+	// 起一个协程来实现 创建一份 client 并 自动连接到 server
+	co_spawn(ioc, [&]()->awaitable<void> {
+		// 创建 client peer
+		auto cp = xx::Make<ClientHttpPeer>(ioc);
 
-	server.run();
-	return 0;
-}
-
-int RunClient() {
-	Server server(1);
-
-	// 启动个协程压测一下 http 输出性能
-	co_spawn(server, [&]()->awaitable<void> {
-		auto cp = xx::Make<HttpClientPeer>(server);
-        while (!server.stopped()) {
-            if (cp->stoped) {
-				std::cout << "connecting..." << std::endl;
-				co_await cp->Connect(asio::ip::address::from_string("127.0.0.1"), 12345);
+		// 反复测试，不退出
+		while (!ioc.stopped()) {
+			// 如果已断开 就尝试重连
+			if (cp->IsStoped()) {
+				std::cout << "***** connecting..." << std::endl;
+				if (0 == co_await cp->Connect(asio::ip::address::from_string("127.0.0.1"), 12345)) {
+					std::cout << "***** connected" << std::endl;
+				}
 			}
-            co_await xx::Timeout(500ms);
+			// 频率控制在 1 秒 2 次
+			co_await xx::Timeout(500ms);
 		}
-	}, detached);
+		}, detached);
 
-	server.run();
+	ioc.run();
 	return 0;
-}
-
-// mac mini m1  2 pkg, 5 thread  QPS = 46w
-// 5950x linux vmware 200 pkg, 1 thread, presend = 1500, QPS = 100w
-// 5950x linux physics machane 20 pkg, 1 thread, presend = 500, QPS = 110w
-// 5950x linux physics machane 200 pkg, 1 thread, presend = 1500, QPS = 130w
-
-int main() {
-	std::array<std::thread, 1> ts;
-	for (auto& t : ts) {
-		t = std::thread([] {
-			RunClient();
-		});
-		t.detach();
-	}
-	return RunServer();
 }

@@ -3,16 +3,16 @@
 
 namespace xx {
 	// 最终 Peer 应使用 xx::Shared 包裹使用，以方便 co_spawn 捕获加持, 确保生命周期长于协程
-	template<typename PeerDeriveType, typename ServerType>
+	template<typename PeerDeriveType, typename IOCType, size_t writeQueueSizeLimit = 0>
 	struct PeerTcpBaseCode : asio::noncopyable {
-		ServerType& server;
+		IOCType& ioc;
 		asio::ip::tcp::socket socket;
 		asio::steady_timer writeBlocker;
 		std::deque<xx::DataShared> writeQueue;
 		bool stoped = true;
 
-		explicit PeerTcpBaseCode(ServerType& server_) : server(server_), socket(server_), writeBlocker(server_) {}
-		PeerTcpBaseCode(ServerType& server_, asio::ip::tcp::socket&& socket_) : server(server_), socket(std::move(socket_)), writeBlocker(server_) {}
+		explicit PeerTcpBaseCode(IOCType& ioc_) : ioc(ioc_), socket(ioc_), writeBlocker(ioc_) {}
+		PeerTcpBaseCode(IOCType& ioc_, asio::ip::tcp::socket&& socket_) : ioc(ioc_), socket(std::move(socket_)), writeBlocker(ioc_) {}
 
 		// 初始化。通常于 peer 创建后立即调用
 		void Start() {
@@ -20,8 +20,8 @@ namespace xx {
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
-			co_spawn(server, [this, self = xx::SharedFromThis(this)] { return PEERTHIS->Read(); }, detached);	// 派生类需要提供 awaitable<void> Read() 的实现
-			co_spawn(server, [self = xx::SharedFromThis(this)] { return self->Write(); }, detached);
+			co_spawn(ioc, [this, self = xx::SharedFromThis(this)] { return PEERTHIS->Read(); }, detached);	// 派生类需要提供 awaitable<void> Read() 的实现
+			co_spawn(ioc, [self = xx::SharedFromThis(this)] { return self->Write(); }, detached);
 			if constexpr (Has_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
@@ -57,7 +57,7 @@ namespace xx {
 		// for client dial connect to server only
 		awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
 			if (!stoped) co_return 1;
-			socket = asio::ip::tcp::socket(server);    // for macos
+			socket = asio::ip::tcp::socket(ioc);    // for macos
 			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
 			if (r.index()) co_return 2;
 			if (auto& [e] = std::get<0>(r); e) co_return 3;
@@ -74,12 +74,17 @@ namespace xx {
 					co_await writeBlocker.async_wait(use_nothrow_awaitable);
 					if (stoped) co_return;
 				}
+				if constexpr (writeQueueSizeLimit) {
+					if (writeQueue.size() > writeQueueSizeLimit)
+						break;
+				}
 				auto& msg = writeQueue.front();
 				auto buf = msg.GetBuf();
 				auto len = msg.GetLen();
 			LabBegin:
 				auto [ec, n] = co_await asio::async_write(socket, asio::buffer(buf, len), use_nothrow_awaitable);
-				if (ec) break;
+				if (ec)
+					break;
 				if (stoped) co_return;
 				if (n < len) {
 					len -= n;

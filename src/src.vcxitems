@@ -60,6 +60,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_randoms.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_sqlite.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_string.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_string_http.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_threadpool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_uv.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_uv_ext2.h" />
