@@ -16,11 +16,13 @@ namespace xx {
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct IOC;
-struct ServerHttpPeer : xx::PeerTcpBaseCode<ServerHttpPeer, IOC, 100> , xx::PeerHttpCode<ServerHttpPeer, 1024 * 32> {
+
+// serer http peer
+struct SHPeer : xx::PeerTcpBaseCode<SHPeer, IOC, 100> , xx::PeerHttpCode<SHPeer, 1024 * 32> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 
 	// path 对应的 处理函数 容器( 扫 array 比 扫 map 快得多的多 )
-	inline static std::array<std::pair<std::string_view, std::function<int(ServerHttpPeer&)>>, 32> handlers;
+	inline static std::array<std::pair<std::string_view, std::function<int(SHPeer&)>>, 32> handlers;
 	inline static size_t handlersLen;
 
 	// 处理收到的 http 请求( 会被 PeerHttpCode 基类调用 )
@@ -32,16 +34,16 @@ struct IOC : xx::IOCBase {
 	using IOCBase::IOCBase;
 };
 
-inline int ServerHttpPeer::ReceiveHttpRequest() {
+inline int SHPeer::ReceiveHttpRequest() {
 	std::cout << GetDumpStr() << std::endl;		// 打印一下收到的东西
 
 	// 对 url 进一步解析, 切分出 path 和 args
 	FillPathAndArgs();
 
 	// 在 path 对应的 处理函数 容器 中 定位并调用
-	for (size_t i = 0; i < ServerHttpPeer::handlersLen; i++) {
-		if (path == ServerHttpPeer::handlers[i].first) {
-			return ServerHttpPeer::handlers[i].second(*this);
+	for (size_t i = 0; i < SHPeer::handlersLen; i++) {
+		if (path == SHPeer::handlers[i].first) {
+			return SHPeer::handlers[i].second(*this);
 		}
 	}
 	SendResponse(prefix404, "<html><body>404 !!!</body></html>"sv);
@@ -51,11 +53,12 @@ inline int ServerHttpPeer::ReceiveHttpRequest() {
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct ClientHttpPeer : xx::PeerTcpBaseCode<ClientHttpPeer, IOC, 100> , xx::PeerHttpCode<ClientHttpPeer, 1024 * 32> {
+// client http peer
+struct CHPeer : xx::PeerTcpBaseCode<CHPeer, IOC, 100> , xx::PeerHttpCode<CHPeer, 1024 * 32> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 
 	// 回包 对应的 处理函数 容器
-	inline static std::unordered_map<std::string, std::function<int(ServerHttpPeer&)>
+	inline static std::unordered_map<std::string, std::function<int(SHPeer&)>
 		, xx::StringHasher<>, std::equal_to<void>> httpResponseHandlers;
 
 	void Start_() {
@@ -77,12 +80,12 @@ int main() {
 
 	// 监听 http
 	ioc.Listen(12345, [&](auto&& socket) {
-		xx::Make<ServerHttpPeer>(ioc, std::move(socket))->Start();
+		xx::Make<SHPeer>(ioc, std::move(socket))->Start();
 		});
 	std::cout << "***** http port: 12345" << std::endl;
 
 	// 注册 http 处理函数
-	ServerHttpPeer::handlers[ServerHttpPeer::handlersLen++] = std::make_pair("/"sv, [](ServerHttpPeer& p)->int {
+	SHPeer::handlers[SHPeer::handlersLen++] = std::make_pair("/"sv, [](SHPeer& p)->int {
 		p.SendResponse(p.prefix404, "<html><body>home!!!</body></html>");
 		return 0;
 	});
@@ -90,7 +93,7 @@ int main() {
 	// 起一个协程来实现 创建一份 client 并 自动连接到 server
 	co_spawn(ioc, [&]()->awaitable<void> {
 		// 创建 client peer
-		auto cp = xx::Make<ClientHttpPeer>(ioc);
+		auto cp = xx::Make<CHPeer>(ioc);
 
 		// 反复测试，不退出
 		while (!ioc.stopped()) {
