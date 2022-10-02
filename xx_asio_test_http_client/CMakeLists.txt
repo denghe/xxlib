@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(xx_asio_test_http)
+project(xx_asio_test_http_client)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -39,9 +39,9 @@ link_directories(
 include_directories(
 		${dirs}
 )
-add_executable(xx_asio_test_http
+add_executable(xx_asio_test_http_client
 		${srcs}
 		)
-target_link_libraries(xx_asio_test_http
+target_link_libraries(xx_asio_test_http_client
 		${libs}
 		)

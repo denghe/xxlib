@@ -13,8 +13,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{0653FBCF-82A5-41F7-0201-667819F57E00}</ProjectGuid>
-    <RootNamespace>vsxxasiotesthttp</RootNamespace>
+    <ProjectGuid>{0153FBCF-82A5-41F7-0201-667819F57E01}</ProjectGuid>
+    <RootNamespace>vsxxasiotesthttpclient</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

@@ -59,6 +59,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dupe_file_cleaner", "tool_d
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xx_asio_test_http", "xx_asio_test_http\xx_asio_test_http.vcxproj", "{0653FBCF-82A5-41F7-0201-667819F57E00}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xx_asio_test_http_client", "xx_asio_test_http_client\xx_asio_test_http_client.vcxproj", "{0153FBCF-82A5-41F7-0201-667819F57E01}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -173,6 +175,10 @@ Global
 		{0653FBCF-82A5-41F7-0201-667819F57E00}.Debug|x64.Build.0 = Debug|x64
 		{0653FBCF-82A5-41F7-0201-667819F57E00}.Release|x64.ActiveCfg = Release|x64
 		{0653FBCF-82A5-41F7-0201-667819F57E00}.Release|x64.Build.0 = Release|x64
+		{0153FBCF-82A5-41F7-0201-667819F57E01}.Debug|x64.ActiveCfg = Debug|x64
+		{0153FBCF-82A5-41F7-0201-667819F57E01}.Debug|x64.Build.0 = Debug|x64
+		{0153FBCF-82A5-41F7-0201-667819F57E01}.Release|x64.ActiveCfg = Release|x64
+		{0153FBCF-82A5-41F7-0201-667819F57E01}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -181,6 +187,7 @@ Global
 		SolutionGuid = {B5E38D05-4A3F-43E8-8FAF-57D16C77C62F}
 	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		src\src.vcxitems*{0153fbcf-82a5-41f7-0201-667819f57e01}*SharedItemsImports = 4
 		src\src.vcxitems*{0653fbcf-1111-41f7-0201-333619f57e00}*SharedItemsImports = 4
 		src\src.vcxitems*{0653fbcf-82a5-41f7-0001-f0d6719f57e2}*SharedItemsImports = 4
 		src\src.vcxitems*{0653fbcf-82a5-41f7-0002-f0d6711237e2}*SharedItemsImports = 4

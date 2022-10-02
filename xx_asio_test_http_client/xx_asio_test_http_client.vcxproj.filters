@@ -2,8 +2,10 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="..\3rd\picohttpparser.c" />
+    <ClCompile Include="..\3rd\simdjson.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\xx_asio_test_http_client\xx_asio_test_http_client.vcxproj" />
+    <Text Include="bak.txt" />
   </ItemGroup>
 </Project>
