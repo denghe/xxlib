@@ -3,7 +3,7 @@
 
 namespace xx {
 	// 最终 Peer 应使用 xx::Shared 包裹使用，以方便 co_spawn 捕获加持, 确保生命周期长于协程
-	template<typename PeerDeriveType, typename IOCType, size_t writeQueueSizeLimit = 0>
+	template<typename PeerDeriveType, typename IOCType, size_t writeQueueSizeLimit = 100>
 	struct PeerTcpBaseCode : asio::noncopyable {
 		IOCType& ioc;
 		asio::ip::tcp::socket socket;
