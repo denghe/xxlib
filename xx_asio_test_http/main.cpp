@@ -1,5 +1,4 @@
 ﻿#include <xx_asio_tcp_base_http.h>
-#include <xx_dict.h>
 
 // 适配 std::string[_view] 走 xxhash 以提速
 #include <xxh3.h>
@@ -16,65 +15,43 @@ namespace xx {
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-// 预声明
 struct IOC;
-
-// 服务端 http peer
-struct ServerHttpPeer
-	: xx::PeerTcpBaseCode<ServerHttpPeer, IOC, 100>
-	, xx::PeerHttpCode<ServerHttpPeer, 1024 * 32> {
+struct ServerHttpPeer : xx::PeerTcpBaseCode<ServerHttpPeer, IOC, 100> , xx::PeerHttpCode<ServerHttpPeer, 1024 * 32> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 
-	// path 对应的 处理函数 容器
-	inline static xx::Dict<std::string, std::function<int(ServerHttpPeer&)>> httpRequestHandlers;
+	// path 对应的 处理函数 容器( 扫 array 比 扫 map 快得多的多 )
+	inline static std::array<std::pair<std::string_view, std::function<int(ServerHttpPeer&)>>, 32> handlers;
+	inline static size_t handlersLen;
 
-	// 切割 path 和
-	std::pair<std::string_view, std::string_view> GetPathAndArgs();
-
-	// 处理收到的 http 请求
+	// 处理收到的 http 请求( 会被 PeerHttpCode 基类调用 )
 	int ReceiveHttpRequest();
-
-	// 打印一下收到的东西
-	std::string& GetDumpInfoRef(bool containsOriginalContent = false);
 };
 
 // asio io_context 上下文( 生命周期最久的 全局交互 & 胶水 容器 )
 struct IOC : xx::IOCBase {
 	using IOCBase::IOCBase;
-
-	// 一些公用容器( ioc 所在线程适用 )
-	std::string tmpStr;
 };
 
 inline int ServerHttpPeer::ReceiveHttpRequest() {
-	// 打印一下收到的东西
-	std::cout << GetDumpInfoRef(true) << std::endl;
+	std::cout << GetDumpStr() << std::endl;		// 打印一下收到的东西
 
 	// 对 url 进一步解析, 切分出 path 和 args
 	FillPathAndArgs();
 
 	// 在 path 对应的 处理函数 容器 中 定位并调用
-	auto& hs = ServerHttpPeer::httpRequestHandlers;
-	if (auto idx = hs.Find(path); idx == -1) {
-		SendResponse(prefix404, "<html><body>404 !!!</body></html>"sv);
-		return 0;
+	for (size_t i = 0; i < ServerHttpPeer::handlersLen; i++) {
+		if (path == ServerHttpPeer::handlers[i].first) {
+			return ServerHttpPeer::handlers[i].second(*this);
+		}
 	}
-	else return hs.ValueAt(idx)(*this);
-}
-
-inline std::string& ServerHttpPeer::GetDumpInfoRef(bool containsOriginalContent) {
-	auto& s = ioc.tmpStr;
-	s.clear();
-	AppendDumpInfo(s, containsOriginalContent);
-	return s;
+	SendResponse(prefix404, "<html><body>404 !!!</body></html>"sv);
+	return 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct ClientHttpPeer
-	: xx::PeerTcpBaseCode<ClientHttpPeer, IOC, 100>
-	, xx::PeerHttpCode<ClientHttpPeer, 1024 * 32> {
+struct ClientHttpPeer : xx::PeerTcpBaseCode<ClientHttpPeer, IOC, 100> , xx::PeerHttpCode<ClientHttpPeer, 1024 * 32> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
 
 	// 回包 对应的 处理函数 容器
@@ -104,13 +81,11 @@ int main() {
 		});
 	std::cout << "***** http port: 12345" << std::endl;
 
-	// 注册 http 处理回调
-	auto& hs = ServerHttpPeer::httpRequestHandlers;
-
-	hs["/"] = [](ServerHttpPeer& p)->int {
+	// 注册 http 处理函数
+	ServerHttpPeer::handlers[ServerHttpPeer::handlersLen++] = std::make_pair("/"sv, [](ServerHttpPeer& p)->int {
 		p.SendResponse(p.prefix404, "<html><body>home!!!</body></html>");
 		return 0;
-	};
+	});
 
 	// 起一个协程来实现 创建一份 client 并 自动连接到 server
 	co_spawn(ioc, [&]()->awaitable<void> {

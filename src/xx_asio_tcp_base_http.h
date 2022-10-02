@@ -64,7 +64,7 @@ namespace xx {
 		}
 
 		// 向 s 填充 dump 信息
-		void AppendDumpInfo(std::string& s, size_t keyWidth = 40, bool dumpContent = false, bool dumpMinorVersion = false, bool dumpHeadersLen = false) {
+		void AppendDumpStr(std::string& s, size_t keyWidth = 40, bool dumpContent = false, bool dumpMinorVersion = false, bool dumpHeadersLen = false) {
 			if (keyWidth < 40) {
 				keyWidth = 40;
 			}
@@ -100,6 +100,13 @@ namespace xx {
 			xx::Append(s,
 				"==============================================================="
 			);
+		}
+
+		// AppendDumpInfo 的直接返回版
+		std::string GetDumpStr(size_t keyWidth = 40, bool dumpContent = false, bool dumpMinorVersion = false, bool dumpHeadersLen = false) {
+			std::string s;
+			AppendDumpStr(s, keyWidth, dumpContent, dumpMinorVersion, dumpHeadersLen);
+			return s;
 		}
 
 		// 读 协程函数主体( protected )
