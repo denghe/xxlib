@@ -42,8 +42,8 @@ int main() {
 	SHPeer::RegisterHttpRequestHandler("/name"sv, [&](SHPeer& p)->int {
 		// 将 "key=value&..." 转储到数组中
 		auto args = p.GetArgsArray("name"sv, "repeat_times"sv);
-		auto name = args.Get<std::string_view>("name"sv);
-		auto repeat_times = args.Get<int>("repeat_times"sv);
+		auto name = args.GetValueAt(0);
+		auto repeat_times = args.GetValueAt<size_t>(1);
 
 		// 检查参数是否有异常?
 		// if (name.size() == 0 || repeat_times == 0) Out( args error? )
