@@ -8,6 +8,17 @@ namespace xx {
 		Response
 	};
 
+	enum class HtmlHeaders {
+		OK_200_Text_Cache,
+		OK_200_Text,
+		OK_200_Html_Cache,
+		OK_200_Html,
+		NotFound_404_Text_Cache,
+		NotFound_404_Text,
+		NotFound_404_Html_Cache,
+		NotFound_404_Html,
+	};
+
 	// for phr_parse_request/response funcs
 	template<size_t headersCap>
 	struct PicoHttpParserArgs {
@@ -18,6 +29,7 @@ namespace xx {
 		std::array<phr_header, headersCap> headers;
 	};
 
+	// http peer base struct
 	template<typename PeerDeriveType, HttpType httpType = HttpType::Request, size_t readBufLen = 1024 * 32, size_t headersCap = 32>
 	struct PeerHttpCode {
 
@@ -37,27 +49,30 @@ namespace xx {
 		std::string tmp;
 		Data bodyData;
 
-		inline static constexpr std::string_view prefixText = "HTTP/1.1 200 OK\r\nContent-Type: text/plain;charset=utf-8\r\nConnection: keep-alive\r\nContent-Length: "sv;
-		inline static constexpr std::string_view prefixHtml = "HTTP/1.1 200 OK\r\nContent-Type: text/html;charset=utf-8\r\nConnection: keep-alive\r\nContent-Length: "sv;
-		inline static constexpr std::string_view prefix404 = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html;charset=utf-8\r\nConnection: keep-alive\r\nContent-Length: "sv;
-
 		// 回发 文本 或 http
-		void SendHtml(std::string_view const& prefix, std::string_view const& content) {
-			xx::Data d(prefix.size() + content.size() + 32);
-			d.WriteBuf(prefix.data(), prefix.size());
-			tmp.clear();
-			xx::Append(tmp, content.size());
-			d.WriteBuf(tmp.data(), tmp.size());
-			d.WriteBuf("\r\n\r\n", 4);
-			d.WriteBuf(content.data(), content.size());
+		template<HtmlHeaders h, typename...StringViewContents>
+		void SendHtml(StringViewContents const&... contents) {
+			auto contentsTotalSize = (contents.size() + ...);
+			xx::Data d(300 + contentsTotalSize);	// 300: 头部预计长度
+			if constexpr (h == HtmlHeaders::OK_200_Text_Cache || h == HtmlHeaders::OK_200_Text || h == HtmlHeaders::OK_200_Html_Cache || h == HtmlHeaders::OK_200_Html) {
+				d.WriteBuf<false>("HTTP/1.1 200 OK"sv);
+			}
+			if constexpr (h == HtmlHeaders::NotFound_404_Text_Cache || h == HtmlHeaders::NotFound_404_Text || h == HtmlHeaders::NotFound_404_Html_Cache || h == HtmlHeaders::NotFound_404_Html) {
+				d.WriteBuf<false>("HTTP/1.1 404 Not Found"sv);
+			}
+			if constexpr (h == HtmlHeaders::OK_200_Text_Cache || h == HtmlHeaders::OK_200_Text || h == HtmlHeaders::NotFound_404_Text_Cache || h == HtmlHeaders::NotFound_404_Text) {
+				d.WriteBuf<false>("\r\nContent-Type: text/plain;charset=utf-8"sv);
+			}
+			if constexpr (h == HtmlHeaders::OK_200_Html_Cache || h == HtmlHeaders::OK_200_Html || h == HtmlHeaders::NotFound_404_Html_Cache || h == HtmlHeaders::NotFound_404_Html) {
+				d.WriteBuf<false>("\r\nContent-Type: text/html;charset=utf-8"sv);
+			}
+			d.WriteBuf<false>("\r\nConnection: keep-alive\r\nContent-Length: "sv);
+			char lenBuf[32];
+			auto [ptr, _] = std::to_chars(lenBuf, lenBuf + sizeof(lenBuf), content.size());
+			d.WriteBuf<false>(lenBuf, ptr - lenBuf);
+			d.WriteBuf<false>("\r\n\r\n"sv);
+			(d.WriteBuf<false>(contents), ...);
 			PEERTHIS->Send(std::move(d));
-		};
-
-		// 根据 url 填充 path & args
-		void FillPathAndArgs() {
-			auto i = url.find('?');
-			args = i != url.npos ? url.substr(i + 1) : std::string_view{};
-			path = url.substr(0, i);
 		}
 
 		// 在 headers 数组 中扫描获取 key 对应的 value
@@ -90,7 +105,7 @@ namespace xx {
 					"method", CharRepeater{ ' ', keyWidth - 6 }, method, "\n"
 				);
 				xx::Append(s,
-					"url", CharRepeater{ ' ', keyWidth - 3 }, url, "\n"
+					"url( path + ? args )", CharRepeater{ ' ', keyWidth - 20 }, url, "\n"
 				);
 			}
 			else {
@@ -114,7 +129,7 @@ namespace xx {
 				auto kSiz = headers[i].first.size();
 				xx::Append(s, headers[i].first, CharRepeater{ ' ', kSiz > keyWidth ? 1 : (keyWidth - kSiz) }, headers[i].second, '\n');
 			}
-			if constexpr (httpType == HttpType::Response) {
+			if (httpType == HttpType::Response || method == "POST"sv) {
 				xx::Append(s,
 					"---------------------------------------------------------------\n"
 					"|                             body                            |\n"
@@ -177,12 +192,21 @@ namespace xx {
 						headers[i].second = std::string_view(z.headers[i].value, z.headers[i].value_len);
 					}
 
+					bool needReadContent = httpType == HttpType::Response;
 					if constexpr (httpType == HttpType::Request) {
 						method = std::string_view(z.method, z.methodLen);
 						url = std::string_view(z.url, z.urlLen);
+						auto i = url.find('?');
+						path = url.substr(0, i);
+						args = i != url.npos ? url.substr(i + 1) : std::string_view{};
+						if (method == "POST"sv) {
+							needReadContent = true;
+						}
 					}
 					else {
 						msg = std::string_view(z.url, z.urlLen);
+					}
+					if (needReadContent) {
 						if (auto cl = FindHeader("Content-Length"sv); !cl.has_value())
 							break;	// 内容缺失: 内容长度 header 找不到
 						else if (auto n = xx::SvToNumber<int>(cl.value(), -1); n == -1)
@@ -233,6 +257,32 @@ namespace xx {
 					break;	// buf 填满了
 			}
 			PEERTHIS->Stop();
+		}
+	};
+
+	// attach handlers code snippets
+	template<typename PeerDeriveType>
+	struct PeerHttpRequestHandlersCode {
+
+		// path 对应的 处理函数 容器( 扫 array 比 扫 map 快得多的多 )
+		inline static std::array<std::pair<std::string_view, std::function<int(PeerDeriveType&)>>, 32> handlers;
+		inline static size_t handlersLen;
+
+		// 注册处理函数. 格式为 [&](SHPeer& p)->int   返回非 0 就掐线
+		template<typename F>
+		inline static void RegisterHttpRequestHandler(std::string_view const& path, F&& func) {
+			handlers[handlersLen++] = std::make_pair(path, std::forward<F>(func));
+		}
+
+		// 处理收到的 http 请求( 会被 PeerHttpCode 基类调用 )
+		inline int ReceiveHttp() {
+			for (size_t i = 0; i < PeerDeriveType::handlersLen; i++) {			// 在 path 对应的 处理函数 容器 中 定位并调用
+				if (PEERTHIS->path == PeerDeriveType::handlers[i].first) {
+					return PeerDeriveType::handlers[i].second(*PEERTHIS);
+				}
+			}
+			PEERTHIS->SendHtml<xx::HtmlHeaders::NotFound_404_Html>("<html><body>404 !!!</body></html>"sv);	// 返回 资源不存在 的说明
+			return 0;
 		}
 	};
 }

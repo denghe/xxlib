@@ -6,34 +6,9 @@ struct IOC : xx::IOCBase {
 	ssize_t count = 0;
 };
 
-// serer http peer
-struct SHPeer : xx::PeerTcpBaseCode<SHPeer, IOC> , xx::PeerHttpCode<SHPeer> {
+// server http peer
+struct SHPeer : xx::PeerTcpBaseCode<SHPeer, IOC>, xx::PeerHttpCode<SHPeer>, xx::PeerHttpRequestHandlersCode<SHPeer> {
 	using PeerTcpBaseCode::PeerTcpBaseCode;
-
-	// path 对应的 处理函数 容器( 扫 array 比 扫 map 快得多的多 )
-	inline static std::array<std::pair<std::string_view, std::function<int(SHPeer&)>>, 32> handlers;
-	inline static size_t handlersLen;
-
-	void Start_() {
-		std::cout << "***** client connected" << std::endl;
-	}
-
-	void Stop_() {
-		std::cout << "***** client disconnected" << std::endl;
-	}
-
-	// 处理收到的 http 请求( 会被 PeerHttpCode 基类调用 )
-	inline int ReceiveHttp() {
-		// std::cout << GetDumpStr() << std::endl;					// 打印一下收到的东西
-		FillPathAndArgs();											// 对 url 进一步解析, 切分出 path 和 args
-		for (size_t i = 0; i < SHPeer::handlersLen; i++) {			// 在 path 对应的 处理函数 容器 中 定位并调用
-			if (path == SHPeer::handlers[i].first) {
-				return SHPeer::handlers[i].second(*this);
-			}
-		}
-		SendHtml(prefix404, "<html><body>404 !!!</body></html>"sv);	// 返回 资源不存在 的说明
-		return 0;
-	}
 };
 
 int main() {
@@ -46,19 +21,37 @@ int main() {
 	std::cout << "***** http port: 12345" << std::endl;
 
 	// 开始注册 http 处理函数
-	SHPeer::handlers[SHPeer::handlersLen++] = std::make_pair("/"sv, [&](SHPeer& p)->int {
+	SHPeer::RegisterHttpRequestHandler("/"sv, [&](SHPeer& p)->int {
 		++ioc.count;
-		p.SendHtml(p.prefixHtml, "<html><body>home!!!</body></html>");
+		p.SendHtml<xx::HtmlHeaders::OK_200_Html>(R"(<html>
+	<body>
+		<form action='/name' method='post'>
+			please input your name: <input type='text' name='name'>
+			<br><input type='submit' value='submit'>
+		</form>
+	</body>
+</html>)"sv);
 		return 0;
 	});
 
-	// 起一个协程来实现 创建一份 client 并 自动连接到 server
+	SHPeer::RegisterHttpRequestHandler("/name"sv, [&](SHPeer& p)->int {
+		//std::cout << p.GetDumpStr() << std::endl;
+		p.SendHtml<xx::HtmlHeaders::OK_200_Html>(R"(<html>
+	<body>
+		<a href='/'>hi!)"sv, p.body, R"(</a>
+	</body>
+</html>)"sv);
+		return 0;
+	});
+
+	// 起一个协程 每秒显示一次 QPS
 	co_spawn(ioc, [&]()->awaitable<void> {
-		// 每秒显示一次 QPS
 		while (!ioc.stopped()) {
 			ioc.count = 0;
 			co_await xx::Timeout(1000ms);
-			std::cout << "***** QPS = " << ioc.count << std::endl;
+			if (ioc.count) {
+				std::cout << "***** QPS = " << ioc.count << std::endl;
+			}
 		}
 	}, detached);
 
