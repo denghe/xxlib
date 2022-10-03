@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <xx_asio_tcp_base.h>
+#include <xx_string_http.h>
 #include <picohttpparser.h>
 
 namespace xx {
@@ -31,6 +32,48 @@ namespace xx {
 		std::array<phr_header, headersCap> headers;
 	};
 
+	// string_view 键值对 数组容器
+	template<size_t len>
+	struct SVPairArray : std::array<std::pair<std::string_view, std::string_view>, len> {
+		using BaseType = std::array<std::pair<std::string_view, std::string_view>, len>;
+		using BaseType::BaseType;
+		using BaseType::operator[];
+
+		// 在数组 中扫描获取 key 对应的 value 并转为目标类型后返回. 找不到 或转换失败 就返回默认值. 当前只支持 std::string_view 和 number 两种
+		template<typename R = std::string_view>
+		R Get(std::string_view const& key, R const& defaultValue = R{}) {
+			static_assert(std::is_same_v<R, std::string_view> || std::is_arithmetic_v<R>);
+			for (size_t i = 0; i < len; i++) {
+				if ((*this)[i].first == key) {
+					if constexpr (std::is_arithmetic_v<R>) {
+						return SvToNumber((*this)[i].second, defaultValue);
+					}
+					else {
+						return (*this)[i].second;
+					}
+				}
+			}
+			return defaultValue;
+		}
+
+		// 在数组 中扫描获取 key 对应的 value 并转为目标类型后返回. 找不到 或转换失败 就返回 空. 当前只支持 std::string_view 和 number 两种
+		template<typename R = std::string_view>
+		std::optional<R> TryGet(std::string_view const& key) {
+			static_assert(std::is_same_v<R, std::string_view> || std::is_arithmetic_v<R>);
+			for (size_t i = 0; i < len; i++) {
+				if ((*this)[i].first == key) {
+					if constexpr (std::is_arithmetic_v<R>) {
+						return SvToNumber((*this)[i].second, R{});
+					}
+					else {
+						return (*this)[i].second;
+					}
+				}
+			}
+			return {};
+		}
+	};
+
 	// http peer base struct
 	template<typename PeerDeriveType, HttpType httpType = HttpType::Request, size_t readBufLen = 1024 * 32, size_t headersCap = 32>
 	struct PeerHttpCode {
@@ -39,7 +82,7 @@ namespace xx {
 		std::string_view url;	// for request
 		std::string_view msg;	// for response
 		std::string_view body;	// for response
-		std::array<std::pair<std::string_view, std::string_view>, headersCap> headers;	// for all
+		SVPairArray<headersCap> headers;	// for all
 		size_t headersLen;
 		int minorVersion;	// for all
 		int status;	// for response
@@ -94,12 +137,36 @@ namespace xx {
 			OutEnd();
 		}
 
-		// 在 headers 数组 中扫描获取 key 对应的 value
-		std::optional<std::string_view> FindHeader(std::string_view const& key) {
-			for (size_t i = 0; i < headersLen; i++) {
-				if (headers[i].first == key) return headers[i].second;
+		// 解析 key=value&key=value&.... 并转为 array<pair<key, value>
+		// 通常直接使用 GetArgsArray 函数来得到填充好的容器
+		// out 参数类型示例: SVPairArray<2> args = { std::pair{ "name"sv, ""sv}, { "repeat_times"sv, ""sv} };
+		template<typename ArgsContainer>
+		void FillArgsTo(ArgsContainer& out) {
+			std::string_view sv(method == "POST"sv ? body : args);
+			for (size_t i = 0; i < out.size(); i++) {
+				if (auto key = xx::SplitOnce(sv, "="); !key.empty()) {
+					for (auto& kv : out) {
+						if (kv.first == key) {
+							kv.second = xx::SplitOnce(sv, "&");
+						}
+					}
+				}
 			}
-			return {};
+		}
+
+		// 向 SVPairArray 填充 name 部分
+		template<typename A, typename T, std::size_t...I>
+		static void FillArgsNames(A& a, T const& t, std::index_sequence<I...>) {
+			((a[I].first = std::get<I>(t)), ...);
+		}
+
+		// 根据 "name"sv 列表创建 SVPairArray 并填充后返回
+		template<typename ... ArgNames>
+		auto GetArgsArray(ArgNames const& ... names) ->SVPairArray<sizeof...(ArgNames)> {
+			SVPairArray<sizeof...(ArgNames)> out;
+			FillArgsNames(out, std::make_tuple(names...), std::make_index_sequence<sizeof...(ArgNames)>());
+			FillArgsTo(out);
+			return out;
 		}
 
 		// 向 s 填充 dump 信息
@@ -226,7 +293,7 @@ namespace xx {
 						msg = std::string_view(z.url, z.urlLen);
 					}
 					if (needReadContent) {
-						if (auto cl = FindHeader("Content-Length"sv); !cl.has_value())
+						if (auto cl = headers.TryGet("Content-Length"sv); !cl.has_value())
 							break;	// 内容缺失: 内容长度 header 找不到
 						else if (auto n = xx::SvToNumber<int>(cl.value(), -1); n == -1)
 							break;	// string 2 int 转换失败
@@ -300,7 +367,7 @@ namespace xx {
 					return PeerDeriveType::handlers[i].second(*PEERTHIS);
 				}
 			}
-			PEERTHIS->template OutOnce<xx::HtmlHeaders::NotFound_404_Html>("<html><body>404 !!!</body></html>"sv);	// 返回 资源不存在 的说明
+			PEERTHIS->template OutOnce<xx::HtmlHeaders::NotFound_404_Text>("404"sv);	// 返回 资源不存在 的说明
 			return 0;
 		}
 	};

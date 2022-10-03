@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include <xx_data_shared.h>
-#include <xx_string.h>
 #include <xx_ptr.h>
 
 #include <boost/asio.hpp>

@@ -409,6 +409,19 @@ namespace xx {
         return r.ec != std::errc::invalid_argument && r.ec != std::errc::result_out_of_range ? out : defaultValue;
     }
 
+    template<typename T>
+    inline std::string_view ToStringView(T const& v, char* const& buf, size_t const& len) {
+        static_assert(std::is_integral_v<T>);
+        if (auto [ptr, ec] = std::to_chars(buf, buf + len, v); ec == std::errc()) {
+            return { buf, size_t(ptr - buf) };
+        }
+        else return {};
+    }
+
+    template<typename T, size_t len>
+    inline std::string_view ToStringView(T const& v, char(&buf)[len]) {
+        return ToStringView<T>(v, buf, len);
+    }
 
     // 转换 s 数据类型 为 T 填充 dst
     template<typename T>

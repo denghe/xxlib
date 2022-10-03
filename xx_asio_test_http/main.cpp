@@ -26,10 +26,12 @@ int main() {
         std::cout << p.GetDumpStr() << std::endl;
 #endif
 		++ioc.count;
-		p.OutOnce<xx::HtmlHeaders::OK_200_Html>(R"(<html>
+		p.OutOnce<xx::HtmlHeaders::OK_200_Html>(R"(<!DOCTYPE html>
+<html>
 	<body>
 		<form action='/name' method='post'>
-			please input your name: <input type='text' name='name'>
+			name: <input type='text' name='name'>
+			repeat: <input type='number' min='1' max='100' name='repeat_times'>
 			<br><input type='submit' value='submit'>
 		</form>
 	</body>
@@ -38,12 +40,25 @@ int main() {
 	});
 
 	SHPeer::RegisterHttpRequestHandler("/name"sv, [&](SHPeer& p)->int {
+		// 将 "key=value&..." 转储到数组中
+		auto args = p.GetArgsArray("name"sv, "repeat_times"sv);
+		auto name = args.Get<std::string_view>("name"sv);
+		auto repeat_times = args.Get<int>("repeat_times"sv);
+
+		// 检查参数是否有异常?
+		// if (name.size() == 0 || repeat_times == 0) Out( args error? )
+
+		// 开始流式拼接输出内容
 		p.OutBegin<xx::HtmlHeaders::OK_200_Html>();
-		p.Out("<html><body>"sv);
-		for (size_t i = 0; i < 20; i++) {
-			p.Out("<a href='/'>hi!"sv, p.body, "</a><br>"sv);
+
+		p.Out("<!DOCTYPE html><html><head><meta charset='utf-8'><title>hello title</title></head><body>"sv);
+		for (size_t i = 0; i < repeat_times; i++) {
+			char buf[32];
+			p.Out("<a href='/'>hi!&nbsp;"sv, name, "&nbsp;"sv, xx::ToStringView(i, buf), "</a><br>"sv);
 		}
-		p.Out("</body></html>)"sv);
+		p.Out("</body></html>"sv);
+
+		// 结束拼接并发送
 		p.OutEnd();
 		return 0;
 	});
