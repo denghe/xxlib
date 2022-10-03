@@ -281,7 +281,7 @@ namespace xx {
 					return PeerDeriveType::handlers[i].second(*PEERTHIS);
 				}
 			}
-			PEERTHIS->SendHtml<xx::HtmlHeaders::NotFound_404_Html>("<html><body>404 !!!</body></html>"sv);	// 返回 资源不存在 的说明
+			PEERTHIS->template SendHtml<xx::HtmlHeaders::NotFound_404_Html>("<html><body>404 !!!</body></html>"sv);	// 返回 资源不存在 的说明
 			return 0;
 		}
 	};

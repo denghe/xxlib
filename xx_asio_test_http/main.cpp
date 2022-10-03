@@ -22,6 +22,9 @@ int main() {
 
 	// 开始注册 http 处理函数
 	SHPeer::RegisterHttpRequestHandler("/"sv, [&](SHPeer& p)->int {
+#ifndef NDEBUG
+        std::cout << p.GetDumpStr() << std::endl;
+#endif
 		++ioc.count;
 		p.SendHtml<xx::HtmlHeaders::OK_200_Html>(R"(<html>
 	<body>
@@ -35,7 +38,6 @@ int main() {
 	});
 
 	SHPeer::RegisterHttpRequestHandler("/name"sv, [&](SHPeer& p)->int {
-		//std::cout << p.GetDumpStr() << std::endl;
 		p.SendHtml<xx::HtmlHeaders::OK_200_Html>(R"(<html>
 	<body>
 		<a href='/'>hi!)"sv, p.body, R"(</a>
