@@ -74,6 +74,7 @@ namespace xx {
 		// 不断向 out 写入 contents ( 可调用多次, 只适合预留了 内容长度填充空格 的 head )
 		template<typename...StringViewContents>
 		void Out(StringViewContents const&... contents) {
+			assert(outHeadLen);
 			(out.WriteBuf<false>(contents), ...);
 		}
 
@@ -81,6 +82,7 @@ namespace xx {
 		void OutEnd() {
 			std::to_chars((char*)out.buf + outHeadLen - 16, (char*)out.buf + outHeadLen - 4, out.len - outHeadLen);	// 将内容长度填充到相应位置
 			PEERTHIS->Send(std::move(out));
+			outHeadLen = 0;
 		}
 
 		// 一把梭, 拼接 head + contents 并发送
