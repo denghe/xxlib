@@ -26,7 +26,7 @@ int main() {
         std::cout << p.GetDumpStr() << std::endl;
 #endif
 		++ioc.count;
-		p.SendHtml<xx::HtmlHeaders::OK_200_Html>(R"(<html>
+		p.OutOnce<xx::HtmlHeaders::OK_200_Html>(R"(<html>
 	<body>
 		<form action='/name' method='post'>
 			please input your name: <input type='text' name='name'>
@@ -38,11 +38,13 @@ int main() {
 	});
 
 	SHPeer::RegisterHttpRequestHandler("/name"sv, [&](SHPeer& p)->int {
-		p.SendHtml<xx::HtmlHeaders::OK_200_Html>(R"(<html>
-	<body>
-		<a href='/'>hi!)"sv, p.body, R"(</a>
-	</body>
-</html>)"sv);
+		p.OutBegin<xx::HtmlHeaders::OK_200_Html>();
+		p.Out("<html><body>"sv);
+		for (size_t i = 0; i < 20; i++) {
+			p.Out("<a href='/'>hi!"sv, p.body, "</a><br>"sv);
+		}
+		p.Out("</body></html>)"sv);
+		p.OutEnd();
 		return 0;
 	});
 

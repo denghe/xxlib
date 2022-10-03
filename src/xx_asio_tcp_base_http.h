@@ -3,11 +3,13 @@
 #include <picohttpparser.h>
 
 namespace xx {
+	// 路由 server / client 的 peer http code 使用性质
 	enum class HttpType {
 		Request,
 		Response
 	};
 
+	// 决定 html 头部内容组合
 	enum class HtmlHeaders {
 		OK_200_Text_Cache,
 		OK_200_Text,
@@ -41,38 +43,53 @@ namespace xx {
 		size_t headersLen;
 		int minorVersion;	// for all
 		int status;	// for response
-
-		std::string_view content;	// 指向整个 http 请求的原始内容
-
 		std::string_view path;	// url 的 ? 号 之前的部分. 需要调用 FillPathAndArgs 来填充
 		std::string_view args;	// url 的 ? 号 之后的部分. 需要调用 FillPathAndArgs 来填充
-		std::string tmp;
-		Data bodyData;
+		std::string_view head;	// 指向整个 http 请求的原始内容( 不包含 body 部分 )
+		Data bodyData;	// 如果 body 部分大于 read buf 长度, 将转储到该容器
+		Data out;	// 用于逐步拼接构造 要发送的数据
+		ssize_t outHeadLen = 0;	// 存储 head 部分长度( 用于算 Content-Length 填充留白位置 )
 
-		// 回发 文本 或 http
-		template<HtmlHeaders h, typename...StringViewContents>
-		void SendHtml(StringViewContents const&... contents) {
-			auto contentsTotalSize = (contents.size() + ...);
-			xx::Data d(300 + contentsTotalSize);	// 300: 头部预计长度
+		// 清空 out 并写入 head. 可指定默认的内存预分配尺度 以便后续 填充 Content-Length
+		template<HtmlHeaders h>
+		void OutBegin(size_t const& contentCap = 1024 * 16) {
+			out.Clear();
+			out.Reserve(300 + contentCap);	// 300: 头部预计长度
 			if constexpr (h == HtmlHeaders::OK_200_Text_Cache || h == HtmlHeaders::OK_200_Text || h == HtmlHeaders::OK_200_Html_Cache || h == HtmlHeaders::OK_200_Html) {
-				d.WriteBuf<false>("HTTP/1.1 200 OK"sv);
+				out.WriteBuf<false>("HTTP/1.1 200 OK"sv);
 			}
 			if constexpr (h == HtmlHeaders::NotFound_404_Text_Cache || h == HtmlHeaders::NotFound_404_Text || h == HtmlHeaders::NotFound_404_Html_Cache || h == HtmlHeaders::NotFound_404_Html) {
-				d.WriteBuf<false>("HTTP/1.1 404 Not Found"sv);
+				out.WriteBuf<false>("HTTP/1.1 404 Not Found"sv);
 			}
 			if constexpr (h == HtmlHeaders::OK_200_Text_Cache || h == HtmlHeaders::OK_200_Text || h == HtmlHeaders::NotFound_404_Text_Cache || h == HtmlHeaders::NotFound_404_Text) {
-				d.WriteBuf<false>("\r\nContent-Type: text/plain;charset=utf-8"sv);
+				out.WriteBuf<false>("\r\nContent-Type: text/plain;charset=utf-8"sv);
 			}
 			if constexpr (h == HtmlHeaders::OK_200_Html_Cache || h == HtmlHeaders::OK_200_Html || h == HtmlHeaders::NotFound_404_Html_Cache || h == HtmlHeaders::NotFound_404_Html) {
-				d.WriteBuf<false>("\r\nContent-Type: text/html;charset=utf-8"sv);
+				out.WriteBuf<false>("\r\nContent-Type: text/html;charset=utf-8"sv);
 			}
-			d.WriteBuf<false>("\r\nConnection: keep-alive\r\nContent-Length: "sv);
-			char lenBuf[32];
-			auto [ptr, _] = std::to_chars(lenBuf, lenBuf + sizeof(lenBuf), contentsTotalSize);
-			d.WriteBuf<false>(lenBuf, ptr - lenBuf);
-			d.WriteBuf<false>("\r\n\r\n"sv);
-			(d.WriteBuf<false>(contents), ...);
-			PEERTHIS->Send(std::move(d));
+			out.WriteBuf<false>("\r\nConnection: keep-alive\r\nContent-Length:             \r\n\r\n"sv);	// 预留 12 个内容长度填充空格
+			outHeadLen = out.len;	// 记录 head 总长度
+		}
+
+		// 不断向 out 写入 contents ( 可调用多次, 只适合预留了 内容长度填充空格 的 head )
+		template<typename...StringViewContents>
+		void Out(StringViewContents const&... contents) {
+			(out.WriteBuf<false>(contents), ...);
+		}
+
+		// 写入内容长度并发送
+		void OutEnd() {
+			std::to_chars((char*)out.buf + outHeadLen - 16, (char*)out.buf + outHeadLen - 4, out.len - outHeadLen);	// 将内容长度填充到相应位置
+			PEERTHIS->Send(std::move(out));
+		}
+
+		// 一把梭, 拼接 head + contents 并发送
+		template<HtmlHeaders h, typename...StringViewContents>
+		void OutOnce(StringViewContents const&... contents) {
+			auto contentLen = (contents.size() + ...);
+			OutBegin<h>(contentLen);
+			(out.WriteBuf<false>(contents), ...);
+			OutEnd();
 		}
 
 		// 在 headers 数组 中扫描获取 key 对应的 value
@@ -91,9 +108,9 @@ namespace xx {
 			if (dumpContent) {
 				xx::Append(s,
 					"***************************************************************\n"
-					"*                      original content                       *\n"
+					"*                            head                             *\n"
 					"***************************************************************\n"
-					, content, '\n');
+					, head, '\n');
 			}
 			xx::Append(s,
 				"***************************************************************\n"
@@ -185,7 +202,7 @@ namespace xx {
 				}
 
 				if (httpLen > 0) {
-					content = std::string_view(buf, httpLen);
+					head = std::string_view(buf, httpLen);
 
 					for (size_t i = 0; i < headersLen; ++i) {
 						headers[i].first = std::string_view(z.headers[i].name, z.headers[i].name_len);
@@ -281,7 +298,7 @@ namespace xx {
 					return PeerDeriveType::handlers[i].second(*PEERTHIS);
 				}
 			}
-			PEERTHIS->template SendHtml<xx::HtmlHeaders::NotFound_404_Html>("<html><body>404 !!!</body></html>"sv);	// 返回 资源不存在 的说明
+			PEERTHIS->template OutOnce<xx::HtmlHeaders::NotFound_404_Html>("<html><body>404 !!!</body></html>"sv);	// 返回 资源不存在 的说明
 			return 0;
 		}
 	};
