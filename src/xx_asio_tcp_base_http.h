@@ -68,7 +68,7 @@ namespace xx {
 			}
 			d.WriteBuf<false>("\r\nConnection: keep-alive\r\nContent-Length: "sv);
 			char lenBuf[32];
-			auto [ptr, _] = std::to_chars(lenBuf, lenBuf + sizeof(lenBuf), content.size());
+			auto [ptr, _] = std::to_chars(lenBuf, lenBuf + sizeof(lenBuf), contentsTotalSize);
 			d.WriteBuf<false>(lenBuf, ptr - lenBuf);
 			d.WriteBuf<false>("\r\n\r\n"sv);
 			(d.WriteBuf<false>(contents), ...);
