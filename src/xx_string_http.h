@@ -18,6 +18,7 @@ namespace xx {
             for (size_t i = 0; i < len; i++) {
                 if ((*this)[i].first == key) return (*this)[i].second;
             }
+            return {};
         }
 
         // for ToTuple
@@ -28,7 +29,7 @@ namespace xx {
                 std::get<I>(t) = (*this)[I].second;
             }
             else if constexpr (IsOptional_v< ET >) {
-                std::get<I>(t) = SvToNumber< ET::value_type >((*this)[I].second);
+                std::get<I>(t) = SvToNumber< typename ET::value_type >((*this)[I].second);
             }
             else {
                 std::get<I>(t) = SvToNumber< ET >((*this)[I].second, ET{});
