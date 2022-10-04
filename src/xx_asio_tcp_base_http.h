@@ -39,13 +39,13 @@ namespace xx {
 		std::string_view method;	// for request
 		std::string_view url;	// for request
 		std::string_view msg;	// for response
-		std::string_view body;	// for response
+		std::string_view body;	// for response / request ( POST mode store args )
 		SVPairArray<headersCap> headers;	// for all
 		size_t headersLen;
 		int minorVersion;	// for all
 		int status;	// for response
-		std::string_view path;	// url 的 ? 号 之前的部分. 需要调用 FillPathAndArgs 来填充
-		std::string_view args;	// url 的 ? 号 之后的部分. 需要调用 FillPathAndArgs 来填充
+		std::string_view path;	// url 的 ? 号 之前的部分
+		std::string_view args;	// url 的 ? 号 之后的部分
 		std::string_view head;	// 指向整个 http 请求的原始内容( 不包含 body 部分 )
 		Data bodyData;	// 如果 body 部分大于 read buf 长度, 将转储到该容器
 		Data out;	// 用于逐步拼接构造 要发送的数据
