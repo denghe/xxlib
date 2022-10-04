@@ -1,4 +1,5 @@
-﻿#include <xx_asio_tcp_base_http.h>
+﻿#pragma execution_character_set("utf-8")
+#include <xx_asio_tcp_base_http.h>
 
 // asio io_context 上下文( 生命周期最久的 全局交互 & 胶水 容器 )
 struct IOC : xx::IOCBase {
@@ -40,26 +41,26 @@ int main() {
 	});
 
 	SHPeer::RegisterHttpRequestHandler("/name"sv, [&](SHPeer& p)->int {
-		// 将 "key=value&..." 转储到数组中
-		auto args = p.GetArgsArray("name"sv, "repeat_times"sv);
-		auto name = args.GetValueAt(0);
-		auto repeat_times = args.GetValueAt<size_t>(1);
-
+		// 将 "key=value&..." 参数读到变量( 带类型转换 )
+		auto [name, repeat_times] = p.GetArgsArray("name"sv, "repeat_times"sv).ToTuple<std::string_view, std::optional<size_t>>();
 		// 检查参数是否有异常?
-		// if (name.size() == 0 || repeat_times == 0) Out( args error? )
-
-		// 开始流式拼接输出内容
-		p.OutBegin<xx::HtmlHeaders::OK_200_Html>();
-
-		p.Out("<!DOCTYPE html><html><head><meta charset='utf-8'><title>hello title</title></head><body>"sv);
-		for (size_t i = 0; i < repeat_times; i++) {
-			char buf[32];
-			p.Out("<a href='/'>hi!&nbsp;"sv, name, "&nbsp;"sv, xx::ToStringView(i, buf), "</a><br>"sv);
+		if (name.empty() || !repeat_times.has_value()) {
+			p.OutOnce<xx::HtmlHeaders::OK_200_Text>("参数有问题! 请返回上页重新填"sv);
 		}
-		p.Out("</body></html>"sv);
+		else {
+			// 开始流式拼接输出内容
+			p.OutBegin<xx::HtmlHeaders::OK_200_Html>();
 
-		// 结束拼接并发送
-		p.OutEnd();
+			p.Out("<!DOCTYPE html><html><head><meta charset='utf-8'><title>hello title</title></head><body>"sv);
+			for (size_t i = 0; i < repeat_times; i++) {
+				char buf[32];
+				p.Out("<a href='/'>hi!&nbsp;"sv, name, "&nbsp;"sv, xx::ToStringView(i, buf), "</a><br>"sv);
+			}
+			p.Out("</body></html>"sv);
+
+			// 结束拼接并发送
+			p.OutEnd();
+		}
 		return 0;
 	});
 

@@ -32,57 +32,6 @@ namespace xx {
 		std::array<phr_header, headersCap> headers;
 	};
 
-	// string_view 键值对 数组容器
-	template<size_t len>
-	struct SVPairArray : std::array<std::pair<std::string_view, std::string_view>, len> {
-		using BaseType = std::array<std::pair<std::string_view, std::string_view>, len>;
-		using BaseType::BaseType;
-		using BaseType::operator[];
-
-		// 将指定下标处的 .second 转为目标类型并返回. 找不到 或转换失败 就返回 默认值. 当前只支持 std::string_view 和 number 两种
-		template<typename R = std::string_view>
-		R GetValueAt(size_t i, R const& defaultValue = R{}) {
-			if constexpr (std::is_arithmetic_v<R>) {
-				return SvToNumber((*this)[i].second, defaultValue);
-			}
-			else {
-				return (*this)[i].second;
-			}
-		}
-
-		// 将指定下标处的 .second 转为目标类型并返回. 找不到 或转换失败 就返回 空. 当前只支持 std::string_view 和 number 两种
-		template<typename R = std::string_view>
-		std::optional<R> TryGetValueAt(size_t i) {
-			if constexpr (std::is_arithmetic_v<R>) {
-				return SvToNumber((*this)[i].second, R{});
-			}
-			else {
-				return (*this)[i].second;
-			}
-		}
-
-		// 在数组 中扫描获取 key 对应的 value 并转为目标类型后返回. 找不到 或转换失败 就返回 默认值. 当前只支持 std::string_view 和 number 两种
-		template<typename R = std::string_view>
-		R GetValue(std::string_view const& key, R const& defaultValue = R{}) {
-			static_assert(std::is_same_v<R, std::string_view> || std::is_arithmetic_v<R>);
-			for (size_t i = 0; i < len; i++) {
-				if ((*this)[i].first == key) return GetValueAt<R>(i, defaultValue);
-			}
-			return defaultValue;
-		}
-
-		// 在数组 中扫描获取 key 对应的 value 并转为目标类型后返回. 找不到 或转换失败 就返回 空. 当前只支持 std::string_view 和 number 两种
-		template<typename R = std::string_view>
-		std::optional<R> TryGetValue(std::string_view const& key) {
-			static_assert(std::is_same_v<R, std::string_view> || std::is_arithmetic_v<R>);
-			for (size_t i = 0; i < len; i++) {
-				if ((*this)[i].first == key) return TryGetValueAt<R>(i);
-			}
-			return {};
-		}
-
-	};
-
 	// http peer base struct
 	template<typename PeerDeriveType, HttpType httpType = HttpType::Request, size_t readBufLen = 1024 * 32, size_t headersCap = 32>
 	struct PeerHttpCode {
@@ -123,11 +72,11 @@ namespace xx {
 			outHeadLen = out.len;	// 记录 head 总长度
 		}
 
-		// 不断向 out 写入 contents ( 可调用多次, 只适合预留了 内容长度填充空格 的 head )
+		// 不断向 out 写入 contents ( 可调用多次。超过 out buf 长度会自动扩容 )
 		template<typename...StringViewContents>
 		void Out(StringViewContents const&... contents) {
 			assert(outHeadLen);
-			(out.WriteBuf<false>(contents), ...);
+			(out.WriteBuf(contents), ...);
 		}
 
 		// 写入内容长度并发送
@@ -302,9 +251,9 @@ namespace xx {
 						msg = std::string_view(z.url, z.urlLen);
 					}
 					if (needReadContent) {
-						if (auto cl = headers.TryGetValue("Content-Length"sv); !cl.has_value())
+						if (auto cl = headers["Content-Length"sv]; cl.empty())
 							break;	// 内容缺失: 内容长度 header 找不到
-						else if (auto n = xx::SvToNumber<int>(cl.value(), -1); n == -1)
+						else if (auto n = xx::SvToNumber<int>(cl, -1); n == -1)
 							break;	// string 2 int 转换失败
 						else if (httpLen + n <= bufLen) {	// buf 已含有完整内容: 设置到 body
 							body = std::string_view{ buf + httpLen, (size_t)n };

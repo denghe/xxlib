@@ -2,6 +2,52 @@
 #include "xx_string.h"
 
 namespace xx {
+    /************************************************************************************/
+    // headers & args 容器
+    /************************************************************************************/
+
+    // string_view 键值对 数组容器
+    template<size_t len>
+    struct SVPairArray : std::array<std::pair<std::string_view, std::string_view>, len> {
+        using BaseType = std::array<std::pair<std::string_view, std::string_view>, len>;
+        using BaseType::BaseType;
+        using BaseType::operator[];
+
+        // 用 key 查 value. 找不到返回 {}
+        std::string_view operator[](std::string_view const& key) {
+            for (size_t i = 0; i < len; i++) {
+                if ((*this)[i].first == key) return (*this)[i].second;
+            }
+        }
+
+        // for ToTuple
+        template<size_t I = 0, typename T>
+        void FillTuple(T& t) {
+            using ET = std::tuple_element_t<I, T>;
+            if constexpr (std::is_same_v<std::string_view, ET>) {
+                std::get<I>(t) = (*this)[I].second;
+            }
+            else if constexpr (IsOptional_v< ET >) {
+                std::get<I>(t) = SvToNumber< ET::value_type >((*this)[I].second);
+            }
+            else {
+                std::get<I>(t) = SvToNumber< ET >((*this)[I].second, ET{});
+            }
+            if constexpr (I + 1 != std::tuple_size_v<T>) {
+                FillTuple<I + 1>(t);
+            }
+        }
+
+        // 将 array 的 value 转储到 tuple. 类型只能是 std::string_view 或 number 或 std::optional< number >
+        template<typename...TS>
+        std::tuple<TS...> ToTuple() {
+            std::tuple<TS...> t;
+            FillTuple(t);
+            return t;
+        }
+    };
+
+
     // 各种 http 相关 工具函数
 
     /************************************************************************************/

@@ -403,10 +403,17 @@ namespace xx {
     }
 
     template<typename T>
-    inline constexpr T SvToNumber(std::string_view const& input, T const& defaultValue = {}) {
+    inline constexpr T SvToNumber(std::string_view const& input, T const& defaultValue) {
         T out;
         auto&& r = std::from_chars(input.data(), input.data() + input.size(), out);
         return r.ec != std::errc::invalid_argument && r.ec != std::errc::result_out_of_range ? out : defaultValue;
+    }
+
+    template<typename T>
+    inline constexpr std::optional<T> SvToNumber(std::string_view const& input) {
+        T out;
+        auto&& r = std::from_chars(input.data(), input.data() + input.size(), out);
+        return r.ec != std::errc::invalid_argument && r.ec != std::errc::result_out_of_range ? out : std::optional<T>{};
     }
 
     template<typename T>
