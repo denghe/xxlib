@@ -55,6 +55,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_nodepool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_obj.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_podpool.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_podvector.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_queue.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_randoms.h" />

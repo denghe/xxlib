@@ -1,134 +1,173 @@
-﻿#include <new>
-#include <memory>
-#include <cstring>
-#include <cassert>
+﻿#include <xx_podvector.h>
 
-enum class AllocType {
-	NewDelete,
-	MallocFree
-};
+#include <string.h>
+#include <utility>
+#include <new>
+#include <type_traits>
 
-template<typename T, AllocType allocType = AllocType::NewDelete>
-T* PodAlloc(size_t const& count) {
-	if constexpr (allocType == AllocType::NewDelete) {
-		return (T*)new (char[count * sizeof(T)]);
-	} else {
-		return (T*)malloc(count * sizeof(T));
-	}
-}
+namespace ax
+{
 
-template<typename T, AllocType allocType = AllocType::NewDelete>
-T* PodRealloc(T* const& p, size_t const& cap, size_t const& len) {
-	if constexpr (allocType == AllocType::NewDelete) {
-		auto r = (T*)new (char[cap * sizeof(T)]);
-		memcpy(r, p, len * sizeof(T));
-		delete[](char*)p;
-		return r;
-	} else {
-		return (T*)realloc(p, cap * sizeof(T));
-	}
-}
+    template <typename _Ty, bool /*_use_crt_alloc*/ = false>
+    struct pod_allocator
+    {
+        static void* reallocate(void* old_block, size_t old_count, size_t new_count)
+        {
+            if (old_count != new_count)
+            {
+                void* new_block = nullptr;
+                if (new_count)
+                {
+                    new_block = ::operator new(new_count * sizeof(_Ty));
+                    if (old_block)
+                        memcpy(new_block, old_block, (std::min)(old_count, new_count) * sizeof(_Ty));
+                }
 
-template<typename T, AllocType allocType = AllocType::NewDelete>
-void PodFree(T* const& p) {
-	if constexpr (allocType == AllocType::NewDelete) {
-		delete[](char*)p;
-	} else {
-		free(p);
-	}
-}
+                ::operator delete(old_block);
+                return new_block;
+            }
+            return old_block;
+        }
+    };
 
-// 类似 std::vector 的专用于放 pod 或 非严格pod( 是否执行构造，析构 无所谓 ) 类型的容器，可拿走 buf
-// allocType == 1: new + delete   == 2: malloc + free
-template<typename T, AllocType allocType = AllocType::NewDelete>
-struct PodVector {
-	T* buf;
-	size_t len, cap;
+    template <typename _Ty>
+    struct pod_allocator<_Ty, true>
+    {
+        static void* reallocate(void* old_block, size_t /*old_count*/, size_t new_count)
+        {
+            return ::realloc(old_block, new_count * sizeof(_Ty));
+        }
+    };
 
-	PodVector() : buf(nullptr), cap(0), len(0) {}
-	explicit PodVector(size_t const& cap_, size_t const& len_) :  buf(cap_ == 0 ? nullptr : PodAlloc<T>(cap_)), cap(cap_), len(len_) {}
+    template <typename _Ty,
+        typename _Alty = pod_allocator<_Ty>,
+        std::enable_if_t<std::is_trivially_destructible_v<_Ty>, int> = 0>
+    class pod_vector
+    {
+    public:
+        using pointer = _Ty*;
+        using value_type = _Ty;
+        pod_vector() = default;
+        pod_vector(pod_vector const&) = delete;
+        pod_vector& operator=(pod_vector const&) = delete;
 
-	PodVector(PodVector&& o) noexcept : buf(o.buf), len(o.len), cap(o.cap) {
-		o.buf = nullptr;
-		o.len = 0;
-		o.cap = 0;
-	}
-	PodVector& operator=(PodVector&& o) noexcept {
-		buf = o.buf;
-		len = o.len;
-		cap = o.cap;
-		o.buf = nullptr;
-		o.len = 0;
-		o.cap = 0;
-	}
+        pod_vector(pod_vector&& o) noexcept
+        {
+            std::swap(_Myfirst, o._Myfirst);
+            std::swap(_Mylast, o._Mylast);
+            std::swap(_Myend, o._Myend);
+        }
+        pod_vector& operator=(pod_vector&& o) noexcept
+        {
+            std::swap(_Myfirst, o._Myfirst);
+            std::swap(_Mylast, o._Mylast);
+            std::swap(_Myend, o._Myend);
+            return *this;
+        }
 
-	~PodVector() {
-		Clear<true>();
-	}
+        ~pod_vector() { shrink_to_fit(0); }
 
-	PodVector(PodVector const& o) = delete;
-	PodVector& operator=(PodVector const& o) = delete;
+        template <typename... _Args>
+        _Ty& emplace(_Args&&... args) noexcept
+        {
+            return *new (resize(this->size() + 1)) _Ty(std::forward<_Args>(args)...);
+        }
 
-	void Reserve(size_t const& cap_) {
-		if (cap_ <= cap) return;
-		if (!cap) {
-			cap = cap_;
-		}
-		else do {
-			cap += cap;
-		} while (cap < cap_);
-		buf = PodRealloc<T, allocType>(buf, cap, len);
-	}
+        void reserve(size_t new_cap)
+        {
+            if (this->capacity() < new_cap)
+            {
+                auto cur_size = this->size();
+                _Reallocate_exactly(new_cap);
+                _Mylast = _Myfirst + cur_size;
+            }
+        }
 
-	void Resize(size_t const& len_) {
-		if (len_ > len) {
-			Reserve(len_);
-		}
-		len = len_;
-	}
+        // return address of new last element
+        pointer resize(size_t new_size)
+        {
+            auto old_cap = this->capacity();
+            if (old_cap < new_size)
+                _Reallocate_exactly((std::max)(old_cap + old_cap / 2, new_size));
+            _Mylast = _Myfirst + new_size;
+            return _Mylast - 1;
+        }
 
-	T const& operator[](size_t const& idx) const {
-		assert(idx < len);
-		return buf[idx];
-	}
+        _Ty& operator[](size_t idx) { return _Myfirst[idx]; }
+        const _Ty& operator[](size_t idx) const { return _Myfirst[idx]; }
 
-	T& operator[](size_t const& idx) {
-		assert(idx < len);
-		return buf[idx];
-	}
+        size_t capacity() const noexcept { return _Myend - _Myfirst; }
+        size_t size() const noexcept { return _Mylast - _Myfirst; }
+        void clear() noexcept { _Mylast = _Myfirst; }
 
-	template<bool freeBuf = false>
-	void Clear() {
-		if constexpr (freeBuf) {
-			PodFree<T, allocType>(buf);
-			buf = nullptr;
-			cap = 0;
-		}
-		len = 0;
-	}
+        void shrink_to_fit() { shrink_to_fit(this->size()); }
+        void shrink_to_fit(size_t new_size)
+        {
+            if (this->capacity() != new_size)
+                _Reallocate_exactly(new_size);
+            _Mylast = _Myfirst + new_size;
+        }
 
-	// unsafe: direct change field value
-	void Reset(uint8_t* const& buf_ = nullptr, size_t const& len_ = 0, size_t const& cap_ = 0) noexcept {
-		buf = buf_;
-		len = len_;
-		cap = cap_;
-	}
+        // release memmory ownership
+        pointer release_pointer() noexcept
+        {
+            auto ptr = _Myfirst;
+            memset(this, 0, sizeof(*this));
+            return ptr;
+        }
 
-	// 用 T 的一到多个构造函数的参数来追加构造一个 item
-	template<typename...Args>
-	T& Emplace(Args&&...args) noexcept {
-		Reserve(len + 1);
-		return *new (&buf[len++]) T(std::forward<Args>(args)...);
-	}
-};
+    private:
+        void _Reallocate_exactly(size_t new_cap)
+        {
+            auto new_block = (pointer)_Alty::reallocate(_Myfirst, _Myend - _Myfirst, new_cap);
+            if (new_block || 0 == new_cap)
+            {
+                _Myfirst = new_block;
+                _Myend = _Myfirst + new_cap;
+            }
+            else
+                throw std::bad_alloc{};
+        }
 
-#include <iostream> 
+        pointer _Myfirst = nullptr;
+        pointer _Mylast = nullptr;
+        pointer _Myend = nullptr;
+    };
+}  // namespace ax
+
+
+#include <xx_string.h>
 
 int main() {
 
-	PodVector<int> pv;
-	pv.Emplace(1);
-	pv.Emplace(2);
+    //auto secs = xx::NowEpochSeconds();
+    //uint64_t count = 0;
+    //for (size_t i = 0; i < 1000000; i++) {
+    //    ax::pod_vector<int> pv;
+    //    for (int j = 0; j < 1000; j++) {
+    //        pv.emplace(j);
+    //    }
+    //    for (int j = 0; j < 1000; j++) {
+    //        count += pv[j];
+    //    }
+    //}
+    //std::cout << count << std::endl;
+    //std::cout << xx::NowEpochSeconds(secs) << std::endl;
+
+
+    auto secs = xx::NowEpochSeconds();
+    uint64_t count = 0;
+    for (size_t i = 0; i < 1000000; i++) {
+        xx::PodVector<int> pv;
+        for (int j = 0; j < 1000; j++) {
+            pv.Emplace(j);
+        }
+        for (int j = 0; j < 1000; j++) {
+            count += pv.buf[j];
+        }
+    }
+    std::cout << count << std::endl;
+    std::cout << xx::NowEpochSeconds(secs) << std::endl;
 
 	std::cout << "end." << std::endl;
 	return 0;
