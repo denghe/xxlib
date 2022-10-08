@@ -74,7 +74,7 @@ namespace xx
 		if (r != S_OK) return {};
 		return path_tmp;
 #else
-		return GetCurrentPath();
+		return GetPath_Current();
 #endif
 	}
 

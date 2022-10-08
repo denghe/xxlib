@@ -3,7 +3,4 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\xx_asio_test_http_client\xx_asio_test_http_client.vcxproj" />
-  </ItemGroup>
 </Project>
