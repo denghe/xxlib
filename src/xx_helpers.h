@@ -753,7 +753,7 @@ auto __cdecl xx::Detail::NameOf<
             F f;
             bool cancel;
 
-            explicit ScopeGuard(F &&f) noexcept: f(std::move(f)), cancel(false) {}
+            explicit ScopeGuard(F &&f) noexcept: f(std::forward<F>(f)), cancel(false) {}
 
             ~ScopeGuard() noexcept { if (!cancel) { f(); }}
 
@@ -770,7 +770,7 @@ auto __cdecl xx::Detail::NameOf<
 
     template<class F>
     auto MakeSimpleScopeGuard(F&& f) noexcept {
-        struct SG { F f; SG(F&& f) noexcept : f(std::move(f)) {} ~SG() { f(); } };
+        struct SG { F f; SG(F&& f) noexcept : f(std::forward<F>(f)) {} ~SG() { f(); } };
         return SG(std::forward<F>(f));
     }
 
