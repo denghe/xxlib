@@ -42,7 +42,7 @@ namespace xx {
 		}
 
 		static T* Alloc(size_t const& count) {
-			if constexpr (useNewDelete) return (T*)new (char[count * sizeof(T)]);
+			if constexpr (useNewDelete) return (T*)new char[count * sizeof(T)];
 			else return (T*)malloc(count * sizeof(T));
 		}
 
@@ -56,7 +56,7 @@ namespace xx {
 			} while (cap < cap_);
 
 			if constexpr (useNewDelete) {
-				auto newBuf = (T*)new (char[cap * sizeof(T)]);
+				auto newBuf = (T*)new char[cap * sizeof(T)];
 				memcpy(newBuf, buf, len * sizeof(T));
 				delete[](char*)buf;
 				buf = newBuf;

@@ -4,6 +4,8 @@
 #include <utility>
 #include <new>
 #include <type_traits>
+#include <cmath>
+#include <algorithm>
 
 namespace ax
 {
