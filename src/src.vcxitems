@@ -18,6 +18,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asiokcpclient.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_codes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_ioc.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_request.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_base.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_base_http.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_client.h" />

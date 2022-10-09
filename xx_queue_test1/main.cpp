@@ -141,36 +141,38 @@ namespace ax
 #include <xx_string.h>
 
 int main() {
-
-    //auto secs = xx::NowEpochSeconds();
-    //uint64_t count = 0;
-    //for (size_t i = 0; i < 1000000; i++) {
-    //    ax::pod_vector<int> pv;
-    //    for (int j = 0; j < 1000; j++) {
-    //        pv.emplace(j);
-    //    }
-    //    for (int j = 0; j < 1000; j++) {
-    //        count += pv[j];
-    //    }
-    //}
-    //std::cout << count << std::endl;
-    //std::cout << xx::NowEpochSeconds(secs) << std::endl;
-
-
-    auto secs = xx::NowEpochSeconds();
-    uint64_t count = 0;
-    for (size_t i = 0; i < 1000000; i++) {
-        xx::PodVector<int> pv;
-        for (int j = 0; j < 1000; j++) {
-            pv.Emplace(j);
+    for (size_t k = 0; k < 10; k++) {
+    {
+        auto secs = xx::NowEpochSeconds();
+        uint64_t count = 0;
+        for (size_t i = 0; i < 1000000; i++) {
+            ax::pod_vector<int> pv;
+            for (int j = 0; j < 1000; j++) {
+                pv.emplace(j);
+            }
+            for (int j = 0; j < 1000; j++) {
+                count += pv[j];
+            }
         }
-        for (int j = 0; j < 1000; j++) {
-            count += pv.buf[j];
-        }
+        std::cout << count << std::endl;
+        std::cout << xx::NowEpochSeconds(secs) << std::endl;
     }
-    std::cout << count << std::endl;
-    std::cout << xx::NowEpochSeconds(secs) << std::endl;
-
+    {
+        auto secs = xx::NowEpochSeconds();
+        uint64_t count = 0;
+        for (size_t i = 0; i < 1000000; i++) {
+            xx::PodVector<int> pv;
+            for (int j = 0; j < 1000; j++) {
+                pv.Emplace(j);
+            }
+            for (int j = 0; j < 1000; j++) {
+                count += pv.buf[j];
+            }
+        }
+        std::cout << count << std::endl;
+        std::cout << xx::NowEpochSeconds(secs) << std::endl;
+    }
+    }
 	std::cout << "end." << std::endl;
 	return 0;
 }

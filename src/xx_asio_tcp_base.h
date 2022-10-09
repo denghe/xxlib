@@ -2,6 +2,16 @@
 #include <xx_asio_ioc.h>
 
 namespace xx {
+
+	// 各种成员函数是否存在的检测模板
+	template<class T, class = void> struct _Has_Start_ : std::false_type {};
+	template<class T> struct _Has_Start_<T, std::void_t<decltype(std::declval<T&>().Start_())>> : std::true_type {};
+	template<class T> constexpr bool Has_Start_ = _Has_Start_<T>::value;
+
+	template<class T, class = void> struct _Has_Stop_ : std::false_type {};
+	template<class T> struct _Has_Stop_<T, std::void_t<decltype(std::declval<T&>().Stop_())>> : std::true_type {};
+	template<class T> constexpr bool Has_Stop_ = _Has_Stop_<T>::value;
+
 	// 最终 Peer 应使用 xx::Shared 包裹使用，以方便 co_spawn 捕获加持, 确保生命周期长于协程
 	template<typename PeerDeriveType, typename IOCType, size_t writeQueueSizeLimit = 100>
 	struct PeerTcpBaseCode : asio::noncopyable {
