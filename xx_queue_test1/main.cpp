@@ -147,6 +147,7 @@ int main() {
         uint64_t count = 0;
         for (size_t i = 0; i < 1000000; i++) {
             ax::pod_vector<int> pv;
+            pv.reserve(1000);
             for (int j = 0; j < 1000; j++) {
                 pv.emplace(j);
             }
@@ -162,6 +163,7 @@ int main() {
         uint64_t count = 0;
         for (size_t i = 0; i < 1000000; i++) {
             xx::PodVector<int> pv;
+            pv.Reserve(1000);
             for (int j = 0; j < 1000; j++) {
                 pv.Emplace(j);
             }

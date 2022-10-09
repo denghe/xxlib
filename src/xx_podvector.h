@@ -81,9 +81,11 @@ namespace xx {
 			return r;
 		}
 
-		template<typename...Args>
+		template<bool needReserve = true, typename...Args>
 		T& Emplace(Args&&...args) noexcept {
-			Reserve(len + 1);
+			if constexpr (needReserve) {
+				Reserve(len + 1);
+			}
 			return *new (&buf[len++]) T(std::forward<Args>(args)...);
 		}
 	};
