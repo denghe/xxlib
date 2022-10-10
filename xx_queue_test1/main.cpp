@@ -19,8 +19,24 @@ int main() {
                 count += buf[j];
             }
         }
-        std::cout << count << std::endl;
-        std::cout << xx::NowEpochSeconds(secs) << std::endl;
+        std::cout << count << " 0 " << xx::NowEpochSeconds(secs) << std::endl;
+    }
+    {
+        auto secs = xx::NowEpochSeconds();
+        uint64_t count = 0;
+        for (size_t i = 0; i < 1000000; i++) {
+            ax::pod_vector<int> pv;
+            pv.reserve(1000);
+            for (int j = 0; j < 1000; j++) {
+                pv.emplace_back(j);
+            }
+            auto buf = pv.release_pointer();
+            auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
+            for (int j = 0; j < 1000; j++) {
+                count += buf[j];
+            }
+        }
+        std::cout << count << " 1 " << xx::NowEpochSeconds(secs) << std::endl;
     }
     {
         auto secs = xx::NowEpochSeconds();
@@ -37,8 +53,24 @@ int main() {
                 count += buf[j];
             }
         }
-        std::cout << count << std::endl;
-        std::cout << xx::NowEpochSeconds(secs) << std::endl;
+        std::cout << count << " 2 " << xx::NowEpochSeconds(secs) << std::endl;
+    }
+    {
+        auto secs = xx::NowEpochSeconds();
+        uint64_t count = 0;
+        for (size_t i = 0; i < 1000000; i++) {
+            xx::PodVector<int> pv;
+            pv.Reserve(1000);
+            for (int j = 0; j < 1000; j++) {
+                pv.Emplace(j);
+            }
+            auto buf = pv.TakeAwayBuf();
+            auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
+            for (int j = 0; j < 1000; j++) {
+                count += buf[j];
+            }
+        }
+        std::cout << count << " 3 " << xx::NowEpochSeconds(secs) << std::endl;
     }
     }
 	std::cout << "end." << std::endl;
