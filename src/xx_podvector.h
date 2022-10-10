@@ -2,6 +2,7 @@
 #include <memory>
 #include <cstring>
 #include <cassert>
+#include <algorithm>
 
 namespace xx {
 
@@ -49,7 +50,7 @@ namespace xx {
 		void Reserve(size_t const& cap_) {
 			if (cap_ <= cap) return;
 			if (!cap) {
-				cap = cap_;
+				cap = std::max(cap_, 4096 / sizeof(T));
 			}
 			else do {
 				cap += cap;
@@ -88,5 +89,9 @@ namespace xx {
 			}
 			return *new (&buf[len++]) T(std::forward<Args>(args)...);
 		}
+
+
+		T* begin() const noexcept { return buf; }
+		T* end() const noexcept { return buf + len; }
 	};
 }

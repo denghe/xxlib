@@ -1,143 +1,5 @@
 ﻿#include <xx_podvector.h>
-
-#include <string.h>
-#include <utility>
-#include <new>
-#include <type_traits>
-#include <cmath>
-#include <algorithm>
-
-namespace ax
-{
-
-    template <typename _Ty, bool /*_use_crt_alloc*/ = false>
-    struct pod_allocator
-    {
-        static void* reallocate(void* old_block, size_t old_count, size_t new_count)
-        {
-            if (old_count != new_count)
-            {
-                void* new_block = nullptr;
-                if (new_count)
-                {
-                    new_block = ::operator new(new_count * sizeof(_Ty));
-                    if (old_block)
-                        memcpy(new_block, old_block, (std::min)(old_count, new_count) * sizeof(_Ty));
-                }
-
-                ::operator delete(old_block);
-                return new_block;
-            }
-            return old_block;
-        }
-    };
-
-    template <typename _Ty>
-    struct pod_allocator<_Ty, true>
-    {
-        static void* reallocate(void* old_block, size_t /*old_count*/, size_t new_count)
-        {
-            return ::realloc(old_block, new_count * sizeof(_Ty));
-        }
-    };
-
-    template <typename _Ty,
-        typename _Alty = pod_allocator<_Ty>,
-        std::enable_if_t<std::is_trivially_destructible_v<_Ty>, int> = 0>
-    class pod_vector
-    {
-    public:
-        using pointer = _Ty*;
-        using value_type = _Ty;
-        pod_vector() = default;
-        pod_vector(pod_vector const&) = delete;
-        pod_vector& operator=(pod_vector const&) = delete;
-
-        pod_vector(pod_vector&& o) noexcept
-        {
-            std::swap(_Myfirst, o._Myfirst);
-            std::swap(_Mylast, o._Mylast);
-            std::swap(_Myend, o._Myend);
-        }
-        pod_vector& operator=(pod_vector&& o) noexcept
-        {
-            std::swap(_Myfirst, o._Myfirst);
-            std::swap(_Mylast, o._Mylast);
-            std::swap(_Myend, o._Myend);
-            return *this;
-        }
-
-        ~pod_vector() { shrink_to_fit(0); }
-
-        template <typename... _Args>
-        _Ty& emplace(_Args&&... args) noexcept
-        {
-            return *new (resize(this->size() + 1)) _Ty(std::forward<_Args>(args)...);
-        }
-
-        void reserve(size_t new_cap)
-        {
-            if (this->capacity() < new_cap)
-            {
-                auto cur_size = this->size();
-                _Reallocate_exactly(new_cap);
-                _Mylast = _Myfirst + cur_size;
-            }
-        }
-
-        // return address of new last element
-        pointer resize(size_t new_size)
-        {
-            auto old_cap = this->capacity();
-            if (old_cap < new_size)
-                _Reallocate_exactly((std::max)(old_cap + old_cap / 2, new_size));
-            _Mylast = _Myfirst + new_size;
-            return _Mylast - 1;
-        }
-
-        _Ty& operator[](size_t idx) { return _Myfirst[idx]; }
-        const _Ty& operator[](size_t idx) const { return _Myfirst[idx]; }
-
-        size_t capacity() const noexcept { return _Myend - _Myfirst; }
-        size_t size() const noexcept { return _Mylast - _Myfirst; }
-        void clear() noexcept { _Mylast = _Myfirst; }
-
-        void shrink_to_fit() { shrink_to_fit(this->size()); }
-        void shrink_to_fit(size_t new_size)
-        {
-            if (this->capacity() != new_size)
-                _Reallocate_exactly(new_size);
-            _Mylast = _Myfirst + new_size;
-        }
-
-        // release memmory ownership
-        pointer release_pointer() noexcept
-        {
-            auto ptr = _Myfirst;
-            memset(this, 0, sizeof(*this));
-            return ptr;
-        }
-
-    private:
-        void _Reallocate_exactly(size_t new_cap)
-        {
-            auto new_block = (pointer)_Alty::reallocate(_Myfirst, _Myend - _Myfirst, new_cap);
-            if (new_block || 0 == new_cap)
-            {
-                _Myfirst = new_block;
-                _Myend = _Myfirst + new_cap;
-            }
-            else
-                throw std::bad_alloc{};
-        }
-
-        pointer _Myfirst = nullptr;
-        pointer _Mylast = nullptr;
-        pointer _Myend = nullptr;
-    };
-}  // namespace ax
-
-
+#include "pod_vector.h"
 #include <xx_string.h>
 
 int main() {
@@ -147,12 +9,14 @@ int main() {
         uint64_t count = 0;
         for (size_t i = 0; i < 1000000; i++) {
             ax::pod_vector<int> pv;
-            pv.reserve(1000);
+            // pv.reserve(1000);
             for (int j = 0; j < 1000; j++) {
-                pv.emplace(j);
+                pv.emplace_back(j);
             }
+            auto buf = pv.release_pointer();
+            auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
             for (int j = 0; j < 1000; j++) {
-                count += pv[j];
+                count += buf[j];
             }
         }
         std::cout << count << std::endl;
@@ -163,12 +27,14 @@ int main() {
         uint64_t count = 0;
         for (size_t i = 0; i < 1000000; i++) {
             xx::PodVector<int> pv;
-            pv.Reserve(1000);
+            // pv.Reserve(1000);
             for (int j = 0; j < 1000; j++) {
                 pv.Emplace(j);
             }
+            auto buf = pv.TakeAwayBuf();
+            auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
             for (int j = 0; j < 1000; j++) {
-                count += pv.buf[j];
+                count += buf[j];
             }
         }
         std::cout << count << std::endl;
