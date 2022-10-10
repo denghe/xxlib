@@ -50,6 +50,7 @@ namespace xx {
 		operator T* const& () const {
 			return buf;
 		}
+
 		T& operator[](size_t const& i) {
 			assert(i < cap);
 			return buf[i];

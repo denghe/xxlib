@@ -1,11 +1,18 @@
 ﻿#include <xx_podvector.h>
-#include <xx_string.h>
+#include <string_view>
+#include <iostream>
+
+size_t Xxxx(char* buf, size_t bufLen) {
+    return strlen(buf) + 1;
+}
 
 int main() {
-    xx::PodVector<char> buf(1, 1);
-    buf[0] = 49;
-
-    std::cout << "end." << std::endl;
+    xx::PodVector<char> pv(8);
+    pv[0] = 'h';
+    pv[1] = 'i';
+    pv[2] = '\0';
+    pv.len = Xxxx(pv, pv.cap);
+    std::cout << pv.len << " " << pv << std::endl;
     return 0;
 }
 
