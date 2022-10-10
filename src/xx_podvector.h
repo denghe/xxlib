@@ -6,17 +6,17 @@
 
 namespace xx {
 
-	// 类似 std::vector 的专用于放 pod 或 非严格pod( 是否执行构造，析构 无所谓 ) 类型的容器，可拿走 buf
-	// useNewDelete == false: malloc + free
-	template<typename T, bool useNewDelete = true>
-	struct PodVector {
+	// 简单数据类型容器( 定长 buf 性质 )
+	template<typename T = char, bool useNewDelete = true>
+	struct PodContainer {
 		T* buf;
-		size_t len, cap;
+		size_t cap;
 
-		PodVector(PodVector const& o) = delete;
-		PodVector& operator=(PodVector const& o) = delete;
-		explicit PodVector(size_t const& cap_ = 0, size_t const& len_ = 0) : buf(cap_ == 0 ? nullptr : Alloc(cap_)), len(len_), cap(cap_) {}
-		~PodVector() {
+		PodContainer(PodContainer const& o) = delete;
+		PodContainer& operator=(PodContainer const& o) = delete;
+
+		PodContainer(size_t const& cap_ = 0) : buf(cap_ == 0 ? nullptr : Alloc(cap_)), cap(cap_) {}
+		~PodContainer() {
 			if (buf) {
 				if constexpr (useNewDelete) {
 					delete[](char*)buf;
@@ -27,19 +27,16 @@ namespace xx {
 				buf = nullptr;
 			}
 		}
-
-		PodVector(PodVector&& o) noexcept : buf(o.buf), len(o.len), cap(o.cap) {
+		PodContainer(PodContainer&& o) noexcept : buf(o.buf), cap(o.cap) {
 			o.buf = nullptr;
-			o.len = 0;
 			o.cap = 0;
 		}
-		PodVector& operator=(PodVector&& o) noexcept {
+		PodContainer& operator=(PodContainer&& o) noexcept {
 			buf = o.buf;
-			len = o.len;
 			cap = o.cap;
 			o.buf = nullptr;
-			o.len = 0;
 			o.cap = 0;
+			return *this;
 		}
 
 		static T* Alloc(size_t const& count) {
@@ -47,23 +44,64 @@ namespace xx {
 			else return (T*)malloc(count * sizeof(T));
 		}
 
+		operator T*& () {
+			return buf;
+		}
+		operator T* const& () const {
+			return buf;
+		}
+		T& operator[](size_t const& i) {
+			assert(i < cap);
+			return buf[i];
+		}
+		T const& operator[](size_t const& i) const {
+			assert(i < cap);
+			return buf[i];
+		}
+	};
+
+	// 方便用来替代裸 buf, 不初始化内存, 实现自动释放
+	using CharBuf = PodContainer<char, false>;
+	using UCharBuf = PodContainer<uint8_t, false>;
+
+	// 类似 std::vector 的专用于放 pod 或 非严格pod( 是否执行构造，析构 无所谓 ) 类型的容器，可拿走 buf
+	// useNewDelete == false: malloc + free
+	template<typename T, bool useNewDelete = true>
+	struct PodVector : PodContainer<T, useNewDelete> {
+		using Base = PodContainer<T, useNewDelete>;
+		size_t len;
+
+		PodVector(PodVector const& o) = delete;
+		PodVector& operator=(PodVector const& o) = delete;
+		explicit PodVector(size_t const& cap_ = 0, size_t const& len_ = 0) : Base(cap_), len(len_) {}
+
+		PodVector(PodVector&& o) noexcept : Base(std::move(o)), len(o.len) {
+			o.len = 0;
+		}
+		PodVector& operator=(PodVector&& o) noexcept {
+			Base::operator=(std::move(o));
+			len = o.len;
+			o.len = 0;
+			return *this;
+		}
+
 		void Reserve(size_t const& cap_) {
-			if (cap_ <= cap) return;
-			if (!cap) {
-				cap = std::max(cap_, 4096 / sizeof(T));
+			if (cap_ <= this->cap) return;
+			if (!this->cap) {
+				this->cap = std::max(cap_, 4096 / sizeof(T));
 			}
 			else do {
-				cap += cap;
-			} while (cap < cap_);
+				this->cap += this->cap;
+			} while (this->cap < cap_);
 
 			if constexpr (useNewDelete) {
-				auto newBuf = (T*)new char[cap * sizeof(T)];
-				memcpy(newBuf, buf, len * sizeof(T));
-				delete[](char*)buf;
-				buf = newBuf;
+				auto newBuf = (T*)new char[this->cap * sizeof(T)];
+				memcpy(newBuf, this->buf, len * sizeof(T));
+				delete[](char*)this->buf;
+				this->buf = newBuf;
 			}
 			else {
-				buf = (T*)realloc(buf, cap * sizeof(T));
+				this->buf = (T*)realloc(this->buf, this->cap * sizeof(T));
 			}
 		}
 
@@ -75,10 +113,10 @@ namespace xx {
 		}
 
 		T* TakeAwayBuf() noexcept {
-			auto r = buf;
-			buf = nullptr;
+			auto r = this->buf;
+			this->buf = nullptr;
+			this->cap = 0;
 			len = 0;
-			cap = 0;
 			return r;
 		}
 
@@ -87,7 +125,7 @@ namespace xx {
 			if constexpr (needReserve) {
 				Reserve(len + 1);
 			}
-			return *new (&buf[len++]) T(std::forward<Args>(args)...);
+			return *new (&this->buf[len++]) T(std::forward<Args>(args)...);
 		}
 
 
