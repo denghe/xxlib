@@ -3,19 +3,21 @@
 #include <xx_string.h>
 
 int main() {
+    constexpr size_t icount = 100000;
+    constexpr size_t jcount = 5000;
     for (size_t k = 0; k < 10; k++) {
     {
         auto secs = xx::NowEpochSeconds();
         uint64_t count = 0;
-        for (size_t i = 0; i < 1000000; i++) {
+        for (size_t i = 0; i < icount; i++) {
             ax::pod_vector<int> pv;
-            // pv.reserve(1000);
-            for (int j = 0; j < 1000; j++) {
+            // pv.reserve(jcount);
+            for (int j = 0; j < jcount; j++) {
                 pv.emplace_back(j);
             }
             auto buf = pv.release_pointer();
             auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
-            for (int j = 0; j < 1000; j++) {
+            for (int j = 0; j < jcount; j++) {
                 count += buf[j];
             }
         }
@@ -24,15 +26,15 @@ int main() {
     {
         auto secs = xx::NowEpochSeconds();
         uint64_t count = 0;
-        for (size_t i = 0; i < 1000000; i++) {
+        for (size_t i = 0; i < icount; i++) {
             ax::pod_vector<int> pv;
-            pv.reserve(1000);
-            for (int j = 0; j < 1000; j++) {
+            pv.reserve(jcount);
+            for (int j = 0; j < jcount; j++) {
                 pv.emplace_back(j);
             }
             auto buf = pv.release_pointer();
             auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
-            for (int j = 0; j < 1000; j++) {
+            for (int j = 0; j < jcount; j++) {
                 count += buf[j];
             }
         }
@@ -41,15 +43,15 @@ int main() {
     {
         auto secs = xx::NowEpochSeconds();
         uint64_t count = 0;
-        for (size_t i = 0; i < 1000000; i++) {
+        for (size_t i = 0; i < icount; i++) {
             xx::PodVector<int> pv;
-            // pv.Reserve(1000);
-            for (int j = 0; j < 1000; j++) {
+            // pv.Reserve(jcount);
+            for (int j = 0; j < jcount; j++) {
                 pv.Emplace(j);
             }
             auto buf = pv.TakeAwayBuf();
             auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
-            for (int j = 0; j < 1000; j++) {
+            for (int j = 0; j < jcount; j++) {
                 count += buf[j];
             }
         }
@@ -58,15 +60,15 @@ int main() {
     {
         auto secs = xx::NowEpochSeconds();
         uint64_t count = 0;
-        for (size_t i = 0; i < 1000000; i++) {
+        for (size_t i = 0; i < icount; i++) {
             xx::PodVector<int> pv;
-            pv.Reserve(1000);
-            for (int j = 0; j < 1000; j++) {
+            pv.Reserve(jcount);
+            for (int j = 0; j < jcount; j++) {
                 pv.Emplace(j);
             }
             auto buf = pv.TakeAwayBuf();
             auto bufKiller = xx::MakeSimpleScopeGuard([&] { delete[] buf; });
-            for (int j = 0; j < 1000; j++) {
+            for (int j = 0; j < jcount; j++) {
                 count += buf[j];
             }
         }

@@ -15,7 +15,7 @@ namespace xx {
 
 		PodVector(PodVector const& o) = delete;
 		PodVector& operator=(PodVector const& o) = delete;
-		explicit PodVector(size_t const& cap_ = 0, size_t const& len_ = 0) : buf(cap_ == 0 ? nullptr : Alloc(cap_)), cap(cap_), len(len_) {}
+		explicit PodVector(size_t const& cap_ = 0, size_t const& len_ = 0) : buf(cap_ == 0 ? nullptr : Alloc(cap_)), len(len_), cap(cap_) {}
 		~PodVector() {
 			if (buf) {
 				if constexpr (useNewDelete) {
