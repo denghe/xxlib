@@ -129,8 +129,7 @@ namespace xx {
 			return *new (&this->buf[len++]) T(std::forward<Args>(args)...);
 		}
 
-
-		T* begin() const noexcept { return buf; }
-		T* end() const noexcept { return buf + len; }
+		T* begin() const noexcept { return this->buf; }
+		T* end() const noexcept { return this->buf + len; }
 	};
 }
