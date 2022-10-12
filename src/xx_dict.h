@@ -164,20 +164,8 @@ namespace xx {
 	template<typename K, typename V>
 	DictAddResult Dict<TK, TV>::Add(K&& k, V&& v, bool const& override) noexcept {
 		assert(bucketsLen);
-
 		// hash 按桶数取模 定位到具体 链表, 扫找
-		size_t hashCode;
-		if constexpr (std::is_same_v<std::string, TK>) {
-			if constexpr (std::is_same_v<std::string_view, std::decay_t<K>> || std::is_same_v<std::string, std::decay_t<K>>) {
-				hashCode = Hash<std::decay_t<K>>{}(k);
-			}
-			else {
-				hashCode = Hash<std::string_view>{}(k);
-			}
-		}
-		else {
-			hashCode = Hash<TK>{}(k);
-		}
+		auto hashCode = Hash<std::decay_t<K>>{}(k);
 		auto targetBucket = hashCode % bucketsLen;
 		for (int i = buckets[targetBucket]; i >= 0; i = nodes[i].next) {
 			if (nodes[i].hashCode == hashCode && items[i].key == k) {
@@ -282,18 +270,7 @@ namespace xx {
 	template<typename K>
 	int Dict<TK, TV>::Find(K const& k) const noexcept {
 		assert(buckets);
-		size_t hashCode;
-		if constexpr (std::is_same_v<std::string, TK>) {
-			if constexpr (std::is_same_v<std::string_view, std::decay_t<K>> || std::is_same_v<std::string, std::decay_t<K>>) {
-				hashCode = Hash<std::decay_t<K>>{}(k);
-			}
-			else {
-				hashCode = Hash<std::string_view>{}(k);
-			}
-		}
-		else {
-			hashCode = Hash<TK>{}(k);
-		}
+		auto hashCode = Hash<std::decay_t<K>>{}(k);
 		for (int i = buckets[hashCode % bucketsLen]; i >= 0; i = nodes[i].next) {
 			if (nodes[i].hashCode == hashCode && items[i].key == k) return i;
 		}

@@ -665,6 +665,13 @@ namespace xx {
 			return (size_t)XXH3_64bits(k.data(), k.size());
 		}
 	};
+    // 适配 literal string
+	template<typename T>
+	struct Hash<T, std::enable_if_t<xx::IsLiteral_v<T>>> {
+		inline size_t operator()(T const& k) const {
+			return (size_t)XXH3_64bits(k, sizeof(T) - 1);
+		}
+	};
 }
     
     */

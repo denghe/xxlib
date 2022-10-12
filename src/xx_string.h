@@ -463,6 +463,8 @@ namespace xx {
         // todo: more
     }
 
+
+
     inline int FromHex(uint8_t const& c) {
         if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
         else if (c >= 'a' && c <= 'z') return c - 'a' + 10;
@@ -486,6 +488,28 @@ namespace xx {
         }
     }
 
+
+
+    // 简单改变 string 在编译后的 binary 中的形态
+    template<size_t n>
+    struct XorStr {
+        constexpr XorStr(const char(&s)[n]) {
+            std::copy_n(s, n, v);
+            for (auto& c : v) {
+                c ^= 0b10101010;
+            }
+        }
+        char v[n];
+    };
+
+    // 从 XorStr 还原出原始 string
+    template<XorStr s>
+    auto UnXor() {
+        std::string r(s.v, sizeof(s.v) - 1);
+        for (auto& c : r) c ^= 0b10101010;
+        return r;
+    }
+
     // 用 s 滚动异或 buf 内容. 注意传入 buf 需要字节对齐, 小尾适用
     inline void XorContent(uint64_t s, char* buf, size_t len) {
         auto p = (char*)&s;
@@ -506,6 +530,9 @@ namespace xx {
             if (i == slen) i = 0;
         }
     }
+
+
+
 
     // 移除文件路径部分只剩文件名
     inline int RemovePath(std::string& s) {
