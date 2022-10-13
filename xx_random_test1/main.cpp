@@ -2,78 +2,144 @@
 
 namespace xx {
 
-	template<Str s>
-	std::string HtmlPreEncode1() {
-		std::string r;
-		r.reserve(sizeof(s.v) * 5);
-		for (auto& c : s.v) {
-			if (c == '&') r.append("&amp;");
-			else if (c == '<') r.append("&lt;");
-			else if (c == '>') r.append("&gt;");
-			else r.push_back(c);
-		}
-		return r;
-	}
-
-	std::string HtmlPreEncode2(std::string_view const& s) {
-		std::string r;
-		r.reserve(s.size() * 5);
+	void HtmlPreEncodeTo(Data& d, std::string_view const& s) {
+		d.Reserve(d.len + s.size() * 5);
 		for (auto& c : s) {
-			if (c == '&') r.append("&amp;");
-			else if (c == '<') r.append("&lt;");
-			else if (c == '>') r.append("&gt;");
-			else r.push_back(c);
+			if (c == '&') d.WriteBuf<false>("&amp;"sv);
+			else if (c == '<') d.WriteBuf<false>("&lt;"sv);
+			else if (c == '>') d.WriteBuf<false>("&gt;"sv);
+			else d.WriteFixed<false>(c);
 		}
-		return r;
 	}
 
 	template<char c>
-	size_t HtmlPreEncode3___() {
+	size_t HtmlPreEncodeTo_1() {
 		if (c == '&') return 5;
 		else if (c == '<' || c == '>') return 4;
 		else return 1;
 	}
 	template<char c>
-	void HtmlPreEncode3__(std::string& r) {
-		if (c == '&') r.append("&amp;");
-		else if (c == '<') r.append("&lt;");
-		else if (c == '>') r.append("&gt;");
-		else r.push_back(c);
+	void HtmlPreEncodeTo_2(Data& d) {
+		if (c == '&') d.WriteBuf<false>("&amp;"sv);
+		else if (c == '<') d.WriteBuf<false>("&lt;"sv);
+		else if (c == '>') d.WriteBuf<false>("&gt;"sv);
+		else d.WriteFixed<false>(c);
 	}
 	template<Str s, size_t... I>
-	void HtmlPreEncode3_(std::string& r, std::index_sequence<I...>) {
-		r.reserve((HtmlPreEncode3___<s.v[I]>() + ...));
-		(HtmlPreEncode3__<s.v[I]>(r), ...);
+	void HtmlPreEncodeTo_(Data& d, std::index_sequence<I...>) {
+		d.Reserve(d.len + (HtmlPreEncodeTo_1<s.v[I]>() + ...));
+		(HtmlPreEncodeTo_2<s.v[I]>(d), ...);
 	}
 	template<Str s>
-	std::string HtmlPreEncode3() {
-		std::string r;
-		HtmlPreEncode3_<s>(r, std::make_index_sequence<sizeof(s.v) - 1>());
-		return r;
+	void HtmlPreEncodeTo(Data& d) {
+		HtmlPreEncodeTo_<s>(d, std::make_index_sequence<sizeof(s.v) - 1>());
 	}
 }
 
 int main() {
-	std::string s;
+	xx::Data d;
 	for (size_t j = 0; j < 10; j++) {
-		auto secs = xx::NowEpochSeconds();
-		for (size_t i = 0; i < 10000000; i++) {
-			s = xx::HtmlPreEncode1<"as<>&dfqw<>&eras<>&dfqw<>&er ">();
+		{
+			auto secs = xx::NowEpochSeconds();
+			for (size_t i = 0; i < 10000000; i++) {
+				d.Clear();
+				xx::HtmlPreEncodeTo<"as<>&dfqw<>&eras<>&dfqw<>&er ">(d);
+			}
+			std::cout << "1 " << xx::NowEpochSeconds(secs) << " " << std::string_view{ (char*)d.buf, d.len } << std::endl;
 		}
-		std::cout << "1 " << s << xx::NowEpochSeconds(secs) << std::endl;
-
-		for (size_t i = 0; i < 10000000; i++) {
-			s = xx::HtmlPreEncode2("as<>&dfqw<>&eras<>&dfqw<>&er "sv);
+		{
+			auto secs = xx::NowEpochSeconds();
+			for (size_t i = 0; i < 10000000; i++) {
+				d.Clear();
+				xx::HtmlPreEncodeTo(d, "as<>&dfqw<>&eras<>&dfqw<>&er "sv);
+			}
+			std::cout << "2 " << xx::NowEpochSeconds(secs) << " " << std::string_view{ (char*)d.buf, d.len } << std::endl;
+			std::cout << std::endl;
 		}
-		std::cout << "2 " << s << xx::NowEpochSeconds(secs) << std::endl;
-
-		for (size_t i = 0; i < 10000000; i++) {
-			s = xx::HtmlPreEncode3<"as<>&dfqw<>&eras<>&dfqw<>&er ">();
-		}
-		std::cout << "3 " << s << xx::NowEpochSeconds(secs) << std::endl;
-		std::cout << std::endl;
 	}
 }
+
+
+
+
+
+
+//#include <xx_string_http.h>
+//
+//namespace xx {
+//
+//	template<Str s>
+//	std::string HtmlPreEncode1() {
+//		std::string r;
+//		r.reserve(sizeof(s.v) * 5);
+//		for (auto& c : s.v) {
+//			if (c == '&') r.append("&amp;");
+//			else if (c == '<') r.append("&lt;");
+//			else if (c == '>') r.append("&gt;");
+//			else r.push_back(c);
+//		}
+//		return r;
+//	}
+//
+//	std::string HtmlPreEncode2(std::string_view const& s) {
+//		std::string r;
+//		r.reserve(s.size() * 5);
+//		for (auto& c : s) {
+//			if (c == '&') r.append("&amp;");
+//			else if (c == '<') r.append("&lt;");
+//			else if (c == '>') r.append("&gt;");
+//			else r.push_back(c);
+//		}
+//		return r;
+//	}
+//
+//	template<char c>
+//	size_t HtmlPreEncode3___() {
+//		if (c == '&') return 5;
+//		else if (c == '<' || c == '>') return 4;
+//		else return 1;
+//	}
+//	template<char c>
+//	void HtmlPreEncode3__(std::string& r) {
+//		if (c == '&') r.append("&amp;");
+//		else if (c == '<') r.append("&lt;");
+//		else if (c == '>') r.append("&gt;");
+//		else r.push_back(c);
+//	}
+//	template<Str s, size_t... I>
+//	void HtmlPreEncode3_(std::string& r, std::index_sequence<I...>) {
+//		r.reserve((HtmlPreEncode3___<s.v[I]>() + ...));
+//		(HtmlPreEncode3__<s.v[I]>(r), ...);
+//	}
+//	template<Str s>
+//	std::string HtmlPreEncode3() {
+//		std::string r;
+//		HtmlPreEncode3_<s>(r, std::make_index_sequence<sizeof(s.v) - 1>());
+//		return r;
+//	}
+//}
+//
+//int main() {
+//	std::string s;
+//	for (size_t j = 0; j < 10; j++) {
+//		auto secs = xx::NowEpochSeconds();
+//		for (size_t i = 0; i < 10000000; i++) {
+//			s = xx::HtmlPreEncode1<"as<>&dfqw<>&eras<>&dfqw<>&er ">();
+//		}
+//		std::cout << "1 " << s << xx::NowEpochSeconds(secs) << std::endl;
+//
+//		for (size_t i = 0; i < 10000000; i++) {
+//			s = xx::HtmlPreEncode2("as<>&dfqw<>&eras<>&dfqw<>&er "sv);
+//		}
+//		std::cout << "2 " << s << xx::NowEpochSeconds(secs) << std::endl;
+//
+//		for (size_t i = 0; i < 10000000; i++) {
+//			s = xx::HtmlPreEncode3<"as<>&dfqw<>&eras<>&dfqw<>&er ">();
+//		}
+//		std::cout << "3 " << s << xx::NowEpochSeconds(secs) << std::endl;
+//		std::cout << std::endl;
+//	}
+//}
 
 
 
