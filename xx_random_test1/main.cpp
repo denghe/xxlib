@@ -2,43 +2,138 @@
 
 namespace xx {
 
-	void HtmlPreEncodeTo(Data& d, std::string_view const& s) {
-		d.Reserve(d.len + s.size() * 5);
-		for (auto& c : s) {
-			if (c == '&') d.WriteBuf<false>("&amp;");
-			else if (c == '<') d.WriteBuf<false>("&lt;");
-			else if (c == '>') d.WriteBuf<false>("&gt;");
-			else d.WriteFixed<false>(c);
+	enum class HttpEncodeTypes {
+		Html,	// & < > ' " 
+		Text,	// & < > space
+		Pre		// & < >
+	};
+
+	constexpr const unsigned char CharEscapeTypes[] = {
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 4, 9, 9, 9, 0, 3, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 2, 9, 1, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+	};
+
+	template<HttpEncodeTypes t>
+	XX_FORCE_INLINE void HttpEncodeTo_(char* const& buf, size_t& len, char const& c) {
+		switch (CharEscapeTypes[c]) {
+		case 0:
+			memcpy(buf + len, "&amp;", 5);
+			len += 5;
+			break;
+		case 1:
+			memcpy(buf + len, "&gt;", 4);
+			len += 4;
+			break;
+		case 2:
+			memcpy(buf + len, "&lt;", 4);
+			len += 4;
+			break;
+		case 3:
+			if constexpr (t == HttpEncodeTypes::Html) {
+				memcpy(buf + len, "&apos;", 6);
+				len += 6;
+				break;
+			}
+		case 4:
+			if constexpr (t == HttpEncodeTypes::Html) {
+				memcpy(buf + len, "&quot;", 6);
+				len += 6;
+				break;
+			}
+		default:
+			buf[len++] = c;
+			break;
 		}
 	}
-	void HtmlPreEncodeTo(std::string& d, std::string_view const& s) {
-		d.reserve(d.size() + s.size() * 5);
+
+	template<HttpEncodeTypes t>
+	void HttpEncodeTo(Data& d, std::string_view const& s) {
+		d.Reserve(d.len + s.size() * 5);
 		for (auto& c : s) {
-			if (c == '&') d.append("&amp;");
-			else if (c == '<') d.append("&lt;");
-			else if (c == '>') d.append("&gt;");
-			else d.push_back(c);
+			HttpEncodeTo_<t>((char*)d.buf, d.len, c);
 		}
+	}
+
+
+	constexpr const unsigned char CharEscapeLens[] = {
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 6, 1, 1, 1, 5, 6, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 4, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	};
+
+
+	template<HttpEncodeTypes t>
+	void HttpEncodeTo(std::string& d, std::string_view const& s) {
+		size_t len = 0;
+		for (auto& c : s) {
+			len += CharEscapeLens[c];
+		}
+		auto siz = d.size();
+		d.resize(siz + len);
+		auto buf = d.data();
+		for (auto& c : s) {
+			HttpEncodeTo_<t>(buf, siz, c);
+		}
+	}
+
+	template<typename T>
+	void HttpEncodeHtmlTo(T& d, std::string_view const& s) {
+		HttpEncodeTo<HttpEncodeTypes::Html>(d, s);
+	}
+	template<typename T>
+	void HttpEncodeTextTo(T& d, std::string_view const& s) {
+		HttpEncodeTo<HttpEncodeTypes::Text>(d, s);
+	}
+	template<typename T>
+	void HttpEncodePreTo(T& d, std::string_view const& s) {
+		HttpEncodeTo<HttpEncodeTypes::Pre>(d, s);
 	}
 }
 
 int main() {
 	for (size_t j = 0; j < 10; j++) {
 		{
-            std::string s;
+			std::string s;
 			auto secs = xx::NowEpochSeconds();
 			for (size_t i = 0; i < 10000000; i++) {
 				s.clear();
-				xx::HtmlPreEncodeTo(s, "as<>&dfqw<>&eras<>&dfqw<>&er "sv);
+				xx::HttpEncodeHtmlTo(s, "as<>&df'qw<>&er'as<>&dfqw<>&er "sv);
 			}
 			std::cout << "1 " << xx::NowEpochSeconds(secs) << " " << s << std::endl;
 		}
 		{
-            xx::Data d;
+			xx::Data d;
 			auto secs = xx::NowEpochSeconds();
 			for (size_t i = 0; i < 10000000; i++) {
 				d.Clear();
-				xx::HtmlPreEncodeTo(d, "as<>&dfqw<>&eras<>&dfqw<>&er "sv);
+				xx::HttpEncodeHtmlTo(d, "as<>&df'qw<>&er'as<>&dfqw<>&er "sv);
 			}
 			std::cout << "2 " << xx::NowEpochSeconds(secs) << " " << std::string_view{ (char*)d.buf, d.len } << std::endl;
 			std::cout << std::endl;

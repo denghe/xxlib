@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <utility>
 #include <cassert>
+#include <string>
 #include <cstring>      // memcmp
 
 namespace xx {
