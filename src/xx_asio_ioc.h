@@ -32,7 +32,7 @@ namespace xx {
 			co_spawn(*this, [this, port, sh = std::move(sh)]()->awaitable<void> {
 				asio::ip::tcp::acceptor acceptor(*this, { asio::ip::tcp::v6(), port });
 				acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
-				for (;;) {
+				while (!stopped()) {
 					asio::ip::tcp::socket socket(*this);
 					if (auto [ec] = co_await acceptor.async_accept(socket, use_nothrow_awaitable); !ec) {
 						sh(std::move(socket));
