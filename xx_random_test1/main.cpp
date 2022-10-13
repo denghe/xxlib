@@ -29,7 +29,7 @@ namespace xx {
 
 	template<HttpEncodeTypes t>
 	XX_FORCE_INLINE void HttpEncodeTo_(char* const& buf, size_t& len, char const& c) {
-		switch (CharEscapeTypes[c]) {
+		switch (CharEscapeTypes[(size_t)c]) {
 		case 0:
 			memcpy(buf + len, "&amp;", 5);
 			len += 5;
@@ -93,7 +93,7 @@ namespace xx {
 	void HttpEncodeTo(std::string& d, std::string_view const& s) {
 		size_t len = 0;
 		for (auto& c : s) {
-			len += CharEscapeLens[c];
+			len += CharEscapeLens[(size_t)c];
 		}
 		auto siz = d.size();
 		d.resize(siz + len);
