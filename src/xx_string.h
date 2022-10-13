@@ -490,16 +490,28 @@ namespace xx {
 
 
 
+    // literal string 的模板值容器
+    template<size_t n>
+    struct Str {
+        char v[n];
+        constexpr Str(const char(&s)[n]) {
+            std::copy_n(s, n, v);
+        }
+        constexpr std::string_view ToSV() const {
+            return { v, n - 1 };
+        }
+    };
+
     // 简单改变 string 在编译后的 binary 中的形态
     template<size_t n>
     struct XorStr {
+        char v[n];
         constexpr XorStr(const char(&s)[n]) {
             std::copy_n(s, n, v);
             for (auto& c : v) {
                 c ^= 0b10101010;
             }
         }
-        char v[n];
     };
 
     // 从 XorStr 还原出原始 string
@@ -509,6 +521,12 @@ namespace xx {
         for (auto& c : r) c ^= 0b10101010;
         return r;
     }
+
+#ifdef __ANDROID__
+#   define XX_HIDE_STR(s) xx::UnXor<s>()
+#else
+#   define XX_HIDE_STR(s) s
+#endif
 
     // 用 s 滚动异或 buf 内容. 注意传入 buf 需要字节对齐, 小尾适用
     inline void XorContent(uint64_t s, char* buf, size_t len) {

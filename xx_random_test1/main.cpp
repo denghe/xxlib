@@ -1,11 +1,91 @@
-﻿#include <xx_string.h>
+﻿#include <xx_string_http.h>
 
-int main() {
-    std::cout << xx::UnXor<"qwerqwer">() << std::endl;
-    std::cout << xx::UnXor<"qwerqwerqwerqwer">() << std::endl;
-    std::cout << xx::UnXor<"asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf">() << std::endl;
+namespace xx {
+
+	template<Str s>
+	std::string HtmlPreEncode1() {
+		std::string r;
+		r.reserve(sizeof(s.v) * 5);
+		for (auto& c : s.v) {
+			if (c == '&') r.append("&amp;");
+			else if (c == '<') r.append("&lt;");
+			else if (c == '>') r.append("&gt;");
+			else r.push_back(c);
+		}
+		return r;
+	}
+
+	std::string HtmlPreEncode2(std::string_view const& s) {
+		std::string r;
+		r.reserve(s.size() * 5);
+		for (auto& c : s) {
+			if (c == '&') r.append("&amp;");
+			else if (c == '<') r.append("&lt;");
+			else if (c == '>') r.append("&gt;");
+			else r.push_back(c);
+		}
+		return r;
+	}
+
+	template<char c>
+	size_t HtmlPreEncode3___() {
+		if (c == '&') return 5;
+		else if (c == '<' || c == '>') return 4;
+		else return 1;
+	}
+	template<char c>
+	void HtmlPreEncode3__(std::string& r) {
+		if (c == '&') r.append("&amp;");
+		else if (c == '<') r.append("&lt;");
+		else if (c == '>') r.append("&gt;");
+		else r.push_back(c);
+	}
+	template<Str s, size_t... I>
+	void HtmlPreEncode3_(std::string& r, std::index_sequence<I...>) {
+		r.reserve((HtmlPreEncode3___<s.v[I]>() + ...));
+		(HtmlPreEncode3__<s.v[I]>(r), ...);
+	}
+	template<Str s>
+	std::string HtmlPreEncode3() {
+		std::string r;
+		HtmlPreEncode3_<s>(r, std::make_index_sequence<sizeof(s.v) - 1>());
+		return r;
+	}
 }
 
+int main() {
+	std::string s;
+	for (size_t j = 0; j < 10; j++) {
+		auto secs = xx::NowEpochSeconds();
+		for (size_t i = 0; i < 10000000; i++) {
+			s = xx::HtmlPreEncode1<"as<>&dfqw<>&eras<>&dfqw<>&er ">();
+		}
+		std::cout << "1 " << s << xx::NowEpochSeconds(secs) << std::endl;
+
+		for (size_t i = 0; i < 10000000; i++) {
+			s = xx::HtmlPreEncode2("as<>&dfqw<>&eras<>&dfqw<>&er "sv);
+		}
+		std::cout << "2 " << s << xx::NowEpochSeconds(secs) << std::endl;
+
+		for (size_t i = 0; i < 10000000; i++) {
+			s = xx::HtmlPreEncode3<"as<>&dfqw<>&eras<>&dfqw<>&er ">();
+		}
+		std::cout << "3 " << s << xx::NowEpochSeconds(secs) << std::endl;
+		std::cout << std::endl;
+	}
+}
+
+
+
+
+//#include <xx_string.h>
+//
+//int main() {
+//    std::cout << xx::UnXor<"qwerqwer">() << std::endl;
+//    std::cout << xx::UnXor<"qwerqwerqwerqwer">() << std::endl;
+//    std::cout << xx::UnXor<"asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf">() << std::endl;
+//}
+//
 
 
 
