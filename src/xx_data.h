@@ -452,10 +452,18 @@ namespace xx {
             len += siz;
         }
 
-        // WriteBuf 支持一下 string[_view] 以方便使用
-        template<bool needReserve = true, typename SV>
-        XX_INLINE void WriteBuf(SV const& sv) {
-            WriteBuf<needReserve>(sv.data(), sv.size() * sizeof(decltype(sv.data()[0])));
+        // WriteBuf 支持一下 literal string[_view] 以方便使用
+        template<bool needReserve = true>
+        XX_INLINE void WriteBuf(std::string const& sv) {
+            WriteBuf<needReserve>(sv.data(), sv.size());
+        }
+        template<bool needReserve = true>
+        XX_INLINE void WriteBuf(std::string_view const& sv) {
+            WriteBuf<needReserve>(sv.data(), sv.size());
+        }
+        template<bool needReserve = true, size_t N>
+        XX_INLINE void WriteBuf(char const(&s)[N]) {
+            WriteBuf<needReserve>(s, N);
         }
 
         // 在指定 idx 写入一段 buf( 不记录数据长度 )
