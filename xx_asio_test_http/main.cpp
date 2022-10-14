@@ -56,6 +56,20 @@ int main() {
 				char buf[32];
 				p.Out("<a href='/'>hi!&nbsp;"sv, name, "&nbsp;"sv, xx::ToStringView(i, buf), "</a><br>"sv);
 			}
+			p.Out("<pre>"sv);
+			xx::HttpEncodePreTo(p.out, R"(
+	// 起一个协程 每秒显示一次 QPS
+	co_spawn(ioc, [&]()->awaitable<void> {
+		while (!ioc.stopped()) {
+			ioc.count = 0;
+			co_await xx::Timeout(1000ms);
+			if (ioc.count) {
+				std::cout << "***** QPS = " << ioc.count << std::endl;
+			}
+		}
+	}, detached);
+)"sv);
+			p.Out("</pre>"sv);
 			p.Out("</body></html>"sv);
 
 			// 结束拼接并发送
