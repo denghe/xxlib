@@ -27,6 +27,25 @@ namespace xx {
 		9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
 	};
 
+	constexpr const unsigned char CharEscapeLens[] = {
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 6, 1, 1, 1, 5, 6, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 4, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	};
+
 	template<HttpEncodeTypes t>
 	XX_FORCE_INLINE void HttpEncodeTo_(char* const& buf, size_t& len, char const& c) {
 		switch (CharEscapeTypes[(size_t)c]) {
@@ -61,46 +80,27 @@ namespace xx {
 	}
 
 	template<HttpEncodeTypes t>
-	void HttpEncodeTo(Data& d, std::string_view const& s) {
-		d.Reserve(d.len + s.size() * 5);
+	XX_FORCE_INLINE void HttpEncodeTo_(char* const& buf, size_t& len, std::string_view const& s) {
 		for (auto& c : s) {
-			HttpEncodeTo_<t>((char*)d.buf, d.len, c);
+			HttpEncodeTo_<t>(buf, len, c);
 		}
 	}
 
-
-	constexpr const unsigned char CharEscapeLens[] = {
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 6, 1, 1, 1, 5, 6, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 4, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-	};
-
+	template<HttpEncodeTypes t>
+	XX_FORCE_INLINE void HttpEncodeTo(Data& d, std::string_view const& s) {
+		d.Reserve(d.len + s.size() * 5);
+		HttpEncodeTo_<t>((char*)d.buf, d.len, s);
+	}
 
 	template<HttpEncodeTypes t>
-	void HttpEncodeTo(std::string& d, std::string_view const& s) {
-		size_t len = 0;
+	XX_FORCE_INLINE void HttpEncodeTo(std::string& d, std::string_view const& s) {
+		auto len = d.size();
+		size_t cap = len;
 		for (auto& c : s) {
-			len += CharEscapeLens[(size_t)c];
+			cap += CharEscapeLens[(size_t)c];
 		}
-		auto siz = d.size();
-		d.resize(siz + len);
-		auto buf = d.data();
-		for (auto& c : s) {
-			HttpEncodeTo_<t>(buf, siz, c);
-		}
+		d.resize(cap);
+		HttpEncodeTo_<t>(d.data(), len, s);
 	}
 
 	template<typename T>
@@ -126,7 +126,7 @@ int main() {
 				s.clear();
 				xx::HttpEncodeHtmlTo(s, "as<>&df'qw<>&er'as<>&dfqw<>&er "sv);
 			}
-			std::cout << "1 " << xx::NowEpochSeconds(secs) << " " << s << std::endl;
+			std::cout << "str  " << xx::NowEpochSeconds(secs) << " " << s << std::endl;
 		}
 		{
 			xx::Data d;
@@ -135,7 +135,7 @@ int main() {
 				d.Clear();
 				xx::HttpEncodeHtmlTo(d, "as<>&df'qw<>&er'as<>&dfqw<>&er "sv);
 			}
-			std::cout << "2 " << xx::NowEpochSeconds(secs) << " " << std::string_view{ (char*)d.buf, d.len } << std::endl;
+			std::cout << "data " << xx::NowEpochSeconds(secs) << " " << std::string_view{ (char*)d.buf, d.len } << std::endl;
 			std::cout << std::endl;
 		}
 	}
