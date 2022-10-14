@@ -3,10 +3,10 @@
 
 namespace xx {
     /************************************************************************************/
-    // headers & args 容器
+    // headers & args
     /************************************************************************************/
 
-    // string_view 键值对 数组容器
+    // string_view 键值对 数组容器, 常用于保存 headers, arguments 带 value 类型转换
     template<size_t len>
     struct SVPairArray : std::array<std::pair<std::string_view, std::string_view>, len> {
         using BaseType = std::array<std::pair<std::string_view, std::string_view>, len>;
@@ -48,8 +48,6 @@ namespace xx {
         }
     };
 
-
-    // 各种 http 相关 工具函数
 
     /************************************************************************************/
     // url
@@ -122,30 +120,135 @@ namespace xx {
     // html
     /************************************************************************************/
 
-    // 将编码后的 html 覆盖填充到 dst
-    inline void HtmlEncode(std::string const& src, std::string& dst) {
-        auto&& str = src.c_str();
-        auto&& siz = src.size();
-        dst.clear();
-        dst.reserve(siz * 2);	// 估算. * 6 感觉有点浪费
-        for (size_t i = 0; i < siz; ++i) {
-            auto c = str[i];
-            switch (c) {
-            case '&':  dst.append("&amp;"); break;
-            case '\"': dst.append("&quot;"); break;
-            case '\'': dst.append("&apos;"); break;
-            case '<':  dst.append("&lt;");  break;
-            case '>':  dst.append("&gt;");  break;
-            default:   dst += c;			break;
+    enum class HttpEncodeTypes {
+        Html,	// & < > ' " 
+        Text,	// & < > space
+        Pre		// & < >
+    };
+
+    constexpr const unsigned char CharEscapeTypes[] = {
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 4, 9, 9, 9, 0, 3, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 2, 9, 1, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+    };
+
+    constexpr const unsigned char CharEscapeLens[] = {
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 6, 1, 1, 1, 5, 6, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 4, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    };
+
+    template<HttpEncodeTypes t>
+    XX_FORCE_INLINE void HttpEncodeTo_(char* const& buf, size_t& len, char const& c) {
+        switch (CharEscapeTypes[(size_t)c]) {
+        case 0:
+            memcpy(buf + len, "&amp;", 5);
+            len += 5;
+            break;
+        case 1:
+            memcpy(buf + len, "&gt;", 4);
+            len += 4;
+            break;
+        case 2:
+            memcpy(buf + len, "&lt;", 4);
+            len += 4;
+            break;
+        case 3:
+            if constexpr (t == HttpEncodeTypes::Html) {
+                memcpy(buf + len, "&apos;", 6);
+                len += 6;
+                break;
             }
+        case 4:
+            if constexpr (t == HttpEncodeTypes::Html) {
+                memcpy(buf + len, "&quot;", 6);
+                len += 6;
+                break;
+            }
+        default:
+            buf[len++] = c;
+            break;
         }
     }
 
-    // 上面函数的返回值版
-    inline std::string HtmlEncode(std::string const& src) {
-        std::string rtv;
-        ::xx::HtmlEncode(src, rtv);
-        return rtv;
+    template<HttpEncodeTypes t>
+    XX_FORCE_INLINE void HttpEncodeTo_(char* const& buf, size_t& len, std::string_view const& s) {
+        for (auto& c : s) {
+            HttpEncodeTo_<t>(buf, len, c);
+        }
     }
 
+    template<HttpEncodeTypes t>
+    XX_FORCE_INLINE void HttpEncodeTo(Data& d, std::string_view const& s) {
+        d.Reserve(d.len + s.size() * 5);
+        HttpEncodeTo_<t>((char*)d.buf, d.len, s);
+    }
+
+    template<HttpEncodeTypes t>
+    XX_FORCE_INLINE void HttpEncodeTo(std::string& d, std::string_view const& s) {
+        auto len = d.size();
+        size_t cap = len;
+        for (auto& c : s) {
+            cap += CharEscapeLens[(size_t)c];
+        }
+        d.resize(cap);
+        HttpEncodeTo_<t>(d.data(), len, s);
+    }
+
+    // T 通常为 xx::Data, std::string, std::vector<char> 啥的
+    template<typename T>
+    void HttpEncodeHtmlTo(T& d, std::string_view const& s) {
+        HttpEncodeTo<HttpEncodeTypes::Html>(d, s);
+    }
+    template<typename T>
+    void HttpEncodeTextTo(T& d, std::string_view const& s) {
+        HttpEncodeTo<HttpEncodeTypes::Text>(d, s);
+    }
+    template<typename T>
+    void HttpEncodePreTo(T& d, std::string_view const& s) {
+        HttpEncodeTo<HttpEncodeTypes::Pre>(d, s);
+    }
+
+    // 上面函数的 std::string 返回值版
+    inline std::string HttpEncodeHtml(std::string_view const& s) {
+        std::string r;
+        ::xx::HttpEncodeHtmlTo(r, s);
+        return r;
+    }
+    inline std::string HttpEncodeText(std::string_view const& s) {
+        std::string r;
+        ::xx::HttpEncodeTextTo(r, s);
+        return r;
+    }
+    inline std::string HttpEncodePre(std::string_view const& s) {
+        std::string r;
+        ::xx::HttpEncodePreTo(r, s);
+        return r;
+    }
 }
