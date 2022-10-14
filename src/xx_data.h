@@ -462,9 +462,9 @@ namespace xx {
         XX_INLINE void WriteBuf(std::string_view const& sv) {
             WriteBuf<needReserve>(sv.data(), sv.size());
         }
-        template<bool needReserve = true, size_t N>
-        XX_INLINE void WriteBuf(char const(&s)[N]) {
-            WriteBuf<needReserve>(s, N);
+        template<bool needReserve = true, size_t n>
+        XX_INLINE void WriteBuf(char const(&s)[n]) {
+            WriteBuf<needReserve>(s, n - 1);
         }
 
         // 在指定 idx 写入一段 buf( 不记录数据长度 )

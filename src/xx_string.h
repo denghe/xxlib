@@ -524,8 +524,10 @@ namespace xx {
 
 #ifdef __ANDROID__
 #   define XX_HIDE_STR(s) xx::UnXor<s>()
+#   define XX_HIDE_STR_C(s) xx::UnXor<s>().c_str()
 #else
 #   define XX_HIDE_STR(s) s
+#   define XX_HIDE_STR_C(s) s
 #endif
 
     // 用 s 滚动异或 buf 内容. 注意传入 buf 需要字节对齐, 小尾适用
