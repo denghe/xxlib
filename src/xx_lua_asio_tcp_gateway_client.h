@@ -31,7 +31,7 @@ namespace xx::Lua {
 	template<typename T>
 	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Asio::Tcp::Gateway::Client, std::decay_t<T>>>> {
 		using U = xx::Asio::Tcp::Gateway::Client;
-		inline static std::string name = std::string(TypeName_v<U>);
+		inline static std::string name = TypeName<U>();
 		static void Fill(lua_State* const& L) {
 			SetType<U>(L);
 			SetFieldCClosure(L, "Update", [](auto L)->int {

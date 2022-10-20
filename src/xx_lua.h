@@ -45,7 +45,7 @@ namespace xx::Lua {
 
         // 压数据到 lua_State, 返回长度
 		static int Push_(lua_State* const& L, T&& in) {
-			auto&& tn = TypeName_v<T>;
+			auto&& tn = TypeName<T>();
 			CoutN("Push not found match template. type = ", tn);
 			assert(false);
 			return 0;
@@ -53,7 +53,7 @@ namespace xx::Lua {
 
         // 从 lua_State 读出指定下标的值存到 out
 		static void To_(lua_State* const& L, int const& idx, T& out) {
-			auto&& tn = TypeName_v<T>;
+			auto&& tn = TypeName<T>();
 			CoutN("To not found match template. type = ", tn);
 			assert(false);
 		}
@@ -689,7 +689,7 @@ namespace xx::Lua {
 		}
 		static void To_(lua_State* const& L, int const& idx, T& out) {
 #if XX_LUA_TO_ENABLE_TYPE_CHECK
-			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(TypeName_v<T>));
+			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", TypeName<T>());
 #endif
 			out.clear();
 			int top = lua_gettop(L) + 1;
@@ -724,7 +724,7 @@ namespace xx::Lua {
 		static void To_(lua_State* const& L, int const& idx, T& out) {
 			out.clear();
 #if XX_LUA_TO_ENABLE_TYPE_CHECK
-			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", TypeName_v<T>);
+			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", TypeName<T>());
 #endif
 			int top = lua_gettop(L);
 			CheckStack(L, 4);

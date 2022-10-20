@@ -6,7 +6,8 @@
 
 namespace xx {
 
-	// 简单数据类型容器( 定长 buf 性质 )
+	// 简单数据类型容器( 定长 buf 性质 )，可拿走 buf
+	// useNewDelete == false: malloc + free
 	template<typename T = char, bool useNewDelete = true>
 	struct PodContainer {
 		T* buf;
@@ -44,6 +45,13 @@ namespace xx {
 			else return (T*)malloc(count * sizeof(T));
 		}
 
+		T* TakeAwayBuf() noexcept {
+			auto r = buf;
+			buf = nullptr;
+			cap = 0;
+			return r;
+		}
+
 		operator T*& () {
 			return buf;
 		}
@@ -65,8 +73,7 @@ namespace xx {
 	using CharBuf = PodContainer<char, false>;
 	using UCharBuf = PodContainer<uint8_t, false>;
 
-	// 类似 std::vector 的专用于放 pod 或 非严格pod( 是否执行构造，析构 无所谓 ) 类型的容器，可拿走 buf
-	// useNewDelete == false: malloc + free
+	// 类似 std::vector 的专用于放 pod 或 非严格pod( 是否执行构造，析构 无所谓 ) 类型的容器
 	template<typename T, bool useNewDelete = true>
 	struct PodVector : PodContainer<T, useNewDelete> {
 		using Base = PodContainer<T, useNewDelete>;

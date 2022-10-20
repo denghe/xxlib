@@ -1,6 +1,5 @@
 ﻿#include "p1.h"
 #include "foo.h"
-#include <iostream>
 
 void Test1() {
 	auto a = xx::Make<A>();
@@ -88,8 +87,6 @@ void Test2() {
 	//[2,14,0,0,0,2,1,4,97,115,100,102,1,1,1,5,1,2,3,4,5,154,153,153,63,51,51,19,64,1,1,1,154,153,153,63,51,51,19,64,1,1,1,1,154,153,153,63,51,51,19,64,1,1]
 }
 
-#include "xx_string.h"
-#include "xx_data_funcs.h"
 
 void Test3() {
 	xx::ObjManager om;

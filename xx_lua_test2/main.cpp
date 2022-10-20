@@ -70,7 +70,7 @@ end
 )");
 		auto foo = XL::GetGlobal<Foo_s>(L, "foo");
 		xx::CoutN("foo.abc = ", foo->mt.Get<double>("abc"));
-		foo->mt.Get<XL::Func>("xxx")(12, 34);
+		foo->mt.Get<XL::Func>("xxx").Call(12, 34);
 
 		{
 			// 预热

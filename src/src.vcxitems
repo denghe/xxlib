@@ -14,8 +14,6 @@
     <ProjectCapability Include="SourceItemsFromImports" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asiokcpclient.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_codes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_ioc.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_request.h" />
@@ -25,16 +23,11 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_gateway_client.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro_simple.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_shared.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_hash.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ignores.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_imgui_dx9_helper.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_includes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_asio_tcp_gateway_client.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_bits.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_bufholder.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_combopool.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_funcs.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_queue.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict_mk.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_file.h" />
@@ -43,15 +36,13 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_linkpool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_logger.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_adxe_binds.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_bind.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_bind_samples.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_data.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_randoms.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_uv_client.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_macro.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_macro_ext.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_math.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_mem.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_mysql.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_nodepool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_obj.h" />
@@ -64,7 +55,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_string.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_string_http.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_threadpool.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_uv.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_uv_ext2.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_time.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_typetraits.h" />
   </ItemGroup>
 </Project>

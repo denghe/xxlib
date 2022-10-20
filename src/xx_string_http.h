@@ -1,5 +1,6 @@
 ﻿#pragma once
-#include "xx_string.h"
+#include <xx_string.h>
+#include <xx_data.h>
 
 namespace xx {
     /************************************************************************************/

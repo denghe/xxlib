@@ -187,17 +187,6 @@ namespace xx::Lua {
             rh(L, top + 1);
             lua_settop(L, top);											    // ...
         }
-
-        // 简化 Call 调用
-        template<typename T = void, typename...Args>
-        XX_FORCE_INLINE T operator()(Args&&...args) const {
-            if constexpr (!std::is_void_v<T>) {
-                return Call(std::forward<Args>(args)...);
-            }
-            else {
-                Call(std::forward<Args>(args)...);
-            }
-        }
 	};
 
 	// 适配 Func
@@ -260,7 +249,7 @@ namespace xx::Lua {
     // 用法示例在最下面
     template<typename T, typename ENABLED = void>
     struct MetaFuncs {
-        inline static std::string name = std::string(TypeName_v<T>);
+        inline static std::string name = TypeName<T>();
 
         // 该函数被调用时, 栈顶即为 mt
         // 使用 SetType<std::decay_t<T>>(L); 附加 type 信息
@@ -339,8 +328,8 @@ namespace xx::Lua {
 				lua_rawset(L, -3);                                          // ..., mt
 			}
 
-			// 如果压入的不是 lambda, 则继续填充各种适配
-			if constexpr (!IsLambda_v<T>) {
+			// 如果压入的不是 lambda 或 std::function 这种仿函数类, 则继续填充各种适配
+			if constexpr (!IsLambda_v<T> && !IsFunction_v<T>) {
 				lua_pushstring(L, "__index");                               // ..., mt, "__index"
 				lua_pushvalue(L, -2);                                       // ..., mt, "__index", mt
 				lua_rawset(L, -3);                                          // ..., mt
@@ -373,10 +362,10 @@ namespace xx::Lua {
 	}
 
 
-    // 适配 lambda ( 这个性能一般，不要滥用，尽量使用 CClosure )
+    // 适配 lambda 等可执行类 ( 这个性能一般，不要滥用，尽量使用 CClosure )
     // 在 userdata 申请 lambda 捕获上下文的内存 并将 lambda 挪进去, 参数利用 tuple 暂存并展开转发。附加的 mt 啥都没有，只有 __gc 析构
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<IsLambda_v<std::decay_t<T>>>> {
+    struct PushToFuncs<T, std::enable_if_t<IsLambda_v<T> || IsFunction_v<T>>> {
         static constexpr int checkStackSize = 1;
         static inline int Push_(lua_State* const& L, T&& in) {
             using U = std::decay_t<T>;

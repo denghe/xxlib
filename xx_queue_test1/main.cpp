@@ -1,18 +1,20 @@
-﻿#include <xx_podvector.h>
-#include <string_view>
-#include <iostream>
+﻿#include <xx_helpers.h>
 
-size_t Xxxx(char* buf, size_t bufLen) {
-    return strlen(buf) + 1;
-}
+struct Foo {
+    void operator()() {
+    }
+};
+struct lambda {
+
+};
 
 int main() {
-    xx::PodVector<char> pv(8);
-    pv[0] = 'h';
-    pv[1] = 'i';
-    pv[2] = '\0';
-    pv.len = Xxxx(pv, pv.cap);
-    std::cout << pv.len << " " << pv << std::endl;
+    auto f = [] {};
+    std::cout << xx::IsLambda_v<decltype(f)> << std::endl;
+    std::cout << xx::IsLambda_v<Foo> << std::endl;
+    std::cout << xx::IsCallable_v<Foo> << std::endl;
+    std::cout << xx::IsLambda_v<lambda> << std::endl;
+
     return 0;
 }
 

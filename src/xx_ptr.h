@@ -1,5 +1,4 @@
 ﻿#pragma once
-
 #include "xx_helpers.h"
 
 // 类似 std::shared_ptr / weak_ptr，非线程安全，Weak 提供了无损 sharedCount 检测功能以方便直接搞事情

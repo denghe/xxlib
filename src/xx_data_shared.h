@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "xx_data_funcs.h"
+#include "xx_data.h"
 
 namespace xx {
 

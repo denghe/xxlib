@@ -1,16 +1,5 @@
 ﻿#pragma once
-
-#include <cassert>
-#include <vector>
-#include <array>
-#include <queue>
-#include <memory>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <functional>
-#include <chrono>
-using namespace std::chrono_literals;
+#include <xx_includes.h>
 
 namespace xx {
 

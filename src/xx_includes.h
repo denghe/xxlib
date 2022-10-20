@@ -1,7 +1,61 @@
 ﻿#pragma once
 
+#include <type_traits>
+#include <utility>
+#include <initializer_list>
+#include <chrono>
+#include <optional>
+#include <variant>
+#include <array>
+#include <tuple>
+#include <vector>
+#include <queue>
+#include <deque>
+#include <string>
+#include <sstream>
+#include <string_view>
+#include <charconv>
+#include <unordered_set>
+#include <unordered_map>
+#include <set>
+#include <map>
+#include <memory>
+#include <functional>
+#include <stdexcept>
+#include <algorithm>
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+#include <cmath>
+#include <cstddef>
+#include <cstring>
+#include <ctime>
+#include <cstdint>
+#include <cassert>
+
+#ifdef _WIN32
+#include <intrin.h>     // _BitScanReverseXXXX _byteswap_XXXX
+#endif
+
 #ifndef _WIN32
 #include <arpa/inet.h>  // __BYTE_ORDER __LITTLE_ENDIAN __BIG_ENDIAN
+#endif
+
+#ifdef _WIN32
+#	define NOMINMAX
+#	define NODRAWTEXT
+//#	define NOGDI            // d3d9 need it
+#	define NOBITMAP
+#	define NOMCX
+#	define NOSERVICE
+#	define NOHELP
+#	define WIN32_LEAN_AND_MEAN
+#   include <WinSock2.h>
+#	include <Windows.h>
+#else
+#	include <unistd.h>    // for usleep
 #endif
 
 #ifndef XX_NOINLINE
@@ -36,11 +90,6 @@
 #	define XX_STRINGIFY(x)  XX_STRINGIFY_(x)
 #	define XX_STRINGIFY_(x)  #x
 #endif
-
-#define XX_HAS_TYPEDEF( TN ) \
-template<typename, typename = void> struct HasTypedef_##TN : std::false_type {}; \
-template<typename T> struct HasTypedef_##TN<T, std::void_t<typename T::TN>> : std::true_type {}; \
-template<typename T> constexpr bool TN = HasTypedef_##TN<T>::value;
 
 #if defined(__i386__) || defined(i386) || defined(_M_IX86) || defined(_X86_) || defined(__THW_INTEL) || defined(__x86_64__) || defined(_M_X64)
 #    define XX_ARCH_IA
@@ -77,7 +126,7 @@ template<typename T> constexpr bool TN = HasTypedef_##TN<T>::value;
 #ifndef _countof
 template<typename T, size_t N>
 size_t _countof(T const (&arr)[N]) {
-	return N;
+    return N;
 }
 #endif
 
@@ -90,6 +139,11 @@ size_t _countof(T const (&arr)[N]) {
   ((type *) ((char *) (ptr) - _offsetof(type, member)))
 #endif
 
+#ifndef _WIN32
+inline void Sleep(int const& ms) {
+    usleep(ms * 1000);
+}
+#endif
 
 #define XX_SIMPLE_STRUCT_DEFAULT_CODES(T)\
 T() = default;\
@@ -97,7 +151,6 @@ T(T const&) = default;\
 T(T &&) = default;\
 T& operator=(T const&) = default;\
 T& operator=(T &&) = default;
-
 
 // stackless 协程相关
 // 当前主要用到这些宏。只有 lineNumber 一个特殊变量名要求
@@ -107,47 +160,15 @@ T& operator=(T &&) = default;
 #define COR_END		} return 0;
 
 /*
-	int lineNumber = 0;
-	int Update() {
-		COR_BEGIN
-			// COR_YIELD
-		COR_END
-	}
-	... lineNumber = Update();
+    int lineNumber = 0;
+    int Update() {
+        COR_BEGIN
+            // COR_YIELD
+        COR_END
+    }
+    ... lineNumber = Update();
 */
 
-
-#define XX_ENUM_OPERATOR_EXT( EnumTypeName )                                                                    \
-inline EnumTypeName operator+(EnumTypeName const &a, std::underlying_type_t<EnumTypeName> const &b)	{			\
-    return EnumTypeName((std::underlying_type_t<EnumTypeName>)(a) + b);											\
-}                                                                                                               \
-inline EnumTypeName operator+(EnumTypeName const &a, EnumTypeName const &b) {                                   \
-    return EnumTypeName((std::underlying_type_t<EnumTypeName>)(a) + (std::underlying_type_t<EnumTypeName>)(b));	\
-}                                                                                                               \
-inline EnumTypeName operator-(EnumTypeName const &a, std::underlying_type_t<EnumTypeName> const &b)	{			\
-    return EnumTypeName((std::underlying_type_t<EnumTypeName>)(a) - b);											\
-}                                                                                                               \
-inline std::underlying_type_t<EnumTypeName> operator-(EnumTypeName const &a, EnumTypeName const &b)	{			\
-    return (std::underlying_type_t<EnumTypeName>)(a) - (std::underlying_type_t<EnumTypeName>)(b);				\
-}                                                                                                               \
-inline EnumTypeName operator++(EnumTypeName &a) {                                                               \
-    a = EnumTypeName((std::underlying_type_t<EnumTypeName>)(a) + 1);											\
-    return a;                                                                                                   \
-}
-
-/*
-SFINAE check menber function exists
-sample：
-
-XX_HAS_FUNC( xxxxxxxxfunc_checker, FuncName, RT ( T::* )( params... ) const );
-*/
-#define XX_HAS_FUNC( CN, FN, FT )   \
-template<typename CT>                                                               \
-class CN {                                                                          \
-    template<typename T, FT> struct FuncMatcher;                                    \
-    template<typename T> static char HasFunc( FuncMatcher<T, &T::FN>* );            \
-    template<typename T> static int HasFunc( ... );                                 \
-public:                                                                             \
-    static const bool value = sizeof( HasFunc<CT>( nullptr ) ) == sizeof(char);     \
-}
-
+using namespace std::string_literals;
+using namespace std::string_view_literals;
+using namespace std::chrono_literals;

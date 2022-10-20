@@ -1,13 +1,32 @@
 ﻿#pragma once
-
 #include "xx_ptr.h"
-#include "xx_data_funcs.h"
-#include "xx_string.h"
 
 // 辅助宏在最下面
 
 namespace xx {
 
+	/************************************************************************************/
+    // TypeId 映射
+    template<typename T>
+    struct TypeId {
+        static const uint16_t value = 0;
+    };
+
+    template<typename T>
+    constexpr uint16_t TypeId_v = TypeId<T>::value;
+
+    /*
+    // 方便复制
+
+namespace xx {
+    template<>
+    struct TypeId<XXXXXXXXXXXXXX> {
+        static const uint16_t value = XXXXXXXX;
+    };
+}
+*/
+
+	/************************************************************************************/
 	// Object 智能指针头，附加了点东西
 	struct ObjPtrHeader : PtrHeaderBase {
 		uint32_t typeId;        // 序列化 或 类型转换用
@@ -35,11 +54,11 @@ namespace xx {
 	template<typename T, typename ENABLED = void>
 	struct ObjFuncs {
 		static inline void Write(ObjManager& om, Data& d, T const& in) {
-			std::string s(TypeName_v<T>);
+			std::string s(TypeName<T>());
 			assert(false);
 		}
 		static inline void WriteFast(ObjManager& om, Data& d, T const& in) {
-			std::string s(TypeName_v<T>);
+			std::string s(TypeName<T>());
 			assert(false);
 		}
 		static inline int Read(ObjManager& om, Data_r& d, T& out) {
@@ -49,7 +68,7 @@ namespace xx {
 			return xx::Append(s, in);
 		}
 		static inline void AppendCore(ObjManager& om, std::string& s, T const& in) {
-			std::string ss(TypeName_v<T>);
+			std::string ss(TypeName<T>());
 			assert(false);
 		}
 		static inline void Clone(ObjManager& om, T const& in, T& out) {

@@ -1,4 +1,5 @@
-﻿#include <xx_string_http.h>
+﻿#include <xx_helpers.h>
+#include <xx_string_http.h>
 
 int main() {
 	for (size_t j = 0; j < 10; j++) {
