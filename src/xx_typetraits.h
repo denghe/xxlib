@@ -266,7 +266,7 @@ namespace xx {
     struct IsContainer<T, std::void_t<decltype(std::declval<T>().data()), decltype(std::declval<T>().size())>>
         : std::true_type {};
     template<typename T>
-    constexpr bool IsIsContainer_v = IsContainer<T>::value;
+    constexpr bool IsContainer_v = IsContainer<T>::value;
 
 
     /************************************************************************************/

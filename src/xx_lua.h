@@ -185,8 +185,8 @@ namespace xx::Lua {
 	template<typename K, typename V>
 	void GetGlobal(lua_State* const& L, K const& k, V& v) {
 		auto top = lua_gettop(L);
-		if constexpr (std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
-			lua_getglobal(L, k.c_str());
+		if constexpr (xx::IsContainer_v<K>) {
+			lua_getglobal(L, k.data());
 		}
 		else {
 			lua_getglobal(L, k);
@@ -320,8 +320,8 @@ namespace xx::Lua {
 	template<typename T, typename...Args>
 	void CallGlobalFunc(lua_State* const& L, T&& funcName, Args &&...args) {
         CheckStack(L, 1);
-		if constexpr (std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
-			lua_getglobal(L, funcName.c_str());
+		if constexpr (xx::IsContainer_v<T>) {
+			lua_getglobal(L, funcName.data());
 		}
 		else {
 			lua_getglobal(L, funcName);

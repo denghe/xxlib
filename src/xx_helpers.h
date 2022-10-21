@@ -7,6 +7,10 @@
 #include <xx_data.h>
 #include <xx_string.h>
 
+#if __has_include("xx_hide_string.h")
+# include <xx_hide_string.h>
+#endif
+
 namespace xx {
 }
 

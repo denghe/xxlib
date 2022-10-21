@@ -54,11 +54,11 @@ namespace xx {
 	template<typename T, typename ENABLED = void>
 	struct ObjFuncs {
 		static inline void Write(ObjManager& om, Data& d, T const& in) {
-			std::string s(TypeName<T>());
+			auto s = TypeName<T>();
 			assert(false);
 		}
 		static inline void WriteFast(ObjManager& om, Data& d, T const& in) {
-			std::string s(TypeName<T>());
+			auto s = TypeName<T>();
 			assert(false);
 		}
 		static inline int Read(ObjManager& om, Data_r& d, T& out) {
@@ -68,7 +68,7 @@ namespace xx {
 			return xx::Append(s, in);
 		}
 		static inline void AppendCore(ObjManager& om, std::string& s, T const& in) {
-			std::string ss(TypeName<T>());
+			auto s = TypeName<T>();
 			assert(false);
 		}
 		static inline void Clone(ObjManager& om, T const& in, T& out) {
