@@ -27,6 +27,14 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <fstream>
+#include <filesystem>
+#if __has_include(<span>)
+#include <span>
+#endif
+#if __has_include(<format>)
+#include <format>
+#endif
 
 #include <cmath>
 #include <cstddef>
@@ -34,14 +42,6 @@
 #include <ctime>
 #include <cstdint>
 #include <cassert>
-
-#ifdef _WIN32
-#include <intrin.h>     // _BitScanReverseXXXX _byteswap_XXXX
-#endif
-
-#ifndef _WIN32
-#include <arpa/inet.h>  // __BYTE_ORDER __LITTLE_ENDIAN __BIG_ENDIAN
-#endif
 
 #ifdef _WIN32
 #	define NOMINMAX
@@ -53,9 +53,13 @@
 #	define NOHELP
 #	define WIN32_LEAN_AND_MEAN
 #   include <WinSock2.h>
+#   include <process.h>
 #	include <Windows.h>
+#   include <intrin.h>     // _BitScanReverseXXXX _byteswap_XXXX
+#   include <ShlObj.h>
 #else
 #	include <unistd.h>    // for usleep
+#   include <arpa/inet.h>  // __BYTE_ORDER __LITTLE_ENDIAN __BIG_ENDIAN
 #endif
 
 #ifndef XX_NOINLINE

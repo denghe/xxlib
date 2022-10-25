@@ -43,7 +43,7 @@ namespace xx {
     // 格式化追加, {0} {1}... 这种. 针对重复出现的参数, 是从已经追加出来的字串区域复制, 故追加自己并不会导致内容翻倍
     template<typename...TS>
     size_t AppendFormat(std::string& s, char const* const& format, TS const&...vs) {
-        std::array<std::string_view, sizeof...(vs)> cache{};
+        std::array<std::pair<size_t, size_t>, sizeof...(vs)> cache{};
         size_t offset = 0;
         while (auto c = format[offset]) {
             if (c == '{') {
@@ -56,13 +56,13 @@ namespace xx {
                     while ((c = format[offset])) {
                         if (c == '}') {
                             if (i >= sizeof...(vs)) return i;   // error
-                            if (cache[i].size()) {
-                                s.append(cache[i]);
+                            if (cache[i].second) {
+                                s.append(s.data() + cache[i].first, cache[i].second);
                             }
                             else {
-                                auto bak = s.size();
+                                cache[i].first = s.size();
                                 AppendFormatCore(std::make_index_sequence<sizeof...(TS)>(), s, i, vs...);
-                                cache[i] = std::string_view(&s[bak], s.size() - bak);
+                                cache[i].second = s.size() - cache[i].first;
                             }
                             break;
                         }

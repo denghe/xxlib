@@ -1,11 +1,5 @@
 ﻿#pragma once
-#include "xx_helpers.h"
-#include <fstream>
-#include <filesystem>
-#ifdef _WIN32
-#include <ShlObj.h>
-#endif
-
+#include <xx_helpers.h>
 
 namespace xx
 {

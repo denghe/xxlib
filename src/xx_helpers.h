@@ -7,11 +7,51 @@
 #include <xx_data.h>
 #include <xx_string.h>
 
-#if __has_include("xx_hide_string.h")
+#if __has_include(<xx_hide_string.h>)
 # include <xx_hide_string.h>
 #endif
 
 namespace xx {
+
+#ifdef _WIN32
+	template<bool hideWindow = true>
+	inline static HANDLE PopupConsole(LPCSTR exePath, LPSTR cmdLineArgs) {
+		STARTUPINFOA si;
+		PROCESS_INFORMATION pi;
+		memset(&si, 0, sizeof(si));
+		si.cb = sizeof(si);
+		if constexpr (hideWindow) {
+			si.dwFlags = STARTF_USESHOWWINDOW;
+			si.wShowWindow = SW_HIDE;
+		}
+		if (!CreateProcessA(
+			exePath,
+			cmdLineArgs,
+			NULL,
+			NULL,
+			FALSE,
+			CREATE_NEW_CONSOLE,
+			NULL,
+			NULL,
+			&si,
+			&pi
+		)) {
+			auto e = GetLastError();
+			CloseHandle(pi.hThread);
+			return 0;
+		}
+		return pi.hProcess;
+	}
+	/*
+	if (h != NULL) {
+		while (WAIT_TIMEOUT == WaitForSingleObject(ff, 500)) {
+			// your wait code goes here.
+		}
+		CloseHandle(h);
+	}
+	*/
+#endif
+
 }
 
 // 可为 enum 类型附加一些可能用得到的 运算符操作
