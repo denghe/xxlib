@@ -1,0 +1,40 @@
+如何编译 libvpx
+
+官方git
+https://github.com/webmproject/libvpx
+
+1. windows
+可以使用下面这个项目.  找到 sln 文件打开编译即可
+https://github.com/ShiftMediaProject/libvpx.git
+已知问题：yasm 项目支持报错，去拉下面这个 git, 并管理员执行 安装 bat 即可
+https://github.com/ShiftMediaProject/VSYASM.git
+
+2. android
+ubuntu 22 桌面版下，自带的软件商店中 勾选 android studio 安装( 可以自定义安装，跳过1G多的虚拟机不下载 )，并勾选 NDK 25 啥的最新版
+理论上讲，在 别的 linux 环境或者 mac 下面也都可以，只要能定位到 ndk ( 没有就下载 )
+
+然后创建一个目录，比如叫 libvpx_armv7. 进去再创建一个 jni 目录，将官方 git 拉的 libvpx 目录放入
+
+之后在 jni 目录下, 控制台 执行下面的指令，配置要编译的东西( 这里针对 armv7 平台，只需要 vp9_decoder )
+./libvpx/configure --target=armv7-android-gcc --enable-external-build --disable-examples --disable-unit-tests --disable-tools --disable-docs --disable-vp8_encoder --disable-vp8_decoder --disable-vp9_encoder --disable-webm_io --disable-libyuv
+
+接着创建 Android.mk 文件，内容如下:
+LOCAL_PATH := $(call my-dir)
+include $(CLEAR_VARS)
+include libvpx/build/make/Android.mk
+
+再创建 Application.mk 文件，内容如下: （ 可以根据情况改 )
+APP_ABI := armeabi-v7a
+APP_PLATFORM := android-33
+APP_STL := c++_shared
+APP_OPTIM := release
+
+NDK_TOOLCHAIN_VERSION := 4.9
+
+最后，在 jni 目录下，控制台执行 ndk-build  ( 路径可能是   ~/Android/Sdk/ndk/25.1.8937393/ndk-build  这样 )
+至此，等编译完成，即可在和 jni 同级 的 obj 目录（ build 过程中自动创建 ) 中, 找到 libvpx.a
+
+需要 arm64 就对上述流程做相应修改即可:  --target=arm64-android-gcc        APP_ABI := arm64-v8a
+
+3. mac/ios
+todo
