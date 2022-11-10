@@ -68,7 +68,7 @@ namespace xx {
 			return xx::Append(s, in);
 		}
 		static inline void AppendCore(ObjManager& om, std::string& s, T const& in) {
-			auto s = TypeName<T>();
+			auto ss = TypeName<T>();
 			assert(false);
 		}
 		static inline void Clone(ObjManager& om, T const& in, T& out) {
@@ -1160,8 +1160,7 @@ T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
 T(T&& o) = default; \
-T& operator=(T&& o) = default; \
-bool operator==(T const&) const = default;
+T& operator=(T&& o) = default;
 
 #define XX_OBJ_STRUCT_TEMPLATE_H(T) \
 template<> \
