@@ -42,6 +42,10 @@ bool operator!=(XY const& v) const {
     return x != v.x || y != v.y;
 }
 
+bool operator==(XY const& v) const {
+    return x == v.x && y == v.y;
+}
+
 #ifdef CC_STATIC
 	operator cocos2d::Point() {
 		return { (float)x, (float)y };

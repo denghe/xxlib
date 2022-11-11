@@ -11,6 +11,7 @@ namespace xx {
     struct PtrHeaderBase {
         uint32_t sharedCount;           // 强引用计数
         uint32_t weakCount;             // 弱引用计数
+        uint64_t placeHolder;           // 对于无虚析构的类型来讲，这里用来存 deleter
 
         // 创建时会调用这个函数来初始化。派生类需要提供自己的初始化函数 并调用基类的 这个函数
         template<typename T>
@@ -87,8 +88,8 @@ namespace xx {
         // for ObjPtrHeader only
         [[maybe_unused]] [[nodiscard]] XX_INLINE uint32_t GetTypeId() const noexcept {
             if (!pointer) return 0;
-            assert(GetHeader()->typeId);
-            return GetHeader()->typeId;
+            assert(GetHeader()->typeId());
+            return GetHeader()->typeId();
         }
 
         // unsafe
@@ -102,7 +103,13 @@ namespace xx {
                 assert(h->sharedCount);
                 // 不能在这里 -1, 这将导致成员 weak 指向自己时触发 free
                 if (h->sharedCount == 1) {
-                    pointer->~T();
+                    if constexpr (!std::has_virtual_destructor_v<T>) {
+                        typedef void(*D)(void*);
+                        (*(D*)&GetHeader()->placeHolder)(pointer);
+                    }
+                    else {
+                        pointer->~T();
+                    }
                     pointer = nullptr;
                     if (h->weakCount == 0) {
                         free(h);
@@ -466,6 +473,14 @@ namespace xx {
     [[maybe_unused]] [[nodiscard]] Shared<T> Make(Args &&...args) {
         Shared<T> rtv;
         rtv.Emplace(std::forward<Args>(args)...);
+        if constexpr (!std::has_virtual_destructor_v<T>) {
+            typedef void(*D)(void*);
+            *(D*)&rtv.GetHeader()->placeHolder = [](void* o) {
+                //std::cout << "delete (" << xx::TypeName<T>() << "*)o = " << (size_t)o << std::endl;
+                ((T*)o)->~T();
+            };
+        }
+        //std::cout << "Make<" << xx::TypeName<T>() << ">.pointer = " << (size_t)rtv.pointer << std::endl;
         return rtv;
     }
 

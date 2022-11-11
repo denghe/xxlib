@@ -43,6 +43,7 @@ namespace SS {
         ControlState cs;
     };
 
+    [Include]
     [Desc("射击者的控制指令面板")]
     struct ControlState {
         [Desc("鼠标坐标( 位于场景容器中的 )")]

@@ -107,6 +107,7 @@
     <None Include="ss_SSBullet.inc" />
     <None Include="ss_SSBullet_Straight.inc" />
     <None Include="ss_SSBullet_Track.inc" />
+    <None Include="ss_SSControlState.inc" />
     <None Include="ss_SSScene.inc" />
     <None Include="ss_SSShooter.inc" />
     <None Include="ss_SSXY.inc" />

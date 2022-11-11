@@ -1,22 +1,46 @@
-﻿#include <xx_helpers.h>
+﻿#include <xx_ptr.h>
 
-struct Foo {
-    void operator()() {
+struct A {
+    ~A() {
+        std::cout << "~A" << std::endl;
     }
 };
-struct lambda {
-
+struct B : A {
+    ~B() {
+        std::cout << "~B" << std::endl;
+    }
 };
 
 int main() {
-    auto f = [] {};
-    std::cout << xx::IsLambda_v<decltype(f)> << std::endl;
-    std::cout << xx::IsLambda_v<Foo> << std::endl;
-    std::cout << xx::IsCallable_v<Foo> << std::endl;
-    std::cout << xx::IsLambda_v<lambda> << std::endl;
-
+    xx::Shared<A> o;
+    o = xx::Make<B>();
     return 0;
 }
+
+
+
+
+
+
+//#include <xx_helpers.h>
+//
+//struct Foo {
+//    void operator()() {
+//    }
+//};
+//struct lambda {
+//
+//};
+//
+//int main() {
+//    auto f = [] {};
+//    std::cout << xx::IsLambda_v<decltype(f)> << std::endl;
+//    std::cout << xx::IsLambda_v<Foo> << std::endl;
+//    std::cout << xx::IsCallable_v<Foo> << std::endl;
+//    std::cout << xx::IsLambda_v<lambda> << std::endl;
+//
+//    return 0;
+//}
 
 
 

@@ -51,6 +51,9 @@
     <None Include="ss_SSXY.inc">
       <Filter>PKG</Filter>
     </None>
+    <None Include="ss_SSControlState.inc">
+      <Filter>PKG</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ss.h">

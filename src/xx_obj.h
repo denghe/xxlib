@@ -27,19 +27,32 @@ namespace xx {
 */
 
 	/************************************************************************************/
-	// Object 智能指针头，附加了点东西
+	// Object 智能指针头，利用 header 的 placeHolder 存 typeId 和 offset
 	struct ObjPtrHeader : PtrHeaderBase {
-		uint32_t typeId;        // 序列化 或 类型转换用
-		uint32_t offset;        // 序列化等过程中使用
+		// 序列化 或 类型转换用
+		uint32_t& typeId() {
+			return ((uint32_t*)&this->placeHolder)[0];
+		}
+		uint32_t const& typeId() const {
+			return ((uint32_t*)&this->placeHolder)[0];
+		}
+		// 序列化等过程中使用
+		uint32_t& offset() {
+			return ((uint32_t*)&this->placeHolder)[1];
+		}
+		uint32_t const& offset() const {
+			return ((uint32_t*)&this->placeHolder)[1];
+		}
 
 		template<typename T>
 		inline static void Init(ObjPtrHeader& p) {
 			PtrHeaderBase::Init<T>(p);
-			p.typeId = TypeId_v<T>;
-			p.offset = 0;
+			p.typeId() = TypeId_v<T>;
+			p.offset() = 0;
 		}
 	};
 
+	// 这里没办法做 std::has_virtual_destructor_v<T> check. 要自己保证 T 带虚析构
 	struct ObjBase;
 	template<typename T>
 	struct PtrHeaderSwitcher<T, std::enable_if_t< (std::is_same_v<ObjBase, T> || TypeId_v<T> > 0) >> {
@@ -196,7 +209,7 @@ namespace xx {
 				return v.template ReinterpretCast<T>();
 			}
 			else {
-				if (!v || !IsBaseOf<T>(v.GetHeader()->typeId)) {
+				if (!v || !IsBaseOf<T>(v.GetHeader()->typeId())) {
 					return null.template ReinterpretCast<T>();
 				}
 				return v.template ReinterpretCast<T>();
@@ -231,7 +244,7 @@ namespace xx {
 				assert(v);
 				using U = typename T::ElementType;
 				if constexpr (direct) {
-					assert(((ObjPtrHeader*)v.pointer - 1)->typeId == TypeId_v<U>);
+					assert(((ObjPtrHeader*)v.pointer - 1)->typeId() == TypeId_v<U>);
 				}
 				if constexpr (direct && IsSimpleType_v<U>) {
 					d.WriteVarInteger<needReserve>(TypeId_v<U>);
@@ -239,7 +252,7 @@ namespace xx {
 					return;
 				}
 				else {
-					auto tid = ((ObjPtrHeader*)v.pointer - 1)->typeId;
+					auto tid = ((ObjPtrHeader*)v.pointer - 1)->typeId();
 					if (simples[tid]) {
 						d.WriteVarInteger<needReserve>(tid);
 						Write_<needReserve>(d, *v.pointer);
@@ -283,17 +296,17 @@ namespace xx {
 					else {
 						// 写入格式： idx + typeId + content ( idx 临时存入 h->offset )
 						auto h = ((ObjPtrHeader*)v.pointer - 1);
-						if (h->offset == 0) {
-							ptrs.push_back(&h->offset);
-							h->offset = (uint32_t)ptrs.size();
+						if (h->offset() == 0) {
+							ptrs.push_back(&h->offset());
+							h->offset() = (uint32_t)ptrs.size();
 							if constexpr (!isFirst) {
-								d.WriteVarInteger<needReserve>(h->offset);
+								d.WriteVarInteger<needReserve>(h->offset());
 							}
-							d.WriteVarInteger<needReserve>(h->typeId);
+							d.WriteVarInteger<needReserve>(h->typeId());
 							Write_<needReserve>(d, *v.pointer);
 						}
 						else {
-							d.WriteVarInteger<needReserve>(h->offset);
+							d.WriteVarInteger<needReserve>(h->offset());
 						}
 					}
 				}
@@ -645,13 +658,13 @@ namespace xx {
 				if (v) {
 					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 						auto h = ((ObjPtrHeader*)v.pointer - 1);
-						if (h->offset == 0) {
-							ptrs.push_back(&h->offset);
-							h->offset = (uint32_t)ptrs.size();
+						if (h->offset() == 0) {
+							ptrs.push_back(&h->offset());
+							h->offset() = (uint32_t)ptrs.size();
 							Append_(s, *v);
 						}
 						else {
-							s.append(std::to_string(h->offset));
+							s.append(std::to_string(h->offset()));
 						}
 					}
 					else {
@@ -749,8 +762,8 @@ namespace xx {
 		XX_INLINE void CloneTo(T const& in, T& out) {
 			Clone_(in, out);
 			for (auto& kv : weaks) {
-				if (kv.first->offset) {
-					auto h = (ObjPtrHeader*)ptrs2[kv.first->offset - 1] - 1;
+				if (kv.first->offset()) {
+					auto h = (ObjPtrHeader*)ptrs2[kv.first->offset() - 1] - 1;
 					++h->weakCount;
 					*kv.second = h;
 				}
@@ -799,9 +812,9 @@ namespace xx {
 					}
 					else {
 						auto h = ((ObjPtrHeader*)in.pointer - 1);
-						if (h->offset == 0) {
-							ptrs.push_back(&h->offset);
-							h->offset = (uint32_t)ptrs.size();
+						if (h->offset() == 0) {
+							ptrs.push_back(&h->offset());
+							h->offset() = (uint32_t)ptrs.size();
 
 							auto inTypeId = in.GetTypeId();
 							if (out.GetTypeId() != inTypeId) {
@@ -811,7 +824,7 @@ namespace xx {
 							Clone_(*in, *out);
 						}
 						else {
-							out = *(T*)&ptrs2[h->offset - 1];
+							out = *(T*)&ptrs2[h->offset() - 1];
 						}
 					}
 				}
@@ -907,9 +920,9 @@ namespace xx {
 			if constexpr (IsShared_v<T>) {
 				if (v) {
 					auto h = ((ObjPtrHeader*)v.pointer - 1);
-					if (h->offset == 0) {
-						h->offset = 1;
-						ptrs.push_back(&h->offset);
+					if (h->offset() == 0) {
+						h->offset() = 1;
+						ptrs.push_back(&h->offset());
 						RecursiveReset_(*v);
 					}
 					else {
@@ -995,12 +1008,12 @@ namespace xx {
 			if constexpr (IsShared_v<T>) {
 				if (v) {
 					auto h = ((ObjPtrHeader*)v.pointer - 1);
-					if (h->offset == 0) {
-						ptrs.push_back(&h->offset);
-						h->offset = (uint32_t)ptrs.size();
+					if (h->offset() == 0) {
+						ptrs.push_back(&h->offset());
+						h->offset() = (uint32_t)ptrs.size();
 						return RecursiveCheck_(*v);
 					}
-					else return h->offset;
+					else return h->offset();
 				}
 			}
 			else if constexpr (IsWeak_v<T>) {

@@ -2,7 +2,7 @@
 #include <xx_obj.h>
 #include <ss.h.inc>
 struct CodeGen_ss {
-	inline static const ::std::string md5 = "#*MD5<4dfeba995b8f0fc0490f5e2f4e96932c>*#";
+	inline static const ::std::string md5 = "#*MD5<a5ec32f8f0a84959a520e7d3d15c49d9>*#";
     static void Register();
     CodeGen_ss() { Register(); }
 };
@@ -45,6 +45,7 @@ namespace SS {
     struct ControlState {
         XX_OBJ_STRUCT_H(ControlState)
         using IsSimpleType_v = ControlState;
+#include <ss_SSControlState.inc>
         // 鼠标坐标( 位于场景容器中的 )
         ::SS::XY aimPos;
         // 左移
