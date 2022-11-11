@@ -4,10 +4,13 @@
 https://github.com/webmproject/libvpx
 
 1. windows
-可以使用下面这个项目.  找到 sln 文件打开编译即可
-https://github.com/ShiftMediaProject/libvpx.git
-已知问题：yasm 项目支持报错，去拉下面这个 git, 并管理员执行 安装 bat 即可
-https://github.com/ShiftMediaProject/VSYASM.git
+该步骤要在 msys64 环境下执行( MSYS2 MinGW x64 这个快捷方式 )
+为便于操作，先将 libvpx 复制一份到 msys64 的 home 目录
+再建一个同级的 build 目录啥的，进入，之后执行
+../libvpx/configure --target=x86_64-win64-vs17 --disable-examples --disable-unit-tests --disable-tools --disable-docs --disable-vp8_encoder --disable-vp8_decoder --disable-vp9_encoder --disable-webm_io --disable-libyuv
+make
+继续用 vs 打开 sln 即可编译
+最后在 build\x64\Release 目录下找到 vpxmd.lib. 用的时候可能得改成叫 libvpx.lib
 
 2. android
 ubuntu 22 桌面版下，自带的软件商店中 勾选 android studio 安装( 可以自定义安装，跳过1G多的虚拟机不下载 )，并勾选 NDK 25 啥的最新版
