@@ -241,7 +241,7 @@ namespace xx {
         struct Weak<T> ToWeak() const noexcept;
 
         // 填充式 make
-        template<typename...Args>
+        template<typename U = T, typename...Args>
         Shared &Emplace(Args &&...args);
 
         // singleton convert to std::shared_ptr ( usually for thread safe )
@@ -424,11 +424,18 @@ namespace xx {
     }
 
     template<typename T>
-    template<typename...Args>
+    template<typename U, typename...Args>
     Shared<T> &Shared<T>::Emplace(Args &&...args) {
         Reset();
         auto h = (HeaderType *) malloc(sizeof(HeaderType) + sizeof(T));
         HeaderType::template Init<T>(*h);
+        if constexpr (!std::has_virtual_destructor_v<U>) {
+            typedef void(*D)(void*);
+            *(D*)&h->placeHolder = [](void* o) {
+                //std::cout << "delete (" << xx::TypeName<U>() << "*)o = " << (size_t)o << std::endl;
+                ((T*)o)->~U();
+            };
+        }
         pointer = new(h + 1) T(std::forward<Args>(args)...);
         return *this;
     }
@@ -473,13 +480,6 @@ namespace xx {
     [[maybe_unused]] [[nodiscard]] Shared<T> Make(Args &&...args) {
         Shared<T> rtv;
         rtv.Emplace(std::forward<Args>(args)...);
-        if constexpr (!std::has_virtual_destructor_v<T>) {
-            typedef void(*D)(void*);
-            *(D*)&rtv.GetHeader()->placeHolder = [](void* o) {
-                //std::cout << "delete (" << xx::TypeName<T>() << "*)o = " << (size_t)o << std::endl;
-                ((T*)o)->~T();
-            };
-        }
         //std::cout << "Make<" << xx::TypeName<T>() << ">.pointer = " << (size_t)rtv.pointer << std::endl;
         return rtv;
     }

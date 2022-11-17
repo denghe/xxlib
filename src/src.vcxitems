@@ -46,6 +46,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_mysql.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_nodepool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_obj.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_openssl_random.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_podpool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_podvector.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr.h" />
