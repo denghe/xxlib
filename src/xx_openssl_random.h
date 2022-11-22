@@ -24,9 +24,9 @@ namespace xx {
 			std::conditional_t<sizeof(V) == 4, uint32_t, uint64_t> v;
 			OpenSSL_RandomNextBytes(&v, sizeof(V));
 			if constexpr (sizeof(V) == 4) {
-				return (float)v / 0xFFFFFFFFu;
+				return (float)(double(v) / 0xFFFFFFFFu);
 			} else if constexpr (sizeof(V) == 8) {
-				constexpr auto max53 = (1ull << 54) - 1;
+				constexpr auto max53 = (1ull << 53) - 1;
 				return double(v & max53) / max53;
 			}
 		}
