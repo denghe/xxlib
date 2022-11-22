@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "xx_macro.h"
+#include "xx_helpers.h"
 
 // 注意：如果是 msvc, 需要打开编译参数  /Zc:preprocessor    项目设置 -- preprocessor -- use standard comforming preprocessor -- YES
 
