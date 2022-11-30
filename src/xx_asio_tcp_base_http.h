@@ -68,6 +68,9 @@ namespace xx {
 			if constexpr (h == HtmlHeaders::OK_200_Html_Cache || h == HtmlHeaders::OK_200_Html || h == HtmlHeaders::NotFound_404_Html_Cache || h == HtmlHeaders::NotFound_404_Html) {
 				out.WriteBuf<false>("\r\nContent-Type: text/html;charset=utf-8"sv);
 			}
+			if constexpr (h == HtmlHeaders::OK_200_Text_Cache || h == HtmlHeaders::OK_200_Html_Cache || h == HtmlHeaders::NotFound_404_Text_Cache || h == HtmlHeaders::NotFound_404_Html_Cache) {
+				out.WriteBuf<false>("\r\nPragma: no-cache"sv);
+			}
 			out.WriteBuf<false>("\r\nConnection: keep-alive\r\nContent-Length:             \r\n\r\n"sv);	// 预留 12 个内容长度填充空格
 			outHeadLen = out.len;	// 记录 head 总长度
 		}
