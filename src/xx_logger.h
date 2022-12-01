@@ -10,6 +10,7 @@
 #include <atomic>
 #include "ajson.hpp"
 #include "xx_string.h"
+#include "xx_time.h"
 
 // 宏在代码最下方
 

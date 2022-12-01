@@ -193,13 +193,13 @@ namespace xx::MySql {
         // infoHandler 返回 true 将继续对每行数据发起 rowHandler 调用. 返回 false, 将终止调用
         bool Fetch(std::function<bool(Info &)> &&infoHandler, std::function<bool(Reader &)> &&rowHandler);
 
-        // 填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 args 变量
+        // 填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 args 变量, 没有数据返回 false
         template<typename ...Args>
-        void FetchTo(Args &...args);
+        bool FetchTo(Args &...args);
 
-        // 填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 tuple
+        // 填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 tuple, 没有数据返回 false
         template<typename ...Args>
-        void FetchTo(std::tuple<Args...> &tuple);
+        bool FetchTo(std::tuple<Args...> &tuple);
 
         // 针对只有 1 行 1 列的单结果集快速读取. 出错抛异常
         template<typename T>
@@ -531,7 +531,7 @@ namespace xx::MySql {
     }
 
     template<typename ...Args>
-    void Connection::FetchTo(Args &...args) {
+    bool Connection::FetchTo(Args &...args) {
         static_assert(sizeof...(args) > 0);
         // 可能存在多个结果集，并且前面几个可能都没有数据. 于是需要跳过 直到遇到一个有数据的，读一行，扫尾退出
         // 将出参的指针打包存 tuple
@@ -555,15 +555,16 @@ namespace xx::MySql {
         });
         if (!filled) {
             if (hasMoreResult) goto LabRetry;
-            Throw(__LINE__, "no data found, fetch failed.");
+            return false;
         }
         if (hasMoreResult) {
             ClearResult();
         }
+        return true;
     }
 
     template<typename ...Args>
-    void Connection::FetchTo(std::tuple<Args...> &tuple) {
+    bool Connection::FetchTo(std::tuple<Args...> &tuple) {
         bool filled = false;
         LabRetry:
         auto &&hasMoreResult = Fetch([&](Info &info) {
@@ -580,11 +581,12 @@ namespace xx::MySql {
         });
         if (!filled) {
             if (hasMoreResult) goto LabRetry;
-            Throw(__LINE__, "no data found, fetch failed.");
+            return false;
         }
         if (hasMoreResult) {
             ClearResult();
         }
+        return true;
     }
 
     template<typename T>

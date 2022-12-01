@@ -85,11 +85,10 @@ namespace xx {
 
 
     // 带执行环境的版本
-    template<typename Env, size_t numThreads>
+    template<typename Env, size_t numThreads, typename Job = std::function<void(Env&)>>
     struct ThreadPool2 {
         std::array<Env, numThreads> envs;
     protected:
-        using Job = std::function<void(Env&)>;
         std::array<std::thread, numThreads> threads;
         std::queue<Job> jobs;
         std::mutex mtx;
@@ -112,24 +111,18 @@ namespace xx {
                             j = std::move(jobs.front());
                             jobs.pop();
                         }
-                        // 检测 Env 是否存在 operator(). 如果没有这个函数，就执行 j(e);
-                        if constexpr (has_OperatorParentheses<Env>::value) {
-                            e(j);
-                        }
-                        else {
-                            j(e);
-                        }
+                        e(j);
                     }
                     });
             }
         }
 
-        template<typename Func>
-        int Add(Func&& job) {
+        template<typename...Args>
+        int Add(Func&&... jobArgs) {
             {
                 std::unique_lock<std::mutex> lock(mtx);
                 if (stop) return -1;
-                jobs.emplace(std::forward<Func>(job));
+                jobs.emplace(std::forward<Args>(jobArgs)...);
             }
             cond.notify_one();
             return 0;
