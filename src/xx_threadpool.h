@@ -118,11 +118,11 @@ namespace xx {
         }
 
         template<typename...Args>
-        int Add(Func&&... jobArgs) {
+        int Add(Args&&... args) {
             {
                 std::unique_lock<std::mutex> lock(mtx);
                 if (stop) return -1;
-                jobs.emplace(std::forward<Args>(jobArgs)...);
+                jobs.emplace(std::forward<Args>(args)...);
             }
             cond.notify_one();
             return 0;
