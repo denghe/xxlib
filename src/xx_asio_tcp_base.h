@@ -13,13 +13,14 @@ namespace xx {
 	template<class T> constexpr bool Has_Stop_ = _Has_Stop_<T>::value;
 
 	// 最终 Peer 应使用 xx::Shared 包裹使用，以方便 co_spawn 捕获加持, 确保生命周期长于协程
-	template<typename PeerDeriveType, typename IOCType, size_t writeQueueSizeLimit = 100>
+	template<typename PeerDeriveType, typename IOCType, size_t writeQueueSizeLimit = 50000>
 	struct PeerTcpBaseCode : asio::noncopyable {
 		IOCType& ioc;
 		asio::ip::tcp::socket socket;
 		asio::steady_timer writeBlocker;
 		std::deque<xx::DataShared> writeQueue;
 		bool stoped = true;
+		std::string lastTcpBaseErr;
 
 		explicit PeerTcpBaseCode(IOCType& ioc_) : ioc(ioc_), socket(ioc_), writeBlocker(ioc_) {}
 		PeerTcpBaseCode(IOCType& ioc_, asio::ip::tcp::socket&& socket_) : ioc(ioc_), socket(std::move(socket_)), writeBlocker(ioc_) {}
@@ -85,16 +86,20 @@ namespace xx {
 					if (stoped) co_return;
 				}
 				if constexpr (writeQueueSizeLimit) {
-					if (writeQueue.size() > writeQueueSizeLimit)
+					if (writeQueue.size() > writeQueueSizeLimit) {
+						lastTcpBaseErr = "writeQueue.size() > " + std::to_string(writeQueueSizeLimit);
 						break;
+					}
 				}
 				auto& msg = writeQueue.front();
 				auto buf = msg.GetBuf();
 				auto len = msg.GetLen();
 			LabBegin:
 				auto [ec, n] = co_await asio::async_write(socket, asio::buffer(buf, len), use_nothrow_awaitable);
-				if (ec)
+				if (ec) {
+					lastTcpBaseErr = "asio::async_write error: " + std::string(ec.message());
 					break;
+				}
 				if (stoped) co_return;
 				if (n < len) {
 					len -= n;
