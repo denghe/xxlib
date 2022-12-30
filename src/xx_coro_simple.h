@@ -1,9 +1,6 @@
 ﻿#pragma once
 
-// 协程的精简实现. 用法 见最下方 宏 和示例
-
-// 已知问题: 如果用 lambda 带捕获列表 返回 Generator<> 就会出问题。捕获列表中的数据似乎被破坏了
-// 所以确保 [] 为空, 直接通过传参来替代捕获
+// important: only support static function or lambda !!!
 
 #if __has_include(<coroutine>)
 #include <coroutine>

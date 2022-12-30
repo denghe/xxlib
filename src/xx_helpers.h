@@ -1,11 +1,11 @@
 ﻿#pragma once
-#include <xx_includes.h>
-#include <xx_typetraits.h>
-#include <xx_hash.h>
-#include <xx_time.h>
-#include <xx_mem.h>
-#include <xx_data.h>
-#include <xx_string.h>
+#include "xx_includes.h"
+#include "xx_typetraits.h"
+#include "xx_hash.h"
+#include "xx_time.h"
+#include "xx_mem.h"
+#include "xx_data.h"
+#include "xx_string.h"
 
 #if __has_include(<xx_hide_string.h>)
 # include <xx_hide_string.h>

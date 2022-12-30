@@ -1,7 +1,7 @@
 ﻿#pragma once
-#include <xx_includes.h>
-#include <xx_typetraits.h>
-#include <xx_mem.h>
+#include "xx_includes.h"
+#include "xx_typetraits.h"
+#include "xx_mem.h"
 
 namespace xx {
 
@@ -76,6 +76,11 @@ namespace xx {
         XX_INLINE operator bool() const {
             return len != 0;
         }
+
+        // 可轻松转为 std::string_view
+        XX_INLINE operator std::string_view() const {
+            return { (char*)buf, len };
+        }
     };
 
     // Data 序列化 / 反序列化 基础适配模板
@@ -134,6 +139,10 @@ namespace xx {
             return !this->operator==(o);
         }
 
+        [[nodiscard]] bool HasLeft() const {
+            return len > offset;
+        }
+
         [[nodiscard]] size_t LeftLen() const {
             return len - offset;
         }
@@ -151,6 +160,14 @@ namespace xx {
         // 返回剩余 buf ( 不改变 offset )
         [[maybe_unused]] [[nodiscard]] XX_INLINE std::pair<uint8_t*, size_t> GetLeftBuf() {
             return { buf + offset, len - offset };
+        }
+
+        // 跳过 siz 字节不读. 返回非 0 则失败( 长度不足 )
+        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadJump(size_t const &siz) {
+            assert(siz);
+            if (offset + siz > len) return __LINE__;
+            offset += siz;
+            return 0;
         }
 
         // 读 定长buf 到 tar. 返回非 0 则读取失败
@@ -271,6 +288,28 @@ namespace xx {
             }
             return __LINE__;
         }
+
+
+        // 从 buf[offset] 处填充一个指定长度的 string_view. 返回非 0 则读取失败
+        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadSV(std::string_view& sv, size_t const& siz) {
+            if (offset + siz >= len) return __LINE__;
+            auto s = (char*)buf + offset;
+            offset += siz;
+            sv = { s, siz };
+            return 0;
+        }
+
+        // 从 buf[offset] 处填充一个 \0 string_view. 不会超过 buf 总长度. 返回非 0 则读取失败( 只会发生于进函数时 buf 已读光 )
+        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadCStr(std::string_view& sv) {
+            return ReadSV(sv, strlen((char*)buf + offset));
+        }
+        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadCStr(std::string& s) {
+            std::string_view sv;
+            if (int r = ReadCStr(sv)) return r;
+            s = sv;
+            return 0;
+        }
+
 
         // 读出并填充到变量. 可同时填充多个. 返回非 0 则读取失败
         template<typename ...TS>

@@ -1,6 +1,6 @@
 ﻿#pragma once
-#include <xx_includes.h>
-#include <xx_typetraits.h>
+#include "xx_includes.h"
+#include "xx_typetraits.h"
 
 namespace xx {
     // 各种 string 辅助( 主要针对基础数据类型或简单自定义结构 )
@@ -96,6 +96,46 @@ namespace xx {
     }
 
 
+
+    // ucs4 to utf8. write to out. return len
+    inline size_t Char32ToUtf8(char32_t const& c32, char* out) {
+        auto& c = (uint32_t&)c32;
+        auto& o = (uint8_t*&)out;
+        if (c < 0x7F) {
+            o[0] = c;
+            return 1;
+        }
+        else if (c < 0x7FF) {
+            o[0] = 0b1100'0000 | (c >> 6);
+            o[1] = 0b1000'0000 | (c & 0b0011'1111);
+            return 2;
+        }
+        else if (c < 0x10000) {
+            o[0] = 0b1110'0000 | (c >> 12);
+            o[1] = 0b1000'0000 | ((c >> 6) & 0b0011'1111);
+            o[2] = 0b1000'0000 | (c & 0b0011'1111);
+            return 3;
+        }
+        else if (c < 0x110000) {
+            o[0] = 0b1111'0000 | (c >> 18);
+            o[1] = 0b1000'0000 | ((c >> 12) & 0b0011'1111);
+            o[2] = 0b1000'0000 | ((c >> 6) & 0b0011'1111);
+            o[3] = 0b1000'0000 | (c & 0b0011'1111);
+            return 4;
+        }
+        else if (c < 0x1110000) {
+            o[0] = 0b1111'1000 | (c >> 24);
+            o[1] = 0b1000'0000 | ((c >> 18) & 0b0011'1111);
+            o[2] = 0b1000'0000 | ((c >> 12) & 0b0011'1111);
+            o[3] = 0b1000'0000 | ((c >> 6) & 0b0011'1111);
+            o[4] = 0b1000'0000 | (c & 0b0011'1111);
+            return 4;
+        }
+        throw std::logic_error("out of char32_t handled range");
+    }
+
+
+
     /************************************************************************************/
     // StringFuncs 继续适配各种常见数据类型
     /************************************************************************************/
@@ -126,9 +166,19 @@ namespace xx {
 
     // 适配 std::string_view
     template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T>>> {
+    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T> || std::is_base_of_v<std::u8string_view, T>>> {
         static inline void Append(std::string& s, T const& in) {
-            s.append(in);
+            s.append((std::string_view&)in);
+        }
+    };
+
+    // 适配 std::u32string_view
+    template<typename T>
+    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::u32string_view, T>>> {
+        static inline void Append(std::string& s, T const& in) {
+            for (auto& c : in) {
+                Append(s, c);
+            }
         }
     };
 
@@ -164,15 +214,16 @@ namespace xx {
         }
     };
 
-    // 适配所有数字
+
+    // 适配所有数字( char32_t 会转为 utf8 )
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
         static inline void Append(std::string& s, T const& in) {
             if constexpr (std::is_same_v<bool, std::decay_t<T>>) {
                 s.append(in ? "true" : "false");
             }
-            else if constexpr (std::is_same_v<char, T>) {
-                s.push_back(in);
+            else if constexpr (std::is_same_v<char, std::decay_t<T>> || std::is_same_v<char8_t, std::decay_t<T>>) {
+                s.push_back((char)in);
             }
             else if constexpr (std::is_floating_point_v<T>) {
                 std::array<char, 40> buf;
@@ -185,10 +236,17 @@ namespace xx {
 #endif
             }
             else {
-                //s.append(std::to_string(in));
-                std::array<char, 40> buf;
-                auto [ptr, _] = std::to_chars(buf.data(), buf.data() + buf.size(), in);
-                s.append(std::string_view(buf.data(), ptr - buf.data()));
+                if constexpr (std::is_same_v<char32_t, std::decay_t<T>>) {
+                    char buf[8];
+                    auto siz = Char32ToUtf8(in, buf);
+                    s.append(std::string_view(buf, siz));
+                }
+                else {
+                    //s.append(std::to_string(in));
+                    std::array<char, 40> buf;
+                    auto [ptr, _] = std::to_chars(buf.data(), buf.data() + buf.size(), in);
+                    s.append(std::string_view(buf.data(), ptr - buf.data()));
+                }
             }
         }
     };
@@ -462,7 +520,6 @@ namespace xx {
         }
         // todo: more
     }
-
 
 
     inline int FromHex(uint8_t const& c) {
