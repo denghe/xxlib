@@ -416,6 +416,43 @@ namespace xx {
     // utils
     /************************************************************************************/
 
+    constexpr std::string_view base64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"sv;
+
+    inline std::string Base64Encode(std::string_view const& in) {
+        std::string out;
+        int val = 0, valb = -6;
+        for (uint8_t c : in) {
+            val = (val << 8) + c;
+            valb += 8;
+            while (valb >= 0) {
+                out.push_back(base64chars[(val >> valb) & 0x3F]);
+                valb -= 6;
+            }
+        }
+        if (valb > -6) out.push_back(base64chars[((val << 8) >> (valb + 8)) & 0x3F]);
+        while (out.size() % 4) out.push_back('=');
+        return out;
+    }
+
+    inline std::string Base64Decode(std::string_view const& in) {
+        std::string out;
+        std::array<int, 256> T;
+        T.fill(-1);
+        for (int i = 0; i < 64; i++) T[base64chars[i]] = i;
+        int val = 0, valb = -8;
+        for (uint8_t c : in) {
+            if (T[c] == -1) break;
+            val = (val << 6) + T[c];
+            valb += 6;
+            if (valb >= 0) {
+                out.push_back(char((val >> valb) & 0xFF));
+                valb -= 8;
+            }
+        }
+        return out;
+    }
+
+
     inline constexpr std::string_view TrimRight(std::string_view const& s) {
         auto idx = s.find_last_not_of(" \t\n\r\f\v");
         if (idx == std::string_view::npos) return { s.data(), 0 };
@@ -527,6 +564,9 @@ namespace xx {
         else if (c >= 'a' && c <= 'z') return c - 'a' + 10;
         else if (c >= '0' && c <= '9') return c - '0';
         else return 0;
+    }
+    inline uint8_t FromHex(char const* c) {
+        return ((uint8_t)FromHex(c[0]) << 4) | (uint8_t)FromHex(c[1]);
     }
 
     inline void ToHex(uint8_t const& c, uint8_t& h1, uint8_t& h2) {
