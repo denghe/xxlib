@@ -31,17 +31,17 @@ namespace xx {
 	struct ObjPtrHeader : PtrHeaderBase {
 		// 序列化 或 类型转换用
 		uint32_t& typeId() {
-			return ((uint32_t*)&this->placeHolder)[0];
+			return this->placeHolder[0];
 		}
 		uint32_t const& typeId() const {
-			return ((uint32_t*)&this->placeHolder)[0];
+			return this->placeHolder[0];
 		}
 		// 序列化等过程中使用
 		uint32_t& offset() {
-			return ((uint32_t*)&this->placeHolder)[1];
+			return this->placeHolder[1];
 		}
 		uint32_t const& offset() const {
-			return ((uint32_t*)&this->placeHolder)[1];
+			return this->placeHolder[1];
 		}
 
 		template<typename T>

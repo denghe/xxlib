@@ -11,7 +11,7 @@ namespace xx {
     struct PtrHeaderBase {
         uint32_t sharedCount;           // 强引用计数
         uint32_t weakCount;             // 弱引用计数
-        uint64_t placeHolder;           // 对于无虚析构的类型来讲，这里用来存 deleter
+        uint32_t placeHolder[2];        // 对于无虚析构的类型来讲，这里用来存 deleter
 
         // 创建时会调用这个函数来初始化。派生类需要提供自己的初始化函数 并调用基类的 这个函数
         template<typename T>
