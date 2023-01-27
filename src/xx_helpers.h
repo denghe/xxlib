@@ -63,7 +63,7 @@ namespace xx {
 // 可为 enum 类型附加一些可能用得到的 运算符操作
 #define XX_ENUM_OPERATOR_EXT( EnumTypeName )                                                                    \
 inline EnumTypeName operator|(EnumTypeName const& a, EnumTypeName const& b) {									\
-	return EnumTypeName((std::underlying_type_t<EE>)(a) | (std::underlying_type_t<EnumTypeName>)(b));			\
+	return EnumTypeName((std::underlying_type_t<EnumTypeName>)(a) | (std::underlying_type_t<EnumTypeName>)(b));			\
 }																												\
 inline EnumTypeName operator+(EnumTypeName const &a, std::underlying_type_t<EnumTypeName> const &b)	{			\
     return EnumTypeName((std::underlying_type_t<EnumTypeName>)(a) + b);											\
