@@ -278,7 +278,7 @@ namespace xx {
         /****************************************************************************************/
         /****************************************************************************************/
 
-        // 线程开始执行 但是 卡 running，会剧烈消耗 CPU. 在 End 之前，可 Add job 或别的轻微耗时逻辑
+        // 线程开始执行 但是 卡 running，会剧烈消耗 CPU. 在 Commit 之前，可 Add job 或别的轻微耗时逻辑
         void Begin() {
             assert(!threads.empty());
             assert(!running);
@@ -311,13 +311,15 @@ namespace xx {
             }
         }
 
-        // 执行一把 Add 的函数。线程保持允许，并吃 CPU
+        // 执行一把 Add 的函数。线程保持运行，并吃 CPU
         void Go() {
             assert(!threads.empty());
             assert(started && !running);
             running = true;
             int n = (int)threads.size();
-            while(numFinisheds != n) std::this_thread::sleep_for(0s);
+            while (numFinisheds != n) {
+                std::this_thread::sleep_for(0s);
+            }
             running = false;
             numFinisheds = 0;
         }
