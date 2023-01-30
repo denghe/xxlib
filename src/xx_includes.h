@@ -129,6 +129,15 @@
 #    define XX_LIKELY(x)                 __builtin_expect((x), 1)
 #endif
 
+// __restrict like?
+#if defined(__clang__)
+#  define XX_ASSUME(e) __builtin_assume(e)
+#elif defined(__GNUC__) && !defined(__ICC)
+#  define XX_ASSUME(e) if (e) {} else { __builtin_unreachable(); }  // waiting for gcc13 c++23 [[assume]]
+#elif defined(_MSC_VER) || defined(__ICC)
+#  define XX_ASSUME(e) __assume(e)
+#endif
+
 #ifndef _countof
 template<typename T, size_t N>
 size_t _countof(T const (&arr)[N]) {
