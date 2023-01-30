@@ -40,6 +40,18 @@ namespace xx {
 		XY operator-(XY const& v) const {
 			return { x - v.x, y - v.y };
 		}
+		XY operator*(XY const& v) const {
+			return { x * v.x, y * v.y };
+		}
+		XY operator/(XY const& v) const {
+			return { x / v.x, y / v.y };
+		}
+		XY operator+(T const& n) const {
+			return { x + n, y + n };
+		}
+		XY operator-(T const& n) const {
+			return { x - n, y - n };
+		}
 		XY operator*(T const& n) const {
 			return { x * n, y * n };
 		}
