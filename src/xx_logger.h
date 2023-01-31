@@ -791,7 +791,18 @@ namespace xx {
 // android's config maybe can't read at program startup
 // android & ios need writable path for write log
 #ifndef XX_DISABLE_DEFAULT_LOGGER
-inline xx::Logger __xxLogger;
+
+#ifndef XX_LOGGER_INIT_ARG_LOG_MEM_SIZE
+#define XX_LOGGER_INIT_ARG_LOG_MEM_SIZE 8
+#endif
+
+#ifndef XX_LOGGER_INIT_ARG_LOG_NAME
+#define XX_LOGGER_INIT_ARG_LOG_NAME "log_cfg.json"
+#endif
+
+
+inline xx::Logger __xxLogger(XX_LOGGER_INIT_ARG_LOG_MEM_SIZE, XX_LOGGER_INIT_ARG_LOG_NAME);
+
 
 #if defined(LOG_INFO) ||  defined(LOG_WARN) || defined(LOG_ERROR) || defined(LOG_ERR) || defined(LOG_TRACE) || defined(LOG_DEBUG)
 #error
