@@ -63,6 +63,13 @@ namespace xx {
             return *pointer;
         }
 
+        XX_INLINE auto& operator[](size_t const& idx) {
+            return pointer->operator[](idx);
+        }
+        XX_INLINE auto const& operator[](size_t const& idx) const {
+            return pointer->operator[](idx);
+        }
+
         [[maybe_unused]] [[nodiscard]] XX_INLINE explicit operator bool() const noexcept {
             return pointer != nullptr;
         }
