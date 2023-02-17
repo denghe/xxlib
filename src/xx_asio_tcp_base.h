@@ -3,16 +3,7 @@
 
 namespace xx {
 
-	// 各种成员函数是否存在的检测模板
-	template<class T, class = void> struct _Has_Start_ : std::false_type {};
-	template<class T> struct _Has_Start_<T, std::void_t<decltype(std::declval<T&>().Start_())>> : std::true_type {};
-	template<class T> constexpr bool Has_Start_ = _Has_Start_<T>::value;
-
-	template<class T, class = void> struct _Has_Stop_ : std::false_type {};
-	template<class T> struct _Has_Stop_<T, std::void_t<decltype(std::declval<T&>().Stop_())>> : std::true_type {};
-	template<class T> constexpr bool Has_Stop_ = _Has_Stop_<T>::value;
-
-	// 最终 Peer 应使用 xx::Shared 包裹使用，以方便 co_spawn 捕获加持, 确保生命周期长于协程
+	// tips: need wrap by xx::Shared, co_spawn hold for ensure life cycle
 	template<typename PeerDeriveType, typename IOCType, size_t writeQueueSizeLimit = 50000>
 	struct PeerTcpBaseCode : asio::noncopyable {
 		IOCType& ioc;
@@ -25,25 +16,23 @@ namespace xx {
 		explicit PeerTcpBaseCode(IOCType& ioc_) : ioc(ioc_), socket(ioc_), writeBlocker(ioc_) {}
 		PeerTcpBaseCode(IOCType& ioc_, asio::ip::tcp::socket&& socket_) : ioc(ioc_), socket(std::move(socket_)), writeBlocker(ioc_) {}
 
-		// 初始化。通常于 peer 创建后立即调用
+		// will be call after peer created
 		void Start() {
 			if (!stoped) return;
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
-			co_spawn(ioc, [this, self = xx::SharedFromThis(this)] { return PEERTHIS->Read(); }, detached);	// 派生类需要提供 awaitable<void> Read() 的实现
+			co_spawn(ioc, [this, self = xx::SharedFromThis(this)] { return PEERTHIS->Read(); }, detached);	// call PeerDeriveType's member func: awaitable<void> Read()
 			co_spawn(ioc, [self = xx::SharedFromThis(this)] { return self->Write(); }, detached);
 			if constexpr (Has_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
 		}
 
-		// 判断是否已断开
 		bool IsStoped() const {
 			return stoped;
 		}
 
-		// 断开
 		bool Stop() {
 			if (stoped) return false;
 			stoped = true;
@@ -55,7 +44,7 @@ namespace xx {
 			return true;
 		}
 
-		// 数据发送。参数只接受 xx::Data 或 xx::DataShared 这两种类型. 广播需求尽量发 DataShared
+		// tips: broadcast, DataShared is recommend
 		template<typename D>
 		void Send(D&& d) {
 			static_assert(std::is_base_of_v<xx::Data_r, std::decay_t<D>> || std::is_same_v<std::decay_t<D>, xx::DataShared>);
@@ -78,7 +67,7 @@ namespace xx {
 
 	protected:
 
-		// 不停的将 writeQueue 发出的 写 协程函数主体
+		// continues send data in writeQueue
 		awaitable<void> Write() {
 			while (socket.is_open()) {
 				if (writeQueue.empty()) {

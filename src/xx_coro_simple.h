@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-// important: only support static function or lambda !!! will ignore throw exception !!!
+// important: only support static function or lambda !!!
 
 #if __has_include(<coroutine>)
 #include <coroutine>
@@ -36,7 +36,9 @@ namespace xx {
             suspend_always final_suspend() noexcept(true) { return {}; }
             suspend_always yield_value(int v) { return {}; }
             void return_void() {}
-            void unhandled_exception() {}
+            void unhandled_exception() {
+                std::rethrow_exception(std::current_exception());
+            }
         };
 
         Coro(handle_type h) : h(h) {}

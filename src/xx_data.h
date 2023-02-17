@@ -139,6 +139,14 @@ namespace xx {
             return !this->operator==(o);
         }
 
+        XX_INLINE uint8_t* GetBuf() const {
+            return buf;
+        }
+
+        XX_INLINE size_t GetLen() const {
+            return len;
+        }
+
         [[nodiscard]] bool HasLeft() const {
             return len > offset;
         }

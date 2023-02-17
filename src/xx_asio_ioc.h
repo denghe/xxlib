@@ -14,7 +14,7 @@ using asio::awaitable;
 using asio::detached;
 
 namespace xx {
-	// 协程内使用的 通用超时函数, 实现 sleep 的效果
+	// sleep for coroutine
 	inline awaitable<void> Timeout(std::chrono::steady_clock::duration d) {
 		asio::steady_timer t(co_await asio::this_coro::executor);
 		t.expires_after(d);
@@ -22,11 +22,11 @@ namespace xx {
 	}
 
 
-	// 可用于 服务主体 或 worker 继承使用，以方便各处传递调用. 需确保生命周期最长
+	// server or worker's base class. need to ensure the longest life cycle
 	struct IOCBase : asio::io_context {
 		using asio::io_context::io_context;
 
-		// 开始监听一个 tcp 端口
+		// start listen an tcp port
 		template<typename SocketHandler>
 		void Listen(uint16_t const& port, SocketHandler&& sh) {
 			co_spawn(*this, [this, port, sh = std::move(sh)]()->awaitable<void> {
@@ -42,8 +42,16 @@ namespace xx {
 			}, detached);
 		}
 	};
+
+	template<typename EndPoint = asio::ip::tcp::endpoint, typename S>
+	EndPoint AddressToEndpoint(S&& ipstr, asio::ip::port_type port) {
+		return EndPoint(asio::ip::address::from_string(ipstr), port);
+	}
 }
 
-// 用于 template<typename PeerDeriveType, ....> struct XxxxxxxxCode 内部强转 this 为 派生类型
-// 当前所有 模板代码片段 继承规则：最终派生类用 PeerDeriveType 类型名存储，用下面的宏来访问
+// used to force convert "this" to derived type
 #define PEERTHIS ((PeerDeriveType*)(this))
+
+// member func exists checkers
+template<typename T> concept Has_Start_ = requires(T t) { t.Start_(); };
+template<typename T> concept Has_Stop_ = requires(T t) { t.Stop_(); };
