@@ -25,8 +25,8 @@ namespace xx {
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
-			co_spawn(ioc, [this, self = xx::SharedFromThis(this)] { return PEERTHIS->Read(); }, detached);	// call PeerDeriveType's member func: awaitable<void> Read()
-			co_spawn(ioc, [self = xx::SharedFromThis(this)] { return self->Write(); }, detached);
+			co_spawn(ioc, PEERTHIS->Read(xx::SharedFromThis(this)), detached);	// call PeerDeriveType's member func: awaitable<void> Read(auto memHolder)
+			co_spawn(ioc, Write(xx::SharedFromThis(this)), detached);
 			if constexpr (Has_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
@@ -60,7 +60,7 @@ namespace xx {
 	protected:
 
 		// continues send data in writeQueue
-		awaitable<void> Write() {
+		awaitable<void> Write(auto memHolder) {
 			while (socket.is_open()) {
 				if (writeQueue.empty()) {
 					co_await writeBlocker.async_wait(use_nothrow_awaitable);
@@ -101,91 +101,104 @@ struct IOC : xx::IOCBase {
 struct KcpClientPeer : xx::PeerUdpBaseCode<KcpClientPeer, IOC> {
 	using BT = xx::PeerUdpBaseCode<KcpClientPeer, IOC>;
 	using BT::BT;
-	asio::ip::udp::endpoint serverEP;	// store by connect
+	asio::ip::udp::endpoint serverEP;
 	xx::Data secret, recv;
 	ikcpcb* kcp = nullptr;
 	uint32_t conv = 0;
 	int64_t createMS = 0;
 	uint32_t nextUpdateMS = 0;
+	bool busy = false;
 
 	// client: set target ip + port
 	template<typename IP>
 	void SetServerIPPort(IP&& ip, asio::ip::port_type const& port) {
+		assert(!kcp);
+		assert(!busy);
 		serverEP = xx::AddressToEndpoint<asio::ip::udp::endpoint>(std::forward<IP>(ip), port);
 	}
 
+protected:
+	inline void FillSecret() {
+		std::mt19937 rng(std::random_device{}());
+		std::uniform_int_distribution<int> dis1(5, 19);	// 4: old protocol
+		std::cout << dis1(rng) << std::endl;
+		std::uniform_int_distribution<int> dis2(0, 255);
+		auto siz = dis1(rng);
+		secret.Resize(siz);
+		for (size_t i = 0; i < siz; i++) {
+			secret[i] = dis2(rng);
+		}
+	}
+
+	inline void InitKcp() {
+		assert(!kcp);
+		kcp = ikcp_create(conv, this);
+		(void)ikcp_wndsize(kcp, 1024, 1024);
+		(void)ikcp_nodelay(kcp, 1, 10, 2, 1);
+		kcp->rx_minrto = 10;
+		kcp->stream = 1;
+		//ikcp_setmtu(kcp, 470);    // maybe speed up because small package first role
+		createMS = xx::NowSteadyEpochMilliseconds();
+
+		ikcp_setoutput(kcp, [](const char* inBuf, int len, ikcpcb* _, void* user) -> int {
+			auto self = (KcpClientPeer*)user;
+			xx::Data d;
+			d.Resize(len);
+			size_t j = 0;
+			for (size_t i = 4; i < len; i++) {		// 4: protect convId, do not encode
+				d[i] = inBuf[i] ^ self->secret[j++];
+				if (j == self->secret.len) {
+					j = 0;
+				}
+			}
+			self->SendTo(self->serverEP, std::move(d));
+			return 0;
+		});
+
+		co_spawn(ioc, Update(xx::SharedFromThis(this)), detached);
+	}
+public:
+
 	// client: dial & connect to serverEP
-	awaitable<int> Connect(std::chrono::steady_clock::duration d = 5s) {
+	inline awaitable<int> Connect(std::chrono::steady_clock::duration d = 5s) {
 		if (!stoped) co_return 1;
+		assert(!kcp);
+		assert(!busy);
+		busy = true;
+		auto busySG = xx::MakeSimpleScopeGuard([this] {busy = false; });
 		try {
 			asio::steady_timer timer(ioc);
 			timer.expires_after(d);
 			timer.async_wait([this](auto const& e) {
 				if (e) return;
-			//std::error_code ignore;
-			boost::system::error_code ignore;
-			socket.close(ignore);
-				});
+				boost::system::error_code ignore;
+				socket.close(ignore);
+			});
 
 			socket = asio::ip::udp::socket(ioc);    // for macos
 			co_await socket.async_connect(serverEP, asio::use_awaitable);
 
-			std::mt19937 rng(std::random_device{}());
-			std::uniform_int_distribution<int> dis1(5, 19);	// 4: old protocol
-			std::cout << dis1(rng) << std::endl;
-			std::uniform_int_distribution<int> dis2(0, 255);
-			auto siz = dis1(rng);
-			secret.Resize(siz);
-			for (size_t i = 0; i < siz; i++) {
-				secret[i] = dis2(rng);
-			}
+			FillSecret();
 			co_await socket.async_send(asio::buffer(secret.buf, secret.len), asio::use_awaitable);
 
 			xx::Data s;
-			s.Resize(siz + 4);
+			s.Resize(secret.len + 4);
 			auto rc = co_await socket.async_receive(asio::buffer(secret.buf, secret.len), asio::use_awaitable);
-			if (rc != siz + 4) co_return 3;
-
-			if (memcmp(secret.buf, s.buf + 4, siz)) co_return 4;
-
+			if (rc != s.len) co_return 3;
+			if (memcmp(secret.buf, s.buf + 4, secret.len)) co_return 4;
 			memcpy(&conv, s.buf, 4);
-
-			assert(!kcp);
-			kcp = ikcp_create(conv, this);
-			(void)ikcp_wndsize(kcp, 1024, 1024);
-			(void)ikcp_nodelay(kcp, 1, 10, 2, 1);
-			kcp->rx_minrto = 10;
-			kcp->stream = 1;
-			//ikcp_setmtu(kcp, 470);    // maybe speed up because small package first role
-			createMS = xx::NowSteadyEpochMilliseconds();
-
-			ikcp_setoutput(kcp, [](const char* inBuf, int len, ikcpcb* _, void* user) -> int {
-				auto self = (KcpClientPeer*)user;
-				xx::Data d;
-				d.Resize(len);
-				size_t j = 0;
-				for (size_t i = 4; i < len; i++) {		// 4: protect convId, do not encode
-					d[i] = inBuf[i] ^ self->secret[j++];
-					if (j == self->secret.len) {
-						j = 0;
-					}
-				}
-				self->SendTo(self->serverEP, std::move(d));
-				return 0;
-			});
-
-			co_spawn(ioc, [self = xx::SharedFromThis(this)] { return self->Update(); }, detached);
 
 		} catch (...) {
 			co_return 2;
 		}
-
+		InitKcp();
 		Start();
 		co_return 0;
 	}
 	
 	inline void Stop_() {
 		assert(kcp);
+		assert(!busy);
 		ikcp_release(kcp);
 		kcp = nullptr;
 	}
@@ -194,6 +207,7 @@ struct KcpClientPeer : xx::PeerUdpBaseCode<KcpClientPeer, IOC> {
 	template<typename D>
 	void Send(D&& d) {
 		assert(kcp);
+		assert(!busy);
 		assert(serverEP != asio::ip::udp::endpoint{});
 		// 据kcp文档讲, 只要在等待期间发生了 ikcp_send, ikcp_input 就要重新 update
 		nextUpdateMS = 0;
@@ -202,15 +216,17 @@ struct KcpClientPeer : xx::PeerUdpBaseCode<KcpClientPeer, IOC> {
 		ikcp_flush(kcp);
 	}
 
-	inline awaitable<void> Read() {
+	inline awaitable<void> Read(auto memHolder) {
 		auto buf = std::make_unique<uint8_t[]>(1024 * 1024);
 		for (;;) {
-			asio::ip::udp::endpoint ep;
-			auto [ec, n] = co_await socket.async_receive_from(asio::buffer(buf.get(), 1024 * 1024), ep, use_nothrow_awaitable);
+			asio::ip::udp::endpoint ep;	// unused here
+			auto [ec, len] = co_await socket.async_receive_from(asio::buffer(buf.get(), 1024 * 1024), ep, use_nothrow_awaitable);
 			if (ec) break;
 			if (stoped) co_return;
-			if (!n) continue;
-			std::cout << "ep = " << ep << ", n = " << n << std::endl;
+			if (!len) continue;
+			std::cout << "ep = " << ep << ", len = " << len << std::endl;
+
+			
 
 			// todo: create or find virtual peer & forward data
 			//if (int r = ikcp_input(kcp, (char*)buf, (long)len_)) {
@@ -242,7 +258,7 @@ struct KcpClientPeer : xx::PeerUdpBaseCode<KcpClientPeer, IOC> {
 		Stop();
 	}
 
-	inline awaitable<void> Update() {
+	inline awaitable<void> Update(auto memHolder) {
 		while(kcp) {
 			// 计算出当前 ms
 			// 已知问题: 受 ikcp uint32 限制, 连接最多保持 50 多天
