@@ -121,7 +121,6 @@ protected:
 	inline void FillSecret() {
 		std::mt19937 rng(std::random_device{}());
 		std::uniform_int_distribution<int> dis1(5, 19);	// 4: old protocol
-		std::cout << dis1(rng) << std::endl;
 		std::uniform_int_distribution<int> dis2(0, 255);
 		auto siz = dis1(rng);
 		secret.Resize(siz);
@@ -141,16 +140,22 @@ protected:
 		createMS = xx::NowSteadyEpochMilliseconds();
 
 		ikcp_setoutput(kcp, [](const char* inBuf, int len, ikcpcb* _, void* user) -> int {
+
+			xx::Cout("\n ikcp output = ", xx::Data_r(inBuf, len));
+
 			auto self = (KcpClientPeer*)user;
 			xx::Data d;
 			d.Resize(len);
+			d.WriteBufAt(0, inBuf, 4);	// copy convId without encrypt
 			size_t j = 0;
-			for (size_t i = 4; i < len; i++) {		// 4: protect convId, do not encode
+			for (size_t i = 4; i < len; i++) {		// 4: skip convId
 				d[i] = inBuf[i] ^ self->secret[j++];
 				if (j == self->secret.len) {
 					j = 0;
 				}
 			}
+
+			xx::Cout("\n send to = ", d);
 			self->SendTo(self->serverEP, std::move(d));
 			return 0;
 		});
@@ -166,6 +171,7 @@ public:
 		assert(!busy);
 		busy = true;
 		auto busySG = xx::MakeSimpleScopeGuard([this] {busy = false; });
+		xx::Data s;
 		try {
 			asio::steady_timer timer(ioc);
 			timer.expires_after(d);
@@ -181,10 +187,11 @@ public:
 			FillSecret();
 			co_await socket.async_send(asio::buffer(secret.buf, secret.len), asio::use_awaitable);
 
-			xx::Data s;
 			s.Resize(secret.len + 4);
-			auto rc = co_await socket.async_receive(asio::buffer(secret.buf, secret.len), asio::use_awaitable);
-			if (rc != s.len) co_return 3;
+			auto rc = co_await socket.async_receive(asio::buffer(s.buf, s.len), asio::use_awaitable);
+			if (rc != s.len) {
+				co_return 3;
+			}
 			if (memcmp(secret.buf, s.buf + 4, secret.len)) co_return 4;
 			memcpy(&conv, s.buf, 4);
 
@@ -193,6 +200,12 @@ public:
 		}
 		InitKcp();
 		Start();
+
+		s.Clear();
+		s.Fill({ 1,0,0,0,0 });
+		busy = false;
+		Send(std::move(s));
+
 		co_return 0;
 	}
 	
@@ -212,7 +225,7 @@ public:
 		// 据kcp文档讲, 只要在等待期间发生了 ikcp_send, ikcp_input 就要重新 update
 		nextUpdateMS = 0;
 		int r = ikcp_send(kcp, (char*)d.GetBuf(), (int)d.GetLen());
-		assert(r);
+		assert(!r);
 		ikcp_flush(kcp);
 	}
 
@@ -224,17 +237,26 @@ public:
 			if (ec) break;
 			if (stoped) co_return;
 			if (!len) continue;
-			std::cout << "ep = " << ep << ", len = " << len << std::endl;
 
-			
+			// decrypt
+			size_t j = 0;
+			for (size_t i = 4; i < len; i++) {		// 4: skip convId
+				buf[i] = buf[i] ^ secret[j++];
+				if (j == secret.len) {
+					j = 0;
+				}
+			}
 
-			// todo: create or find virtual peer & forward data
-			//if (int r = ikcp_input(kcp, (char*)buf, (long)len_)) {
-			//nextUpdateMS = 0;
+			// put raw data into kcp
+			if (int r = ikcp_input(kcp, (char*)buf.get(), (long)len)) {
+				std::cout << "ikcp_input error. r = " << r << std::endl;
+				co_return;
+			}
 
 			// 据kcp文档讲, 只要在等待期间发生了 ikcp_send, ikcp_input 就要重新 update
 			nextUpdateMS = 0;
-			// 开始处理收到的数据
+
+			// get decrypted data from kcp
 			do {
 				// 如果接收缓存没容量就扩容( 通常发生在首次使用时 )
 				if (!recv.cap) {
@@ -250,6 +272,7 @@ public:
 
 				// 调用用户数据处理函数
 				//Receive();	// todo
+				xx::Cout("\n kcp decoded recv = ", recv);
 
 				if (IsStoped()) co_return;
 			} while (true);
@@ -267,6 +290,9 @@ public:
 			if (nextUpdateMS <= currentMS) {
 				// 来一发
 				ikcp_update(kcp, currentMS);
+
+				std::cout << "!";
+
 				// 更新下次 update 时间
 				nextUpdateMS = ikcp_check(kcp, currentMS);
 			}
@@ -278,8 +304,16 @@ public:
 
 int main() {
 	IOC ioc;
-	auto kp = xx::Make<KcpClientPeer>(ioc);
-	kp->SetServerIPPort("127.0.0.1", 12345);
-	kp->Connect();
-	return 0;
+	co_spawn(ioc, [&]()->awaitable<void> {
+		auto kp = xx::Make<KcpClientPeer>(ioc);
+		kp->SetServerIPPort("127.0.0.1", 20000);
+		auto r = co_await kp->Connect();
+		std::cout << " r = " << r << " ";
+		while (true) {
+			co_await xx::Timeout(10ms);
+			std::cout << ".";
+			std::cout.flush();
+		}
+	}, detached);
+	return ioc.run();
 }
