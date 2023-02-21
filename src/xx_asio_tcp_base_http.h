@@ -197,7 +197,7 @@ namespace xx {
 		}
 
 		// 读 协程函数主体( protected )
-		awaitable<void> Read() {
+		awaitable<void> Read(auto memHolder) {
 			auto block = std::make_unique<char[]>(readBufLen);
 			auto buf = block.get();
 			auto bufEnd = buf + readBufLen;

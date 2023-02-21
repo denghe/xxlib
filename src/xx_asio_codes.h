@@ -313,8 +313,8 @@ namespace xx {
 				PEERTHIS->reqAutoId = 0;
 				PEERTHIS->reqs.clear();
 			}
-			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, detached);
-			co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, detached);
+			co_spawn(ioc, PEERTHIS->Read(PEERTHIS->shared_from_this()) , detached);
+			co_spawn(ioc, PEERTHIS->Write(PEERTHIS->shared_from_this()) , detached);
 			if constexpr(Has_Peer_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
@@ -364,7 +364,7 @@ namespace xx {
 		}
 
 	protected:
-		awaitable<void> Read() {
+		awaitable<void> Read(auto memHolder) {
 			uint8_t buf[readBufSize];
 			size_t len = 0;
 			for (;;) {
@@ -394,7 +394,7 @@ namespace xx {
 			Stop();
 		}
 
-		awaitable<void> Write() {
+		awaitable<void> Write(auto memHolder) {
 			while (socket.is_open()) {
 				if (writeQueue.empty()) {
 					co_await writeBlocker.async_wait(use_nothrow_awaitable);

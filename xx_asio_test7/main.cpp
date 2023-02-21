@@ -68,8 +68,10 @@ namespace xx {
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
 			((PeerDeriveType*)(this))->StartAfter();
-			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Read(); }, asio::detached);
-			asio::co_spawn(ioc, [self = ((PeerDeriveType*)(this))->shared_from_this()]{ return self->Write(); }, asio::detached);
+
+
+			asio::co_spawn(ioc, ((PeerDeriveType*)this)->Read(((PeerDeriveType*)this)->shared_from_this()), asio::detached);
+			asio::co_spawn(ioc, ((PeerDeriveType*)this)->Write(((PeerDeriveType*)this)->shared_from_this()), asio::detached);
 		}
 
 		void Stop() {
@@ -97,7 +99,7 @@ namespace xx {
 		}
 
 	protected:
-		asio::awaitable<void> Read() {
+		asio::awaitable<void> Read(auto memHolder) {
 			for (std::string buf;;) {
 				auto [ec, n] = co_await asio::async_read_until(socket, asio::dynamic_buffer(buf, 1024), "\n", use_nothrow_awaitable);
 				if (ec) break;
@@ -113,7 +115,7 @@ namespace xx {
 			Stop();
 		}
 
-		asio::awaitable<void> Write() {
+		asio::awaitable<void> Write(auto memHolder) {
 			while (socket.is_open()) {
 				if (writeQueue.empty()) {
 					co_await writeBlocker.async_wait(use_nothrow_awaitable);

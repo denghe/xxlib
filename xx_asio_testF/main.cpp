@@ -202,8 +202,8 @@ struct PeerBaseCode {
         stoped = false;
         writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
         writeQueue.clear();
-        co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Read(); }, detached);
-        co_spawn(ioc, [self = PEERTHIS->shared_from_this()]{ return self->Write(); }, detached);
+        co_spawn(ioc, PEERTHIS->Read(PEERTHIS->shared_from_this()), detached);
+        co_spawn(ioc, PEERTHIS->Write(PEERTHIS->shared_from_this()) , detached);
     }
 
     void Stop() {
@@ -232,7 +232,7 @@ struct PeerBaseCode {
 
 protected:
 #ifdef ENABLE_READ_HEADER_READ_DATA_MODE
-    awaitable<void> Read() {
+    awaitable<void> Read(auto memHolder) {
 		for (;;) {
 			Data d;
 			{
@@ -266,7 +266,7 @@ protected:
 	}
 #else
     // 另外一种写法. 少一次 read, 数据引用处理
-    awaitable<void> Read() {
+    awaitable<void> Read(auto memHolder) {
         uint8_t buf[16384];
         size_t len = 0;
         uint16_t dataLen;
@@ -303,7 +303,7 @@ protected:
 #endif
 
 
-    awaitable<void> Write() {
+    awaitable<void> Write(auto memHolder) {
         while (socket.is_open()) {
             if (writeQueue.empty()) {
                 co_await writeBlocker.async_wait(use_nothrow_awaitable);

@@ -22,8 +22,8 @@ namespace xx {
 			stoped = false;
 			writeBlocker.expires_at(std::chrono::steady_clock::time_point::max());
 			writeQueue.clear();
-			co_spawn(ioc, [this, self = xx::SharedFromThis(this)] { return PEERTHIS->Read(); }, detached);	// call PeerDeriveType's member func: awaitable<void> Read()
-			co_spawn(ioc, [self = xx::SharedFromThis(this)] { return self->Write(); }, detached);
+			co_spawn(ioc, PEERTHIS->Read(xx::SharedFromThis(PEERTHIS)), detached);	// call PeerDeriveType's member func: awaitable<void> Read()
+			co_spawn(ioc, PEERTHIS->Write(xx::SharedFromThis(PEERTHIS)) , detached);
 			if constexpr (Has_Start_<PeerDeriveType>) {
 				PEERTHIS->Start_();
 			}
@@ -68,7 +68,7 @@ namespace xx {
 	protected:
 
 		// continues send data in writeQueue
-		awaitable<void> Write() {
+		awaitable<void> Write(auto memHolder) {
 			while (socket.is_open()) {
 				if (writeQueue.empty()) {
 					co_await writeBlocker.async_wait(use_nothrow_awaitable);
