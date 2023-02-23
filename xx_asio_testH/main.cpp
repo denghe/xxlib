@@ -1,9 +1,50 @@
 ﻿#include <xx_asio_ioc.h>
 #include <ikcp.h>
 
+struct Foo {
+	int lineNumber{};
+	int hp{ 10 };
+	inline int Update() {
+		COR_BEGIN
+			while (hp) {
+				std::cout << hp << std::endl;
+				--hp;
+				COR_YIELD;
+			}
+		COR_END
+	}
+};
+struct Bar {
+	std::weak_ptr<Foo> target;
+	int lineNumber{};
+	inline int Update() {
+		COR_BEGIN
+			while (true) {
+				if (auto f = target.lock()) {
+					if (f->hp == 1) {
+						std::cout << "target will die" << std::endl;
+					}
+				} else break;
+				COR_YIELD;
+			}
+		std::cout << "lose target" << std::endl;
+		COR_END
+	}
+};
+
 
 int main() {
-
+	auto f = std::make_shared<Foo>();
+	Bar b;
+	b.target = f;
+	while (true) {
+		if (!(f->lineNumber = f->Update())) {
+			f.reset();
+		}
+		if (!(b.lineNumber = b.Update())) {
+			break;
+		}
+	}
 
 
 	return 0;

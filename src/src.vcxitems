@@ -21,6 +21,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_base_http.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_client.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_tcp_gateway_client.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio_udp_base.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro_simple.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_shared.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_hash.h" />
