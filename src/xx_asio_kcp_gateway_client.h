@@ -50,6 +50,11 @@ namespace xx::Asio::Kcp::Gateway {
 		d.WriteFixedAt(bak, (uint32_t)(d.len - 4));
 		return d;
 	}
+	// 构造一个 uint32_le 数据长度( 不含自身 ) + args 的 类 序列化包 并返回
+	template<size_t cap = 8192, typename PKG = ObjBase, typename ... Args>
+	Data MakeTargetPackageData(ObjManager& om, uint32_t const& target, int32_t const& serial, Args const&... args) {
+		return MakeData<true, true, cap, PKG>(om, target, serial, args...);
+	}
 
 
 	struct CPeer;
@@ -58,7 +63,6 @@ namespace xx::Asio::Kcp::Gateway {
 		asio::executor_work_guard<ExecutorType> work_guard_;
 		Client() : work_guard_(asio::make_work_guard(*this)) {}
 
-		ObjManager om;
 		std::shared_ptr<CPeer> peer;																// 当前 peer
 		uint32_t cppServerId = 0xFFFFFFFF;															// 属于 cpp 处理的 serverId 存放于此
 
@@ -144,14 +148,6 @@ namespace xx::Asio::Kcp::Gateway {
 
 		asio::steady_timer objectWaiter;															// 数据包等待器
 		bool waitingObject = false;																	// 数据包等待状态
-
-
-		template<typename IP>
-		void SetServerIPPort(IP&& ip, asio::ip::port_type const& port) {
-			assert(!kcp);
-			assert(!busy);
-			serverEP = xx::AddressToEndpoint<asio::ip::udp::endpoint>(std::forward<IP>(ip), port);
-		}
 
 	protected:
 		void FillSecret() {
@@ -315,7 +311,8 @@ namespace xx::Asio::Kcp::Gateway {
 					recv.len += len;
 
 					// 调用用户数据处理函数
-					//Receive();	// todo
+					Receive();
+
 					xx::Cout("\n kcp decoded recv = ", recv);
 
 					if (IsStoped()) co_return;
@@ -323,6 +320,22 @@ namespace xx::Asio::Kcp::Gateway {
 			}
 		LabStop:
 			Stop();
+		}
+
+		void Receive() {
+			// todo: 解析 recv 容器的内容, 切片， call HandleMessage
+			//buf.WriteBuf(recvBuf, recvLen);
+			//size_t offset = 0;
+			//while (offset + 4 <= buf.len) {							// ensure header len( 4 bytes )
+			//	uint32_t len = buf[offset + 0] + (buf[offset + 1] << 8) + (buf[offset + 2] << 16) + (buf[offset + 3] << 24);
+			//	if (len > uv.maxPackageLength) return -1;			// invalid length
+			//	if (offset + 4 + len > buf.len) break;				// not enough data
+
+			//	offset += 4;
+			//	if (int r = peer->HandlePack(buf.buf + offset, len)) return r;
+			//	offset += len;
+			//}
+			//buf.RemoveFront(offset);
 		}
 
 		awaitable<void> Update(auto memHolder) {
@@ -349,7 +362,7 @@ namespace xx::Asio::Kcp::Gateway {
 		// 拦截处理特殊 target 路由需求( 返回 0 表示已成功处理，   返回 正数 表示不拦截,    返回负数表示 出错 )
 		int HandleTargetMessage(uint32_t target, Data_r& dr) {
 			if (target == 0xFFFFFFFF) return ReceveCommand(dr);										// 收到 command. 转过去处理
-			if (ioc.cppServerId == target) return 1; 											// 属于 cpp 的: passthrough
+			if (ioc.cppServerId == target) return 1; 												// 属于 cpp 的: passthrough
 			int32_t serial;																			// 读出序号. 出错 返回负数行号( 掐线 )
 			if (dr.Read(serial)) return -__LINE__;
 			recvDatas.emplace_back(target, serial, Data(dr.buf + dr.offset, dr.len - dr.offset));	// 属于 lua: 放入 data 容器
@@ -397,6 +410,86 @@ namespace xx::Asio::Kcp::Gateway {
 			return true;
 		}
 
+
+
+		int32_t reqAutoId = 0;
+		std::unordered_map<int32_t, std::pair<asio::steady_timer, ObjBase_s>> reqs;
+		ObjManager om;
+
+		template<typename PKG = ObjBase, typename ... Args>
+		void SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args) {
+			Send(MakeTargetPackageData<8192, PKG>(om, target, serial, args...));
+		}
+
+		template<typename PKG = ObjBase, typename ... Args>
+		void SendPushTo(uint32_t const& target, Args const& ... args) {
+			Send(MakeTargetPackageData<8192, PKG>(om, target, 0, args...));
+		}
+
+		template<typename PKG = ObjBase, typename ... Args>
+		awaitable<ObjBase_s> SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
+			reqAutoId = (reqAutoId + 1) % 0x7FFFFFFF;
+			auto key = reqAutoId;
+			auto [iter, ok] = reqs.emplace(key, std::make_pair(asio::steady_timer(ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
+			assert(ok);
+			auto& [timer, data] = iter->second;
+			Send(MakeTargetPackageData<8192, PKG>(om, target, -key, args...));
+			auto [e] = co_await timer.async_wait(use_nothrow_awaitable);
+			if (stoped || (e && (iter = reqs.find(key)) == reqs.end())) co_return nullptr;
+			auto r = std::move(data);
+			reqs.erase(iter);
+			co_return r;
+		}
+
+		ObjBase_s ReadFrom(Data_r& dr) {
+			ObjBase_s o;
+			int r = om.ReadFrom(dr, o);
+			if (r || (o && o.GetTypeId() == 0)) {
+				om.KillRecursive(o);
+				return nullptr;
+			}
+			return o;
+		}
+
+		int HandleData(Data_r&& dr) {
+			// 读出 target
+			uint32_t target;
+			if (dr.ReadFixed(target)) return __LINE__;
+			{
+				int r = HandleTargetMessage(target, dr);
+				if (r == 0) return 0;		// continue
+				if (r < 0) return __LINE__;
+			}
+
+			// 读出序号
+			int32_t serial;
+			if (dr.Read(serial)) return __LINE__;
+
+			// 如果是 Response 包，则在 req 字典查找。如果找到就 解包 + 传递 + 协程放行
+			if (serial > 0) {
+				if (auto iter = reqs.find(serial); iter != reqs.end()) {
+					auto o = ReadFrom(dr);
+					if (!o) return __LINE__;
+					iter->second.second = std::move(o);
+					iter->second.first.cancel();
+				}
+			} else {
+				// 如果是 Push 包，且有提供 ReceivePush 处理函数，就 解包 + 传递
+				if (serial == 0) {
+					auto o = ReadFrom(dr);
+					if (!o) return __LINE__;
+					if (ReceiveTargetPush(target, std::move(o))) return __LINE__;
+				}
+				// 如果是 Request 包，且有提供 ReceiveRequest 处理函数，就 解包 + 传递
+				else {
+					auto o = ReadFrom(dr);
+					if (!o) return __LINE__;
+					if (ReceiveTargetRequest(target, -serial, std::move(o))) return __LINE__;
+				}
+				if (stoped) return __LINE__;
+			}
+			return 0;
+		}
 	};
 
 	inline void Client::SetCppServerId(uint32_t id) {
@@ -440,7 +533,6 @@ namespace xx::Asio::Kcp::Gateway {
 			}
 			addr = iter->endpoint().address();														// 从迭代器获取地址
 		} while (false);
-		//peer->SetServerIPPort(addr, port);
 		peer->serverEP = { addr, port };
 		if (auto r = co_await peer->Connect(5s)) co_return __LINE__;								// 开始连接. 超时 5 秒
 		co_return 0;
@@ -520,20 +612,19 @@ namespace xx::Asio::Kcp::Gateway {
 	template<typename PKG, typename ... Args>
 	void Client::SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args) {
 		if (!*this) return;
-		//peer->SendResponseTo<PKG>(target, serial, args...);
+		peer->SendResponseTo<PKG>(target, serial, args...);
 	}
 
 	template<typename PKG, typename ... Args>
 	void Client::SendPushTo(uint32_t const& target, Args const& ... args) {
 		if (!*this) return;
-		//peer->SendPushTo<PKG>(target, args...);
+		peer->SendPushTo<PKG>(target, args...);
 	}
 
 	template<typename PKG, typename ... Args>
 	awaitable<ObjBase_s> Client::SendRequestTo(uint32_t const& target, std::chrono::steady_clock::duration d, Args const& ... args) {
 		if (!*this) co_return nullptr;
-		//co_return co_await peer->SendRequestTo<PKG>(target, d, args...);
-		co_return nullptr;
+		co_return co_await peer->SendRequestTo<PKG>(target, d, args...);
 	}
 
 	inline void Client::SendTo(uint32_t const& target, int32_t const& serial, Span const& dr) {
