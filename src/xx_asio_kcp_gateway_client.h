@@ -310,7 +310,7 @@ namespace xx::Asio::Kcp::Gateway {
 					if (len <= 0) break;
 					recv.len += len;
 
-					// 调用用户数据处理函数
+					// 调用 recv 数据处理函数
 					Receive();
 
 					xx::Cout("\n kcp decoded recv = ", recv);
@@ -322,20 +322,20 @@ namespace xx::Asio::Kcp::Gateway {
 			Stop();
 		}
 
+		// 解析 recv 容器的内容, 切片， call HandleData
 		void Receive() {
-			// todo: 解析 recv 容器的内容, 切片， call HandleMessage
-			//buf.WriteBuf(recvBuf, recvLen);
-			//size_t offset = 0;
-			//while (offset + 4 <= buf.len) {							// ensure header len( 4 bytes )
-			//	uint32_t len = buf[offset + 0] + (buf[offset + 1] << 8) + (buf[offset + 2] << 16) + (buf[offset + 3] << 24);
-			//	if (len > uv.maxPackageLength) return -1;			// invalid length
-			//	if (offset + 4 + len > buf.len) break;				// not enough data
-
-			//	offset += 4;
-			//	if (int r = peer->HandlePack(buf.buf + offset, len)) return r;
-			//	offset += len;
-			//}
-			//buf.RemoveFront(offset);
+			size_t offset = 0;
+			while (offset + 4 <= recv.len) {						// ensure header len( 4 bytes )
+				uint32_t len = recv[offset + 0] + (recv[offset + 1] << 8) + (recv[offset + 2] << 16) + (recv[offset + 3] << 24);
+				if (offset + 4 + len > recv.len) break;				// not enough data
+				offset += 4;
+				if (int r = HandleData(Data_r{ recv.buf + offset, len })) {
+					Stop();
+					return;
+				}
+				offset += len;
+			}
+			recv.RemoveFront(offset);
 		}
 
 		awaitable<void> Update(auto memHolder) {
