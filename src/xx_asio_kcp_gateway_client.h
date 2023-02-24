@@ -274,9 +274,14 @@ namespace xx::Asio::Kcp::Gateway {
 			for (;;) {
 				asio::ip::udp::endpoint ep;	// unused here
 				auto [ec, len] = co_await socket.async_receive_from(asio::buffer(buf.get(), 1024 * 1024), ep, use_nothrow_awaitable);
-				if (ec) break;
+				if (ec) {
+					std::cout << "\nRead ec = " << ec << std::endl;
+					break;
+				}
 				if (stoped) co_return;
 				if (!len) continue;
+
+				xx::CoutN("\nasync_receive_from. buf data = ", xx::Data_r(buf.get(), len));
 
 				// decrypt
 				size_t j = 0;
@@ -287,9 +292,11 @@ namespace xx::Asio::Kcp::Gateway {
 					}
 				}
 
+				xx::CoutN("async_receive_from. decrypted buf data = ", xx::Data_r(buf.get(), len));
+
 				// put raw data into kcp
 				if (int r = ikcp_input(kcp, (char*)buf.get(), (long)len)) {
-					std::cout << "ikcp_input error. r = " << r << std::endl;
+					std::cout << "\nikcp_input error. r = " << r << std::endl;
 					co_return;
 				}
 
@@ -310,10 +317,10 @@ namespace xx::Asio::Kcp::Gateway {
 					if (len <= 0) break;
 					recv.len += len;
 
+					xx::Cout("\nkcp decoded recv = ", recv);
+
 					// 调用 recv 数据处理函数
 					Receive();
-
-					xx::Cout("\n kcp decoded recv = ", recv);
 
 					if (IsStoped()) co_return;
 				} while (true);
@@ -374,6 +381,9 @@ namespace xx::Asio::Kcp::Gateway {
 			if (cmd == "open"sv) {																	// 收到 打开服务 指令
 				uint32_t serviceId = -1;
 				if (dr.Read(serviceId)) return -__LINE__;
+
+				std::cout << "\nrecv cmd: open " << serviceId << std::endl;
+
 				openServerIds.insert(serviceId);													// 添加到 open列表
 				if (!openWaitServerIds.empty()) {													// 判断是否正在 等open
 					if (CheckOpens()) {																// 全 open 了: 清除参数 & cancel 等待器
@@ -383,7 +393,9 @@ namespace xx::Asio::Kcp::Gateway {
 			} else if (cmd == "close"sv) {															// 收到 关闭服务 指令
 				uint32_t serviceId = -1;
 				if (dr.Read(serviceId)) return -__LINE__;
-				//if (serviceId == 0) return -__LINE__;												// 0 号服务关闭：返回负数( 掐线 )
+
+				std::cout << "\nrecv cmd: close " << serviceId << std::endl;
+
 				openServerIds.erase(serviceId);														// 从 open列表 移除
 				if (openServerIds.empty()) return -__LINE__;										// 所有服务都关闭了：返回负数( 掐线 )
 			}
