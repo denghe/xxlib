@@ -27,8 +27,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_hash.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ignores.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_includes.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_asio_kcp_gateway_client.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_asio_tcp_gateway_client.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua_asio_gateway_client.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_dict_mk.h" />

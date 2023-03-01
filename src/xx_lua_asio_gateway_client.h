@@ -1,15 +1,15 @@
 ﻿#pragma once
-#include <xx_asio_kcp_gateway_client.h>
+#include <xx_asio_gateway_client.h>
 #include "xx_lua_data.h"
 
 /*
-xx::Asio::Kcp::Gateway::Client 映射到 lua
+xx::Asio::Gateway::Client 映射到 lua
 
 C++ 注册:
-	xx::Lua::Asio::Kcp::Gateway::Client::Register( L );
+	xx::Lua::Asio::Gateway::Client::Register( L );
 
 LUA 中的 全局 创建 函数: ( 默认 )
-	NewAsioKcpGatewayClient()
+	NewAsioGatewayClient()
 
 成员函数见 下方 SetFieldCClosure 代码段
 
@@ -17,11 +17,11 @@ LUA 中的 全局 创建 函数: ( 默认 )
 	Dial() 是协程函数。调用后需要不断的用 Busy() 来探测状态，如果没脱离 busy 则不可以 call 别的函数
 */
 
-namespace xx::Lua::Asio::Kcp::Gateway::Client {
+namespace xx::Lua::Asio::Gateway::Client {
 	// 在 lua 中注册 全局 创建 函数
-	inline void Register(lua_State* const& L, char const* keyName = "NewAsioKcpGatewayClient") {
+	inline void Register(lua_State* const& L, char const* keyName = "NewAsioGatewayClient") {
 		SetGlobalCClosure(L, keyName, [](auto L)->int {
-			return PushUserdata<xx::Asio::Kcp::Gateway::Client>(L);
+			return PushUserdata<xx::Asio::Gateway::Client>(L);
 			});
 	}
 }
@@ -29,8 +29,8 @@ namespace xx::Lua::Asio::Kcp::Gateway::Client {
 namespace xx::Lua {
 	// 值方式 meta 但是访问成员时转为指针
 	template<typename T>
-	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Asio::Kcp::Gateway::Client, std::decay_t<T>>>> {
-		using U = xx::Asio::Kcp::Gateway::Client;
+	struct MetaFuncs<T, std::enable_if_t<std::is_same_v<xx::Asio::Gateway::Client, std::decay_t<T>>>> {
+		using U = xx::Asio::Gateway::Client;
 		inline static std::string name = TypeName<U>();
 		static void Fill(lua_State* const& L) {
 			SetType<U>(L);
@@ -40,10 +40,6 @@ namespace xx::Lua {
 				});
 			SetFieldCClosure(L, "Reset", [](auto L)->int {
 				To<U*>(L)->Reset();
-				return 0;
-				});
-			SetFieldCClosure(L, "SetSecret", [](auto L)->int {
-				//To<U*>(L)->SetSecret(To<std::string_view>(L, 2));
 				return 0;
 				});
 			SetFieldCClosure(L, "SetDomainPort", [](auto L)->int {
@@ -84,24 +80,24 @@ namespace xx::Lua {
 				return 0;
 				});
 			SetFieldCClosure(L, "TryPop", [](auto L)->int {
-				xx::Asio::Kcp::Gateway::Package<xx::Data> pkg;
+				xx::Asio::Gateway::Package<xx::Data> pkg;
 				return To<U*>(L)->TryPop(pkg) ? Push(L, pkg.serverId, pkg.serial, std::move(pkg.data)) : 0;
 				});
 		}
 	};
 	// 值方式 push
 	template<typename T>
-	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Asio::Kcp::Gateway::Client, std::decay_t<T>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_same_v<xx::Asio::Gateway::Client, std::decay_t<T>>>> {
 		static constexpr int checkStackSize = 1;
 		static int Push_(lua_State* const& L, T&& in) {
-			return PushUserdata<xx::Asio::Kcp::Gateway::Client>(L, std::forward<T>(in));
+			return PushUserdata<xx::Asio::Gateway::Client>(L, std::forward<T>(in));
 		}
 	};
 	// 指针方式 to 但是做 值方式 检查
 	template<typename T>
-	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>>&& std::is_same_v<xx::Asio::Kcp::Gateway::Client, std::decay_t<std::remove_pointer_t<std::decay_t<T>>>>>> {
+	struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>>&& std::is_same_v<xx::Asio::Gateway::Client, std::decay_t<std::remove_pointer_t<std::decay_t<T>>>>>> {
 		static void To_(lua_State* const& L, int const& idx, T& out) {
-			AssertType<xx::Asio::Kcp::Gateway::Client>(L, idx);
+			AssertType<xx::Asio::Gateway::Client>(L, idx);
 			out = (T)lua_touserdata(L, idx);
 		}
 	};
