@@ -17,7 +17,7 @@ namespace boostsystem = boost::system;
 #endif
 
 using namespace asio::experimental::awaitable_operators;
-constexpr auto use_nothrow_awaitable = asio::experimental::as_tuple(asio::use_awaitable);
+constexpr auto use_nothrow_awaitable = asio::as_tuple(asio::use_awaitable);
 using asio::co_spawn;
 using asio::awaitable;
 using asio::detached;

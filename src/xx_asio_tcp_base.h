@@ -55,14 +55,17 @@ namespace xx {
 		}
 
 		// for client dial connect to server only
-		awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+		awaitable<int> Connect(asio::ip::tcp::endpoint ep, std::chrono::steady_clock::duration d = 5s) {
 			if (!stoped) co_return 1;
 			socket = asio::ip::tcp::socket(ioc);    // for macos
-			auto r = co_await(socket.async_connect({ ip, port }, use_nothrow_awaitable) || Timeout(d));
+			auto r = co_await(socket.async_connect(ep, use_nothrow_awaitable) || Timeout(d));
 			if (r.index()) co_return 2;
 			if (auto& [e] = std::get<0>(r); e) co_return 3;
 			Start();
 			co_return 0;
+		}
+		awaitable<int> Connect(asio::ip::address ip, uint16_t port, std::chrono::steady_clock::duration d = 5s) {
+			co_return co_await Connect({ ip, port }, d);
 		}
 
 	protected:

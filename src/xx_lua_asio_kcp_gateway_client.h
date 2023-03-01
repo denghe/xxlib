@@ -60,8 +60,8 @@ namespace xx::Lua {
 				auto c = To<U*>(L);
 				if (c->busy) Error(L, "Client is busy now !");
 				c->busy = true;
-				co_spawn(c->ioc, [c]()->awaitable<void> {
-					co_await c->Dial();
+				co_spawn(*c, [c]()->awaitable<void> {
+					auto ret = co_await c->Dial();
 					c->busy = false;
 					}, detached);
 				return 0;

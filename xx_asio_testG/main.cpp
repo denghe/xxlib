@@ -1,8 +1,8 @@
-﻿#include <xx_asio_kcp_gateway_client.h>
+﻿#include <xx_asio_gateway_client.h>
 
 int main() {
 
-	xx::Asio::Kcp::Gateway::Client c;
+	xx::Asio::Gateway::Client c;
 
 	co_spawn(c, [&]()->awaitable<void> {
 
