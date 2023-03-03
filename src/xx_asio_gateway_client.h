@@ -5,7 +5,7 @@
 #include <ikcp.h>
 
 #ifdef _DEBUG
-#define XX_ASIO_TCPKCP_DEBUG_INFO_OUTPUT 1
+#define XX_ASIO_TCPKCP_DEBUG_INFO_OUTPUT 0
 #endif // _DEBUG
 
 // 为 cpp 实现一个带 拨号 与 通信 的 tcp/udp/kcp 网关 协程 client, 基于帧逻辑, 无需继承, 开箱即用
@@ -29,6 +29,7 @@ namespace xx::Asio::Gateway {
 		std::string domain;																			// 域名/ip. 需要在 拨号 前填充
 		uint16_t port = 0;																			// 端口. 需要在 拨号 前填充
 		bool busy = false;																			// 繁忙标志 for lua ( lua bind 函数在 co_spawn 之前 check & set, 之后 clear )
+		int dialResult = 0;																			// 拨号结果，方便lua读取
 
 		xx::Data secret, recv;
 
@@ -55,7 +56,7 @@ namespace xx::Asio::Gateway {
 
 		operator bool() const;																		// 检测连接有效性. peer && peer->Alive()
 
-		awaitable<int> Dial(bool isTcp = true);														// 拨号. 成功连上返回 0. isTcp == false: kcp
+		awaitable<int> Dial(bool isTcp = true, bool enableTcpEncrypt = false);       				// 拨号. 成功连上返回 0. isTcp == false: kcp
 
 		template<typename...Args>
 		awaitable<bool> WaitOpens(std::chrono::steady_clock::duration d, Args...ids);				// 带超时同时等一批 server id open. 超时返回 false
@@ -103,8 +104,26 @@ namespace xx::Asio::Gateway {
 		asio::ip::tcp::endpoint serverEP;
 
 		// client: dial & connect to serverEP
-		awaitable<int> Connect(std::chrono::steady_clock::duration d = 5s) {
-			co_return co_await BT::Connect(serverEP, d);
+		awaitable<int> Connect(std::chrono::steady_clock::duration d = 5s, bool enableEncrypt = true) {
+			if (auto r = co_await BT::Connect(serverEP, d)) co_return __LINE__;
+
+			auto& secret = ioc.secret;
+			secret.Clear();
+			if (enableEncrypt) {
+				secret = GenSecret(5, 250);
+				assert(secret.len <= 255);
+
+				secret.buf[-1] = (unsigned char)secret.len;
+				auto [ec, n] = co_await asio::async_write(socket, asio::buffer(secret.buf - 1, secret.len + 1), use_nothrow_awaitable);
+				if (ec) {
+					co_return __LINE__;
+				}
+				if (n != secret.len + 1) {
+					this->Stop();
+					co_return __LINE__;
+				}
+			}
+			co_return 0;
 		}
 
 		void Stop_() {																				// 所有环境变量恢复初始状态, 取消所有等待
@@ -115,7 +134,7 @@ namespace xx::Asio::Gateway {
 		void Send(D&& d) {
 			auto buf = d.GetBuf();
 			auto len = d.GetLen();
-			xx::XorContent((char*)ioc.secret.buf, ioc.secret.len, (char*)buf + 4, len - 4);	// 4: skip len
+			if(ioc.secret.len > 0) xx::XorContent((char*)ioc.secret.buf, ioc.secret.len, (char*)buf + 4, len - 4);	// 4: skip len
 			BT::Send(std::forward<D>(d));
 		}
 
@@ -138,7 +157,7 @@ namespace xx::Asio::Gateway {
 					offset += 4;
 
 					Data_r dr{ recv.buf + offset, len };
-					xx::XorContent((char*)ioc.secret.buf, ioc.secret.len, (char*)dr.buf, dr.len);
+					if(ioc.secret.len > 0) xx::XorContent((char*)ioc.secret.buf, ioc.secret.len, (char*)dr.buf, dr.len);
 					if (int r = this->HandleData(std::move(dr))) {
 						Stop();
 						co_return;
@@ -272,6 +291,8 @@ namespace xx::Asio::Gateway {
 		awaitable<void> Read(auto memHolder) {
 			auto buf = std::make_unique<uint8_t[]>(1024 * 1024);
 			auto& recv = ioc.recv;
+			recv.Clear();
+
 			for (;;) {
 				asio::ip::udp::endpoint ep;	// unused here
 				auto [ec, len] = co_await socket.async_receive_from(asio::buffer(buf.get(), 1024 * 1024), ep, use_nothrow_awaitable);
@@ -306,12 +327,15 @@ namespace xx::Asio::Gateway {
 
 				// get decrypted data from kcp
 				do {
-					// 如果接收缓存没容量就扩容( 通常发生在首次使用时 )
-					if (!recv.cap) {
-						recv.Reserve(1024 * 256);
+					// 拿内存需求长度
+					auto r = ikcp_peeksize(kcp);
+					if (r < 0) break;
+
+					// 按需扩容
+					auto n = recv.cap - recv.len;
+					if (n < r) {
+						recv.Reserve(recv.cap + r - n);
 					}
-					// 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
-					if (recv.len == recv.cap) goto LabStop;
 
 					// 从 kcp 提取数据. 追加填充到 recv 后面区域. 返回填充长度. <= 0 则下次再说
 					auto&& len = ikcp_recv(kcp, (char*)recv.buf + recv.len, (int)(recv.cap - recv.len));
@@ -319,16 +343,16 @@ namespace xx::Asio::Gateway {
 					recv.len += len;
 
 #if XX_ASIO_TCPKCP_DEBUG_INFO_OUTPUT
-					xx::Cout("\nkcp decoded recv = ", recv);
+					xx::Cout("\n *********************************  kcp decoded recv = ", recv);
 #endif
 
 					// 调用 recv 数据处理函数
 					Receive();
 
-					if (IsStoped()) co_return;
+					if (IsStoped())
+						co_return;
 				} while (true);
 			}
-		LabStop:
 			Stop();
 		}
 
@@ -426,7 +450,7 @@ namespace xx::Asio::Gateway {
 		this->isTcp = isTcp;
 	}
 
-	inline awaitable<int> Client::Dial(bool isTcp) {
+	inline awaitable<int> Client::Dial(bool isTcp, bool enableTcpEncrypt) {
 		if (domain.empty()) co_return __LINE__;
 		if (!port) co_return __LINE__;
 		Reset(isTcp);
@@ -445,7 +469,7 @@ namespace xx::Asio::Gateway {
 		} while (false);
 		if (isTcp) {
 			tpeer->serverEP = { addr, port };
-			if (auto r = co_await tpeer->Connect(5s)) co_return __LINE__;							// 开始连接. 超时 5 秒
+			if (auto r = co_await tpeer->Connect(5s, enableTcpEncrypt)) co_return __LINE__;			// 开始连接. 超时 5 秒
 		} else {
 			kpeer->serverEP = { addr, port };
 			if (auto r = co_await kpeer->Connect(5s)) co_return __LINE__;							// 开始连接. 超时 5 秒

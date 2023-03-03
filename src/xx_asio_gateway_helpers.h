@@ -76,12 +76,12 @@ namespace xx::Asio {
 
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendResponseTo(uint32_t const& target, int32_t const& serial, Args const& ... args) {
-			Send(MakeTargetPackageData<8192, PKG>(om, target, serial, args...));
+			PEERTHIS->Send(MakeTargetPackageData<8192, PKG>(om, target, serial, args...));
 		}
 
 		template<typename PKG = ObjBase, typename ... Args>
 		void SendPushTo(uint32_t const& target, Args const& ... args) {
-			Send(MakeTargetPackageData<8192, PKG>(om, target, 0, args...));
+			PEERTHIS->Send(MakeTargetPackageData<8192, PKG>(om, target, 0, args...));
 		}
 
 		template<typename PKG = ObjBase, typename ... Args>
@@ -91,7 +91,7 @@ namespace xx::Asio {
 			auto [iter, ok] = reqs.emplace(key, std::make_pair(asio::steady_timer(PEERTHIS->ioc, std::chrono::steady_clock::now() + d), ObjBase_s()));
 			assert(ok);
 			auto& [timer, data] = iter->second;
-			Send(MakeTargetPackageData<8192, PKG>(om, target, -key, args...));
+			PEERTHIS->Send(MakeTargetPackageData<8192, PKG>(om, target, -key, args...));
 			auto [e] = co_await timer.async_wait(use_nothrow_awaitable);
 			if (PEERTHIS->stoped || (e && (iter = reqs.find(key)) == reqs.end())) co_return nullptr;
 			auto r = std::move(data);

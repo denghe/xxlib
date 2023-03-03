@@ -54,13 +54,28 @@ namespace xx::Lua {
 				});
 			SetFieldCClosure(L, "Dial", [](auto L)->int {
 				auto c = To<U*>(L);
+				bool isTcp = false;
+				bool enableTcpEncrypt = false;
+				if (lua_gettop(L) == 1)
+				{
+					isTcp = true;
+					enableTcpEncrypt = false;
+				}
+				else
+				{
+					isTcp = To<bool>(L, 2);
+					enableTcpEncrypt = To<bool>(L, 3);
+				}
 				if (c->busy) Error(L, "Client is busy now !");
 				c->busy = true;
-				co_spawn(*c, [c]()->awaitable<void> {
-					auto ret = co_await c->Dial();
+				co_spawn(*c, [c, isTcp, enableTcpEncrypt]()->awaitable<void> {
+					c->dialResult = co_await c->Dial(isTcp, enableTcpEncrypt);
 					c->busy = false;
 					}, detached);
 				return 0;
+				});
+			SetFieldCClosure(L, "DialResult", [](auto L)->int {
+				return Push(L, To<U*>(L)->dialResult);
 				});
 			SetFieldCClosure(L, "Busy", [](auto L)->int {
 				return Push(L, To<U*>(L)->busy);
@@ -80,7 +95,7 @@ namespace xx::Lua {
 				return 0;
 				});
 			SetFieldCClosure(L, "TryPop", [](auto L)->int {
-				xx::Asio::Gateway::Package<xx::Data> pkg;
+				xx::Asio::Package<xx::Data> pkg;
 				return To<U*>(L)->TryPop(pkg) ? Push(L, pkg.serverId, pkg.serial, std::move(pkg.data)) : 0;
 				});
 		}

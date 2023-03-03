@@ -460,8 +460,9 @@ namespace xx::SQLite {
         qTableExists.SetQuery("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?");
         qGetTableCount.SetQuery("SELECT count(*) FROM sqlite_master WHERE type = 'table'");
 
-        SetPragmaJournalMode(JournalModes::WAL);
-        SetPragmaTempStoreType(TempStoreTypes::Memory);
+        // 下面的参数WAL会导致readonly模式下报错，所以注释掉
+        //SetPragmaJournalMode(JournalModes::WAL);
+        //SetPragmaTempStoreType(TempStoreTypes::Memory);
     }
 
     inline Connection::Connection() noexcept : qBeginTransaction(*this), qCommit(*this), qRollback(*this), qEndTransaction(*this), qTableExists(*this),
