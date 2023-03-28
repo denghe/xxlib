@@ -1,0 +1,14 @@
+vp8:
+
+unity video player supported ( with alpha )
+
+ffmpeg.exe -f image2 -framerate 60 -i "%d.png" -c:v libvpx -auto-alt-ref 0 -b:v 50K -speed 0    out.webm
+
+tips: 60, 50K can change
+
+
+vp9:
+
+unity current does not support
+
+ffmpeg.exe -f image2 -framerate 60 -i "%d.png" -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 50k -speed 0       out.webm
