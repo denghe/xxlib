@@ -17,7 +17,7 @@ namespace xx {
 
 		// 供 if 简单判断是否为空
 		XX_INLINE operator bool() const {
-			return h != 0;
+			return h != nullptr;
 		}
 
 		XX_INLINE DataShared() : h(nullptr) {}
@@ -91,4 +91,8 @@ namespace xx {
 			else return 0;
 		}
 	};
+
+    // mem moveable tag
+    template<>
+    struct IsPod<DataShared, void> : std::true_type {};
 }

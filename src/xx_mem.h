@@ -6,7 +6,7 @@ namespace xx {
     // Scope Guard( F == lambda )
 
     template<class F>
-    auto MakeScopeGuard(F&& f) noexcept {
+    [[nodiscard]] auto MakeScopeGuard(F&& f) noexcept {
         struct ScopeGuard {
             F f;
             bool cancel;
@@ -27,7 +27,7 @@ namespace xx {
 
 
     template<class F>
-    auto MakeSimpleScopeGuard(F&& f) noexcept {
+    [[nodiscard]] auto MakeSimpleScopeGuard(F&& f) noexcept {
         struct SG { F f; SG(F&& f) noexcept : f(std::forward<F>(f)) {} ~SG() { f(); } };
         return SG(std::forward<F>(f));
     }

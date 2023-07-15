@@ -28,7 +28,7 @@ namespace xx::Lua::Data {
 #endif
 
 	// 在 lua 中注册 全局的 Data 创建函数
-	inline void Register(lua_State* const& L, char const* const& keyName = "NewXxData") {
+	inline void Register(lua_State* const& L, char const* const& keyName = "xxData") {
 		SetGlobalCClosure(L, keyName, [](auto L)->int { return PushUserdata<D>(L); });
 	}
 

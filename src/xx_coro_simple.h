@@ -1,109 +1,56 @@
 ﻿#pragma once
 
-// important: only support static function or lambda !!!
+// faster than task 1/4 but does not support call sub coro & return value
+// important: only support static function or lambda !!!  COPY data from arguments !!! do not ref !!!
 
-#if __has_include(<coroutine>)
-#include <coroutine>
-#elif __has_include(<experimental/coroutine>)
-#include <experimental/coroutine>
-#else
-static_assert(false, "No co_await support");
-#endif
-#include <cassert>
-#include <variant>
-#include <memory>
-#include <utility>
-#include <vector>
-#include <chrono>
-using namespace std::literals;
-using namespace std::literals::chrono_literals;
+#include "xx_typetraits.h"
 
-namespace cxx14 {}
 namespace xx {
-    using namespace std;
-#if __has_include(<coroutine>)
-#else
-    using namespace std::experimental;
-    using namespace cxx14;
-#endif
-
-    struct Coro {
-        struct promise_type;
-        using handle_type = coroutine_handle<promise_type>;
-        struct promise_type {
-            auto get_return_object() { return Coro(handle_type::from_promise(*this)); }
-            suspend_never initial_suspend() { return {}; }
-            suspend_always final_suspend() noexcept(true) { return {}; }
-            suspend_always yield_value(int v) { return {}; }
+    template<typename R> struct CoroBase_promise_type { R y; };
+    template<> struct CoroBase_promise_type<void> {};
+    template<typename R>
+    struct Coro_ {
+        struct promise_type : CoroBase_promise_type<R> {
+            Coro_ get_return_object() { return { H::from_promise(*this) }; }
+            std::suspend_always initial_suspend() { return {}; }
+            std::suspend_always final_suspend() noexcept(true) { return {}; }
+            template<typename U>
+            std::suspend_always yield_value(U&& v) { if constexpr(!std::is_void_v<R>) this->y = std::forward<U>(v); return {}; }
             void return_void() {}
-            void unhandled_exception() {
-                std::rethrow_exception(std::current_exception());
-            }
+            void unhandled_exception() { std::rethrow_exception(std::current_exception()); }
         };
+        using H = std::coroutine_handle<promise_type>;
+        H h;
+        Coro_() : h(nullptr) {}
+        Coro_(H h) : h(h) {}
+        ~Coro_() { if (h) h.destroy(); }
+        Coro_(Coro_ const& o) = delete;
+        Coro_& operator=(Coro_ const&) = delete;
+        Coro_(Coro_&& o) noexcept : h(o.h) { o.h = nullptr; };
+        Coro_& operator=(Coro_&& o) noexcept { std::swap(h, o.h); return *this; };
 
-        Coro(handle_type h) : h(h) {}
-        ~Coro() { if (h) h.destroy(); }
-        Coro(Coro const& o) = delete;
-        Coro& operator=(Coro const&) = delete;
-        Coro(Coro&& o) noexcept : h(o.h) { o.h = nullptr; };
-        Coro& operator=(Coro&&) = delete;
-
+        void Run() {
+            while (!h.done()) {
+                h.resume();
+            }
+        }
         void operator()() { h.resume(); }
-        operator bool() { return h.done(); }
-
-    private:
-        handle_type h;
+        operator bool() const { return h.done(); }
+        bool Resume() { h.resume(); return h.done(); }
     };
+    using Coro = Coro_<void>;
 
-    typedef std::aligned_storage_t<sizeof(Coro), alignof(Coro)> CoroStore;
+    template<>
+    struct IsPod<Coro> : std::true_type {};
+    template<typename T>
+    struct IsPod<Coro_<T>> : IsPod<T> {};
 
-    struct Coros {
-        Coros() = default;
-        Coros(Coros const&) = delete;
-        Coros& operator=(Coros const&) = delete;
-        Coros(Coros&&) = default;
-        Coros& operator=(Coros&&) = default;
-
-        std::vector<CoroStore> coros;
-
-        ~Coros() {
-            Clear();
-        }
-
-        void Add(Coro&& g) {
-            if (g) return;
-            new (&coros.emplace_back()) Coro(std::move(g));
-        }
-
-        void Clear() {
-            for (auto& o : coros) {
-                reinterpret_cast<Coro&>(o).~Coro();
-            }
-            coros.clear();
-        }
-
-        operator bool() const {
-            return !coros.empty();
-        }
-
-        void operator()() {
-            for (int i = (int)coros.size() - 1; i >= 0; --i) {
-                auto& c = reinterpret_cast<Coro&>(coros[i]);
-                if (c(); c) {
-                    c.~Coro();
-                    coros[i] = coros[coros.size() - 1];
-                    coros.pop_back();
-                }
-            }
-        }
-    };
-
-}
-
-#define CoType xx::Coro
-#define CoYield co_yield 0
+//#define CoYield co_yield std::monostate()
+#define CoReturn co_return
 #define CoAwait( coType ) { auto&& c = coType; while(!c) { CoYield; c(); } }
 #define CoSleep( duration ) { auto tp = std::chrono::steady_clock::now() + duration; do { CoYield; } while (std::chrono::steady_clock::now() < tp); }
+
+}
 
 /*
 

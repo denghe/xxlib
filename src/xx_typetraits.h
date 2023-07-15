@@ -394,6 +394,12 @@ namespace xx {
         return std::get<I>(std::forward_as_tuple(args...));
     }
 
+    /************************************************************************************/
+    // static comparer func type define
+
+    template<typename A, typename B>
+    using ABComparer = bool (*) (A const& a, B const& b);
+
 
     /************************************************************************************/
     // 拆解仿函数成员 operator() 得到它的 各种信息（返回值，所属类，参数，是否可变）
@@ -464,6 +470,19 @@ namespace xx {
     };
 #define XX_IsTemplateOf(TM, ...) decltype(::xx::IsTemplateOf::check<TM>(std::declval<__VA_ARGS__>()))
 
+
+
+    /************************************************************************************/
+    // 辅助调用构造函数的容器
+
+    template<typename U>
+    struct TCtor {
+        U* p;
+        template<typename...Args>
+        U& operator()(Args&&...args) {
+            return *new (p) U(std::forward<Args>(args)...);
+        }
+    };
 
 
     /************************************************************************************/

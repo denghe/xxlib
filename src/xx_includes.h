@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <bit>
 #include <type_traits>
 #include <utility>
 #include <initializer_list>
@@ -29,6 +30,13 @@
 #include <condition_variable>
 #include <fstream>
 #include <filesystem>
+#if __has_include(<coroutine>)
+#include <coroutine>
+#elif __has_include(<experimental/coroutine>)
+#include <experimental/coroutine>
+#else
+static_assert(false, "No co_await support");
+#endif
 #if __has_include(<span>)
 #include <span>
 #endif
@@ -44,9 +52,15 @@
 #include <ctime>
 #include <cstdint>
 #include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
+
 
 #ifdef _WIN32
+#ifndef NOMINMAX
 #	define NOMINMAX
+#endif
 #	define NODRAWTEXT
 //#	define NOGDI            // d3d9 need it
 #	define NOBITMAP
@@ -160,6 +174,48 @@ inline void Sleep(int const& ms) {
 }
 #endif
 
+#ifdef XX_DISABLE_ASSERT_IN_RELEASE
+#include <assert.h>
+#define xx_assert assert
+#else
+
+#ifdef NDEBUG
+#undef NDEBUG
+#define HAS_NDEBUG
+#endif
+#include <assert.h>
+#ifdef HAS_NDEBUG
+#define NDEBUG
+#endif
+#ifdef _MSC_VER
+#define xx_assert(expression) (void)(                                                        \
+            (!!(expression)) ||                                                              \
+            (_wassert(_CRT_WIDE(#expression), _CRT_WIDE(__FILE__), (unsigned)(__LINE__)), 0) \
+        )
+#elif defined(__GNUC__) and defined(__MINGW32__)
+#if defined(_UNICODE) || defined(UNICODE)
+#define xx_assert(_Expression) \
+ (void) \
+ ((!!(_Expression)) || \
+  (_wassert(_CRT_WIDE(#_Expression),_CRT_WIDE(__FILE__),__LINE__),0))
+#else /* not unicode */
+#define xx_assert(_Expression) \
+ (void) \
+ ((!!(_Expression)) || \
+  (_assert(#_Expression,__FILE__,__LINE__),0))
+#endif /* _UNICODE||UNICODE */
+#else
+#ifdef EMSCRIPTEN
+#define xx_assert(x) ((void)((x) || (__assert_fail(#x, __FILE__, __LINE__, __func__),0)))
+#else
+#define xx_assert(expression) (void)(                                                        \
+            (!!(expression)) ||                                                              \
+            (__assert_fail(#expression, __FILE__, __LINE__, __ASSERT_FUNCTION), 0)           \
+        )
+#endif
+#endif
+#endif
+
 #define XX_SIMPLE_STRUCT_DEFAULT_CODES(T)\
 T() = default;\
 T(T const&) = default;\
@@ -187,3 +243,9 @@ T& operator=(T &&) = default;
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using namespace std::chrono_literals;
+
+
+#ifdef __GNUC__
+//#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif

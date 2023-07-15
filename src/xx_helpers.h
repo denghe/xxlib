@@ -6,6 +6,7 @@
 #include "xx_mem.h"
 #include "xx_data.h"
 #include "xx_string.h"
+#include "xx_list.h"
 
 #if __has_include(<xx_hide_string.h>)
 # include <xx_hide_string.h>

@@ -78,7 +78,7 @@ namespace xx {
 
 		void Clear() {
 			for (int i = 0; i < len; ++i) {
-				buf[i].~T();
+				buf[i].~T();	// todo: check is empty
 			}
 			len = 0;
 			count = 0;

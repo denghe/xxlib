@@ -246,7 +246,6 @@ namespace xx::Lua {
     /****************************************************************************************/
     /****************************************************************************************/
     // 类型 metatable 填充函数适配模板
-    // 用法示例在最下面
     template<typename T, typename ENABLED = void>
     struct MetaFuncs {
         inline static std::string name = TypeName<T>();
@@ -302,7 +301,7 @@ namespace xx::Lua {
 
 
 	// 压入指定类型的 metatable( 以 MetaFuncs<T>::name.data() 为 key, 存到注册表。没有找到就创建并放入 )
-	template<typename T>
+	template<typename T, bool useCustomGC = false>
 	void PushMeta(lua_State* const& L) {
 		CheckStack(L, 3);
 #if LUA_VERSION_NUM == 501
@@ -317,7 +316,7 @@ namespace xx::Lua {
 			lua_createtable(L, 0, 20);                                      // ..., mt
 
 			// 如果类型需要析构就自动生成 __gc
-			if constexpr (std::is_destructible_v<T>) {
+			if constexpr (!useCustomGC && std::is_destructible_v<T>) {
 				lua_pushstring(L, "__gc");                                  // ..., mt, "__gc"
 				lua_pushcclosure(L, [](auto L)->int {                       // ..., mt, "__gc", cc
 					using U = T;	// fix vs compile bug
@@ -351,12 +350,12 @@ namespace xx::Lua {
 
 
 	// 在 userdata 申请 T 的内存 并执行构造函数, 传入 args 参数。最后附加 mt
-	template<typename T, typename ...Args>
+	template<typename T, bool useCustomGC = false, typename ...Args>
 	int PushUserdata(lua_State* const& L, Args&&...args) {
 		CheckStack(L, 2);
 		auto p = lua_newuserdata(L, sizeof(T));								// ..., ud
 		new(p) T(std::forward<Args>(args)...);
-		PushMeta<T>(L);														// ..., ud, mt
+		PushMeta<T, useCustomGC>(L);										// ..., ud, mt
 		lua_setmetatable(L, -2);											// ..., ud
 		return 1;
 	}
@@ -612,6 +611,10 @@ namespace xx::Lua {
         SetGlobal(L, "null", (void*)0);
         SetGlobal(L, "NULL", (void*)0);
         SetGlobal(L, "nullptr", (void*)0);
+
+        SetGlobalCClosure(L, "NowEpochSeconds", [](auto L)->int {
+            return Push(L, NowSteadyEpochSeconds());
+        });
 
         SetGlobalCClosure(L, "NowEpochMS", [](auto L)->int {
             return Push(L, NowSteadyEpochMilliseconds());

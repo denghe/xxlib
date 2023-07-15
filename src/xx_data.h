@@ -1,11 +1,12 @@
 ﻿#pragma once
-#include "xx_includes.h"
 #include "xx_typetraits.h"
 #include "xx_mem.h"
 
 namespace xx {
 
     // 基础二进制数据跨度/引用容器( buf + len ) 类似 C++20 的 std::span
+    // 注意: 因 追加 & 扩容 导致的数据失效问题, 追加自身存储的数据时要小心，需要先 reserve
+
     struct Span {
         uint8_t* buf;
         size_t len;
@@ -82,6 +83,10 @@ namespace xx {
             return { (char*)buf, len };
         }
     };
+
+    // mem moveable tag
+    template<>
+    struct IsPod<Span, void> : std::true_type {};
 
     // Data 序列化 / 反序列化 基础适配模板
     template<typename T, typename ENABLED>
@@ -168,6 +173,14 @@ namespace xx {
         // 返回剩余 buf ( 不改变 offset )
         [[maybe_unused]] [[nodiscard]] XX_INLINE std::pair<uint8_t*, size_t> GetLeftBuf() {
             return { buf + offset, len - offset };
+        }
+
+        // fill 剩余 buf to dr
+        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadLeftBuf(Data_r& dr) {
+            if (offset == len) return __LINE__;
+            dr.Reset(buf + offset, len - offset);
+            offset = len;
+            return 0;
         }
 
         // 跳过 siz 字节不读. 返回非 0 则失败( 长度不足 )
@@ -332,6 +345,10 @@ namespace xx {
         int ReadCore(T& v);
     };
 
+    // mem moveable tag
+    template<>
+    struct IsPod<Data_r, void> : std::true_type {};
+
 
     /***************************************************************************************************************************/
     /***************************************************************************************************************************/
@@ -449,6 +466,19 @@ namespace xx {
             cap = siz - bufHeaderReserveLen;
         }
 
+        // buf cap resize to len
+        void Shrink() {
+            if (!len) {
+                Clear(true);
+            } else if (cap > len * 2) {
+                auto newBuf = ((uint8_t*)malloc(bufHeaderReserveLen + len)) + bufHeaderReserveLen;
+                memcpy(newBuf, buf, len);
+                free(buf - bufHeaderReserveLen);
+                buf = newBuf;
+                cap = len;
+            }
+        }
+
         // 修改数据长度( 可能扩容 )。会返回旧长度
         XX_INLINE size_t Resize(size_t const &newLen) {
             if (newLen > cap) {
@@ -469,6 +499,21 @@ namespace xx {
             }
         }
 
+        // fill likely. make instance
+        template<typename T = int32_t, typename = std::enable_if_t<std::is_convertible_v<T, uint8_t>>>
+        static Data_rw From(std::initializer_list<T> const &bytes) {
+            xx::Data_rw d;
+            d.Fill(bytes);
+            return d;
+        }
+
+        template<typename T = int32_t, typename = std::enable_if_t<std::is_convertible_v<T, std::string_view>>>
+        static Data_rw From(T const &sv) {
+            xx::Data_rw d;
+            d.WriteBuf(sv);
+            return d;
+        }
+
         // 从头部移除指定长度数据( 常见于拆包处理移除掉已经访问过的包数据, 将残留部分移动到头部 )
         [[maybe_unused]] XX_INLINE void RemoveFront(size_t const &siz) {
             assert(siz <= len);
@@ -479,6 +524,10 @@ namespace xx {
             }
         }
 
+        // for fill read data
+        Span GetFreeRange() const {
+            return {buf + len, cap - len};
+        }
 
         /***************************************************************************************************************************/
 
@@ -663,6 +712,11 @@ namespace xx {
             offset = 0;
         }
     };
+
+    // mem moveable tag
+    template<size_t bufHeaderReserveLen>
+    struct IsPod<Data_rw<bufHeaderReserveLen>, void> : std::true_type {};
+
 
     using Data = Data_rw<sizeof(size_t)*2>;
     using DataView = Data_r;
@@ -933,7 +987,7 @@ namespace xx {
                 d.WriteFixedArray<needReserve>(in.data(), in.size());
             } else if constexpr (std::is_integral_v<typename T::value_type>) {
                 if constexpr (needReserve) {
-                    auto cap = in.size() * (sizeof(T) + 1);
+                    auto cap = in.size() * (sizeof(T) + 2);
                     if (d.cap < cap) {
                         d.Reserve<false>(cap);
                     }
@@ -978,7 +1032,7 @@ namespace xx {
             if (in.empty()) return;
             if constexpr (std::is_integral_v<typename T::value_type>) {
                 if constexpr (needReserve) {
-                    auto cap = in.size() * (sizeof(T) + 1);
+                    auto cap = in.size() * (sizeof(T) + 2);
                     if (d.cap < cap) {
                         d.Reserve<false>(cap);
                     }

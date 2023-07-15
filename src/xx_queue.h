@@ -1,8 +1,6 @@
 ﻿#pragma once
-#include <initializer_list>
-#include <utility>
-#include <cstring>
-#include "xx_bits.h"
+#include "xx_mem.h"
+#include "xx_typetraits.h"
 
 namespace xx {
 
@@ -53,6 +51,10 @@ namespace xx {
 		T& Last() noexcept;
 		void PopLast() noexcept;								// --tail
 	};
+
+    // mem moveable tag
+    template<typename T>
+    struct IsPod<Queue<T>, void> : std::true_type {};
 }
 
 // impls
@@ -235,7 +237,7 @@ namespace xx
 
 		//......Head+++++++++++Tail.......
 		if (head < tail) {
-			if constexpr (std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
+			if constexpr (xx::IsPod_v<T>) {
 				memcpy((void*)newBuf, buf + head, dataLen * sizeof(T));
 			}
 			else {
@@ -251,7 +253,7 @@ namespace xx
 		{
 			//...Head++++++
 			auto frontDataLen = cap - head;
-			if constexpr (std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
+			if constexpr (xx::IsPod_v<T>) {
 				memcpy((void*)newBuf, buf + head, frontDataLen * sizeof(T));
 			}
 			else {
@@ -262,7 +264,7 @@ namespace xx
 			}
 
 			// ++++++Tail...
-			if constexpr (std::is_standard_layout_v<T> && std::is_trivial_v<T>) {
+			if constexpr (xx::IsPod_v<T>) {
 				memcpy((void*)(newBuf + frontDataLen), buf, tail * sizeof(T));
 			}
 			else {

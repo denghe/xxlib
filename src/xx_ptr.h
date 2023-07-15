@@ -70,7 +70,7 @@ namespace xx {
             return pointer->operator[](idx);
         }
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE explicit operator bool() const noexcept {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE operator bool() const noexcept {
             return pointer != nullptr;
         }
 
@@ -249,7 +249,7 @@ namespace xx {
 
         // 填充式 make
         template<typename U = T, typename...Args>
-        Shared &Emplace(Args &&...args);
+        Shared<U> &Emplace(Args &&...args);
 
         // singleton convert to std::shared_ptr ( usually for thread safe )
         std::shared_ptr<T> ToSharedPtr() noexcept {
@@ -288,7 +288,7 @@ namespace xx {
             return h->typeId;
         }
 
-        [[maybe_unused]] [[nodiscard]] XX_INLINE explicit operator bool() const noexcept {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE operator bool() const noexcept {
             return h && h->sharedCount;
         }
 
@@ -296,6 +296,12 @@ namespace xx {
         [[maybe_unused]] [[nodiscard]] XX_INLINE T *pointer() const {
             return (T *) (h + 1);
         }
+
+        // unsafe
+        [[maybe_unused]] XX_INLINE void SetH(void* const& h_) {
+            h = (HeaderType*)h_;
+        }
+
 
         XX_INLINE void Reset() {
             if (h) {
@@ -432,24 +438,31 @@ namespace xx {
 
     template<typename T>
     template<typename U, typename...Args>
-    Shared<T> &Shared<T>::Emplace(Args &&...args) {
+    Shared<U> &Shared<T>::Emplace(Args &&...args) {
         Reset();
-        auto h = (HeaderType *) malloc(sizeof(HeaderType) + sizeof(T));
-        HeaderType::template Init<T>(*h);
+        auto h = (HeaderType *) malloc(sizeof(HeaderType) + sizeof(U));
+        HeaderType::template Init<U>(*h);
         if constexpr (!std::has_virtual_destructor_v<U>) {
             typedef void(*D)(void*);
             *(D*)&h->placeHolder = [](void* o) {
                 //std::cout << "delete (" << xx::TypeName<U>() << "*)o = " << (size_t)o << std::endl;
-                ((T*)o)->~U();
+                ((U*)o)->~U();
             };
         }
-        pointer = new(h + 1) T(std::forward<Args>(args)...);
-        return *this;
+        pointer = (T*)new(h + 1) U(std::forward<Args>(args)...);
+        return (Shared<U>&)*this;
     }
 
 
     /************************************************************************************/
     // helpers
+
+    // 标识内存可移动
+    template<typename T>
+    struct IsPod<Shared<T>, void> : std::true_type {};
+    template<typename T>
+    struct IsPod<Weak<T>, void> : std::true_type {};
+
 
     template<typename T>
     struct IsShared : std::false_type {

@@ -98,7 +98,7 @@ namespace xx::Lua {
 		(PushToFuncs<Args>::To_(L, idx++, args), ...);
 	}
 
-	// 从栈读数据 返回
+	// 从栈读数据 返回( copy )
 	template<typename T>
 	T To(lua_State* const& L, int const& idx = 1) {
 		T v;
@@ -361,6 +361,14 @@ namespace xx::Lua {
 		Call(L, std::forward<Args>(args)...);
 	}
 
+	template<typename...Args>
+	void DoBuffer(lua_State* const& L, std::string_view code, std::string const& name, Args &&...args) {
+		if (LUA_OK != luaL_loadbufferx(L, code.data(), code.size(), name.c_str(), nullptr)) {
+			lua_error(L);
+		}
+		Call(L, std::forward<Args>(args)...);
+	}
+
 	// Lua State 简单封装, 可直接当指针用, 离开范围自动 close
 	struct State {
 		lua_State* L = nullptr;
@@ -384,18 +392,25 @@ namespace xx::Lua {
 		}
 
 		explicit State(lua_State* L) : L(L) {}
-
 		State(State const&) = delete;
-
 		State& operator=(State const&) = delete;
-
-		State(State&& o) noexcept : L(o.L) {
-			o.L = nullptr;
-		}
-
+		State(State&& o) noexcept : L(o.L) { o.L = nullptr; }
 		State& operator=(State&& o) noexcept {
 			std::swap(L, o.L);
 			return *this;
+		}
+	};
+
+	// 带扩展数据的 lua_State 的简单封装
+	template<typename T>
+	struct StateWithExtra : State {
+		using State::State;
+		T extra{};
+		explicit StateWithExtra(bool const& openLibs = true) : State(openLibs) {
+			memcpy(lua_getextraspace(L), &extra, sizeof(void*));
+		}
+		static T& Extra(lua_State* L) {
+			return *(T*)lua_getextraspace(L);
 		}
 	};
 

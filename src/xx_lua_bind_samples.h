@@ -24,7 +24,7 @@ namespace xx::Lua {
 	template<>
 	struct MetaFuncs<FooBase*, void> {
 		using U = FooBase*;
-		inline static std::string name = std::string(TypeName_v<U>);
+		inline static std::string name = TypeName<U>();
 		static void Fill(lua_State* const& L) {
 			SetType<U>(L);
 			SetFieldCClosure(L, "n", [](auto L)->int { return Push(L, To<U>(L)->n); });
@@ -37,7 +37,7 @@ namespace xx::Lua {
 	template<>
 	struct MetaFuncs<Foo*, void> {
 		using U = Foo*;
-		inline static std::string name = std::string(TypeName_v<U>);
+		inline static std::string name = TypeName<U>();
 		static void Fill(lua_State* const& L) {
 			MetaFuncs<FooBase*>::Fill(L);
 			SetType<U>(L);
