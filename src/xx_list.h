@@ -70,7 +70,7 @@ namespace xx {
 
 
 		void Resize(SizeType const& len_) noexcept {
-			if (len_ == len) return len_;
+			if (len_ == len) return;
 			else if (len_ < len) {
 				for (SizeType i = len_; i < len; ++i) {
 					buf[i].~T();

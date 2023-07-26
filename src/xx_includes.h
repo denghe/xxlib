@@ -30,13 +30,7 @@
 #include <condition_variable>
 #include <fstream>
 #include <filesystem>
-#if __has_include(<coroutine>)
 #include <coroutine>
-#elif __has_include(<experimental/coroutine>)
-#include <experimental/coroutine>
-#else
-static_assert(false, "No co_await support");
-#endif
 #if __has_include(<span>)
 #include <span>
 #endif
@@ -174,46 +168,54 @@ inline void Sleep(int const& ms) {
 }
 #endif
 
-#ifdef XX_DISABLE_ASSERT_IN_RELEASE
-#include <assert.h>
-#define xx_assert assert
+#if defined(XX_DISABLE_ASSERT_IN_RELEASE) or not defined(NDEBUG)
+    #define xx_assert assert
 #else
-
-#ifdef NDEBUG
-#undef NDEBUG
-#define HAS_NDEBUG
-#endif
-#include <assert.h>
-#ifdef HAS_NDEBUG
-#define NDEBUG
-#endif
-#ifdef _MSC_VER
-#define xx_assert(expression) (void)(                                                        \
+    #ifdef _MSC_VER
+        _ACRTIMP void __cdecl _wassert(
+                _In_z_ wchar_t const* _Message,
+                _In_z_ wchar_t const* _File,
+                _In_   unsigned       _Line
+        );
+        #define xx_assert(expression) (void)(                                                        \
             (!!(expression)) ||                                                              \
             (_wassert(_CRT_WIDE(#expression), _CRT_WIDE(__FILE__), (unsigned)(__LINE__)), 0) \
         )
-#elif defined(__GNUC__) and defined(__MINGW32__)
-#if defined(_UNICODE) || defined(UNICODE)
-#define xx_assert(_Expression) \
- (void) \
- ((!!(_Expression)) || \
-  (_wassert(_CRT_WIDE(#_Expression),_CRT_WIDE(__FILE__),__LINE__),0))
-#else /* not unicode */
-#define xx_assert(_Expression) \
- (void) \
- ((!!(_Expression)) || \
-  (_assert(#_Expression,__FILE__,__LINE__),0))
-#endif /* _UNICODE||UNICODE */
-#else
-#ifdef EMSCRIPTEN
-#define xx_assert(x) ((void)((x) || (__assert_fail(#x, __FILE__, __LINE__, __func__),0)))
-#else
-#define xx_assert(expression) (void)(                                                        \
-            (!!(expression)) ||                                                              \
-            (__assert_fail(#expression, __FILE__, __LINE__, __ASSERT_FUNCTION), 0)           \
-        )
-#endif
-#endif
+    #elif defined(__GNUC__) and defined(__MINGW32__)
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
+        _CRTIMP void __cdecl __MINGW_ATTRIB_NORETURN _wassert(const wchar_t *_Message,const wchar_t *_File,unsigned _Line);
+        _CRTIMP void __cdecl __MINGW_ATTRIB_NORETURN _assert (const char *_Message, const char *_File, unsigned _Line);
+        #ifdef __cplusplus
+        }
+        #endif
+        #if defined(_UNICODE) || defined(UNICODE)
+            #define xx_assert(_Expression) \
+             (void) \
+             ((!!(_Expression)) || \
+              (_wassert(_CRT_WIDE(#_Expression),_CRT_WIDE(__FILE__),__LINE__),0))
+        #else /* not unicode */
+            #define xx_assert(_Expression) \
+             (void) \
+             ((!!(_Expression)) || \
+              (_assert(#_Expression,__FILE__,__LINE__),0))
+        #endif /* _UNICODE||UNICODE */
+    #else
+        #ifdef EMSCRIPTEN
+            #define xx_assert(x) ((void)((x) || (__assert_fail(#x, __FILE__, __LINE__, __func__),0)))
+        #else
+            /* This prints an "Assertion failed" message and aborts.  */
+            extern void __assert_fail(const char *__assertion, const char *__file,
+                                      unsigned int __line, const char *__function)
+            __THROW __attribute__ ((__noreturn__));
+
+            #define xx_assert(expression) (void)(                                                \
+                (!!(expression)) ||                                                              \
+                (__assert_fail(#expression, __FILE__, __LINE__, __extension__ __PRETTY_FUNCTION__), 0)           \
+            )
+        #endif
+    #endif
 #endif
 
 #define XX_SIMPLE_STRUCT_DEFAULT_CODES(T)\

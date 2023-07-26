@@ -145,7 +145,7 @@ namespace xx::Lua {
 	template<typename K, typename V>
 	void SetField(lua_State* const& L, K&& k, V&& v) {
 		Push(L, std::forward<K>(k), std::forward<V>(v));    // ..., table, k, v
-		lua_rawset(L, -3);                                  // ..., table, 
+		lua_rawset(L, -3);                                  // ..., table
 	}
 
 	// 根据 k 从 idx 的 table 读出 v
@@ -369,7 +369,41 @@ namespace xx::Lua {
 		Call(L, std::forward<Args>(args)...);
 	}
 
-	// Lua State 简单封装, 可直接当指针用, 离开范围自动 close
+    // global[k] = cFunc( upvalues...
+    template<typename K, typename...VS>
+    inline void SetGlobalCClosure(lua_State* const& L, K&& k, lua_CFunction&& f, VS&&...upvalues) {
+        CheckStack(L, 3 + CalcCheckStackSize<0, VS...>());
+        auto n = Push(L, std::forward<VS>(upvalues)...);			    // ..., upvalues...
+        lua_pushcclosure(L, f, n);								        // ..., cfunc
+        if constexpr (std::is_base_of_v<std::string, std::decay_t<K>> || std::is_base_of_v<std::string_view, std::decay_t<K>>) {
+            lua_setglobal(L, k.data());									// ...
+        }
+        else {
+            lua_setglobal(L, k);									    // ...
+        }
+    }
+
+    // 栈顶 table[k] = cFunc( upvalues...
+    template<typename K, typename...VS>
+    inline void SetFieldCClosure(lua_State* const& L, K&& k, lua_CFunction&& f, VS&&...upvalues) {
+        CheckStack(L, 3 + CalcCheckStackSize<0, VS...>());
+        Push(L, std::forward<K>(k));                                            // ..., table, k
+        auto n = Push(L, std::forward<VS>(upvalues)...);                        // ..., table, k, upvalues...
+        lua_pushcclosure(L, f, n);								                // ..., table, k, cfunc
+        lua_rawset(L, -3);													    // ..., table,
+    }
+
+    // push 栈顶 cFunc( upvalues...
+    template<typename...VS>
+    inline void PushCClosure(lua_State* const& L, lua_CFunction&& f, VS&&...upvalues) {
+        auto n = Push(L, std::forward<VS>(upvalues)...);	                    // ..., upvalues...
+        lua_pushcclosure(L, f, n);								                // ..., cfunc
+    }
+
+    /****************************************************************************************/
+    /****************************************************************************************/
+
+    // Lua State 简单封装, 可直接当指针用, 离开范围自动 close
 	struct State {
 		lua_State* L = nullptr;
 

@@ -1,6 +1,6 @@
 ﻿/*
 partial code
-before include, need #define GetWeakTableRefId ............(L)
+before include, need #define RefWeakTableRefId ............(L)
 example:
 
 using MyLuaState = decltype(GameLooper::L);
