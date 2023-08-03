@@ -34,6 +34,9 @@ namespace xx {
         bool Empty() const {
             return !len;
         }
+        SizeType Count() const {
+            return len;
+        }
 
 		void Reserve(SizeType const& cap_) noexcept {
 			if (auto newBuf = ReserveBegin(cap_)) {

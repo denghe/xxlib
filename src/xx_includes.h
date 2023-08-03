@@ -172,11 +172,13 @@ inline void Sleep(int const& ms) {
     #define xx_assert assert
 #else
     #ifdef _MSC_VER
-        _ACRTIMP void __cdecl _wassert(
+        extern "C" {
+            _ACRTIMP void __cdecl _wassert(
                 _In_z_ wchar_t const* _Message,
                 _In_z_ wchar_t const* _File,
                 _In_   unsigned       _Line
-        );
+            );
+        }
         #define xx_assert(expression) (void)(                                                        \
             (!!(expression)) ||                                                              \
             (_wassert(_CRT_WIDE(#expression), _CRT_WIDE(__FILE__), (unsigned)(__LINE__)), 0) \
@@ -205,11 +207,12 @@ inline void Sleep(int const& ms) {
         #ifdef EMSCRIPTEN
             #define xx_assert(x) ((void)((x) || (__assert_fail(#x, __FILE__, __LINE__, __func__),0)))
         #else
+            extern "C" {
             /* This prints an "Assertion failed" message and aborts.  */
             extern void __assert_fail(const char *__assertion, const char *__file,
                                       unsigned int __line, const char *__function)
             __THROW __attribute__ ((__noreturn__));
-
+            }
             #define xx_assert(expression) (void)(                                                \
                 (!!(expression)) ||                                                              \
                 (__assert_fail(#expression, __FILE__, __LINE__, __extension__ __PRETTY_FUNCTION__), 0)           \
