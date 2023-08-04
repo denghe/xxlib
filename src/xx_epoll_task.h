@@ -398,6 +398,10 @@ namespace xx::net {
             return r;
         }
 
+        void Run() {
+            while (RunOnce(1));
+        }
+
         // error store to errorNumber when rtv is {}
         template<typename PeerType>
         Task<Weak<PeerType>> Connect(sockaddr_in6 addr, double timeoutSecs) {
