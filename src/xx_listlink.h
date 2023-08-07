@@ -203,6 +203,20 @@ namespace xx {
 				}
 			}
 		}
+
+		// ll.FindIf( [&](auto& o)->bool { if ( o.... ) return ... } );
+		template<typename F>
+		std::pair<SizeType, SizeType> FindIf(F&& f) {
+			for (SizeType prev = -1, next, idx = head; idx != -1;) {
+				if (f(buf[idx].value)) return {idx, prev};
+				else {
+					next = Next(idx);
+					prev = idx;
+				}
+				idx = next;
+			}
+			return { -1, -1 };
+		}
 	};
 
     template<typename T, typename SizeType, SizeType initCap>

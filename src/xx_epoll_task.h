@@ -286,7 +286,8 @@ namespace xx::net {
         ListDoubleLink<Shared<Socket<Derived>>, int, uint> sockets;    // listeners + accepted peers container
         IdxVerType lastListenerIV;  // for visit all sockets, skip listeners ( Foreach( []{}, Next( iv ) )
 
-        OptWeakTasks tasks;
+        Tasks tasks;
+        OptWeakTasks weakTasks;
 
         NetCtxBase() {
             xx_assert(-1 != Create());
@@ -392,6 +393,7 @@ namespace xx::net {
         int RunOnce(int timeoutMS) {
             int r = Wait(timeoutMS);
             r += tasks();
+            r += weakTasks();
             if constexpr (Has_OnRunOnce<Derived>) {
                 r += ((Derived*)this)->OnRunOnce();
             }
@@ -593,27 +595,21 @@ namespace xx::net {
     template<typename NetCtxType>
     struct TaskTcpSocket : TcpSocket<NetCtxType> {
         using TcpSocket<NetCtxType>::TcpSocket;
-        xx::EventTasks<> tasks;
-    };
+        EventTasks<> tasks;
 
-    template<typename Derived, typename TaskTcpSocketPeer>
-    struct NetCtxTaskBase : xx::net::NetCtxBase<Derived> {
-        xx::List<xx::Weak<TaskTcpSocketPeer>, int> taskPeers;
-        int OnRunOnce() {
-            if (auto c = taskPeers.len) {
-                for(int i = c - 1; i >= 0; --i) {
-                    if (auto& w = taskPeers[i]) {
-                        if (w->tasks()) {
-                            xx_assert(w);
-                            this->SocketDispose(*w);
-                            taskPeers.SwapRemoveAt(i);
-                        }
-                    } else {
-                        taskPeers.SwapRemoveAt(i);
-                    }
-                }
-            }
-            return taskPeers.len;
+        int OnAccept() {
+            tdTasksUpdater(this->nc->tasks, TasksUpdater());
+            return 0;
+        }
+        int OnConnect() {
+            tdTasksUpdater(this->nc->tasks, TasksUpdater());
+            return 0;
+        }
+
+        TaskDeleter tdTasksUpdater;
+        Task<> TasksUpdater() {
+            while (tasks() >= 0) co_yield 0;
+            this->nc->SocketDispose(*this);
         }
     };
 
@@ -707,7 +703,7 @@ namespace xx::net {
                 d.Write(filler);
             }
             d.WriteFixedAt(0, PkgLen_t(d.len - sizeof(PkgLen_t))); // len does not contain self
-            xx::CoutN("fd = ", ((Derived*)this)->fd, " Send d = ", d);
+            //xx::CoutN("fd = ", ((Derived*)this)->fd, " Send d = ", d);
             return ((Derived*)this)->Send(std::move(d));
         }
 

@@ -328,6 +328,32 @@ namespace xx {
 				}
 			}
 		}
+
+
+		// ll.FindIf( [&](auto& o)->bool { if ( o.... ) return ... } );
+		template<typename F>
+		IndexType FindIf(F&& f, IndexType beginIdx = -1) {
+			if (beginIdx == -1) {
+				beginIdx = head;
+			}
+			for (IndexType next, idx = beginIdx; idx != -1;) {
+				next = Next(idx);
+				if (f(buf[idx].value)) return idx;
+				idx = next;
+			}
+			return -1;
+		}
+
+		// ll.FindIfReverse( [&](auto& o)->bool { if ( o.... ) return ... } );
+		template<typename F>
+		IndexType FindIfReverse(F&& f) {
+			for (IndexType prev, idx = tail; idx != -1;) {
+				prev = Prev(idx);
+				if (f(buf[idx].value)) return idx;
+				idx = prev;
+			}
+			return -1;
+		}
 	};
 
     template<typename T, typename IndexType, typename VersionType>
