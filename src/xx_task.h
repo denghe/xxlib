@@ -75,7 +75,7 @@ namespace xx {
         using H = std::coroutine_handle<promise_type>;
         H coro;
 
-        Task() = delete;
+        Task() = default;
         Task(H h) { coro = h; }
         Task(Task const &o) = delete;
         Task &operator=(Task const &o) = delete;

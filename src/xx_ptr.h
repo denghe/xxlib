@@ -63,6 +63,11 @@ namespace xx {
             return *pointer;
         }
 
+        template<typename ...Args>
+        XX_INLINE decltype(auto) operator()(Args&&...args) {
+            return (*pointer)(std::forward<Args>(args)...);
+        }
+
         XX_INLINE auto& operator[](size_t const& idx) {
             return pointer->operator[](idx);
         }
@@ -300,6 +305,12 @@ namespace xx {
         // unsafe
         [[maybe_unused]] XX_INLINE void SetH(void* const& h_) {
             h = (HeaderType*)h_;
+        }
+
+        // unsafe
+        template<typename ...Args>
+        XX_INLINE decltype(auto) operator()(Args&&...args) {
+            return (*pointer())(std::forward<Args>(args)...);
         }
 
 
