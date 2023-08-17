@@ -258,7 +258,11 @@ namespace xx {
 
     // 适配 std::string_view
     template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T> || std::is_base_of_v<std::u8string_view, T>>> {
+    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T>
+#if __cplusplus >= 202002L
+     || std::is_base_of_v<std::u8string_view, T>
+#endif
+    >> {
         static inline void Append(std::string& s, T const& in) {
             s.append((std::string_view&)in);
         }
@@ -314,7 +318,11 @@ namespace xx {
             if constexpr (std::is_same_v<bool, std::decay_t<T>>) {
                 s.append(in ? "true" : "false");
             }
-            else if constexpr (std::is_same_v<char, std::decay_t<T>> || std::is_same_v<char8_t, std::decay_t<T>>) {
+            else if constexpr (std::is_same_v<char, std::decay_t<T>>
+#if __cplusplus >= 202002L
+             || std::is_same_v<char8_t, std::decay_t<T>>
+#endif
+            ) {
                 s.push_back((char)in);
             }
             else if constexpr (std::is_floating_point_v<T>) {

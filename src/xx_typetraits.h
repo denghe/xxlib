@@ -499,6 +499,7 @@ namespace xx {
         }
     };
 
+#if __cplusplus >= 202002L
 
     /************************************************************************************/
     // 判断目标类型是否为 []{} 这种 lambda( 依赖编译器具体实现 )
@@ -536,6 +537,7 @@ namespace xx {
     template<typename ...T>
     constexpr bool IsLambda_v = IsLambda<T...>();
 
+#endif
 
 
     /***********************************************************************************/
@@ -555,6 +557,8 @@ namespace xx {
     template<typename T, typename... Args>
     constexpr size_t MaxSizeof_v = MaxSizeof<T, Args...>::value;
 
+
+#if __cplusplus >= 202002L
 
     /************************************************************************************/
     // TypeName. 当前只支持运行时拿 std::string. android 下带混淆效果
@@ -651,8 +655,10 @@ namespace xx {
 #endif
         >();
     }
+#endif
 
 }
+
 
 // 用于得到检测 T:: typename 是否存在的 constexpr. 已否决，应改用 concept
 
