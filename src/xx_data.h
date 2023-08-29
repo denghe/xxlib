@@ -227,9 +227,9 @@ namespace xx {
         [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadFixed(T &v) {
             if (offset + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + offset, sizeof(T));
-#ifdef __BIG_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::big) {
+                v = BSwap(v);
+            }
             offset += sizeof(T);
             return 0;
         }
@@ -239,32 +239,32 @@ namespace xx {
         [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadFixedAt(size_t const &idx, T &v) {
             if (idx + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + idx, sizeof(T));
-#ifdef __BIG_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::big) {
+                v = BSwap(v);
+            }
             return 0;
         }
 
         // 读 定长大尾数字. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
-        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadFixedBE(T &v) {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadFixedBE(T& v) {
             if (offset + sizeof(T) > len) return __LINE__;
             memcpy(&v, buf + offset, sizeof(T));
-#ifdef __LITTLE_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::little) {
+                v = BSwap(v);
+            }
             offset += sizeof(T);
             return 0;
         }
 
         // 从指定下标 读 定长大尾数字. 不改变 offset. 返回非 0 则读取失败
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
-        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadFixedBEAt(size_t const &idx, T &v) {
+        [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadFixedBEAt(size_t const& idx, T& v) {
             if (idx + sizeof(T) >= len) return __LINE__;
             memcpy(&v, buf + idx, sizeof(T));
-#ifdef __LITTLE_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::little) {
+                v = BSwap(v);
+            }
             return 0;
         }
 
@@ -273,16 +273,16 @@ namespace xx {
         [[maybe_unused]] [[nodiscard]] XX_INLINE int ReadFixedArray(T* const& tar, size_t const& siz) {
             assert(tar);
             if (offset + sizeof(T) * siz > len) return __LINE__;
-#ifdef __BIG_ENDIAN__
-            auto p = buf + offset;
-            T v;
-            for (size_t i = 0; i < siz; ++i) {
-                memcpy(&v, p + i * sizeof(T), sizeof(T));
-                tar[i] = BSwap(v);
+            if constexpr (std::endian::native == std::endian::big) {
+                auto p = buf + offset;
+                T v;
+                for (size_t i = 0; i < siz; ++i) {
+                    memcpy(&v, p + i * sizeof(T), sizeof(T));
+                    tar[i] = BSwap(v);
+                }
+            } else {
+                memcpy(tar, buf + offset, sizeof(T) * siz);
             }
-#else
-            memcpy(tar, buf + offset, sizeof(T) * siz);
-#endif
             offset += sizeof(T) * siz;
             return 0;
         }
@@ -574,9 +574,9 @@ namespace xx {
                     Reserve<false>(len + sizeof(T));
                 }
             }
-#ifdef __BIG_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::big) {
+                v = BSwap(v);
+            }
             memcpy(buf + len, &v, sizeof(T));
             len += sizeof(T);
         }
@@ -587,9 +587,9 @@ namespace xx {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
             }
-#ifdef __BIG_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::big) {
+                v = BSwap(v);
+            }
             memcpy(buf + idx, &v, sizeof(T));
         }
 
@@ -601,22 +601,22 @@ namespace xx {
                     Reserve<false>(len + sizeof(T));
                 }
             }
-#ifdef __LITTLE_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::little) {
+                v = BSwap(v);
+            }
             memcpy(buf + len, &v, sizeof(T));
             len += sizeof(T);
         }
 
         // 在指定 idx 写入 float / double / integer ( 定长 Big Endian )
         template<typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>>
-        [[maybe_unused]] XX_INLINE void WriteFixedBEAt(size_t const &idx, T v) {
+        [[maybe_unused]] XX_INLINE void WriteFixedBEAt(size_t const& idx, T v) {
             if (idx + sizeof(T) > len) {
                 Resize(sizeof(T) + idx);
             }
-#ifdef __LITTLE_ENDIAN__
-            v = BSwap(v);
-#endif
+            if constexpr (std::endian::native == std::endian::little) {
+                v = BSwap(v);
+            }
             memcpy(buf + idx, &v, sizeof(T));
         }
 
@@ -629,16 +629,16 @@ namespace xx {
                     Reserve<false>(len + sizeof(T) * siz);
                 }
             }
-#ifdef __BIG_ENDIAN__
-            auto p = buf + len;
-            T v;
-            for (size_t i = 0; i < siz; ++i) {
-                v = BSwap(ptr[i]);
-                memcpy(p + i * sizeof(T), &v, sizeof(T));
+            if constexpr (std::endian::native == std::endian::big) {
+                auto p = buf + len;
+                T v;
+                for (size_t i = 0; i < siz; ++i) {
+                    v = BSwap(ptr[i]);
+                    memcpy(p + i * sizeof(T), &v, sizeof(T));
+                }
+            } else {
+                memcpy(buf + len, ptr, sizeof(T) * siz);
             }
-#else
-            memcpy(buf + len, ptr, sizeof(T) * siz);
-#endif
             len += sizeof(T) * siz;
         }
 
@@ -1081,6 +1081,25 @@ namespace xx {
                 out.insert(std::move(kv));
             }
             return 0;
+        }
+    };
+
+    // for read & write float ( value is uint16 )
+    // example: d.Read( (xx::RWFloatUInt16&)x )
+    struct RWFloatUInt16 {
+        float v;
+    };
+    template<typename T>
+    struct DataFuncs<T, std::enable_if_t< std::is_base_of_v<RWFloatUInt16, T> >> {
+        template<bool needReserve = true>
+        static inline void Write(Data& d, T const& in) {
+            d.WriteFixed((uint16_t)in.v);
+        }
+        static inline int Read(Data_r& d, T& out) {
+            uint16_t tmp;
+            auto r = d.ReadFixed(tmp);
+            out.v = tmp;
+            return r;
         }
     };
 

@@ -463,12 +463,12 @@ namespace xx {
     // 针对模板基类，检查某类型是否其派生类. 用法: XX_IsTemplateOf(BT, T)::value
 
     struct IsTemplateOf {
-        template <template <class> class TM, class T> static std::true_type  check(TM<T>);
-        template <template <class> class TM>          static std::false_type check(...);
-        template <template <int>   class TM, int N>   static std::true_type  check(TM<N>);
-        template <template <int>   class TM>          static std::false_type check(...);
+        template <template <class> class TM, class T> static std::true_type  checkfunc(TM<T>);
+        template <template <class> class TM>          static std::false_type checkfunc(...);
+        template <template <int>   class TM, int N>   static std::true_type  checkfunc(TM<N>);
+        template <template <int>   class TM>          static std::false_type checkfunc(...);
     };
-#define XX_IsTemplateOf(TM, ...) decltype(::xx::IsTemplateOf::check<TM>(std::declval<__VA_ARGS__>()))
+#define XX_IsTemplateOf(TM, ...) decltype(::xx::IsTemplateOf::checkfunc<TM>(std::declval<__VA_ARGS__>()))
 
 
 
@@ -499,7 +499,6 @@ namespace xx {
         }
     };
 
-#if __cplusplus >= 202002L
 
     /************************************************************************************/
     // 判断目标类型是否为 []{} 这种 lambda( 依赖编译器具体实现 )
@@ -537,7 +536,6 @@ namespace xx {
     template<typename ...T>
     constexpr bool IsLambda_v = IsLambda<T...>();
 
-#endif
 
 
     /***********************************************************************************/
@@ -557,8 +555,6 @@ namespace xx {
     template<typename T, typename... Args>
     constexpr size_t MaxSizeof_v = MaxSizeof<T, Args...>::value;
 
-
-#if __cplusplus >= 202002L
 
     /************************************************************************************/
     // TypeName. 当前只支持运行时拿 std::string. android 下带混淆效果
@@ -655,10 +651,8 @@ namespace xx {
 #endif
         >();
     }
-#endif
 
 }
-
 
 // 用于得到检测 T:: typename 是否存在的 constexpr. 已否决，应改用 concept
 

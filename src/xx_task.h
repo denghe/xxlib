@@ -1,12 +1,9 @@
 ﻿#pragma once
-
-#include "xx_typetraits.h"
 #include "xx_time.h"
 #include "xx_list.h"
 #include "xx_listlink.h"
 #include "xx_listdoublelink.h"
-#include <xx_dict.h>
-#include <xx_ptr.h>
+#include "xx_ptr.h"
 
 namespace xx {
     struct YieldType {

@@ -258,11 +258,7 @@ namespace xx {
 
     // 适配 std::string_view
     template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T>
-#if __cplusplus >= 202002L
-     || std::is_base_of_v<std::u8string_view, T>
-#endif
-    >> {
+    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T> || std::is_base_of_v<std::u8string_view, T>>> {
         static inline void Append(std::string& s, T const& in) {
             s.append((std::string_view&)in);
         }
@@ -318,11 +314,7 @@ namespace xx {
             if constexpr (std::is_same_v<bool, std::decay_t<T>>) {
                 s.append(in ? "true" : "false");
             }
-            else if constexpr (std::is_same_v<char, std::decay_t<T>>
-#if __cplusplus >= 202002L
-             || std::is_same_v<char8_t, std::decay_t<T>>
-#endif
-            ) {
+            else if constexpr (std::is_same_v<char, std::decay_t<T>> || std::is_same_v<char8_t, std::decay_t<T>>) {
                 s.push_back((char)in);
             }
             else if constexpr (std::is_floating_point_v<T>) {
@@ -551,6 +543,97 @@ namespace xx {
         }
         return out;
     }
+
+    constexpr std::string_view intToStringChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv;
+
+    template<typename N = int, N toBase = 10, size_t fixedSize = 0, bool sClear = true, typename T>
+    size_t IntToStringTo(T& s, N i) {
+        if constexpr (sClear) {
+            s.clear();
+        }
+        while (i >= toBase) {
+            auto a = i / toBase;
+            auto b = i - a * toBase;
+            s += intToStringChars[b];
+            i = a;
+        }
+        s += intToStringChars[i];
+        std::reverse(s.begin(), s.end());
+        if (auto siz = s.size() >= fixedSize) return siz;
+        s = std::string(fixedSize - s.size(), '0') + s;
+        return fixedSize;
+    }
+
+    template<typename R = std::string, typename N = int, N toBase = 10, size_t fixedSize = 0>
+    R IntToString(N i) {
+        R s;
+        ToStringTo<N, toBase, fixedSize>(s, i);
+        return s;
+    }
+
+
+    struct ExpressionCalculator {
+        int operator()(char const* exp_) {
+            exp = exp_;
+            return Expression();
+        }
+        template<typename S>
+        int operator()(S const& exp_) {
+            exp = exp_.data();
+            return Expression();
+        }
+    protected:
+        const char* exp{};
+        char Peek() {
+            return *exp;
+        }
+        char Get() {
+            return *exp++;
+        }
+        int Number() {
+            int result = Get() - '0';
+            while (Peek() >= '0' && Peek() <= '9') {
+                result = 10 * result + Get() - '0';
+            }
+            return result;
+        }
+        int Factor() {
+            if (Peek() >= '0' && Peek() <= '9') return Number();
+            else if (Peek() == '(') {
+                Get(); // '('
+                int result = Expression();
+                Get(); // ')'
+                return result;
+            } else if (Peek() == '-') {
+                Get();
+                return -Factor();
+            }
+            return 0; // error
+        }
+        int Term() {
+            int result = Factor();
+            while (Peek() == '*' || Peek() == '/') {
+                if (Get() == '*') {
+                    result *= Factor();
+                } else {
+                    result /= Factor();
+                }
+            }
+            return result;
+        }
+        int Expression() {
+            int result = Term();
+            while (Peek() == '+' || Peek() == '-') {
+                if (Get() == '+') {
+                    result += Term();
+                } else {
+                    result -= Term();
+                }
+            }
+            return result;
+        }
+    };
+
 
 
     inline constexpr std::string_view TrimRight(std::string_view const& s) {

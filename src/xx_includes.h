@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <bit>
+#include <concepts>
 #include <type_traits>
 #include <utility>
 #include <initializer_list>
@@ -90,27 +91,9 @@
 #   endif
 #endif
 
-#if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
-#   if __BYTE_ORDER == __LITTLE_ENDIAN
-#       define __LITTLE_ENDIAN__
-#   elif __BYTE_ORDER == __BIG_ENDIAN
-#       define __BIG_ENDIAN__
-#   elif _WIN32
-#       define __LITTLE_ENDIAN__
-#   endif
-#endif
-
 #ifndef XX_STRINGIFY
 #	define XX_STRINGIFY(x)  XX_STRINGIFY_(x)
 #	define XX_STRINGIFY_(x)  #x
-#endif
-
-#if defined(__i386__) || defined(i386) || defined(_M_IX86) || defined(_X86_) || defined(__THW_INTEL) || defined(__x86_64__) || defined(_M_X64)
-#    define XX_ARCH_IA
-#endif
-
-#if defined(__LP64__) || __WORDSIZE == 64 || defined(_WIN64) || defined(_M_X64)
-#    define XX_ARCH_64
 #endif
 
 #ifdef _MSC_VER
