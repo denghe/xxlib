@@ -196,7 +196,7 @@ struct Loader {
 
 		// µ¹ÐòÉ¾³ý ok µÄÌõÄ¿
 		if (!ff.empty()) {
-			for (int i = ff.size() - 1; i >= 0; --i) {
+			for (int i = (int)ff.size() - 1; i >= 0; --i) {
 				if (ff[i].ok) {
 					if (auto last = ff.size() - 1; i < last) {
 						ff[i] = ff[last];
@@ -408,7 +408,7 @@ struct Loader {
 		totalLenEx = totalLen + currLen;
 		auto elapsedSeconds = xx::NowEpochSeconds() - beginSeconds;
 		if (elapsedSeconds > 0) {
-			bytesPerSeconds = totalLenEx / (xx::NowEpochSeconds() - beginSeconds);
+			bytesPerSeconds = size_t(totalLenEx / (xx::NowEpochSeconds() - beginSeconds));
 		}
 
 		{
@@ -547,7 +547,7 @@ std::string GetSystemFontFile(const std::wstring& faceName) {
 
 	wsFontFile = std::wstring(winDir) + L"\\Fonts\\" + wsFontFile;
 
-	return ntcvt::wcbs2a<std::string>(wsFontFile.data(), wsFontFile.size());
+	return ntcvt::wcbs2a<std::string>(wsFontFile.data(), (int)wsFontFile.size());
 }
 
 

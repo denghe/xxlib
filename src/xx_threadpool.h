@@ -111,7 +111,11 @@ namespace xx {
                             j = std::move(jobs.front());
                             jobs.pop();
                         }
-                        e(j);
+                        if constexpr (has_OperatorParentheses<Env>::value) {
+                            e(j);
+                        } else {
+                            j(e);
+                        }
                     }
                     });
             }
