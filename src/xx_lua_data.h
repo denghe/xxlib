@@ -15,7 +15,6 @@ Push, To 适配及其用法 & 注意事项，见本文件最下方代码
 
 */
 
-#include "xx_data.h"
 #include "xx_lua_bind.h"
 
 namespace xx::Lua::Data {

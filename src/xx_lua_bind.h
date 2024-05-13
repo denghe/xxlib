@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "xx_lua.h"
 #include "xx_ptr.h"
+#include "xx_time.h"
+#include "xx_data.h"
 
 // lua 5.1 没有这个东西，需要自己动手，为每个 state 于创建后立刻执行下列语句以确保 LUA_RIDX_MAINTHREAD 的值跨 state 一致：
 // auto rtv = lua_pushthread(L);
